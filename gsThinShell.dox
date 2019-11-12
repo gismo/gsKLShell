@@ -1,0 +1,10 @@
+namespace gismo 
+{
+
+/** \defgroup ThinShell Thin Shell module
+
+    This module is about solving elasticity problems on thin shells.
+
+*/
+
+}
