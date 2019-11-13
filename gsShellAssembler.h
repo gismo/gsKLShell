@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include <gsThinShell2/gsShellUtils.h>
+
 namespace gismo
 {
 
@@ -48,7 +50,19 @@ public:
     gsShellAssembler(   const gsMultiPatch<T> & patches,
                         const gsMultiBasis<T> & basis,
                         const gsBoundaryConditions<T> & bconditions,
-                        const gsFunction<T> & thickness);
+                        const gsFunction<T> & surface_force,
+                        const gsFunction<T> & thickness,
+                        T YoungsModulus,
+                        T PoissonsRatio);
+
+    gsShellAssembler(   const gsMultiPatch<T> & patches,
+                        const gsMultiBasis<T> & basis,
+                        const gsBoundaryConditions<T> & bconditions,
+                        const gsFunction<T> & surface_force,
+                        const gsFunction<T> & thickness,
+                        const gsFunction<T> & YoungsModulus,
+                        const gsFunction<T> & PoissonsRatio);
+
 
 
     /// @brief Returns the list of default options for assembly
@@ -66,37 +80,36 @@ public:
     /// @ brief Assembles the tangential matrix and the residual for a iteration of Newton's method for displacement formulation;
     /// set *assembleMatrix* to false to only assemble the residual;
     /// ATTENTION: rhs() returns a negative residual (-r) !!!
-    virtual void assemble(const gsMultiPatch<T> & displacement,bool assembleMatrix = true);
+    virtual void assemble(const gsMultiPatch<T> & deformed,     bool assembleMatrix = true);
+    virtual void assemble(const gsMatrix<T>     & solVector,    bool assembleMatrix = true);
 
+    virtual void assembleMatrix(const gsMultiPatch<T>   & deformed  );
+    virtual void assembleMatrix(const gsMatrix<T>       & solVector );
+
+    virtual void assembleVector(const gsMultiPatch<T>   & deformed  );
+    virtual void assembleVector(const gsMatrix<T>       & solVector );
+
+    //--------------------- SYSTEM ACCESS ----------------------------------//
+    virtual gsSparseMatrix<T>   matrix()   {return m_assembler.matrix();}
+    virtual gsVector<T>         rhs()      {return m_assembler.rhs();}
 
     //--------------------- SOLUTION CONSTRUCTION ----------------------------------//
 
-    /// @brief Construct displacement from computed solution vector
-    virtual void constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & displacement) const;
+    /// @brief Construct deformed shell geometry from computed solution vector
+    virtual gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const;
+    virtual void constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const;
 
-    /// @brief Construct displacement from computed solution vector and fixed degrees of freedom
-    virtual void constructSolution(const gsMatrix<T> & solVector,
-                                   const std::vector<gsMatrix<T> > & fixedDoFs,
-                                   gsMultiPatch<T> & displacement) const;
+    virtual gsMultiPatch<T> constructDisplacement(const gsMatrix<T> & solVector) const;
+    virtual void constructDisplacement(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const;
 
-    /// @brief Construct displacement and pressure from computed solution vector
-    virtual void constructSolution(const gsMatrix<T> & solVector,
-                                   gsMultiPatch<T> & displacement, gsMultiPatch<T> & pressure) const;
 
-    /// @brief Construct displacement and pressure from computed solution vector and fixed degrees of freedom
-    virtual void constructSolution(const gsMatrix<T> & solVector,
-                                   const std::vector<gsMatrix<T> > & fixedDoFs,
-                                   gsMultiPatch<T> & displacement, gsMultiPatch<T> & pressure) const;
-
-    /// @ brief Construct pressure from computed solution vector
-    virtual void constructPressure(const gsMatrix<T> & solVector, gsMultiPatch<T> & pressure) const;
 
     //--------------------- SPECIALS ----------------------------------//
 
-    /// @brief Construct Cauchy stress tensor for visualization (only valid for linear elasticity)
-    void constructCauchyStresses(const gsMultiPatch<T> & displacement,
-                                 gsPiecewiseFunction<T> & result,
-                                 stress_type::type type = stress_type::von_mises) const;
+    // /// @brief Construct Cauchy stress tensor for visualization (only valid for linear elasticity)
+    // void constructCauchyStresses(const gsMultiPatch<T> & displacement,
+    //                              gsPiecewiseFunction<T> & result,
+    //                              stress_type::type type = stress_type::von_mises) const;
 
     /// @brief Check whether the displacement field is valid, i.e. J = det(F) > 0;
     /// return -1 if yes or a number of the first invalid patch
@@ -106,11 +119,6 @@ public:
     virtual T solutionJacRatio(const gsMultiPatch<T> & solution) const;
 
 protected:
-    virtual void assembleMatrix(const gsMultiPatch<T> & displacement);
-
-    virtual void assembleVector(const gsMultiPatch<T> & displacement);
-
-    virtual void assemble(const gsMultiPatch<T> & displacement,bool assembleMatrix = true);
 
 
 
@@ -129,6 +137,7 @@ protected:
     space m_space;
 
     gsMultiPatch<T> m_patches;
+    gsMultiPatch<T> m_defpatches;
     gsMultiBasis<T> m_basis;
     gsBoundaryConditions<T> m_bcs;
 
@@ -148,7 +157,7 @@ protected:
     // matrix for multiplication of last entries of components.
     variable m_m2;
 
-    auto m_Em, m_Em_der, m_Em_der2, m_Ef, m_Ef_der, m_Ef_der2;
+    static auto m_Em, m_Em_der, m_Em_der2, m_Ef, m_Ef_der, m_Ef_der2;
 
 };
 

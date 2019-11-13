@@ -84,15 +84,15 @@ template <class T>
 void gsShellAssembler<T>::initialize()
 {
     //gsInfo<<"Active options:\n"<< m_assembler.options() <<"\n";
-
+    m_defpatches = m_patches;
 
     // Elements used for numerical integration
-    m_assembler.setIntegrationElements(dbasis);
+    m_assembler.setIntegrationElements(m_basis);
     m_evaluator = gsExprEvaluator<> ev(m_assembler);
 
     // Set the geometry map
-    m_ori = m_assembler.getMap(mp);           // this map is used for integrals
-    m_def = m_assembler.getMap(mp_def);
+    m_ori = m_assembler.getMap(m_patches);           // this map is used for integrals
+    m_def = m_assembler.getMap(m_defpatches);
 
     // Set the discretization space
     m_space = m_assembler.getSpace(dbasis, 3);
@@ -118,17 +118,30 @@ void gsShellAssembler<T>::defineComponents()
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",3);
     m_m2 = m_assembler.getCoeff(mult2t, m_ori);
 
-    // Define components
-    // m_def is geometry map of deformed shell
-    // m_ori is geometry map of undeformed shell
-    // m_space is the solution space
-    auto m_Em = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) ; //[checked]
-    auto m_Em_der = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
-    auto m_Em_der2 = flatdot( jac(m_space),jac(m_space).tr(), m_Em * reshape(m_materialMat,3,3) ); //[checked]
+    /*
+        We provide the following functions:                                 checked with previous assembler
+            m_Em            membrane strain tensor.                             V
+            m_Em_der        first variation of E_m.                             V
+            m_Em_der2       second variation of E_m MULTIPLIED BY S_m.          V
+            m_Ef            flexural strain tensor.                             V
+            m_Ef_der        second variation of E_f.                            V
+            m_Ef_der2       second variation of E_f MULTIPLIED BY S_f.          V
 
-    auto m_Ef = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) ; //[checked]
-    auto m_Ef_der = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(u,m_def) ) ) * reshape(m_m2,3,3); //[checked]
-    auto m_Ef_der2 = flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_Ef * reshape(m_materialMat,3,3)  ).symmetrize()
+        Where:
+            m_ori           geometry map of the the undeformed geometry,
+            m_def           geometry map of the deformed geometry,
+            m_materialMat   the material matrix,
+            m_m2            an auxillary matrix to multiply the last row of a tensor with 2
+            m_space         solution space
+    **/
+
+    m_Em = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) ; //[checked]
+    m_Em_der = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
+    m_Em_der2 = flatdot( jac(m_space),jac(m_space).tr(), m_Em * reshape(m_materialMat,3,3) ); //[checked]
+
+    m_Ef = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) ; //[checked]
+    m_Ef_der = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(u,m_def) ) ) * reshape(m_m2,3,3); //[checked]
+    m_Ef_der2 = flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_Ef * reshape(m_materialMat,3,3)  ).symmetrize()
                     + var2(m_space,m_space,m_def,m_Ef * reshape(m_materialMat,3,3) );
 }
 
@@ -164,8 +177,10 @@ void gsShellAssembler<T>::assemble()
 // }
 
 template <class T>
-bool gsShellAssembler<T>::assembleMatrix()
+bool gsShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
 {
+    m_defpatches = deformed;
+
     // Initialize matrix
     m_assembler.initMatrix();
 
@@ -178,10 +193,18 @@ bool gsShellAssembler<T>::assembleMatrix()
                 ) * meas(m_ori)
                 );
 }
+template<class T>
+void gsElasticityAssembler<T>::assemble(const gsMatrix<T> & solVector)
+{
+    constructSolution(solVector, m_defpatches);
+    assembleMatrix(m_defpatches);
+}
 
 template <class T>
-bool gsShellAssembler<T>::assembleVector()
+bool gsShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
 {
+    m_defpatches = deformed;
+
     // Initialize vector
     m_assembler.initVector();
 
@@ -195,26 +218,71 @@ bool gsShellAssembler<T>::assembleVector()
                 ).tr()
                 );
 }
-
-// TO DO
 template<class T>
-void gsElasticityAssembler<T>::assemble(const gsMultiPatch<T> & displacement,
+void gsElasticityAssembler<T>::assemble(const gsMatrix<T> & solVector)
+{
+    constructSolution(solVector, m_defpatches);
+    assembleVector(m_defpatches);
+}
+
+template<class T>
+void gsElasticityAssembler<T>::assemble(const gsMultiPatch<T> & deformed,
                                         bool assembleMatrix)
 {
-    constructSolution(displacement);
+    m_defpatches = deformed;
 
     if (assembleMatrix)
     {
-        assembleMatrix(displacement);
+        assembleMatrix(deformed);
     }
-    assembleVector(displacement);
+    assembleVector(deformed);
+}
+template<class T>
+void gsElasticityAssembler<T>::assemble(const gsMatrix<T> & solVector,
+                                        bool assembleMatrix)
+{
+    constructSolution(solVector, m_defpatches);
+    assemble(m_defpatches,assembleMatrix);
 }
 
 template <class T>
-void gsElasticityAssembler<T>::constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & result) const
+gsMultiPatch<T> gsElasticityAssembler<T>::constructSolution(const gsMatrix<T> & solVector) const
 {
+    gsMultiPatch<T> mp = m_patches;
 
+    m_solution.setSolutionVector(solVector);
+
+    GISMO_ASSERT(m_defpatches.nPatches()==mp.nPatches(),"The number of patches of the result multipatch is not equal to that of the geometry!");
+
+    gsMatrix<T> cc;
+    for ( size_t k =0; k!=mp.nPatches(); ++k) // Deform the geometry
+    {
+        // // extract deformed geometry
+        u_sol.extract(cc, k);
+        mp.patch(k).coefs() += cc;  // defG points to mp_def, therefore updated
+    }
 }
 
+template <class T>
+void gsElasticityAssembler<T>::constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
+{
+    deformed = constructSolution(solVector);
+}
+
+template <class T>
+gsMultiPatch<T> gsElasticityAssembler<T>::constructDisplacement(const gsMatrix<T> & solVector) const
+{
+    gsMultiPatch<T> displacement = constructSolution(solVector);
+    for ( size_t k =0; k!=deformed.nPatches(); ++k) // Deform the geometry
+    {
+        displacement.patch(k).coefs() -= m_patches.patch(0).coefs();;  // defG points to mp_def, therefore updated
+    }
+}
+
+template <class T>
+void gsElasticityAssembler<T>::constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
+{
+    deformed = constructDisplacement(solVector);
+}
 
 }// namespace gismo
