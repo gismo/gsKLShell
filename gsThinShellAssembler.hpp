@@ -17,7 +17,6 @@
 
 #include <gsThinShell2/gsThinShellAssembler.h>
 #include <gsThinShell2/gsMaterialMatrix.h>
-#include <gsThinShell2/gsShellUtils.h>
 
 namespace gismo
 {
@@ -35,11 +34,12 @@ gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
                                         m_patches(patches),
                                         m_basis(basis),
                                         m_bcs(bconditions),
-                                        m_surfforce(surface_force),
-                                        m_thickness(thickness),
+                                        m_forceFun(surface_force),
+                                        m_thickFun(thickness)
 {
-    m_Youngs = gsConstantFunction(YoungsModulus,3);
-    m_Youngs = gsConstantFunction(PoissonsRatio,3);
+    m_YoungsModulus = gsConstantFunction(YoungsModulus,3);
+    m_PoissonsRatio = gsConstantFunction(PoissonsRatio,3);
+    this->initialize();
 }
 
 template<class T>
@@ -49,28 +49,26 @@ gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
                                         const gsFunction<T> & surface_force,
                                         const gsFunction<T> & thickness,
                                         const gsFunction<T> & YoungsModulus,
-                                        const gsFunction<T> & PoissonsRatio,
+                                        const gsFunction<T> & PoissonsRatio
                                         )
                                         :
                                         m_patches(patches),
                                         m_basis(basis),
                                         m_bcs(bconditions),
-                                        m_surfforce(surface_force),
-                                        m_thickness(thickness),
-                                        m_Youngs(YoungsModulus),
-                                        m_Poisson(PoissonsRatio),
+                                        m_forceFun(surface_force),
+                                        m_thickFun(thickness),
+                                        m_YoungsModulus(YoungsModulus),
+                                        m_PoissonsRatio(PoissonsRatio)
 {
-
+    this->initialize();
 }
 
 template <class T>
-gsOptionList gsElasticityAssembler<T>::defaultOptions()
+gsOptionList gsThinShellAssembler<T>::defaultOptions()
 {
     gsOptionList & opt = m_assembler.options();
-    // opt.addReal("YoungsModulus","Youngs modulus of the material",200e9);
-    // opt.addReal("PoissonsRatio","Poisson's ratio of the material",0.33);
-    // opt.addReal("ForceScaling","Force scaling parameter",1.);
-    opt.addInt("MaterialLaw","Material law: 0 for St. Venant-Kirchhof, 1 for Neo-Hooke",material_law::saint_venant_kirchhoff);
+    // to do
+    // opt.addInt("MaterialLaw","Material law: 0 for St. Venant-Kirchhof, 1 for Neo-Hooke",material_law::saint_venant_kirchhoff);
     return opt;
 }
 
@@ -88,16 +86,19 @@ void gsThinShellAssembler<T>::initialize()
 
     // Elements used for numerical integration
     m_assembler.setIntegrationElements(m_basis);
-    m_evaluator = gsExprEvaluator<> ev(m_assembler);
+
+    // initialize expression evaluator
+    gsExprEvaluator<T> evaluator(m_assembler);
+    m_evaluator = evaluator;
 
     // Set the geometry map
     m_ori = m_assembler.getMap(m_patches);           // this map is used for integrals
     m_def = m_assembler.getMap(m_defpatches);
 
     // Set the discretization space
-    m_space = m_assembler.getSpace(dbasis, 3);
+    m_space = m_assembler.getSpace(m_basis, 3);
     m_space.setInterfaceCont(0); // todo: 1 (smooth basis)
-    m_space.addBc( bc.get("Dirichlet") ); // (!) must be called only once
+    m_space.addBc( m_bcs.get("Dirichlet") ); // (!) must be called only once
 
     // Solution vector and solution variable
     m_solution = m_assembler.getSolution(m_space, m_solvector);
@@ -112,7 +113,7 @@ void gsThinShellAssembler<T>::initialize()
 template <class T>
 void gsThinShellAssembler<T>::defineComponents()
 {
-    gsMaterialMatrix materialMat(m_patches, m_young, m_poiss);
+    gsMaterialMatrix materialMat(m_patches, m_YoungsModulus, m_YoungsModulus);
     m_materialMat = m_assembler.getCoeff(materialMat);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",3);
@@ -140,7 +141,7 @@ void gsThinShellAssembler<T>::defineComponents()
     m_Em_der2 = flatdot( jac(m_space),jac(m_space).tr(), m_Em * reshape(m_materialMat,3,3) ); //[checked]
 
     m_Ef = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) ; //[checked]
-    m_Ef_der = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(u,m_def) ) ) * reshape(m_m2,3,3); //[checked]
+    m_Ef_der = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
     m_Ef_der2 = flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_Ef * reshape(m_materialMat,3,3)  ).symmetrize()
                     + var2(m_space,m_space,m_def,m_Ef * reshape(m_materialMat,3,3) );
 }
@@ -154,7 +155,7 @@ void gsThinShellAssembler<T>::assemble()
     // assemble system
     m_assembler.assemble(
         (
-            (m_thick.val()) * (m_Em_der * reshape(mm,3,3) * m_Em_der.tr())
+            (m_thick.val()) * (m_Em_der * reshape(m_materialMat,3,3) * m_Em_der.tr())
             +
             (m_thick.val() * m_thick.val() * m_thick.val())/3.0 * (m_Ef_der * reshape(m_materialMat,3,3) * m_Ef_der.tr())
         ) * meas(m_ori)
@@ -177,7 +178,7 @@ void gsThinShellAssembler<T>::assemble()
 // }
 
 template <class T>
-bool gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
+void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
 {
     m_defpatches = deformed;
 
@@ -187,21 +188,21 @@ bool gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     // Assemble matrix
     m_assembler.assemble(
                 (
-                    (m_thick.val()) * (m_Em_der * reshape(mm,3,3) * m_Em_der.tr() + m_Em_der2)
+                    (m_thick.val()) * (m_Em_der * reshape(m_materialMat,3,3) * m_Em_der.tr() + m_Em_der2)
                     +
                     (m_thick.val() * m_thick.val() * m_thick.val())/3.0 * (m_Ef_der * reshape(m_materialMat,3,3) * m_Ef_der.tr() - m_Ef_der2)
                 ) * meas(m_ori)
                 );
 }
 template<class T>
-void gsElasticityAssembler<T>::assemble(const gsMatrix<T> & solVector)
+void gsThinShellAssembler<T>::assembleMatrix(const gsMatrix<T> & solVector)
 {
     constructSolution(solVector, m_defpatches);
     assembleMatrix(m_defpatches);
 }
 
 template <class T>
-bool gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
+void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
 {
     m_defpatches = deformed;
 
@@ -219,14 +220,14 @@ bool gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
                 );
 }
 template<class T>
-void gsElasticityAssembler<T>::assemble(const gsMatrix<T> & solVector)
+void gsThinShellAssembler<T>::assembleVector(const gsMatrix<T> & solVector)
 {
     constructSolution(solVector, m_defpatches);
     assembleVector(m_defpatches);
 }
 
 template<class T>
-void gsElasticityAssembler<T>::assemble(const gsMultiPatch<T> & deformed,
+void gsThinShellAssembler<T>::assemble(const gsMultiPatch<T> & deformed,
                                         bool assembleMatrix)
 {
     m_defpatches = deformed;
@@ -238,7 +239,7 @@ void gsElasticityAssembler<T>::assemble(const gsMultiPatch<T> & deformed,
     assembleVector(deformed);
 }
 template<class T>
-void gsElasticityAssembler<T>::assemble(const gsMatrix<T> & solVector,
+void gsThinShellAssembler<T>::assemble(const gsMatrix<T> & solVector,
                                         bool assembleMatrix)
 {
     constructSolution(solVector, m_defpatches);
@@ -246,7 +247,7 @@ void gsElasticityAssembler<T>::assemble(const gsMatrix<T> & solVector,
 }
 
 template <class T>
-gsMultiPatch<T> gsElasticityAssembler<T>::constructSolution(const gsMatrix<T> & solVector) const
+gsMultiPatch<T> gsThinShellAssembler<T>::constructSolution(const gsMatrix<T> & solVector) const
 {
     gsMultiPatch<T> mp = m_patches;
 
@@ -258,29 +259,29 @@ gsMultiPatch<T> gsElasticityAssembler<T>::constructSolution(const gsMatrix<T> & 
     for ( size_t k =0; k!=mp.nPatches(); ++k) // Deform the geometry
     {
         // // extract deformed geometry
-        u_sol.extract(cc, k);
+        m_solution.extract(cc, k);
         mp.patch(k).coefs() += cc;  // defG points to mp_def, therefore updated
     }
 }
 
 template <class T>
-void gsElasticityAssembler<T>::constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
+void gsThinShellAssembler<T>::constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
 {
     deformed = constructSolution(solVector);
 }
 
 template <class T>
-gsMultiPatch<T> gsElasticityAssembler<T>::constructDisplacement(const gsMatrix<T> & solVector) const
+gsMultiPatch<T> gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T> & solVector) const
 {
     gsMultiPatch<T> displacement = constructSolution(solVector);
-    for ( size_t k =0; k!=deformed.nPatches(); ++k) // Deform the geometry
+    for ( size_t k =0; k!=displacement.nPatches(); ++k) // Deform the geometry
     {
         displacement.patch(k).coefs() -= m_patches.patch(0).coefs();;  // defG points to mp_def, therefore updated
     }
 }
 
 template <class T>
-void gsElasticityAssembler<T>::constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
+void gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
 {
     deformed = constructDisplacement(solVector);
 }

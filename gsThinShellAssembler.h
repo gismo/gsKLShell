@@ -8,7 +8,9 @@
     License, v. 2.0. If a copy of the MPL was not distributed with this
     file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    Author(s): A. Goyal, A. Mantzaflaris
+    Author(s):
+        H.M. Verhelst   (2019-..., TU Delft)
+        A. Mantzaflaris (2019-..., Inria)
 */
 
 #pragma once
@@ -66,38 +68,38 @@ public:
 
 
     /// @brief Returns the list of default options for assembly
-    static gsOptionList defaultOptions();
+    gsOptionList defaultOptions();
 
     //--------------------- SYSTEM ASSEMBLY ----------------------------------//
 
     /// @brief Assembles the stiffness matrix and the RHS for the LINEAR ELASTICITY
     /// set *assembleMatrix* to false to only assemble the RHS;
-    virtual void assemble();
+    void assemble();
 
     /// @ brief Assembles the tangential matrix and the residual for a iteration of Newton's method for displacement formulation;
     /// set *assembleMatrix* to false to only assemble the residual;
     /// ATTENTION: rhs() returns a negative residual (-r) !!!
-    virtual void assemble(const gsMultiPatch<T> & deformed,     bool assembleMatrix = true);
-    virtual void assemble(const gsMatrix<T>     & solVector,    bool assembleMatrix = true);
+    void assemble(const gsMultiPatch<T> & deformed,     bool assembleMatrix = true);
+    void assemble(const gsMatrix<T>     & solVector,    bool assembleMatrix = true);
 
-    virtual void assembleMatrix(const gsMultiPatch<T>   & deformed  );
-    virtual void assembleMatrix(const gsMatrix<T>       & solVector );
+    void assembleMatrix(const gsMultiPatch<T>   & deformed  );
+    void assembleMatrix(const gsMatrix<T>       & solVector );
 
-    virtual void assembleVector(const gsMultiPatch<T>   & deformed  );
-    virtual void assembleVector(const gsMatrix<T>       & solVector );
+    void assembleVector(const gsMultiPatch<T>   & deformed  );
+    void assembleVector(const gsMatrix<T>       & solVector );
 
     //--------------------- SYSTEM ACCESS ----------------------------------//
-    virtual gsSparseMatrix<T>   matrix()   {return m_assembler.matrix();}
-    virtual gsVector<T>         rhs()      {return m_assembler.rhs();}
+    gsSparseMatrix<T>   matrix()   {return m_assembler.matrix();}
+    gsVector<T>         rhs()      {return m_assembler.rhs();}
 
     //--------------------- SOLUTION CONSTRUCTION ----------------------------------//
 
     /// @brief Construct deformed shell geometry from computed solution vector
-    virtual gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const;
-    virtual void constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const;
+    gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const;
+    void constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const;
 
-    virtual gsMultiPatch<T> constructDisplacement(const gsMatrix<T> & solVector) const;
-    virtual void constructDisplacement(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const;
+    gsMultiPatch<T> constructDisplacement(const gsMatrix<T> & solVector) const;
+    void constructDisplacement(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const;
 
 
 
@@ -110,14 +112,15 @@ public:
 
     /// @brief Check whether the displacement field is valid, i.e. J = det(F) > 0;
     /// return -1 if yes or a number of the first invalid patch
-    virtual index_t checkSolution(const gsMultiPatch<T> & solution) const;
+    index_t checkSolution(const gsMultiPatch<T> & solution) const;
 
     /// @brief Return minJ/maxJ
-    virtual T solutionJacRatio(const gsMultiPatch<T> & solution) const;
+    T solutionJacRatio(const gsMultiPatch<T> & solution) const;
 
 protected:
 
-
+    void initialize();
+    void defineComponents();
 
 protected:
     typedef gsExprAssembler<>::geometryMap geometryMap;
@@ -149,7 +152,7 @@ protected:
     solution m_solution;
 
     // material matrix
-    variable m_materialmat;
+    variable m_materialMat;
 
     // matrix for multiplication of last entries of components.
     variable m_m2;
