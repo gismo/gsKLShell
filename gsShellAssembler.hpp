@@ -1,4 +1,4 @@
-/** @file gsShellAssembler.hpp
+/** @file gsThinShellAssembler.hpp
 
     @brief Provides linear and nonlinear elasticity systems for thin shells.
 
@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <gsThinShell2/gsShellAssembler.h>
+#include <gsThinShell2/gsThinShellAssembler.h>
 #include <gsThinShell2/gsMaterialMatrix.h>
 #include <gsThinShell2/gsShellUtils.h>
 
@@ -23,7 +23,7 @@ namespace gismo
 {
 
 template<class T>
-gsShellAssembler<T>::gsShellAssembler(  const gsMultiPatch<T> & patches,
+gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
                                         const gsMultiBasis<T> & basis,
                                         const gsBoundaryConditions<T> & bconditions,
                                         const gsFunction<T> & surface_force,
@@ -43,7 +43,7 @@ gsShellAssembler<T>::gsShellAssembler(  const gsMultiPatch<T> & patches,
 }
 
 template<class T>
-gsShellAssembler<T>::gsShellAssembler(  const gsMultiPatch<T> & patches,
+gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
                                         const gsMultiBasis<T> & basis,
                                         const gsBoundaryConditions<T> & bconditions,
                                         const gsFunction<T> & surface_force,
@@ -81,7 +81,7 @@ gsOptionList gsElasticityAssembler<T>::defaultOptions()
 */
 
 template <class T>
-void gsShellAssembler<T>::initialize()
+void gsThinShellAssembler<T>::initialize()
 {
     //gsInfo<<"Active options:\n"<< m_assembler.options() <<"\n";
     m_defpatches = m_patches;
@@ -110,7 +110,7 @@ void gsShellAssembler<T>::initialize()
 }
 
 template <class T>
-void gsShellAssembler<T>::defineComponents()
+void gsThinShellAssembler<T>::defineComponents()
 {
     gsMaterialMatrix materialMat(m_patches, m_young, m_poiss);
     m_materialMat = m_assembler.getCoeff(materialMat);
@@ -146,7 +146,7 @@ void gsShellAssembler<T>::defineComponents()
 }
 
 template<class T>
-void gsShellAssembler<T>::assemble()
+void gsThinShellAssembler<T>::assemble()
 {
     // Initialize stystem
     m_assembler.initSystem();
@@ -164,7 +164,7 @@ void gsShellAssembler<T>::assemble()
 
 // TO DO
 // template <class T>
-// bool gsShellAssembler<T>::assemble(const gsMatrix<T> & solutionVector,
+// bool gsThinShellAssembler<T>::assemble(const gsMatrix<T> & solutionVector,
 //                                         const std::vector<gsMatrix<T> > & fixedDoFs,
 //                                         bool assembleMatrix)
 // {
@@ -177,7 +177,7 @@ void gsShellAssembler<T>::assemble()
 // }
 
 template <class T>
-bool gsShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
+bool gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
 {
     m_defpatches = deformed;
 
@@ -201,7 +201,7 @@ void gsElasticityAssembler<T>::assemble(const gsMatrix<T> & solVector)
 }
 
 template <class T>
-bool gsShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
+bool gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
 {
     m_defpatches = deformed;
 

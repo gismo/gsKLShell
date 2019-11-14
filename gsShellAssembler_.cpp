@@ -1,13 +1,13 @@
 
 #include <gsCore/gsTemplateTools.h>
 
-#include <gsThinShell/gsThinShellFunctions.h>
-#include <gsThinShell/gsThinShellFunctions.hpp>
+// #include <gsThinShell2/gsThinShellFunctions.h>
+// #include <gsThinShell2/gsThinShellFunctions.hpp>
 
-#include <gsThinShell/gsShellAssembler.h>
-#include <gsThinShell/gsShellAssembler.hpp>
+#include <gsThinShell2/gsThinShellAssembler.h>
+#include <gsThinShell2/gsThinShellAssembler.hpp>
 
 namespace gismo
 {
-    	CLASS_TEMPLATE_INST gsShellAssembler<real_t>;
+    	CLASS_TEMPLATE_INST gsThinShellAssembler<real_t>;
 }
