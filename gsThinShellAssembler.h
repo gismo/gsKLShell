@@ -131,10 +131,15 @@ protected:
     gsExprAssembler<> m_assembler;
     gsExprEvaluator<> m_evaluator;
 
-    geometryMap m_ori;
-    geometryMap m_def;
+    // geometryMap m_ori;
+    // geometryMap m_def;
+    // space m_space;
+    solution m_solution;
 
-    space m_space;
+    //expr::gsFeVariable<T> * m_force;
+    variable m_thick;
+    variable m_materialMat; // material matrix
+    variable m_m2; // matrix for multiplication of last entries of components.
 
     gsMultiPatch<T> m_patches;
     gsMultiPatch<T> m_defpatches;
@@ -145,17 +150,8 @@ protected:
     const gsFunction<T> * m_PoissonsRatio;
     const gsFunction<T> * m_forceFun;
     const gsFunction<T> * m_thickFun;
-    variable m_force;
-    variable m_thick;
 
     gsMatrix<T> m_solvector;
-    solution m_solution;
-
-    // material matrix
-    variable m_materialMat;
-
-    // matrix for multiplication of last entries of components.
-    variable m_m2;
 
     /*
         Make type aliasses for function expressions
@@ -181,6 +177,9 @@ protected:
         template <typename T1> using G_t         = gismo::expr::gsGeometryMap<T1>;
         template <typename T1> using var_t       = gismo::expr::gsFeVariable<T1>;
         template <typename T1> using reshape_t   = gismo::expr::reshape_expr<T1>;
+
+
+        //typedef decltype(   ) Some_t; ??
 
         template <typename T1> using Em_t  =
         mult_t
