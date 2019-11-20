@@ -134,20 +134,20 @@ protected:
     // geometryMap m_ori;
     // geometryMap m_def;
     // space m_space;
-    solution m_solution;
+    mutable solution m_solution;
 
     //expr::gsFeVariable<T> * m_force;
-    variable m_thick;
-    variable m_materialMat; // material matrix
-    variable m_m2; // matrix for multiplication of last entries of components.
+    // variable m_thick;
+    // variable m_materialMat; // material matrix
+    // variable m_m2; // matrix for multiplication of last entries of components.
 
     gsMultiPatch<T> m_patches;
     gsMultiPatch<T> m_defpatches;
     gsMultiBasis<T> m_basis;
     gsBoundaryConditions<T> m_bcs;
 
-    const gsFunction<T> * m_YoungsModulus;
-    const gsFunction<T> * m_PoissonsRatio;
+    gsFunction<T> * m_YoungsModulus;
+    gsFunction<T> * m_PoissonsRatio;
     const gsFunction<T> * m_forceFun;
     const gsFunction<T> * m_thickFun;
 
@@ -156,110 +156,207 @@ protected:
     /*
         Make type aliasses for function expressions
     */
-        template <typename T1, typename T2, typename T3 > using var2_t = gismo::expr::var2_expr<T1,T2,T3>;
-        template <typename T1, typename T2, typename T3 > using flatdot_t = gismo::expr::flatdot_expr<T1,T2,T3 >;
-        template <typename T1, typename T2, typename T3 > using flatdot2_t= gismo::expr::flatdot2_expr<T1,T2,T3 >;
-        template <typename T1, typename T2  > using mult_t = gismo::expr::mult_expr<T1,T2,false >;
-        template <typename T1, typename T2  > using add_t  = gismo::expr::add_expr<T1,T2>;
-        template <typename T1, typename T2  > using sub_t  = gismo::expr::sub_expr<T1,T2>;
-        template <typename T1, typename T2  > using der2d_t= gismo::expr::deriv2dot_expr<T1,T2>;
+    template <typename T1, typename T2, typename T3 > using var2_t = gismo::expr::var2_expr<T1,T2,T3>;
+    template <typename T1, typename T2, typename T3 > using flatdot_t = gismo::expr::flatdot_expr<T1,T2,T3 >;
+    template <typename T1, typename T2, typename T3 > using flatdot2_t= gismo::expr::flatdot2_expr<T1,T2,T3 >;
+    template <typename T1, typename T2  > using mult_t = gismo::expr::mult_expr<T1,T2,false >;
+    template <typename T1, typename T2  > using divide_t= gismo::expr::divide_expr<T1,T2 >;
+    template <typename T1, typename T2  > using add_t  = gismo::expr::add_expr<T1,T2>;
+    template <typename T1, typename T2  > using sub_t  = gismo::expr::sub_expr<T1,T2>;
+    template <typename T1, typename T2  > using der2d_t= gismo::expr::deriv2dot_expr<T1,T2>;
 
-        template <typename T1> using jacG_t      = gismo::expr::jacG_expr<T1>;
-        template <typename T1> using jac_t       = gismo::expr::jac_expr<T1>;
-        template <typename T1> using sn_t        = gismo::expr::normal_expr<T1>;
-        template <typename T1> using var1_t      = gismo::expr::var1_expr<T1>;
-        template <typename T1> using der2_t      = gismo::expr::deriv2_expr<T1>;
-        template <typename T1> using normalized_t= gismo::expr::normalized_expr<T1>;
-        template <typename T1> using symmetrize_t= gismo::expr::symmetrize_expr<T1>;
-        template <typename T1> using flat_t      = gismo::expr::flat_expr<T1>;
-        template <typename T1> using tr_t        = gismo::expr::tr_expr<T1>;
-        template <typename T1> using u_t         = gismo::expr::gsFeSpace<T1>;
-        template <typename T1> using G_t         = gismo::expr::gsGeometryMap<T1>;
-        template <typename T1> using var_t       = gismo::expr::gsFeVariable<T1>;
-        template <typename T1> using reshape_t   = gismo::expr::reshape_expr<T1>;
+    template <typename T1> using jacG_t      = gismo::expr::jacG_expr<T1>;
+    template <typename T1> using jac_t       = gismo::expr::jac_expr<T1>;
+    template <typename T1> using sn_t        = gismo::expr::normal_expr<T1>;
+    template <typename T1> using var1_t      = gismo::expr::var1_expr<T1>;
+    template <typename T1> using der2_t      = gismo::expr::deriv2_expr<T1>;
+    template <typename T1> using normalized_t= gismo::expr::normalized_expr<T1>;
+    template <typename T1> using symmetrize_t= gismo::expr::symmetrize_expr<T1>;
+    template <typename T1> using flat_t      = gismo::expr::flat_expr<T1>;
+    template <typename T1> using tr_t        = gismo::expr::tr_expr<T1>;
+    template <typename T1> using u_t         = gismo::expr::gsFeSpace<T1>;
+    template <typename T1> using G_t         = gismo::expr::gsGeometryMap<T1>;
+    template <typename T1> using var_t       = gismo::expr::gsFeVariable<T1>;
+    template <typename T1> using val_t       = gismo::expr::value_expr<T1>;
+    template <typename T1> using reshape_t   = gismo::expr::reshape_expr<T1>;
 
-
-        //typedef decltype(   ) Some_t; ??
-
-        template <typename T1> using Em_t  =
-        mult_t
-        < T1,
-            sub_t
+    template <typename T1> using Em_t  =
+    mult_t
+    < T,
+        sub_t
+        <
+            flat_t
             <
-                flat_t
-                <
-                    mult_t< tr_t< jacG_t<T1> >, jacG_t<T1> >
-                >
-                ,
-                flat_t
-                <
-                    mult_t< tr_t< jacG_t<T1> >, jacG_t<T1> >
-                >
-            >
-        >;
-
-        template <typename T1> using Em_der_t  =
-        flat_t
-        <
-            mult_t< tr_t< jacG_t<T1> >, jac_t<u_t<T1>> >
-        >;
-
-        template <typename T1> using Em_der2_t  =
-        flatdot_t
-        <
-            jac_t< u_t<T1> >,
-            tr_t< jac_t< u_t<T1> > >,
-            mult_t< Em_t<T1>,reshape_t< var_t<T1> > >
-        >;
-
-        template <typename T1> using Ef_t  =
-        mult_t
-        <
-            sub_t
-            <
-                der2d_t<G_t<T1>, tr_t< normalized_t< sn_t<T1> > > >
-                ,
-                der2d_t<G_t<T1>, tr_t< normalized_t< sn_t<T1> > > >
+                mult_t< tr_t< jacG_t<T1> >, jacG_t<T1> >
             >
             ,
-            reshape_t< var_t<T1> >
-        >;
-
-        template <typename T1> using Ef_der_t  =
-        mult_t
-        <
-            add_t
+            flat_t
             <
-                der2d_t<u_t<T1>, tr_t< normalized_t< sn_t<T1> > > >
-                ,
-                der2d_t<G_t<T1>, var1_t< u_t<T1> > >
+                mult_t< tr_t< jacG_t<T1> >, jacG_t<T1> >
             >
-            ,
-            reshape_t< var_t<T1> >
-        >;
+        >
+    >;
 
-        template <typename T1> using Ef_der2_t  =
+    template <typename T1> using Sm_t  =
+    mult_t
+    <
+        Em_t<T1>
+        ,
+        reshape_t< var_t <T1> >
+    >;
+
+    template <typename T1> using N_t  =
+    mult_t< val_t<var_t<T1>>, Sm_t<T1> >;
+
+    template <typename T1> using Em_der_t  =
+    flat_t
+    <
+        mult_t< tr_t< jacG_t<T1> >, jac_t<u_t<T1>> >
+    >;
+
+    template <typename T1> using Sm_der_t  =
+    mult_t
+    <
+        Em_der_t<T1>
+        ,
+        reshape_t< var_t <T1> >
+    >;
+
+    template <typename T1> using N_der_t  =
+    mult_t< val_t<var_t<T1>>, Sm_der_t<T1> >;
+
+    template <typename T1> using E_m_der2_t  =
+    flatdot_t
+    <
+        jac_t< u_t<T1> >,
+        tr_t< jac_t< u_t<T1> > >,
+        N_t<T1>
+    >;
+
+    template <typename T1> using Ef_t  =
+    mult_t
+    <
+        sub_t
+        <
+            der2d_t<G_t<T1>, tr_t< normalized_t< sn_t<T1> > > >
+            ,
+            der2d_t<G_t<T1>, tr_t< normalized_t< sn_t<T1> > > >
+        >
+        ,
+        reshape_t< var_t<T1> >
+    >;
+
+    template <typename T1> using Sf_t  =
+    mult_t
+    <
+        Ef_t<T1>
+        ,
+        reshape_t< var_t <T1> >
+    >;
+
+    template <typename T1> using M_t  =
+    mult_t
+    <
+        divide_t
+        <
+            mult_t
+            <
+                mult_t
+                <
+                    val_t<var_t<T1>>
+                    ,
+                    val_t<var_t<T1>>
+                >
+                ,
+                val_t<var_t<T1>>
+            >
+        ,
+        T1
+        >
+        ,
+        Sf_t<T1>
+    >;
+
+    template <typename T1> using Ef_der_t  =
+    mult_t
+    <
         add_t
         <
-            symmetrize_t
-            <
-                flatdot2_t
-                <
-                    der2_t< u_t<T1> >,
-                    tr_t< var1_t<u_t<T1> > >,
-                    mult_t < Ef_t<T1>, reshape_t< var_t <T1> > >
-                >
-            >
+            der2d_t<u_t<T1>, tr_t< normalized_t< sn_t<T1> > > >
             ,
-            var2_t< u_t<T1>, u_t<T1>, mult_t < Ef_t<T1>, reshape_t< var_t <T1> > > >
-        >;
+            der2d_t<G_t<T1>, var1_t< u_t<T1> > >
+        >
+        ,
+        reshape_t< var_t<T1> >
+    >;
+
+    template <typename T1> using Sf_der_t  =
+    mult_t
+    <
+        Ef_der_t<T1>
+        ,
+        reshape_t< var_t <T1> >
+    >;
+
+    template <typename T1> using M_der_t  =
+    mult_t
+    <
+        divide_t
+        <
+            mult_t
+            <
+                mult_t
+                <
+                    val_t<var_t<T1>>
+                    ,
+                    val_t<var_t<T1>>
+                >
+                ,
+                val_t<var_t<T1>>
+            >
+        ,
+        T1
+        >
+        ,
+        Sf_der_t<T1>
+    >;
+
+
+    template <typename T1> using E_f_der2_t  =
+    add_t
+    <
+        symmetrize_t
+        <
+            flatdot2_t
+            <
+                der2_t< u_t<T1> >,
+                tr_t< var1_t<u_t<T1> > >,
+                M_t<T1>
+            >
+        >
+        ,
+        var2_t< u_t<T1>, u_t<T1>, M_t<T1> >
+    >;
+
+    template <typename T1> using force_t = var_t<T1>;
 
     Em_t<T>         m_Em;
+    // Sm_t<T>         m_Sm;
+    N_t<T>          m_N;
     Em_der_t<T>     m_Em_der;
-    Em_der2_t<T>    m_Em_der2;
+    // Sm_der_t<T>     m_Sm_der;
+    N_der_t<T>      m_N_der;
+    E_m_der2_t<T>    m_Em_der2;
+
     Ef_t<T>         m_Ef;
+    // Sf_t<T>         m_Sf;
+    M_t<T>          m_M;
     Ef_der_t<T>     m_Ef_der;
-    Ef_der2_t<T>    m_Ef_der2;
+    Sf_der_t<T>     m_Sf_der;
+    M_der_t<T>      m_M_der;
+    E_f_der2_t<T>    m_Ef_der2;
+
+    force_t<T>      m_ff;
 
 };
 
