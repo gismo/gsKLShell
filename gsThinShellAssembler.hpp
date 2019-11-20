@@ -37,8 +37,8 @@ gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
                                         m_forceFun(&surface_force),
                                         m_thickFun(&thickness)
 {
-    *m_YoungsModulus = gsConstantFunction(YoungsModulus,3);
-    *m_PoissonsRatio = gsConstantFunction(PoissonsRatio,3);
+    m_YoungsModulus = memory::make_shared(new gsConstantFunction(YoungsModulus,3));
+    m_PoissonsRatio = memory::make_shared(new gsConstantFunction(PoissonsRatio,3));
     this->initialize();
 }
 
@@ -57,8 +57,8 @@ gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
                                         m_bcs(bconditions),
                                         m_forceFun(&surface_force),
                                         m_thickFun(&thickness),
-                                        m_YoungsModulus(&YoungsModulus),
-                                        m_PoissonsRatio(&PoissonsRatio)
+                                        m_YoungsModulus(memory::make_shared_not_owned(&YoungsModulus)),
+                                        m_PoissonsRatio(memory::make_shared_not_owned(&PoissonsRatio))
 {
     this->initialize();
 }

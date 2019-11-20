@@ -65,6 +65,10 @@ public:
                         const gsFunction<T> & YoungsModulus,
                         const gsFunction<T> & PoissonsRatio);
 
+    ~gsThinShellAssembler()
+    {
+
+    }
 
 
     /// @brief Returns the list of default options for assembly
@@ -146,8 +150,8 @@ protected:
     gsMultiBasis<T> m_basis;
     gsBoundaryConditions<T> m_bcs;
 
-    gsFunction<T> * m_YoungsModulus;
-    gsFunction<T> * m_PoissonsRatio;
+    typename gsFunction<T>::Ptr m_YoungsModulus;
+    typename gsFunction<T>::Ptr m_PoissonsRatio;
     const gsFunction<T> * m_forceFun;
     const gsFunction<T> * m_thickFun;
 
