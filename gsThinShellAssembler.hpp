@@ -340,6 +340,8 @@ gsMultiPatch<T> gsThinShellAssembler<T>::constructSolution(const gsMatrix<T> & s
         m_solution.extract(cc, k);
         mp.patch(k).coefs() += cc;  // defG points to mp_def, therefore updated
     }
+
+    return mp;
 }
 
 template <class T>
@@ -356,6 +358,8 @@ gsMultiPatch<T> gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T>
     {
         displacement.patch(k).coefs() -= m_patches.patch(0).coefs();;  // defG points to mp_def, therefore updated
     }
+
+    return displacement;
 }
 
 template <class T>
