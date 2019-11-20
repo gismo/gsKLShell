@@ -340,23 +340,23 @@ protected:
 
     template <typename T1> using force_t = var_t<T1>;
 
-    Em_t<T>         m_Em;
-    // Sm_t<T>         m_Sm;
-    N_t<T>          m_N;
-    Em_der_t<T>     m_Em_der;
-    // Sm_der_t<T>     m_Sm_der;
-    N_der_t<T>      m_N_der;
-    E_m_der2_t<T>    m_Em_der2;
+    // Em_t<T>         m_Em;
+    // // Sm_t<T>         m_Sm;
+    // N_t<T>          m_N;
+    // Em_der_t<T>     m_Em_der;
+    // // Sm_der_t<T>     m_Sm_der;
+    // N_der_t<T>      m_N_der;
+    // E_m_der2_t<T>    m_Em_der2;
 
-    Ef_t<T>         m_Ef;
-    // Sf_t<T>         m_Sf;
-    M_t<T>          m_M;
-    Ef_der_t<T>     m_Ef_der;
-    Sf_der_t<T>     m_Sf_der;
-    M_der_t<T>      m_M_der;
-    E_f_der2_t<T>    m_Ef_der2;
+    // Ef_t<T>         m_Ef;
+    // // Sf_t<T>         m_Sf;
+    // M_t<T>          m_M;
+    // Ef_der_t<T>     m_Ef_der;
+    // Sf_der_t<T>     m_Sf_der;
+    // M_der_t<T>      m_M_der;
+    // E_f_der2_t<T>    m_Ef_der2;
 
-    force_t<T>      m_ff;
+    // force_t<T>      m_ff;
 
 };
 

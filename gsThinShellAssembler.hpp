@@ -55,10 +55,10 @@ gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
                                         m_patches(patches),
                                         m_basis(basis),
                                         m_bcs(bconditions),
-                                        m_forceFun(surface_force),
-                                        m_thickFun(thickness),
-                                        m_YoungsModulus(YoungsModulus),
-                                        m_PoissonsRatio(PoissonsRatio)
+                                        m_forceFun(&surface_force),
+                                        m_thickFun(&thickness),
+                                        m_YoungsModulus(&YoungsModulus),
+                                        m_PoissonsRatio(&PoissonsRatio)
 {
     this->initialize();
 }
@@ -118,7 +118,6 @@ template <class T>
 void gsThinShellAssembler<T>::defineComponents()
 {
     gsMaterialMatrix materialMat(m_patches, *m_YoungsModulus, *m_PoissonsRatio);
-    //return materialMat;
     variable m_materialMat = m_assembler.getCoeff(materialMat);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",3);
@@ -144,27 +143,27 @@ void gsThinShellAssembler<T>::defineComponents()
     space m_space = m_assembler.trialSpace(0);
     geometryMap m_ori = m_assembler.exprData()->getMap();
     geometryMap m_def = m_assembler.exprData()->getMap2();
-    variable m_force = m_assembler.getCoeff(mult2t);
+    variable m_force = m_assembler.getCoeff(*m_forceFun);
     variable m_thick = m_assembler.getCoeff(*m_thickFun);
 
-    m_Em                = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) ; //[checked]
-    Sm_t<T> m_Sm        = m_Em * reshape(m_materialMat,3,3);
-    m_N                 = m_thick.val() * m_Sm;
-    m_Em_der            = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
-    Sm_der_t<T> m_Sm_der= m_Em_der * reshape(m_materialMat,3,3);
-    m_N_der             = m_thick.val() * m_Sm_der;
-    m_Em_der2           = flatdot( jac(m_space),jac(m_space).tr(), m_N ); //[checked]
+    auto m_Em       = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) ; //[checked]
+    auto m_Sm      = m_Em * reshape(m_materialMat,3,3);
+    auto m_N        = m_thick.val() * m_Sm;
+    auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
+    auto m_Sm_der  = m_Em_der * reshape(m_materialMat,3,3);
+    auto m_N_der    = m_thick.val() * m_Sm_der;
+    auto m_Em_der2  = flatdot( jac(m_space),jac(m_space).tr(), m_N ); //[checked]
 
-    m_Ef                = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) ; //[checked]
-    Sf_t<T> m_Sf        = m_Sf * reshape(m_materialMat,3,3);
-    m_M                 = m_thick.val() * m_thick.val() * m_thick.val() / 12.0 * m_Sf;
-    m_Ef_der            = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
-    Sf_der_t<T> m_Sf_der= m_Ef_der * reshape(m_materialMat,3,3);
-    m_M_der             = m_thick.val() * m_thick.val() * m_thick.val() / 12.0 * m_Sf_der;
-    m_Ef_der2           = flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_M  ).symmetrize()
+    auto m_Ef       = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) ; //[checked]
+    auto m_Sf      = m_Ef * reshape(m_materialMat,3,3);
+    auto m_M        = m_thick.val() * m_thick.val() * m_thick.val() / 12.0 * m_Sf;
+    auto m_Ef_der   = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
+    auto m_Sf_der  = m_Ef_der * reshape(m_materialMat,3,3);
+    auto m_M_der    = m_thick.val() * m_thick.val() * m_thick.val() / 12.0 * m_Sf_der;
+    auto m_Ef_der2  = flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_M  ).symmetrize()
                         + var2(m_space,m_space,m_def,m_Ef * reshape(m_materialMat,3,3) );
 
-    m_ff                = m_force;
+    auto m_ff       = m_force;
     // Mat & Rhs
 }
 
@@ -174,12 +173,29 @@ void gsThinShellAssembler<T>::assemble()
     // Initialize stystem
     m_assembler.initSystem();
 
+    gsMaterialMatrix materialMat(m_patches, *m_YoungsModulus, *m_PoissonsRatio);
+    variable m_materialMat = m_assembler.getCoeff(materialMat);
+
+    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",3);
+    variable m_m2 = m_assembler.getCoeff(mult2t);
+
+    space       m_space = m_assembler.trialSpace(0);
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+    geometryMap m_def   = m_assembler.exprData()->getMap2();
+    variable m_force    = m_assembler.getCoeff(*m_forceFun);
+    variable m_thick    = m_assembler.getCoeff(*m_thickFun);
+
+    auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
+    auto m_Sm_der   = m_Em_der * reshape(m_materialMat,3,3);
+    auto m_N_der    = m_thick.val() * m_Sm_der;
+    auto m_Ef_der   = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
+    auto m_Sf_der   = m_Ef_der * reshape(m_materialMat,3,3);
+    auto m_M_der    = m_thick.val() * m_thick.val() * m_thick.val() / 12.0 * m_Sf_der;
+
     // assemble system
-    space m_space = m_assembler.trialSpace(0);
-    geometryMap m_ori = m_assembler.exprData()->getMap();
     m_assembler.assemble(
         ( m_N_der * m_Em_der.tr() + m_M_der * m_Ef_der.tr() ) * meas(m_ori)
-        ,m_space * m_ff * meas(m_ori)
+        ,m_space * m_force * meas(m_ori)
         );
 }
 
@@ -206,8 +222,35 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     // Initialize matrix
     m_assembler.initMatrix();
 
+    gsMaterialMatrix materialMat(m_patches, *m_YoungsModulus, *m_PoissonsRatio);
+    variable m_materialMat = m_assembler.getCoeff(materialMat);
+
+    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",3);
+    variable m_m2 = m_assembler.getCoeff(mult2t);
+
+    space       m_space = m_assembler.trialSpace(0);
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+    geometryMap m_def   = m_assembler.exprData()->getMap2();
+    variable m_thick    = m_assembler.getCoeff(*m_thickFun);
+
+    auto m_Em       = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) ; //[checked]
+    auto m_Sm       = m_Em * reshape(m_materialMat,3,3);
+    auto m_N        = m_thick.val() * m_Sm;
+    auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
+    auto m_Sm_der   = m_Em_der * reshape(m_materialMat,3,3);
+    auto m_N_der    = m_thick.val() * m_Sm_der;
+    auto m_Em_der2  = flatdot( jac(m_space),jac(m_space).tr(), m_N ); //[checked]
+
+    auto m_Ef       = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) ; //[checked]
+    auto m_Sf       = m_Ef * reshape(m_materialMat,3,3);
+    auto m_M        = m_thick.val() * m_thick.val() * m_thick.val() / 12.0 * m_Sf;
+    auto m_Ef_der   = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
+    auto m_Sf_der   = m_Ef_der * reshape(m_materialMat,3,3);
+    auto m_M_der    = m_thick.val() * m_thick.val() * m_thick.val() / 12.0 * m_Sf_der;
+    auto m_Ef_der2  = flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_M  ).symmetrize()
+                        + var2(m_space,m_space,m_def, m_M );
+
     // Assemble matrix
-    geometryMap m_ori = m_assembler.exprData()->getMap();
     m_assembler.assemble(
                 ( m_N_der * m_Em_der.tr() + m_Em_der2 + m_M_der * m_Ef_der.tr() - m_Ef_der2 ) * meas(m_ori)
                 );
@@ -227,10 +270,30 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
     // Initialize vector
     m_assembler.initVector();
 
+    gsMaterialMatrix materialMat(m_patches, *m_YoungsModulus, *m_PoissonsRatio);
+    variable m_materialMat = m_assembler.getCoeff(materialMat);
+
+    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",3);
+    variable m_m2 = m_assembler.getCoeff(mult2t);
+
+    space m_space       = m_assembler.trialSpace(0);
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+    geometryMap m_def   = m_assembler.exprData()->getMap2();
+    variable m_force    = m_assembler.getCoeff(*m_forceFun);
+    variable m_thick    = m_assembler.getCoeff(*m_thickFun);
+
+    auto m_Em       = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) ; //[checked]
+    auto m_Sm       = m_Em * reshape(m_materialMat,3,3);
+    auto m_N        = m_thick.val() * m_Sm;
+    auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
+
+    auto m_Ef       = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) ; //[checked]
+    auto m_Sf       = m_Ef * reshape(m_materialMat,3,3);
+    auto m_M        = m_thick.val() * m_thick.val() * m_thick.val() / 12.0 * m_Sf;
+    auto m_Ef_der   = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
+
     // Assemble vector
-    space m_space = m_assembler.trialSpace(0);
-    geometryMap m_ori = m_assembler.exprData()->getMap();
-    m_assembler.assemble(m_space * m_ff * meas(m_ori) -
+    m_assembler.assemble(m_space * m_force * meas(m_ori) -
                 ( ( m_N * m_Em_der.tr() - m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
                 );
 }
