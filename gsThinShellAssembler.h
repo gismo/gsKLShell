@@ -138,7 +138,7 @@ protected:
     // geometryMap m_ori;
     // geometryMap m_def;
     // space m_space;
-    mutable solution m_solution;
+    //mutable solution m_solution;
 
     //expr::gsFeVariable<T> * m_force;
     // variable m_thick;
@@ -150,12 +150,13 @@ protected:
     gsMultiBasis<T> m_basis;
     gsBoundaryConditions<T> m_bcs;
 
-    typename gsFunction<T>::Ptr m_YoungsModulus;
-    typename gsFunction<T>::Ptr m_PoissonsRatio;
     const gsFunction<T> * m_forceFun;
     const gsFunction<T> * m_thickFun;
+    typename gsFunction<T>::Ptr m_YoungsModulus;
+    typename gsFunction<T>::Ptr m_PoissonsRatio;
 
-    gsMatrix<T> m_solvector;
+
+    mutable gsMatrix<T> m_solvector;
 
     /*
         Make type aliasses for function expressions

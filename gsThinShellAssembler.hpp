@@ -100,9 +100,6 @@ void gsThinShellAssembler<T>::initialize()
     m_space.setInterfaceCont(0); // todo: 1 (smooth basis)
     m_space.addBc( m_bcs.get("Dirichlet") ); // (!) must be called only once
 
-    // Solution vector and solution variable
-    m_solution = m_assembler.getSolution(m_space, m_solvector);
-
     // Define fields as variables:
     // ... surface force
     //m_force = &
@@ -163,8 +160,8 @@ void gsThinShellAssembler<T>::defineComponents()
     auto m_Ef_der2  = flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_M  ).symmetrize()
                         + var2(m_space,m_space,m_def,m_Ef * reshape(m_materialMat,3,3) );
 
-    auto m_ff       = m_force;
-    // Mat & Rhs
+    //auto m_ff       = m_force;
+
 }
 
 template<class T>
@@ -190,7 +187,9 @@ void gsThinShellAssembler<T>::assemble()
     auto m_N_der    = m_thick.val() * m_Sm_der;
     auto m_Ef_der   = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
     auto m_Sf_der   = m_Ef_der * reshape(m_materialMat,3,3);
-    auto m_M_der    = m_thick.val() * m_thick.val() * m_thick.val() / 12.0 * m_Sf_der;
+    //auto m_M_der    = m_thick.val() * m_thick.val() * m_thick.val() / 12.0 * m_Sf_der;
+    auto m_M_der    = pow(m_thick.val(),3) / 12.0 * m_Sf_der;
+
 
     // assemble system
     m_assembler.assemble(
@@ -329,7 +328,9 @@ gsMultiPatch<T> gsThinShellAssembler<T>::constructSolution(const gsMatrix<T> & s
 {
     gsMultiPatch<T> mp = m_patches;
 
-    m_solution.setSolutionVector(solVector);
+    // Solution vector and solution variable
+    space m_space = m_assembler.trialSpace(0);
+    solution m_solution = m_assembler.getSolution(m_space, m_solvector);
 
     GISMO_ASSERT(m_defpatches.nPatches()==mp.nPatches(),"The number of patches of the result multipatch is not equal to that of the geometry!");
 
