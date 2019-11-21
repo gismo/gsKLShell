@@ -98,6 +98,8 @@ void gsThinShellAssembler<T>::initialize()
     // Set the discretization space
     space m_space = m_assembler.getSpace(m_basis, 3, 0); // last argument is the space ID
     m_space.setInterfaceCont(0); // todo: 1 (smooth basis)
+
+    // if statement
     m_space.addBc( m_bcs.get("Dirichlet") ); // (!) must be called only once
 
     // Solution vector and solution variable
@@ -197,6 +199,8 @@ void gsThinShellAssembler<T>::assemble()
         ( m_N_der * m_Em_der.tr() + m_M_der * m_Ef_der.tr() ) * meas(m_ori)
         ,m_space * m_force * meas(m_ori)
         );
+
+    // Neumann
 }
 
 // TO DO
