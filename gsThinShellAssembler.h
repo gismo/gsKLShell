@@ -65,11 +65,6 @@ public:
                         const gsFunction<T> & YoungsModulus,
                         const gsFunction<T> & PoissonsRatio);
 
-    // ~gsThinShellAssembler()
-    // {
-
-    // }
-
 
     /// @brief Returns the list of default options for assembly
     gsOptionList defaultOptions();
@@ -93,8 +88,8 @@ public:
     void assembleVector(const gsMatrix<T>       & solVector );
 
     //--------------------- SYSTEM ACCESS ----------------------------------//
-    gsSparseMatrix<T>   matrix()   {return m_assembler.matrix();}
-    gsVector<T>         rhs()      {return m_assembler.rhs();}
+    const gsSparseMatrix<T> & matrix()   {return m_assembler.matrix();}
+    const gsMatrix<T>       & rhs()      {return m_assembler.rhs();}
 
     //--------------------- SOLUTION CONSTRUCTION ----------------------------------//
 
