@@ -65,10 +65,10 @@ public:
                         const gsFunction<T> & YoungsModulus,
                         const gsFunction<T> & PoissonsRatio);
 
-    ~gsThinShellAssembler()
-    {
+    // ~gsThinShellAssembler()
+    // {
 
-    }
+    // }
 
 
     /// @brief Returns the list of default options for assembly
@@ -83,8 +83,8 @@ public:
     /// @ brief Assembles the tangential matrix and the residual for a iteration of Newton's method for displacement formulation;
     /// set *assembleMatrix* to false to only assemble the residual;
     /// ATTENTION: rhs() returns a negative residual (-r) !!!
-    void assemble(const gsMultiPatch<T> & deformed,     bool assembleMatrix = true);
-    void assemble(const gsMatrix<T>     & solVector,    bool assembleMatrix = true);
+    void assemble(const gsMultiPatch<T> & deformed,     bool Matrix = true);
+    void assemble(const gsMatrix<T>     & solVector,    bool Matrix = true);
 
     void assembleMatrix(const gsMultiPatch<T>   & deformed  );
     void assembleMatrix(const gsMatrix<T>       & solVector );

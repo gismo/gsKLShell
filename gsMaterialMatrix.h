@@ -18,6 +18,9 @@
 namespace gismo
 {
 
+// To Do:
+// * struct for material model
+// Input is parametric coordinates of the surface \a mp
 template <class T>
 class gsMaterialMatrix : public gismo::gsFunction<T>
 {
@@ -77,7 +80,7 @@ public:
         // otherwise we just use the input paramteric points
         _tmp.points = u;
 
-        static_cast<const gsFunction<T>*>(_mp)->computeMap(_tmp);
+        static_cast<const gsFunction<T>&>(_mp->piece(0)).computeMap(_tmp); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
 
         // NOTE 2: in the case that parametric value is needed it suffices
         // to evaluate Youngs modulus and Poisson's ratio at
@@ -101,16 +104,16 @@ public:
             lambda = E * nu / ( (1. + nu)*(1.-2.*nu)) ;
             mu     = E / (2.*(1. + nu)) ;
 
-            C_constant = 4*lambda*mu/(lambda+2*mu);
+            C_constant = 2*lambda*mu/(lambda+2*mu);
 
-            C(0,0) = C_constant*F0(0,0)*F0(0,0) + 2*mu*(2*F0(0,0)*F0(0,0));
-            C(1,1) = C_constant*F0(1,1)*F0(1,1) + 2*mu*(2*F0(1,1)*F0(1,1));
-            C(2,2) = C_constant*F0(0,1)*F0(0,1) + 2*mu*(F0(0,0)*F0(1,1) + F0(0,1)*F0(0,1));
+            C(0,0) = C_constant*F0(0,0)*F0(0,0) + 1*mu*(2*F0(0,0)*F0(0,0));
+            C(1,1) = C_constant*F0(1,1)*F0(1,1) + 1*mu*(2*F0(1,1)*F0(1,1));
+            C(2,2) = C_constant*F0(0,1)*F0(0,1) + 1*mu*(F0(0,0)*F0(1,1) + F0(0,1)*F0(0,1));
             C(1,0) =
-            C(0,1) = C_constant*F0(0,0)*F0(1,1) + 2*mu*(2*F0(0,1)*F0(0,1));
+            C(0,1) = C_constant*F0(0,0)*F0(1,1) + 1*mu*(2*F0(0,1)*F0(0,1));
             C(2,0) =
-            C(0,2) = C_constant*F0(0,0)*F0(0,1) + 2*mu*(2*F0(0,0)*F0(0,1));
-            C(2,1) = C(1,2) = C_constant*F0(0,1)*F0(1,1) + 2*mu*(2*F0(0,1)*F0(1,1));
+            C(0,2) = C_constant*F0(0,0)*F0(0,1) + 1*mu*(2*F0(0,0)*F0(0,1));
+            C(2,1) = C(1,2) = C_constant*F0(0,1)*F0(1,1) + 1*mu*(2*F0(0,1)*F0(1,1));
 
             //gsDebugVar(C);
         }
@@ -118,6 +121,6 @@ public:
 
     // piece(k) --> for patch k
 
-};
+}; //! [Include namespace]
 
 } //namespace gismo
