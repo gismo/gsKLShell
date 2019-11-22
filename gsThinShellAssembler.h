@@ -81,6 +81,8 @@ public:
     void assemble(const gsMultiPatch<T> & deformed,     bool Matrix = true);
     void assemble(const gsMatrix<T>     & solVector,    bool Matrix = true);
 
+    void assemble(int i);
+
     void assembleMatrix(const gsMultiPatch<T>   & deformed  );
     void assembleMatrix(const gsMatrix<T>       & solVector );
 

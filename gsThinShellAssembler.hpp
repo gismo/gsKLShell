@@ -116,7 +116,7 @@ void gsThinShellAssembler<T>::initialize()
 template <class T>
 void gsThinShellAssembler<T>::defineComponents()
 {
-    gsMaterialMatrix materialMat(m_patches, *m_YoungsModulus, *m_PoissonsRatio);
+    gsMaterialMatrix materialMat(m_patches, *m_thickFun, *m_YoungsModulus, *m_PoissonsRatio);
     variable m_materialMat = m_assembler.getCoeff(materialMat);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
@@ -172,7 +172,7 @@ void gsThinShellAssembler<T>::assemble()
     // Initialize stystem
     m_assembler.initSystem();
 
-    gsMaterialMatrix materialMat(m_patches, *m_YoungsModulus, *m_PoissonsRatio);
+    gsMaterialMatrix materialMat(m_patches, *m_thickFun, *m_YoungsModulus, *m_PoissonsRatio);
     variable m_materialMat = m_assembler.getCoeff(materialMat);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
@@ -185,17 +185,25 @@ void gsThinShellAssembler<T>::assemble()
     variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
 
     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
-    auto m_Sm_der   = m_Em_der * reshape(m_materialMat,3,3);
-    auto m_N_der    = m_thick.val() * m_Sm_der;
+    // auto m_Sm_der   = m_Em_der * reshape(m_materialMat,3,3);
+    // auto m_N_der    = m_thick.val() * m_Sm_der;
+    auto m_N_der    = m_Em_der * reshape(m_materialMat,3,3);
+
     auto m_Ef_der   = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
-    auto m_Sf_der   = m_Ef_der * reshape(m_materialMat,3,3);
-    auto m_M_der    = m_thick.val() * m_thick.val() * m_thick.val() / 12.0 * m_Sf_der;
+    // auto m_Sf_der   = m_Ef_der * reshape(m_materialMat,3,3);
+    // auto m_M_der    = m_thick.val() * m_thick.val() * m_thick.val() / 12.0 * m_Sf_der;
+    auto m_M_der    = m_thick.val() * m_thick.val()/12.0 * m_Ef_der * reshape(m_materialMat,3,3);
+
     // auto m_M_der    = pow(m_thick.val(),3) / 12.0 * m_Sf_der;
 
 
     // assemble system
     m_assembler.assemble(
-        ( m_N_der * m_Em_der.tr() + m_M_der * m_Ef_der.tr() ) * meas(m_ori)
+        (
+            m_N_der * m_Em_der.tr()
+            +
+            m_M_der * m_Ef_der.tr()
+        ) * meas(m_ori)
         ,
         m_space * m_force * meas(m_ori)
         );
@@ -225,7 +233,7 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     // gsDebugVar(m_defpatches);
 
     m_assembler.initSystem();
-    gsMaterialMatrix materialMat(m_patches, *m_YoungsModulus, *m_PoissonsRatio);
+    gsMaterialMatrix materialMat(m_patches, *m_thickFun, *m_YoungsModulus, *m_PoissonsRatio);
     variable m_materialMat = m_assembler.getCoeff(materialMat);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
@@ -315,7 +323,7 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
     // Initialize vector
     m_assembler.initVector();
 
-    gsMaterialMatrix materialMat(m_patches, *m_YoungsModulus, *m_PoissonsRatio);
+    gsMaterialMatrix materialMat(m_patches, *m_thickFun, *m_YoungsModulus, *m_PoissonsRatio);
     variable m_materialMat = m_assembler.getCoeff(materialMat);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
@@ -419,3 +427,5 @@ void gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T> & solVecto
 }
 
 }// namespace gismo
+
+
