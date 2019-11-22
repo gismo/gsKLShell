@@ -16,6 +16,7 @@
 #pragma once
 
 #include <gsThinShell2/gsThinShellUtils.h>
+#include <gsThinShell2/gsMaterialMatrix.h>
 
 namespace gismo
 {
@@ -53,17 +54,15 @@ public:
                         const gsMultiBasis<T> & basis,
                         const gsBoundaryConditions<T> & bconditions,
                         const gsFunction<T> & surface_force,
-                        const gsFunction<T> & thickness,
-                        T YoungsModulus,
-                        T PoissonsRatio);
+                        const gsMaterialMatrix<T> & materialmatrix);
 
-    gsThinShellAssembler(const gsMultiPatch<T> & patches,
-                        const gsMultiBasis<T> & basis,
-                        const gsBoundaryConditions<T> & bconditions,
-                        const gsFunction<T> & surface_force,
-                        const gsFunction<T> & thickness,
-                        const gsFunction<T> & YoungsModulus,
-                        const gsFunction<T> & PoissonsRatio);
+    // gsThinShellAssembler(const gsMultiPatch<T> & patches,
+    //                     const gsMultiBasis<T> & basis,
+    //                     const gsBoundaryConditions<T> & bconditions,
+    //                     const gsFunction<T> & surface_force,
+    //                     const gsFunction<T> & thickness,
+    //                     const gsFunction<T> & YoungsModulus,
+    //                     const gsFunction<T> & PoissonsRatio);
 
 
     /// @brief Returns the list of default options for assembly
@@ -123,6 +122,10 @@ protected:
     void initialize();
     void defineComponents();
 
+    void assembleNeumann();
+    void assembleDirichlet();
+    void assembleClamped();
+
 protected:
     typedef gsExprAssembler<>::geometryMap geometryMap;
     typedef gsExprAssembler<>::variable    variable;
@@ -146,6 +149,8 @@ protected:
     gsMultiPatch<T> m_defpatches;
     gsMultiBasis<T> m_basis;
     gsBoundaryConditions<T> m_bcs;
+
+    gsMaterialMatrix<T> m_materialMat;
 
     const gsFunction<T> * m_forceFun;
     const gsFunction<T> * m_thickFun;

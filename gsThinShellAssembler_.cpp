@@ -12,6 +12,6 @@
 
 namespace gismo
 {
+		CLASS_TEMPLATE_INST gsMaterialMatrix<real_t>;
     	CLASS_TEMPLATE_INST gsThinShellAssembler<real_t>;
-    	CLASS_TEMPLATE_INST gsMaterialMatrix<real_t>;
 }

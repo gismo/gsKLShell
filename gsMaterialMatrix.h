@@ -39,11 +39,18 @@ public:
                         const gsFunction<T> & YoungsModulus,
                         const gsFunction<T> & PoissonRatio);
 
-    // gsMaterialMatrix(   const gsFunctionSet<T> & mp,
-    //                     const gsFunctionSet<T> & mp_def,
-    //                     const gsFunction<T> & thickness,
-    //                     const gsFunction<T> & YoungsModulus,
-    //                     const gsFunction<T> & PoissonRatio);
+    gsMaterialMatrix(   const gsFunctionSet<T> & mp,
+                        const gsFunctionSet<T> & mp_def,
+                        const gsFunction<T> & thickness,
+                        const gsFunction<T> & YoungsModulus,
+                        const gsFunction<T> & PoissonRatio);
+
+    gsMaterialMatrix(   const gsFunctionSet<T>            & mp,
+                        const std::vector<T>                thickness,
+                        const std::vector<std::pair<T,T>> & YoungsModuli,
+                        const std::vector<T>              & ShearModuli,
+                        const std::vector<std::pair<T,T>> & PoissonRatios,
+                        const std::vector<T>                phi);
 
 
     /// @brief Returns the list of default options for assembly
@@ -57,7 +64,8 @@ public:
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    ~gsMaterialMatrix() { delete m_piece; }
+    // CORRECT???
+    // ~gsMaterialMatrix() { delete m_piece; }
 
     GISMO_CLONE_FUNCTION(gsMaterialMatrix)
 
@@ -71,15 +79,24 @@ public:
     const gsFunction<T> & piece(const index_t k) const
     {
         delete m_piece;
-        m_piece = new gsMaterialMatrix(m_patches->piece(k), *m_thickness, *m_YoungsModulus, *m_PoissonRatio);
+        // m_piece = new gsMaterialMatrix(m_patches->piece(k), *m_thickness, *m_YoungsModulus, *m_PoissonRatio);
+        m_piece = new gsMaterialMatrix(*this); m_piece->setPatch(k);
+
         return *m_piece;
     }
 
+    void setPatch(index_t k) {m_pIndex = k; }
+
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+public:
+    void setMoment(int m)   { m_moment = m; }
+    void setType(int t)     { m_type = t; }
 
 protected:
     void eval3D_into(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     gsMatrix<T> eval3D_Linear(const gsMatrix<T>& u) const;
+    gsMatrix<T> eval_Composite(const gsMatrix<T>& u, int moment) const;
 
 
     // void eval_Linear(const gsMatrix<T>& u, gsMatrix<T>& result) const;
@@ -87,10 +104,12 @@ protected:
     // void eval_Compressible(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     gsMatrix<T> integrateZ(const gsMatrix<T>& u, int moment = 0) const;
+    gsMatrix<T> multiplyZ (const gsMatrix<T>& u, int moment = 0) const;
 
 protected:
     // general
     int m_model;
+    index_t m_pIndex;
 
     // constructor
     const gsFunctionSet<T> * m_patches;
@@ -100,20 +119,34 @@ protected:
     const gsFunction<T> * m_PoissonRatio;
 
 
-    // material matrix
+    // Linear material matrix
     mutable gsMapData<T> m_map;
     mutable gsMatrix<real_t,3,3> F0;
     mutable gsMatrix<T> m_Emat,m_Nmat,m_Tmat;
     mutable real_t m_lambda, m_mu, m_E, m_nu, m_Cconstant;
 
+    // Composite material matrix
+    const std::vector<std::pair<T,T>>   m_YoungsModuli;
+    const std::vector<T>                m_ShearModuli;
+    const std::vector<std::pair<T,T>>   m_PoissonRatios;
+    const std::vector<T>                m_thickValues;
+    const std::vector<T>                m_phis;
+    mutable gsVector<T>                 m_normal, m_e1, m_e2, m_ac1, m_ac2, m_a1, m_a2;
+    mutable gsMatrix<T,3,3>             m_covBasis, m_covMetric, m_conBasis, m_conMetric;
+    mutable real_t                      m_E1, m_E2, m_G12, m_nu12, m_nu21, m_t, m_t_tot,
+                                        m_t_temp, m_z, m_z_mid, m_phi;
+    mutable gsMatrix<T,3,3> m_Dmat, m_Transform; // m_Tmat is already defined
+
     // integrateZ
-    // mutable gsMatrix<T> m_thickPoints;
     mutable gsMatrix<T> m_points, m_evalPoints;
     mutable gsMatrix<T> m_quNodes;
     mutable gsVector<T> m_quWeights;
     mutable gsGaussRule<T> m_gauss;
-    mutable size_t m_numGauss;
+    mutable index_t m_numGauss;
     mutable T m_tHalf;
+    mutable int m_moment, m_type;
+
+
 };
 
 } // namespace
