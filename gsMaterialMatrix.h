@@ -91,39 +91,50 @@ public:
 
 public:
     void setMoment(int m)   { m_moment = m; }
-    void setType(int t)     { m_type = t; }
+    void makeMatrix()     { m_matrix = true; }
+    void makeVector()     { m_matrix = false; }
 
 protected:
     void eval3D_into(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     gsMatrix<T> eval3D_Linear(const gsMatrix<T>& u) const;
-    gsMatrix<T> eval_Composite(const gsMatrix<T>& u, int moment) const;
+    gsMatrix<T> eval_Composite(const gsMatrix<T>& u) const;
+    gsMatrix<T> eval3D_Incompressible(const gsMatrix<T>& u) const;
+    gsMatrix<T> eval3D_Compressible(const gsMatrix<T>& u) const;
 
+    T Cijkl(const index_t i, const index_t j, const index_t k, const index_t l) const;
+    T Sij  (const index_t i, const index_t j) const;
 
     // void eval_Linear(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     // void eval_Incompressible(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     // void eval_Compressible(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
-    gsMatrix<T> integrateZ(const gsMatrix<T>& u, int moment = 0) const;
-    gsMatrix<T> multiplyZ (const gsMatrix<T>& u, int moment = 0) const;
+    gsMatrix<T> integrateZ(const gsMatrix<T>& u) const;
+    gsMatrix<T> multiplyZ (const gsMatrix<T>& u) const;
+
+    void computeMetric(index_t k, bool computedeformed=false, bool computefull=false, T z=0.0) const;
 
 protected:
     // general
-    int m_model;
+    index_t m_model;
     index_t m_pIndex;
+    index_t m_numParameters; // how many parameters for the material model?
+    int m_moment;
+    bool m_matrix;
+    mutable gsMatrix<T> m_result;
 
     // constructor
     const gsFunctionSet<T> * m_patches;
     const gsFunctionSet<T> * m_defpatches;
     const gsFunction<T> * m_thickness;
-    const gsFunction<T> * m_YoungsModulus;
-    const gsFunction<T> * m_PoissonRatio;
+    const gsFunction<T> * m_par2;
+    const gsFunction<T> * m_par1;
 
 
     // Linear material matrix
-    mutable gsMapData<T> m_map;
-    mutable gsMatrix<real_t,3,3> F0;
+    mutable gsMapData<T> m_map, m_map_def;
+    mutable gsMatrix<T> m_metricA, m_metricA_def;
     mutable gsMatrix<T> m_Emat,m_Nmat,m_Tmat;
-    mutable real_t m_lambda, m_mu, m_E, m_nu, m_Cconstant;
+    mutable real_t m_lambda, m_mu, m_Cconstant;
 
     // Composite material matrix
     const std::vector<std::pair<T,T>>   m_YoungsModuli;
@@ -135,7 +146,14 @@ protected:
     mutable gsMatrix<T,3,3>             m_covBasis, m_covMetric, m_conBasis, m_conMetric;
     mutable real_t                      m_E1, m_E2, m_G12, m_nu12, m_nu21, m_t, m_t_tot,
                                         m_t_temp, m_z, m_z_mid, m_phi;
-    mutable gsMatrix<T,3,3> m_Dmat, m_Transform; // m_Tmat is already defined
+    mutable gsMatrix<T,3,3>             m_Dmat, m_Transform;
+
+    // Compressible material matrix
+    mutable gsMatrix<T,3,3>             m_deriv2_def, m_deriv2;
+    mutable gsMatrix<T,2,2>             m_metricB_def, m_metricB, m_metricG, m_metricG_def;
+    mutable gsVector<T>                 m_normal_def;
+    mutable gsMatrix<T>                 m_par1mat, m_par2mat;
+    mutable T                           m_par1val, m_par2val, m_J0;
 
     // integrateZ
     mutable gsMatrix<T> m_points, m_evalPoints;
@@ -144,7 +162,6 @@ protected:
     mutable gsGaussRule<T> m_gauss;
     mutable index_t m_numGauss;
     mutable T m_tHalf;
-    mutable int m_moment, m_type;
 
 
 };
