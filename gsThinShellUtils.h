@@ -716,6 +716,159 @@ public:
     void print(std::ostream &os) const { os << "flatdot2("; _A.print(os);_B.print(os);_C.print(os); os<<")"; }
 };
 
+/*
+   Expression for the Jacobian matrix of a geometry map
+ */
+template<class T>
+class cartcov_expr : public _expr<cartcov_expr<T> >
+{
+    typename gsGeometryMap<T>::Nested_t _G;
+
+public:
+    typedef T Scalar;
+
+    cartcov_expr(const gsGeometryMap<T> & G) : _G(G) { }
+
+    mutable gsMatrix<Scalar,3,3> covBasis, conBasis, covMetric, conMetric, cartBasis, result;
+    mutable gsVector<Scalar,3> normal, tmp;
+    mutable gsVector<Scalar,3> e1, e2, a1, a2;
+
+    MatExprType eval(const index_t k) const
+    {
+        // Compute covariant bases in deformed and undeformed configuration
+        normal = _G.data().normals.col(k);
+        normal.normalize();
+        covBasis.leftCols(2) = _G.data().jacobian(k);
+        covBasis.col(2)      = normal;
+        covMetric = covBasis.transpose() * covBasis;
+
+        conMetric = covMetric.inverse();
+
+        // conBasis.col(0) = conMetric(0,0)*covBasis.col(0)+conMetric(0,1)*covBasis.col(1)+conMetric(0,2)*covBasis.col(2);
+        conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
+        // conBasis.col(2) = conMetric(2,0)*covBasis.col(0)+conMetric(2,1)*covBasis.col(1)+conMetric(2,2)*covBasis.col(2);
+
+        e1 = covBasis.col(0); e1.normalize();
+        e2 = conBasis.col(1); e2.normalize();
+        // e3 = normal;
+
+        a1 = covBasis.col(0);
+        a2 = covBasis.col(1);
+
+        result(0,0) = (e1.dot(a1))*(a1.dot(e1));
+        result(0,1) = (e1.dot(a2))*(a2.dot(e2));
+        result(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));
+        // Row 1
+        result(1,0) = (e2.dot(a1))*(a1.dot(e2));
+        result(1,1) = (e2.dot(a2))*(a2.dot(e2));
+        result(1,2) = 2*(e2.dot(a1))*(a2.dot(e2));
+        // Row 2
+        result(2,0) = (e1.dot(a1))*(a1.dot(e2));
+        result(2,1) = (e1.dot(a2))*(a2.dot(e2));
+        result(2,2) = (e1.dot(a1))*(a2.dot(e2)) + (e1.dot(a2))*(a1.dot(e2));
+
+        // return result.inverse(); // !!!!
+        return result;
+    }
+
+    index_t rows() const { return 3; }
+
+    index_t cols() const { return 3; }
+
+    static constexpr bool rowSpan() {return false; }
+    static bool colSpan() {return false;}
+
+    static const gsFeSpace<Scalar> & rowVar() { return gsNullExpr<Scalar>::get(); }
+    static const gsFeSpace<Scalar> & colVar() { return gsNullExpr<Scalar>::get(); }
+
+    void setFlag() const { _G.data().flags |= NEED_NORMAL|NEED_DERIV; }
+
+    void parse(gsSortedVector<const gsFunctionSet<Scalar>*> & evList) const
+    {
+        //GISMO_ASSERT(NULL!=m_fd, "FeVariable: FuncData member not registered");
+        evList.push_sorted_unique(&_G.source());
+        _G.data().flags |= NEED_NORMAL|NEED_DERIV;
+    }
+
+    void print(std::ostream &os) const { os << "cartcov("; _G.print(os); os <<")"; }
+};
+
+/*
+   Expression for the Jacobian matrix of a geometry map
+ */
+template<class T>
+class cartcon_expr : public _expr<cartcon_expr<T> >
+{
+    typename gsGeometryMap<T>::Nested_t _G;
+
+public:
+    typedef T Scalar;
+
+    cartcon_expr(const gsGeometryMap<T> & G) : _G(G) { }
+
+    mutable gsMatrix<Scalar,3,3> covBasis, conBasis, covMetric, conMetric, cartBasis, result;
+    mutable gsVector<Scalar,3> normal, tmp;
+    mutable gsVector<Scalar,3> e1, e2, ac1, ac2;
+
+    MatExprType eval(const index_t k) const
+    {
+        // Compute covariant bases in deformed and undeformed configuration
+        normal = _G.data().normals.col(k);
+        normal.normalize();
+        covBasis.leftCols(2) = _G.data().jacobian(k);
+        covBasis.col(2)      = normal;
+        covMetric = covBasis.transpose() * covBasis;
+
+        conMetric = covMetric.inverse();
+
+        conBasis.col(0) = conMetric(0,0)*covBasis.col(0)+conMetric(0,1)*covBasis.col(1)+conMetric(0,2)*covBasis.col(2);
+        conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
+        // conBasis.col(2) = conMetric(2,0)*covBasis.col(0)+conMetric(2,1)*covBasis.col(1)+conMetric(2,2)*covBasis.col(2);
+
+        e1 = covBasis.col(0); e1.normalize();
+        e2 = conBasis.col(1); e2.normalize();
+        // e3 = normal;
+
+        ac1 = conBasis.col(0);
+        ac2 = conBasis.col(1);
+
+        result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));
+        result(0,1) = (e1.dot(ac2))*(ac2.dot(e2));
+        result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));
+        // Row 1
+        result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));
+        result(1,1) = (e2.dot(ac2))*(ac2.dot(e2));
+        result(1,2) = 2*(e2.dot(ac1))*(ac2.dot(e2));
+        // Row 2
+        result(2,0) = (e1.dot(ac1))*(ac1.dot(e2));
+        result(2,1) = (e1.dot(ac2))*(ac2.dot(e2));
+        result(2,2) = (e1.dot(ac1))*(ac2.dot(e2)) + (e1.dot(ac2))*(ac1.dot(e2));
+
+        return result;
+    }
+
+    index_t rows() const { return 3; }
+
+    index_t cols() const { return 3; }
+
+    static constexpr bool rowSpan() {return false; }
+    static bool colSpan() {return false;}
+
+    static const gsFeSpace<Scalar> & rowVar() { return gsNullExpr<Scalar>::get(); }
+    static const gsFeSpace<Scalar> & colVar() { return gsNullExpr<Scalar>::get(); }
+
+    void setFlag() const { _G.data().flags |= NEED_NORMAL|NEED_DERIV; }
+
+    void parse(gsSortedVector<const gsFunctionSet<Scalar>*> & evList) const
+    {
+        //GISMO_ASSERT(NULL!=m_fd, "FeVariable: FuncData member not registered");
+        evList.push_sorted_unique(&_G.source());
+        _G.data().flags |= NEED_NORMAL|NEED_DERIV;
+    }
+
+    void print(std::ostream &os) const { os << "cartcon("; _G.print(os); os <<")"; }
+};
+
 
 template<class E> EIGEN_STRONG_INLINE
 var1_expr<E> var1(const E & u, const gsGeometryMap<typename E::Scalar> & G) { return var1_expr<E>(u, G); }
@@ -740,6 +893,12 @@ flatdot_expr<E1,E2,E3> flatdot(const E1 & u, const E2 & v, const E3 & w)
 template<class E1, class E2, class E3> EIGEN_STRONG_INLINE
 flatdot2_expr<E1,E2,E3> flatdot2(const E1 & u, const E2 & v, const E3 & w)
 { return flatdot2_expr<E1,E2,E3>(u, v, w); }
+
+template<class E> EIGEN_STRONG_INLINE
+cartcov_expr<E> cartcov(const gsGeometryMap<E> & G) { return cartcov_expr<E>(G); }
+
+template<class E> EIGEN_STRONG_INLINE
+cartcon_expr<E> cartcon(const gsGeometryMap<E> & G) { return cartcon_expr<E>(G); }
 
 }
 }

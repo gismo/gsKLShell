@@ -128,6 +128,102 @@ void gsThinShellAssembler<T>::initialize()
 
 }
 
+// template<class T>
+// void gsThinShellAssembler<T>::applyLoads()
+// {
+//     gsMatrix<T>        bVals;
+//     gsMatrix<unsigned> acts,globalActs;
+
+//     space       m_space = m_assembler.trialSpace(0);
+
+//     /*
+//         NOTE!!
+//         This does not work yet. We need the dofMappers per degree of freedom!!
+//     */
+//     // -----------------------------------
+//     m_dofMappers.resize(3);
+//     m_dofMappers.at(0) = m_space.mapper();
+//     m_dofMappers.at(1) = m_space.mapper();
+//     m_dofMappers.at(2) = m_space.mapper();
+//     // -----------------------------------
+
+
+//     for (size_t i = 0; i< m_pLoads.numLoads(); ++i )
+//     {
+//         // Compute actives and values of basis functions on point load location.
+//         if ( m_pLoads[i].parametric )   // in parametric space
+//         {
+//             m_basis.front().basis(m_pLoads[i].patch).active_into( m_pLoads[i].point, acts );
+//             m_basis.front().basis(m_pLoads[i].patch).eval_into  ( m_pLoads[i].point, bVals);
+//         }
+//         else                            // in physical space
+//         {
+//             gsMatrix<> forcePoint;
+//             m_patches.patch(m_pLoads[i].patch).invertPoints(m_pLoads[i].point,forcePoint);
+//             m_bases.front().basis(m_pLoads[i].patch).active_into( forcePoint, acts );
+//             m_bases.front().basis(m_pLoads[i].patch).eval_into  ( forcePoint, bVals);
+//         }
+
+//         // Add the point load values in the right entries in the global RHS
+//         for (size_t j = 0; j< 3; ++j)
+//         {
+//             if (m_pLoads[i].value[j] != 0.0)
+//             {
+//                 m_dofMappers[j].localToGlobal(acts, m_pLoads[i].patch, globalActs);
+
+//                 for (index_t k=0; k < globalActs.rows(); ++k)
+//                 {
+//                     if (int(globalActs(k,0)) < m_dofs)
+//                         m_rhs(globalActs(k,0), 0) += bVals(k,0) * m_pLoads[i].value[j];
+//                 }
+//             }
+//         }
+//     }
+// }
+
+// template<class T>
+// void gsShellAssembler<T>::assembleClamped()
+// {
+//     typedef gsBoundaryConditions<T>::const_iterator cIterator;
+
+//     for( cIterator iit = m_bcs.begin("clamped"); iit!=m_bcs.end("clamped"); ++iit)
+//     {
+//         const boundary_condition<T> * it = &iit->get();
+
+//         gsDofMapper & mapper  = m_dofMappers[it->unknown()];
+//         const patchSide & cur = it->side();
+//         // Get boundary dofs
+//         gsMatrix<unsigned> bDofs = m_bases[0][cur.patch].boundary(cur);
+
+//         // Cast to tensor b-spline basis
+//         const gsTensorBSplineBasis<2,T> * tp =
+//             dynamic_cast<const gsTensorBSplineBasis<2,T> *>(&m_bases[0][cur.patch]);
+
+//         if ( tp != NULL) // clamp adjacent dofs
+//         {
+//             const int str = tp->stride( cur.direction() );
+//             if ( cur.parameter() )
+//             {
+//                 for ( index_t k=0; k<bDofs.size(); ++k)
+//                     mapper.matchDof( cur.patch, (bDofs)(k,0),
+//                                      cur.patch, (bDofs)(k,0) - str );
+//             }
+//             else
+//             {
+//                 for ( index_t k=0; k<bDofs.size(); ++k)
+//                     mapper.matchDof( cur.patch, (bDofs)(k,0),
+//                                      cur.patch, (bDofs)(k,0) + str );
+//             }
+//         }
+//         else
+//             gsWarn<<"Unable to apply clamped condition.\n";
+
+//     }
+
+//     // SET MAPPERS IN SPACE!
+// }
+
+
 // template <class T>
 // void gsThinShellAssembler<T>::defineComponents()
 // {
@@ -413,7 +509,7 @@ gsMultiPatch<T> gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T>
     gsMultiPatch<T> displacement = constructSolution(solVector);
     for ( size_t k =0; k!=displacement.nPatches(); ++k) // Deform the geometry
     {
-        displacement.patch(k).coefs() -= m_patches.patch(0).coefs();;  // defG points to mp_def, therefore updated
+        displacement.patch(k).coefs() -= m_patches.patch(k).coefs();;  // defG points to mp_def, therefore updated
     }
 
     return displacement;
@@ -425,6 +521,18 @@ void gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T> & solVecto
     deformed = constructDisplacement(solVector);
 }
 
+/*
+    To do; make warnings
+*/
+template <class T>
+void gsThinShellAssembler<T>::constructStress(const gsMultiPatch<T> & deformed,
+                                                    gsPiecewiseFunction<T> & result,
+                                                    stress_type::type type)
+{
+    result.clear();
+
+    for (index_t p = 0; p < m_patches.nPatches(); ++p )
+        result.addPiecePointer(new gsShellStressFunction<T>(m_patches,deformed,m_materialMat,p,type,m_assembler));
+}
+
 }// namespace gismo
-
-
