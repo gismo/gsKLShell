@@ -62,7 +62,7 @@ public:
     /// Unique pointer for gsMaterialMatrix
     typedef memory::unique_ptr< gsMaterialMatrix > uPtr;
 
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    // EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     // CORRECT???
     // ~gsMaterialMatrix() { delete m_piece; }
@@ -80,8 +80,8 @@ public:
     {
         delete m_piece;
         // m_piece = new gsMaterialMatrix(m_patches->piece(k), *m_thickness, *m_YoungsModulus, *m_PoissonRatio);
-        m_piece = new gsMaterialMatrix(*this); m_piece->setPatch(k);
-
+        m_piece = new gsMaterialMatrix(*this);
+        m_piece->setPatch(k);
         return *m_piece;
     }
 
@@ -143,14 +143,14 @@ protected:
     const std::vector<T>                m_thickValues;
     const std::vector<T>                m_phis;
     mutable gsVector<T>                 m_normal, m_e1, m_e2, m_ac1, m_ac2, m_a1, m_a2;
-    mutable gsMatrix<T,3,3>             m_covBasis, m_covMetric, m_conBasis, m_conMetric;
+    mutable gsMatrix<T>                 m_covBasis, m_covMetric, m_conBasis, m_conMetric;
     mutable real_t                      m_E1, m_E2, m_G12, m_nu12, m_nu21, m_t, m_t_tot,
                                         m_t_temp, m_z, m_z_mid, m_phi;
-    mutable gsMatrix<T,3,3>             m_Dmat, m_Transform;
+    mutable gsMatrix<T>                 m_Dmat, m_Transform;
 
     // Compressible material matrix
-    mutable gsMatrix<T,3,3>             m_deriv2_def, m_deriv2;
-    mutable gsMatrix<T,2,2>             m_metricB_def, m_metricB, m_metricG, m_metricG_def;
+    mutable gsMatrix<T>                 m_deriv2_def, m_deriv2;
+    mutable gsMatrix<T>                 m_metricB_def, m_metricB, m_metricG, m_metricG_def;
     mutable gsVector<T>                 m_normal_def;
     mutable gsMatrix<T>                 m_par1mat, m_par2mat;
     mutable T                           m_par1val, m_par2val, m_J0;

@@ -447,7 +447,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Composite(const gsMatrix<T>& u) const
         m_covBasis.col(2)      = m_map.normal(k).normalized();
         m_covMetric = m_covBasis.transpose() * m_covBasis;
 
-        m_conMetric = m_covMetric.inverse();
+        m_conMetric = m_covMetric.template block<3,3>(0,0).inverse();
 
         m_conBasis.col(0) = m_conMetric(0,0)*m_covBasis.col(0)+m_conMetric(0,1)*m_covBasis.col(1)+m_conMetric(0,2)*m_covBasis.col(2);
         m_conBasis.col(1) = m_conMetric(1,0)*m_covBasis.col(0)+m_conMetric(1,1)*m_covBasis.col(1)+m_conMetric(1,2)*m_covBasis.col(2);
@@ -463,6 +463,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Composite(const gsMatrix<T>& u) const
         m_a1 = m_covBasis.col(0);
         m_a2 = m_covBasis.col(1);
 
+        m_Transform.resize(3,3);
         // Covariant to local cartesian
         m_Transform(0,0) = (m_e1.dot(m_a1))*(m_a1.dot(m_e1));
         m_Transform(0,1) = (m_e1.dot(m_a2))*(m_a2.dot(m_e2));
@@ -476,7 +477,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Composite(const gsMatrix<T>& u) const
         m_Transform(2,1) = (m_e1.dot(m_a2))*(m_a2.dot(m_e2));
         m_Transform(2,2) = (m_e1.dot(m_a1))*(m_a2.dot(m_e2)) + (m_e1.dot(m_a2))*(m_a1.dot(m_e2));
 
-        m_Transform = m_Transform.inverse(); // !!!!
+        m_Transform = m_Transform.template block<3,1>(0,0).inverse(); // !!!!
         result.reshapeCol(k,3,3) = m_Transform * result.reshapeCol(k,3,3);
 
         // Contravariant to local cartesian
