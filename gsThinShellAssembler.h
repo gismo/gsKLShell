@@ -94,9 +94,18 @@ public:
     void assembleVector(const gsMultiPatch<T>   & deformed  );
     void assembleVector(const gsMatrix<T>       & solVector );
 
+    //--------------------- GEOMETRY ACCESS --------------------------------//
+    const gsMultiPatch<T> & geometry()    const  {return m_patches;}
+    const gsMultiPatch<T> & defGeometry() const  {return m_defpatches;}
+    const gsMultiPatch<T> & strips()      const  {return m_strips;}
+    const gsMultiPatch<T> & defStrips()   const  {return m_defstrips;}
+
+
     //--------------------- SYSTEM ACCESS ----------------------------------//
-    const gsSparseMatrix<T> & matrix()   {return m_assembler.matrix();}
-    const gsMatrix<T>       & rhs()      {return m_assembler.rhs();}
+    const gsSparseMatrix<T> & matrix()  const   {return m_assembler.matrix();}
+    // gsSparseMatrix<T> & matrix() {return const_cast <gsSparseMatrix<T> &>(m_assembler.matrix());}
+
+    const gsMatrix<T>       & rhs()     const {return m_assembler.rhs();}
 
     //--------------------- SOLUTION CONSTRUCTION ----------------------------------//
 
@@ -125,6 +134,8 @@ public:
     T solutionJacRatio(const gsMultiPatch<T> & solution) const;
 
 protected:
+    typedef typename std::vector< gsMatrix<unsigned> > gsStripIndices; // index_t instead of unsigned
+
 
     void initialize();
     void defineComponents();
@@ -132,6 +143,10 @@ protected:
     void assembleNeumann();
     void assembleDirichlet();
     void assembleClamped();
+
+    void createBendingStrips(gsMultiPatch<T> & mp, gsMultiPatch<T> & strips, gsStripIndices & indices);
+    void assembleBendingStrips();
+
 
     void applyLoads();
 
@@ -146,6 +161,10 @@ protected:
 
     gsExprAssembler<> m_assembler;
     gsExprEvaluator<> m_evaluator;
+
+    gsStripIndices m_stripIndices, m_defstripIndices;
+    gsMultiPatch<T> m_strips, m_defstrips;
+    gsExprAssembler<T> m_stripAssembler;
 
     // geometryMap m_ori;
     // geometryMap m_def;
