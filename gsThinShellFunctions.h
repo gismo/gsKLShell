@@ -1,7 +1,6 @@
 /** @file gsThinShellFunctions.h
 
-    @brief Provides useful classes derived from gsFunction which can be used
-    for visualization or coupling.
+    @brief Provides evaluation function for stresses.
 
     This file is part of the G+Smo library.
 
@@ -10,7 +9,8 @@
     file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
     Author(s):
-        H.M. Verhelst (2016 - ...., TU Kaiserslautern)
+        H.M. Verhelst   (2019-..., TU Delft)
+
 */
 
 #pragma once
@@ -59,7 +59,7 @@ public:
         : m_patches(geometry),
           m_defpatches(deformed),
           m_materialMat(mm),
-          m_patchID(patch),
+          m_patchID(patch), ///WHAT DO WE DO WITH THIS?
           m_stress_type(type),
           m_assembler(assembler)
     {}

@@ -1,7 +1,6 @@
 /** @file gsThinShellFunctions.hpp
 
-    @brief Provides useful classes derived from gsFunction which can be used
-    for visualization or coupling.
+    @brief Provides evaluation function for stresses.
 
     This file is part of the G+Smo library.
 
@@ -10,7 +9,8 @@
     file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
     Author(s):
-        A.Shamanskiy (2016 - ...., TU Kaiserslautern)
+        H.M. Verhelst   (2019-..., TU Delft)
+
 */
 
 #pragma once
@@ -50,7 +50,8 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     auto S_f    = (reshape(mm2,3,3) * E_f ) * Ttilde;
 
     gsMatrix<T> tmp;
-    tmp = ev.eval(S_m,u.col(0));
+    // tmp = ev.eval(S_m,u.col(0));
+    tmp = ev.eval(m_ori,u.col(0));
     gsDebugVar(tmp);
 
     // switch (m_stress_type)
