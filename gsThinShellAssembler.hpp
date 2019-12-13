@@ -489,12 +489,13 @@ void gsThinShellAssembler<T>::assemble()
     // assemble system
     m_assembler.assemble(
         (
-            m_N_der * m_Em_der.tr()
-            +
-            m_M_der * m_Ef_der.tr()
-        ) * meas(m_ori)
+            // m_N_der * m_Em_der.tr()
+            // +
+            // m_M_der * m_Ef_der.tr()
+            m_space*m_space.tr()
+        ) //* meas(m_ori)
         ,
-        m_space * m_force * meas(m_ori)
+        m_space * m_force// * meas(m_ori)
         );
 
     // Neumann
@@ -635,6 +636,7 @@ void gsThinShellAssembler<T>::assemble(const gsMultiPatch<T> & deformed,
     //     assembleMatrix(deformed);
     // }
     // assembleVector(deformed);
+    m_assembler.cleanUp();
     assemble();
 }
 template<class T>

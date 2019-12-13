@@ -333,9 +333,17 @@ private:
         tmp.transpose() =_u.data().values[2].reshapeCol(k, cols(), numAct );
         vEv = _v.eval(k);
 
-        for (index_t i = 0; i!=_u.dim(); i++)
-            res.block(i*numAct, 0, numAct, cols() ) = tmp * vEv.at(i);
+        gsDebugVar(tmp);
+        gsDebugVar(vEv);
+        gsInfo<<"cols="<<res.cols()<<"; rows="<<res.rows()<<"; actives="<<numAct<<"; cardinality="<<cardinality<<"\n";
 
+        for (index_t i = 0; i!=_u.dim(); i++)
+        {
+            gsDebugVar(tmp * vEv.at(i));
+            gsDebugVar(res.block(i*numAct, 0, numAct, cols() ));
+            res.block(i*numAct, 0, numAct, cols() ) = tmp * vEv.at(i);
+        }
+        gsDebugVar(res);
         return res;
     }
 
