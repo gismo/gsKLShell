@@ -449,8 +449,6 @@ void gsThinShellAssembler<T>::assembleClamped()
 template<class T>
 void gsThinShellAssembler<T>::assemble()
 {
-    gsDebugVar(&m_assembler);
-
     m_assembler.getMap(m_patches);           // this map is used for integrals
     m_assembler.getMap(m_defpatches);
 
@@ -637,6 +635,8 @@ void gsThinShellAssembler<T>::assemble(const gsMultiPatch<T> & deformed,
     // }
     // assembleVector(deformed);
     m_assembler.cleanUp();
+    space m_space = m_assembler.getSpace(m_basis, 3, 0); // last argument is the space ID
+
     assemble();
 }
 template<class T>
