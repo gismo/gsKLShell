@@ -76,18 +76,14 @@ public:
                               - vecFun(d, bGrads.at(2*j+1) ).cross( cJac.col(0).template head<3>() )) / measure;
 
                 // ---------------  First variation of the normal
-                res.row(s+j).noalias() = (m_v - ( normal.dot(m_v) ) * normal).transpose();
-
+                // res.row(s+j).noalias() = (m_v - ( normal.dot(m_v) ) * normal).transpose();
+                res.row(s+j).noalias() = (m_v - ( normal*m_v.transpose() ) * normal).transpose(); // outer-product version
             }
         }
         return res;
     }
 
-    index_t rows() const
-    {
-        return 1; //cols() * _u.data().values[1].rows() / _u.source().domainDim();
-    }
-
+    index_t rows() const { return 1; }
     index_t cols() const { return _u.dim(); }
 
     void setFlag() const
@@ -104,8 +100,7 @@ public:
     }
 
     const gsFeSpace<Scalar> & rowVar() const { return _u.rowVar(); }
-    const gsFeSpace<Scalar> & colVar() const
-    {return gsNullExpr<Scalar>::get();}
+    const gsFeSpace<Scalar> & colVar() const {return gsNullExpr<Scalar>::get();}
     index_t cardinality_impl() const { return _u.cardinality_impl(); }
 
     static constexpr bool rowSpan() {return E::rowSpan(); }
@@ -185,16 +180,19 @@ public:
                                          -vecFun(c, vGrads.at(2*i+1) ).cross( cJac.col(0).template head<3>() ))
                                         / measure;
 
-                        n_der.noalias() = (m_v - ( normal.dot(m_v) ) * normal);
+                        // n_der.noalias() = (m_v - ( normal.dot(m_v) ) * normal);
+                        n_der.noalias() = (m_v - ( normal*m_v.transpose() ) * normal); // outer-product version
 
                         m_uv.noalias() = ( vecFun(d, uGrads.at(2*j  ) ).cross( vecFun(c, vGrads.at(2*i+1) ) )
                                           +vecFun(c, vGrads.at(2*i  ) ).cross( vecFun(d, uGrads.at(2*j+1) ) ))
                                           / measure; //check
 
                         m_u_der.noalias() = (m_uv - ( normal.dot(m_v) ) * m_u);
+                        // m_u_der.noalias() = (m_uv - ( normal*m_v.transpose() ) * m_u); // outer-product version TODO
 
                         // ---------------  Second variation of the normal
                         tmp = m_u_der - (m_u.dot(n_der) + normal.dot(m_u_der) ) * normal - (normal.dot(m_u) ) * n_der;
+                        // tmp = m_u_der - (m_u.dot(n_der) + normal.dot(m_u_der) ) * normal - (normal.dot(m_u) ) * n_der;
 
                         // Evaluate the product
                         tmp = cDer2 * tmp; // E_f_der2, last component
@@ -333,17 +331,8 @@ private:
         tmp.transpose() =_u.data().values[2].reshapeCol(k, cols(), numAct );
         vEv = _v.eval(k);
 
-        gsDebugVar(tmp);
-        gsDebugVar(vEv);
-        gsInfo<<"cols="<<res.cols()<<"; rows="<<res.rows()<<"; actives="<<numAct<<"; cardinality="<<cardinality<<"\n";
-
         for (index_t i = 0; i!=_u.dim(); i++)
-        {
-            gsDebugVar(tmp * vEv.at(i));
-            gsDebugVar(res.block(i*numAct, 0, numAct, cols() ));
             res.block(i*numAct, 0, numAct, cols() ) = tmp * vEv.at(i);
-        }
-        gsDebugVar(res);
         return res;
     }
 
@@ -590,19 +579,6 @@ public:
         eB = _B.eval(k);
         eC = _C.eval(k);
 
-        // gsDebugVar(eA);
-        // gsDebugVar(eB);
-        // gsDebugVar(eC);
-
-        // gsDebugVar(eA.rows());
-        // gsDebugVar(eA.cols());
-        // gsDebugVar(_A.rows());
-        // gsDebugVar(_A.cols());
-        // gsDebugVar(eB.rows());
-        // gsDebugVar(eB.cols());
-        // gsDebugVar(_B.rows());
-        // gsDebugVar(_B.cols());
-
         GISMO_ASSERT(Bc==_A.rows(), "Dimensions: "<<Bc<<","<< _A.rows()<< "do not match");
         GISMO_ASSERT(_A.rowSpan(), "First entry should be rowSpan");
         GISMO_ASSERT(_B.colSpan(), "Second entry should be colSpan.");
@@ -673,28 +649,10 @@ public:
         eB = _B.eval(k);
         eC = _C.eval(k);
 
-        // gsDebugVar(eA);
-        // gsDebugVar(eB);
-        // gsDebugVar(eC);
-
-        // gsDebugVar(eA.rows());
-        // gsDebugVar(eA.cols());
-        // gsDebugVar(_A.rows());
-        // gsDebugVar(_A.cols());
-        // gsDebugVar(eB.rows());
-        // gsDebugVar(eB.cols());
-        // gsDebugVar(_B.rows());
-        // gsDebugVar(_B.cols());
-
         GISMO_ASSERT(_B.rows()==_A.cols(), "Dimensions: "<<_B.rows()<<","<< _A.cols()<< "do not match");
         GISMO_ASSERT(_A.rowSpan(), "First entry should be rowSpan");
         GISMO_ASSERT(_B.colSpan(), "Second entry should be colSpan.");
         GISMO_ASSERT(_C.cols()==_B.rows(), "Dimensions: "<<_C.rows()<<","<< _B.rows()<< "do not match");
-
-        // NOTE: product moved to the loop since that is more consistent with the formulations
-        // for (index_t i = 0; i!=An; ++i)
-        //     for (index_t j = 0; j!=Ac; ++j)
-        //         eA.middleCols(i*Ac,Ac).row(j) *= eC(j);
 
         res.resize(An, Bn);
         for (index_t i = 0; i!=An; ++i)

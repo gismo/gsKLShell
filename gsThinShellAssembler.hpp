@@ -487,13 +487,12 @@ void gsThinShellAssembler<T>::assemble()
     // assemble system
     m_assembler.assemble(
         (
-            // m_N_der * m_Em_der.tr()
-            // +
-            // m_M_der * m_Ef_der.tr()
-            m_space*m_space.tr()
-        ) //* meas(m_ori)
+            m_N_der * m_Em_der.tr()
+            +
+            m_M_der * m_Ef_der.tr()
+        ) * meas(m_ori)
         ,
-        m_space * m_force// * meas(m_ori)
+        m_space * m_force * meas(m_ori)
         );
 
     // Neumann
@@ -516,11 +515,19 @@ void gsThinShellAssembler<T>::assemble()
 template <class T>
 void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
 {
-    // Initialize matrix
-    m_assembler.initMatrix();
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    m_assembler.getMap(m_defpatches);
 
-    gsMaterialMatrix m_mm = m_materialMat;
-    variable mm = m_assembler.getCoeff(m_mm);
+    // Initialize matrix
+    // m_assembler.initMatrix();
+    m_assembler.initSystem();
+
+    gsMaterialMatrix m_mm0 = m_materialMat;
+    gsMaterialMatrix m_mm2 = m_materialMat;
+    m_mm2.setMoment(2);
+
+    variable mm0 = m_assembler.getCoeff(m_mm0);
+    variable mm2 = m_assembler.getCoeff(m_mm2);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m_m2 = m_assembler.getCoeff(mult2t);
@@ -533,12 +540,12 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     auto m_Em       = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) ; //[checked]
     // auto m_Sm       = m_Em * reshape(m_materialMat,3,3);
     // auto m_N        = m_thick.val() * m_Sm;
-    auto m_N    = m_Em * reshape(mm,3,3);
+    auto m_N    = m_Em * reshape(mm0,3,3);
 
     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
     // auto m_Sm_der   = m_Em_der * reshape(m_materialMat,3,3);
     // auto m_N_der    = m_thick.val() * m_Sm_der;
-    auto m_N_der    = m_Em_der * reshape(mm,3,3);
+    auto m_N_der    = m_Em_der * reshape(mm0,3,3);
 
     auto m_Em_der2  = flatdot( jac(m_space),jac(m_space).tr(), m_N ); //[checked]
 
@@ -546,12 +553,12 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     auto m_Ef       = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) ; //[checked]
     // auto m_Sf       = m_Ef * reshape(m_materialMat,3,3);
     // auto m_M        = pow(m_thick.val(),3) / 12.0 * m_Sf;
-    auto m_M        = m_Ef * reshape(mm,3,3);
+    auto m_M        = m_Ef * reshape(mm2,3,3);
 
     auto m_Ef_der   = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
     // auto m_Sf_der   = m_Ef_der * reshape(m_materialMat,3,3);
     // auto m_M_der    = pow(m_thick.val(),3) / 12.0 * m_Sf_der;
-    auto m_M_der    = m_Ef_der * reshape(mm,3,3);
+    auto m_M_der    = m_Ef_der * reshape(mm2,3,3);
 
     auto m_Ef_der2  = flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_M  ).symmetrize()
                         + var2(m_space,m_space,m_def, m_M );
@@ -579,14 +586,18 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMatrix<T> & solVector)
 template <class T>
 void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
 {
-    m_defpatches = deformed;
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    m_assembler.getMap(m_defpatches);
 
     // Initialize vector
     m_assembler.initVector();
 
-    gsMaterialMatrix m_mm = m_materialMat;
+    gsMaterialMatrix m_mm0 = m_materialMat;
+    gsMaterialMatrix m_mm2 = m_materialMat;
+    m_mm2.setMoment(2);
     // gsMaterialMatrix materialMat(m_patches, *m_thickFun, *m_YoungsModulus, *m_PoissonsRatio);
-    variable mm = m_assembler.getCoeff(m_mm);
+    variable mm0 = m_assembler.getCoeff(m_mm0);
+    variable mm2 = m_assembler.getCoeff(m_mm2);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m_m2 = m_assembler.getCoeff(mult2t);
@@ -600,14 +611,14 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
     auto m_Em       = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) ; //[checked]
     // auto m_Sm       = m_Em * reshape(m_materialMat,3,3);
     // auto m_N        = m_thick.val() * m_Sm;
-    auto m_N    = m_Em * reshape(mm,3,3);
+    auto m_N    = m_Em * reshape(mm0,3,3);
 
     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ;
 
     auto m_Ef       = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) ; //[checked]
     // auto m_Sf       = m_Ef * reshape(m_materialMat,3,3);
     // auto m_M        = pow(m_thick.val(),3) / 12.0 * m_Sf;
-    auto m_M        = m_Ef * reshape(mm,3,3);
+    auto m_M        = m_Ef * reshape(mm2,3,3);
 
     auto m_Ef_der   = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
 
@@ -627,17 +638,20 @@ template<class T>
 void gsThinShellAssembler<T>::assemble(const gsMultiPatch<T> & deformed,
                                         bool Matrix)
 {
-    // m_defpatches = deformed;
+    m_defpatches = deformed;
 
-    // if (Matrix)
-    // {
-    //     assembleMatrix(deformed);
-    // }
-    // assembleVector(deformed);
+    if (Matrix)
+    {
+        m_assembler.cleanUp();
+        assembleMatrix(deformed);
+    }
+
     m_assembler.cleanUp();
-    space m_space = m_assembler.getSpace(m_basis, 3, 0); // last argument is the space ID
+    assembleVector(deformed);
 
-    assemble();
+    // m_assembler.cleanUp();
+
+    // assemble();
 }
 template<class T>
 void gsThinShellAssembler<T>::assemble(const gsMatrix<T> & solVector,
