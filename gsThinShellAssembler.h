@@ -105,7 +105,8 @@ public:
     const gsSparseMatrix<T> & matrix()  const   {return m_assembler.matrix();}
     // gsSparseMatrix<T> & matrix() {return const_cast <gsSparseMatrix<T> &>(m_assembler.matrix());}
 
-    const gsMatrix<T>       & rhs()     const {return m_assembler.rhs();}
+    // const gsMatrix<T>       & rhs()     const {return m_assembler.rhs();}
+    const gsMatrix<T>       & rhs()     const {return m_rhs.size()==0 ? m_assembler.rhs() : m_rhs;}
 
     //--------------------- SOLUTION CONSTRUCTION ----------------------------------//
 
@@ -133,6 +134,8 @@ public:
     /// @brief Return minJ/maxJ
     T solutionJacRatio(const gsMultiPatch<T> & solution) const;
 
+
+
 protected:
     typedef typename std::vector< gsMatrix<unsigned> > gsStripIndices; // index_t instead of unsigned
 
@@ -158,6 +161,7 @@ protected:
     typedef gsExprAssembler<>::solution    solution;
 
     std::vector<gsDofMapper>  m_dofMappers;
+    gsDofMapper m_mapper;
 
     gsExprAssembler<> m_assembler;
     gsExprEvaluator<> m_evaluator;
@@ -191,6 +195,12 @@ protected:
     gsPointLoads<T>  m_pLoads;
 
     mutable gsMatrix<T> m_solvector;
+
+    index_t m_dim;
+
+
+    gsMatrix<T> m_rhs;
+
 
     // /*
     //     Make type aliasses for function expressions

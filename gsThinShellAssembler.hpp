@@ -106,6 +106,9 @@ void gsThinShellAssembler<T>::initialize()
 
     assembleDirichlet();
 
+    m_mapper = m_space.mapper();
+    m_dim = m_space.dim();
+
 }
 
 
@@ -295,58 +298,58 @@ void gsThinShellAssembler<T>::assembleClamped()
 //     // m_matrix.makeCompressed();
 // }
 
-// template<class T>
-// void gsThinShellAssembler<T>::applyLoads()
-// {
-//     gsMatrix<T>        bVals;
-//     gsMatrix<unsigned> acts,globalActs;
+template<class T>
+void gsThinShellAssembler<T>::applyLoads()
+{
+    gsMatrix<T>        bVals;
+    gsMatrix<unsigned> acts,globalActs;
 
-//     space       m_space = m_assembler.trialSpace(0);
+    space       m_space = m_assembler.trialSpace(0);
+    m_mapper = m_space.mapper();
 
-//     /*
-//         NOTE!!
-//         This does not work yet. We need the dofMappers per degree of freedom!!
-//     */
-//     // -----------------------------------
-//     m_dofMappers.resize(3);
-//     m_dofMappers.at(0) = m_space.mapper();
-//     m_dofMappers.at(1) = m_space.mapper();
-//     m_dofMappers.at(2) = m_space.mapper();
-//     // -----------------------------------
+    // /*
+    //     NOTE!!
+    //     This does not work yet. We need the dofMappers per degree of freedom!!
+    // */
+    // // -----------------------------------
+    // m_dofMappers.resize(3);
+    // m_dofMappers.at(0) = m_space.mapper();
+    // m_dofMappers.at(1) = m_space.mapper();
+    // m_dofMappers.at(2) = m_space.mapper();
+    // // -----------------------------------
 
 
-//     for (size_t i = 0; i< m_pLoads.numLoads(); ++i )
-//     {
-//         // Compute actives and values of basis functions on point load location.
-//         if ( m_pLoads[i].parametric )   // in parametric space
-//         {
-//             m_basis.front().basis(m_pLoads[i].patch).active_into( m_pLoads[i].point, acts );
-//             m_basis.front().basis(m_pLoads[i].patch).eval_into  ( m_pLoads[i].point, bVals);
-//         }
-//         else                            // in physical space
-//         {
-//             gsMatrix<> forcePoint;
-//             m_patches.patch(m_pLoads[i].patch).invertPoints(m_pLoads[i].point,forcePoint);
-//             m_bases.front().basis(m_pLoads[i].patch).active_into( forcePoint, acts );
-//             m_bases.front().basis(m_pLoads[i].patch).eval_into  ( forcePoint, bVals);
-//         }
+    for (size_t i = 0; i< m_pLoads.numLoads(); ++i )
+    {
+        // Compute actives and values of basis functions on point load location.
+        if ( m_pLoads[i].parametric )   // in parametric space
+        {
+            m_basis.front().basis(m_pLoads[i].patch).active_into( m_pLoads[i].point, acts );
+            m_basis.front().basis(m_pLoads[i].patch).eval_into  ( m_pLoads[i].point, bVals);
+        }
+        else                            // in physical space
+        {
+            gsMatrix<T> forcePoint;
+            m_patches.patch(m_pLoads[i].patch).invertPoints(m_pLoads[i].point,forcePoint);
+            m_basis.front().basis(m_pLoads[i].patch).active_into( forcePoint, acts );
+            m_basis.front().basis(m_pLoads[i].patch).eval_into  ( forcePoint, bVals);
+        }
 
-//         // Add the point load values in the right entries in the global RHS
-//         for (size_t j = 0; j< 3; ++j)
-//         {
-//             if (m_pLoads[i].value[j] != 0.0)
-//             {
-//                 m_dofMappers[j].localToGlobal(acts, m_pLoads[i].patch, globalActs);
-
-//                 for (index_t k=0; k < globalActs.rows(); ++k)
-//                 {
-//                     if (int(globalActs(k,0)) < m_dofs)
-//                         m_rhs(globalActs(k,0), 0) += bVals(k,0) * m_pLoads[i].value[j];
-//                 }
-//             }
-//         }
-//     }
-// }
+        // Add the point load values in the right entries in the global RHS
+        for (size_t j = 0; j< 3; ++j)
+        {
+            if (m_pLoads[i].value[j] != 0.0)
+            {
+                m_mapper.localToGlobal(acts, m_pLoads[i].patch, globalActs,j);
+                for (index_t k=0; k < globalActs.rows(); ++k)
+                {
+                    if (m_mapper.is_free_index(globalActs(k,0)))
+                        m_rhs(globalActs(k,0), 0) += bVals(k,0) * m_pLoads[i].value[j];
+                }
+            }
+        }
+    }
+}
 
 // template<class T>
 // void gsShellAssembler<T>::assembleClamped()
@@ -360,11 +363,11 @@ void gsThinShellAssembler<T>::assembleClamped()
 //         gsDofMapper & mapper  = m_dofMappers[it->unknown()];
 //         const patchSide & cur = it->side();
 //         // Get boundary dofs
-//         gsMatrix<unsigned> bDofs = m_bases[0][cur.patch].boundary(cur);
+//         gsMatrix<unsigned> bDofs = m_basis[0][cur.patch].boundary(cur);
 
 //         // Cast to tensor b-spline basis
 //         const gsTensorBSplineBasis<2,T> * tp =
-//             dynamic_cast<const gsTensorBSplineBasis<2,T> *>(&m_bases[0][cur.patch]);
+//             dynamic_cast<const gsTensorBSplineBasis<2,T> *>(&m_basis[0][cur.patch]);
 
 //         if ( tp != NULL) // clamp adjacent dofs
 //         {
@@ -483,7 +486,6 @@ void gsThinShellAssembler<T>::assemble()
 
     // auto m_M_der    = pow(m_thick.val(),3) / 12.0 * m_Sf_der;
 
-
     // assemble system
     m_assembler.assemble(
         (
@@ -495,6 +497,12 @@ void gsThinShellAssembler<T>::assemble()
         m_space * m_force * meas(m_ori)
         );
 
+    // Assemble the loads
+    if ( m_pLoads.numLoads() != 0 )
+    {
+        m_rhs = m_assembler.rhs();
+        applyLoads();
+    }
     // Neumann
 }
 
@@ -525,9 +533,16 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     gsMaterialMatrix m_mm0 = m_materialMat;
     gsMaterialMatrix m_mm2 = m_materialMat;
     m_mm2.setMoment(2);
+    gsMaterialMatrix m_S0 = m_materialMat;
+    m_S0.makeVector();
+    gsMaterialMatrix m_S2 = m_materialMat;
+    m_S2.makeVector();
+    m_S2.setMoment(2);
 
     variable mm0 = m_assembler.getCoeff(m_mm0);
     variable mm2 = m_assembler.getCoeff(m_mm2);
+    variable S0 = m_assembler.getCoeff(m_S0);
+    variable S2 = m_assembler.getCoeff(m_S2);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m_m2 = m_assembler.getCoeff(mult2t);
@@ -538,30 +553,33 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
 
     auto m_Em       = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) ; //[checked]
-    // auto m_Sm       = m_Em * reshape(m_materialMat,3,3);
-    // auto m_N        = m_thick.val() * m_Sm;
-    auto m_N    = m_Em * reshape(mm0,3,3);
+    // auto m_Sm       = m_Em * reshape(mm0,3,3);
+    // auto m_N2        = m_thick.val() * m_Sm;
+    auto m_N        = S0;
+    // auto m_N        = m_Em * reshape(mm0,3,3);
 
     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
     // auto m_Sm_der   = m_Em_der * reshape(m_materialMat,3,3);
     // auto m_N_der    = m_thick.val() * m_Sm_der;
     auto m_N_der    = m_Em_der * reshape(mm0,3,3);
 
-    auto m_Em_der2  = flatdot( jac(m_space),jac(m_space).tr(), m_N ); //[checked]
+    auto m_Em_der2  = flatdot( jac(m_space),jac(m_space).tr(), m_N.tr() ); //[checked]
 
 
     auto m_Ef       = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) ; //[checked]
+    // auto m_Ef       = ( deriv2(m_ori,sn(m_ori).normalized().tr()) ) ;//* reshape(m_m2,3,3) ; //[checked]
     // auto m_Sf       = m_Ef * reshape(m_materialMat,3,3);
     // auto m_M        = pow(m_thick.val(),3) / 12.0 * m_Sf;
-    auto m_M        = m_Ef * reshape(mm2,3,3);
+    auto m_M        = S2; // output is a column
+    // auto m_M        = m_Ef * reshape(mm2,3,3);
 
     auto m_Ef_der   = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
     // auto m_Sf_der   = m_Ef_der * reshape(m_materialMat,3,3);
     // auto m_M_der    = pow(m_thick.val(),3) / 12.0 * m_Sf_der;
     auto m_M_der    = m_Ef_der * reshape(mm2,3,3);
 
-    auto m_Ef_der2  = flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_M  ).symmetrize()
-                        + var2(m_space,m_space,m_def, m_M );
+    auto m_Ef_der2  = flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_M.tr()  ).symmetrize()
+                        + var2(m_space,m_space,m_def, m_M.tr() );
 
     // Assemble matrix
     m_assembler.assemble(
@@ -575,6 +593,26 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
                     m_Ef_der2
                     ) * meas(m_ori)
                 );
+
+    gsExprEvaluator ev(m_assembler);
+    gsVector<> pt(2); pt.setConstant(0.1);
+
+
+    gsMatrix<T> evresult = ev.eval( m_Em,pt );
+    gsInfo << "Eval on point ("<<pt.at(0)<<" , "<<pt.at(1)<<") :\n"<< evresult;
+    gsInfo << "\nEnd ("<< evresult.rows()<< " x "<<evresult.cols()<<")\n";
+
+    evresult = ev.eval( m_N,pt );
+    gsInfo << "Eval on point ("<<pt.at(0)<<" , "<<pt.at(1)<<") :\n"<< evresult;
+    gsInfo << "\nEnd ("<< evresult.rows()<< " x "<<evresult.cols()<<")\n";
+
+    evresult = ev.eval( mm0,pt );
+    gsInfo << "Eval on point ("<<pt.at(0)<<" , "<<pt.at(1)<<") :\n"<< evresult;
+    gsInfo << "\nEnd ("<< evresult.rows()<< " x "<<evresult.cols()<<")\n";
+
+    evresult = ev.eval( mm2,pt );
+    gsInfo << "Eval on point ("<<pt.at(0)<<" , "<<pt.at(1)<<") :\n"<< evresult;
+    gsInfo << "\nEnd ("<< evresult.rows()<< " x "<<evresult.cols()<<")\n";
 }
 template<class T>
 void gsThinShellAssembler<T>::assembleMatrix(const gsMatrix<T> & solVector)
@@ -626,6 +664,13 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
     m_assembler.assemble(m_space * m_force * meas(m_ori) -
                 ( ( m_N * m_Em_der.tr() - m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
                 );
+
+    // Assemble the loads
+    if ( m_pLoads.numLoads() != 0 )
+    {
+        m_rhs = m_assembler.rhs();
+        applyLoads();
+    }
 }
 template<class T>
 void gsThinShellAssembler<T>::assembleVector(const gsMatrix<T> & solVector)

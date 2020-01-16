@@ -29,7 +29,7 @@
 namespace gismo
 {
 
-// Linear material models
+// Linear material models; no strain computation
 template<class T>
 gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
                                         const gsFunction<T> & thickness,
@@ -46,8 +46,31 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
     m_model = 0;
     m_moment = 0;
     m_matrix = true;
-    m_map.flags = NEED_JACOBIAN | NEED_NORMAL | NEED_VALUE;
+    m_map.flags = m_map_def.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
 }
+
+// Linear material models
+template<class T>
+gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
+                                        const gsFunctionSet<T> & mp_def,
+                                        const gsFunction<T> & thickness,
+                                        const gsFunction<T> & par1,
+                                        const gsFunction<T> & par2
+                                        )
+                                        :
+                                        m_patches(&mp),
+                                        m_defpatches(&mp_def),
+                                        m_thickness(&thickness),
+                                        m_par1(&par1),
+                                        m_par2(&par2),
+                                        m_piece(nullptr)
+{
+    m_model = 0;
+    m_moment = 0;
+    m_matrix = true;
+    m_map.flags = m_map_def.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
+}
+
 
 // Composite material model
 template<class T>
@@ -69,29 +92,32 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T>            & mp,
 {
     m_model = 1;
     m_moment = 0;
-    m_map.flags = NEED_JACOBIAN | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
+    m_matrix = true;
+    m_map.flags = m_map_def.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
 }
 
-// Nonlinear material models
-template<class T>
-gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
-                                        const gsFunctionSet<T> & mp_def,
-                                        const gsFunction<T> & thickness,
-                                        const gsFunction<T> & par1,
-                                        const gsFunction<T> & par2
-                                        )
-                                        :
-                                        m_patches(&mp),
-                                        m_defpatches(&mp_def),
-                                        m_thickness(&thickness),
-                                        m_par1(&par1),
-                                        m_par2(&par2),
-                                        m_piece(nullptr)
-{
-    // m_model = 0;
-    m_moment = 0;
-    m_map.flags = NEED_JACOBIAN | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
-}
+// // Nonlinear material models
+// template<class T>
+// gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
+//                                         const gsFunctionSet<T> & mp_def,
+//                                         const gsFunction<T> & thickness,
+//                                         const gsFunction<T> & par1,
+//                                         const gsFunction<T> & par2
+//                                         )
+//                                         :
+//                                         m_patches(&mp),
+//                                         m_defpatches(&mp_def),
+//                                         m_thickness(&thickness),
+//                                         m_par1(&par1),
+//                                         m_par2(&par2),
+//                                         m_piece(nullptr)
+// {
+//     // m_model = 0;
+//     m_moment = 0;
+//     m_map.flags = m_map_def.flags =  NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
+
+//     // normal and deriv2 only needed when ComputeFull
+// }
 
 
 template <class T>
@@ -114,6 +140,30 @@ short_t gsMaterialMatrix<T>::targetDim() const
     else
         return 3;
 }
+
+// template <class T>
+// void gsMaterialMatrix<T>::computePoints(const gsMatrix<T> & u) const
+// {
+//     m_map.points = m_map_def.points = u;
+
+//     // NOTE 1: if the input \a u is considered to be in physical coordinates
+//     // then we first need to invert the points to parameter space
+//     // m_patches.patch(0).invertPoints(u, m_map.points, 1e-8) which is not exact (!),
+//     // otherwise we just use the input paramteric points
+
+//     static_cast<const gsFunction<T>&>(m_patches->piece(0)).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+//     static_cast<const gsFunction<T>&>(m_patches->piece(0)).computeMap(m_map_def);
+
+//     // NOTE 2: in the case that parametric value is needed it suffices
+//     // to evaluate Youngs modulus and Poisson's ratio at
+//     // \a u instead of _tmp.values[0].
+
+//     m_thickness->eval_into(m_map.values[0], m_Tmat);
+
+
+
+// }
+
 
 template <class T>
 void gsMaterialMatrix<T>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
@@ -185,6 +235,7 @@ gsMatrix<T> gsMaterialMatrix<T>::multiplyZ(const gsMatrix<T>& u) const
         this->eval3D_into(m_points,result);
 
         T fac;
+        GISMO_ASSERT(u.cols()==result.cols(),"Number of columns of input and points is not equal. result.cols() = "<<result.cols()<<" and u.cols() = "<<u.cols());
         for (index_t j = 0; j != u.cols(); ++j) // points
         {
             fac = 2.0/(m_moment+1) * math::pow( m_Tmat(0,j) / 2.0 , m_moment + 1);
@@ -260,7 +311,7 @@ void gsMaterialMatrix<T>::computeMetric(index_t k, bool computedeformed, bool co
     {
         // Construct metric tensor b = [d11c*n, d12c*n ; d21c*n, d22c*n]
         m_deriv2    = m_map.deriv2(k);
-        m_deriv2.reshape(3,3);
+        m_deriv2.resize(3,3);
         m_normal    = m_map.normal(k).normalized();
 
         m_metricB.resize(2,2);
@@ -272,6 +323,7 @@ void gsMaterialMatrix<T>::computeMetric(index_t k, bool computedeformed, bool co
     }
     if (computedeformed)
     {
+        GISMO_ASSERT(NULL!=m_defpatches->size(),"Deformed multipatch is empty; cannot compute strains!");
         m_metricA_def.resize(2,2);
         // Construct metric tensor a = [dcd1*dcd1, dcd1*dcd2; dcd2*dcd1, dcd2*dcd2]
         m_metricA_def    = m_map_def.jacobian(k);
@@ -279,8 +331,8 @@ void gsMaterialMatrix<T>::computeMetric(index_t k, bool computedeformed, bool co
         if (computefull)
         {
             // Construct metric tensor b = [d11c*n, d12c*n ; d21c*n, d22c*n]
-            m_deriv2_def = m_map.deriv2(k);
-            m_deriv2.reshape(3,3); // gives [d11 c1, d11c2, d11c3; d22c1, d22c1, d22c3; d12c1, d12c2, d12c3]
+            m_deriv2_def = m_map_def.deriv2(k);
+            m_deriv2_def.resize(3,3); // gives [d11 c1, d11c2, d11c3; d22c1, d22c1, d22c3; d12c1, d12c2, d12c3]
             m_normal_def = m_map_def.normal(k).normalized();
 
             m_metricB_def.resize(2,2);
@@ -299,13 +351,14 @@ gsMatrix<T> gsMaterialMatrix<T>::eval3D_Linear(const gsMatrix<T>& u) const
     // gsInfo<<"TO DO: evaluate moments using thickness";
     // Input: points in R3
     // Output: material matrix in R9 (cols stacked in rows; every row corresponds to a point)
-    m_result.resize(this->targetDim(),u.cols());
+    gsMatrix<T> result(this->targetDim(), u.cols());
+    result.setZero();
 
     // NOTE 1: if the input \a u is considered to be in physical coordinates
     // then we first need to invert the points to parameter space
     // m_patches.patch(0).invertPoints(u, m_map.points, 1e-8) which is not exact (!),
     // otherwise we just use the input paramteric points
-    m_map.points = u.topRows(2);
+    m_map.points = m_map_def.points = u.topRows(2);
 
     static_cast<const gsFunction<T>&>(m_patches->piece(m_pIndex)).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
 
@@ -325,7 +378,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval3D_Linear(const gsMatrix<T>& u) const
         {
             this->computeMetric(i);
 
-            gsAsMatrix<T, Dynamic, Dynamic> C = m_result.reshapeCol(i,3,3);
+            gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(i,3,3);
             /*
                 C = C1111,  C1122,  C1112
                     symm,   C2222,  C2212
@@ -340,21 +393,30 @@ gsMatrix<T> gsMaterialMatrix<T>::eval3D_Linear(const gsMatrix<T>& u) const
         }
         else
         {
+            static_cast<const gsFunction<T>&>(m_defpatches->piece(m_pIndex)).computeMap(m_map_def); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+
             this->computeMetric(i,true,true);
 
-            m_result(0,i) = Sij(0,0);
-            m_result(1,i) = Sij(1,1);
-            m_result(2,i) = Sij(0,1);
+            result(0,i) = Sij(0,0);
+            result(1,i) = Sij(1,1);
+            result(2,i) = Sij(0,1);
         }
     }
 
-    return m_result;
+
+    return result;
 }
 
 template <class T>
 gsMatrix<T> gsMaterialMatrix<T>::eval_Composite(const gsMatrix<T>& u) const
 {
+    // Initialize and result
     gsMatrix<T> result(this->targetDim(), u.cols());
+    gsMatrix<T,3,3> Dmat, Tmat, Cmat;
+
+    Cmat.setZero();
+    Dmat.setZero();
+    Tmat.setZero();
     // static_cast<const gsFunction<T>*>(_mp)->computeMap(_tmp);
     GISMO_ASSERT(m_YoungsModuli.size()==m_PoissonRatios.size(),"Size of vectors of Youngs Moduli and Poisson Ratios is not equal: " << m_YoungsModuli.size()<<" & "<<m_PoissonRatios.size());
     GISMO_ASSERT(m_YoungsModuli.size()==m_ShearModuli.size(),"Size of vectors of Youngs Moduli and Shear Moduli is not equal: " << m_YoungsModuli.size()<<" & "<<m_ShearModuli.size());
@@ -370,12 +432,6 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Composite(const gsMatrix<T>& u) const
 
     // now we use t_temp to add the thickness of all plies iteratively
     m_t_temp = 0.0;
-
-    // Initialize and result
-    // gsMatrix<T> tmp(3,3);
-    // tmp.setZero();
-    result.resize( 9, 1 );
-
 
     for (size_t i = 0; i != m_phis.size(); ++i) // loop over laminates
     {
@@ -393,56 +449,59 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Composite(const gsMatrix<T>& u) const
               <<"\tnu21 = "<<m_nu21<<"\t E1 = "<<m_E1<<"\t nu21*E1 = "<<m_nu21*m_E1);
 
         // Fill material matrix
-        m_Dmat(0,0) = m_E1 / (1-m_nu12*m_nu21);
-        m_Dmat(1,1) = m_E2 / (1-m_nu12*m_nu21);;
-        m_Dmat(2,2) = m_G12;
-        m_Dmat(0,1) = m_nu21*m_E1 / (1-m_nu12*m_nu21);
-        m_Dmat(1,0) = m_nu12*m_E2 / (1-m_nu12*m_nu21);
-        m_Dmat(2,0) = m_Dmat(0,2) = m_Dmat(2,1) = m_Dmat(1,2) = 0.0;
+        Dmat(0,0) = m_E1 / (1-m_nu12*m_nu21);
+        Dmat(1,1) = m_E2 / (1-m_nu12*m_nu21);
+        Dmat(2,2) = m_G12;
+        Dmat(0,1) = m_nu21*m_E1 / (1-m_nu12*m_nu21);
+        Dmat(1,0) = m_nu12*m_E2 / (1-m_nu12*m_nu21);
+        Dmat(2,0) = Dmat(0,2) = Dmat(2,1) = Dmat(1,2) = 0.0;
 
         // Make transformation matrix
-        m_Transform(0,0) = m_Transform(1,1) = math::pow(math::cos(m_phi),2);
-        m_Transform(0,1) = m_Transform(1,0) = math::pow(math::sin(m_phi),2);
-        m_Transform(2,0) = m_Transform(0,2) = m_Transform(2,1) = m_Transform(1,2) = math::sin(m_phi) * math::cos(m_phi);
-        m_Transform(2,0) *= -2.0;
-        m_Transform(2,1) *= 2.0;
-        m_Transform(1,2) *= -1.0;
-        m_Transform(2,2) = math::pow(math::cos(m_phi),2) - math::pow(math::sin(m_phi),2);
+        Tmat(0,0) = Tmat(1,1) = math::pow(math::cos(m_phi),2);
+        Tmat(0,1) = Tmat(1,0) = math::pow(math::sin(m_phi),2);
+        Tmat(2,0) = Tmat(0,2) = Tmat(2,1) = Tmat(1,2) = math::sin(m_phi) * math::cos(m_phi);
+        Tmat(2,0) *= -2.0;
+        Tmat(2,1) *= 2.0;
+        Tmat(1,2) *= -1.0;
+        Tmat(2,2) = math::pow(math::cos(m_phi),2) - math::pow(math::sin(m_phi),2);
 
         // Compute laminate stiffness matrix
-        m_Dmat = m_Transform.transpose() * m_Dmat * m_Transform;
+        Dmat = Tmat.transpose() * Dmat * Tmat;
 
         m_z = math::abs(m_z_mid - (m_t/2.0 + m_t_temp) ); // distance from mid-plane of plate
 
         switch (m_moment)
         {
             case 0:
-                result.reshape(3,3) += m_Dmat * m_t; // A
+                Cmat += Dmat * m_t; // A
                 break;
             case 1:
-                result.reshape(3,3) += m_Dmat * m_t*m_z; // B
+                Cmat += Dmat * m_t*m_z; // B
                 break;
             case 2:
-                result.reshape(3,3) += m_Dmat * ( m_t*math::pow(m_z,2) + math::pow(m_t,3)/12.0 ); // D
+                Cmat += Dmat * ( m_t*math::pow(m_z,2) + math::pow(m_t,3)/12.0 ); // D
                 break;
         }
+        // Note: we put everything in the first column, to replicate further after the loop;
+        // since all cols are equal up to now
+        // (ASSUMPTION THAT THE MATERIAL PARAMETERS ARE CONSTANT)
 
         m_t_temp += m_t;
     }
 
     GISMO_ASSERT(m_t_tot==m_t_temp,"Total thickness after loop is wrong. t_temp = "<<m_t_temp<<" and sum(thickness) = "<<m_t_tot);
-    // gsDebugVar(tmp);
 
-    m_map.points = u.topRows(2);
+    m_map.points = m_map_def.points = u.topRows(2);
+    static_cast<const gsFunction<T>&>(m_patches->piece(m_pIndex)).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+    static_cast<const gsFunction<T>&>(m_defpatches->piece(m_pIndex)).computeMap(m_map_def); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
 
-    result = result.replicate(1,u.cols());
     // TRANSFORMATION OF THE MATRIX FROM LOCAL CARTESIAN TO CURVILINEAR
     // Compute covariant bases in deformed and undeformed configuration
-    static_cast<const gsFunction<T>&>(m_patches->piece(m_pIndex)).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
 
+    m_covBasis.resize(3,3);
+    m_conBasis.resize(3,3);
     for (index_t k = 0; k != u.cols(); ++k)
     {
-        m_covBasis.resize(3,3);
         m_covBasis.leftCols(2) = m_map.jacobian(k);
         m_covBasis.col(2)      = m_map.normal(k).normalized();
         m_covMetric = m_covBasis.transpose() * m_covBasis;
@@ -463,39 +522,79 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Composite(const gsMatrix<T>& u) const
         m_a1 = m_covBasis.col(0);
         m_a2 = m_covBasis.col(1);
 
-        m_Transform.resize(3,3);
+        Tmat.setZero();
         // Covariant to local cartesian
-        m_Transform(0,0) = (m_e1.dot(m_a1))*(m_a1.dot(m_e1));
-        m_Transform(0,1) = (m_e1.dot(m_a2))*(m_a2.dot(m_e2));
-        m_Transform(0,2) = 2*(m_e1.dot(m_a1))*(m_a2.dot(m_e1));
+        Tmat(0,0) = (m_e1.dot(m_a1))*(m_a1.dot(m_e1));
+        Tmat(0,1) = (m_e1.dot(m_a2))*(m_a2.dot(m_e2));
+        Tmat(0,2) = 2*(m_e1.dot(m_a1))*(m_a2.dot(m_e1));
         // Row 1
-        m_Transform(1,0) = (m_e2.dot(m_a1))*(m_a1.dot(m_e2));
-        m_Transform(1,1) = (m_e2.dot(m_a2))*(m_a2.dot(m_e2));
-        m_Transform(1,2) = 2*(m_e2.dot(m_a1))*(m_a2.dot(m_e2));
+        Tmat(1,0) = (m_e2.dot(m_a1))*(m_a1.dot(m_e2));
+        Tmat(1,1) = (m_e2.dot(m_a2))*(m_a2.dot(m_e2));
+        Tmat(1,2) = 2*(m_e2.dot(m_a1))*(m_a2.dot(m_e2));
         // Row 2
-        m_Transform(2,0) = (m_e1.dot(m_a1))*(m_a1.dot(m_e2));
-        m_Transform(2,1) = (m_e1.dot(m_a2))*(m_a2.dot(m_e2));
-        m_Transform(2,2) = (m_e1.dot(m_a1))*(m_a2.dot(m_e2)) + (m_e1.dot(m_a2))*(m_a1.dot(m_e2));
+        Tmat(2,0) = (m_e1.dot(m_a1))*(m_a1.dot(m_e2));
+        Tmat(2,1) = (m_e1.dot(m_a2))*(m_a2.dot(m_e2));
+        Tmat(2,2) = (m_e1.dot(m_a1))*(m_a2.dot(m_e2)) + (m_e1.dot(m_a2))*(m_a1.dot(m_e2));
 
-        m_Transform = m_Transform.template block<3,1>(0,0).inverse(); // !!!!
-        result.reshapeCol(k,3,3) = m_Transform * result.reshapeCol(k,3,3);
+        Tmat = Tmat.template block<3,3>(0,0).inverse(); // !!!!
 
+        Cmat = Tmat * Cmat;
+
+        Tmat.setZero();
         // Contravariant to local cartesian
-        m_Transform(0,0) = (m_e1.dot(m_ac1))*(m_ac1.dot(m_e1));
-        m_Transform(0,1) = (m_e1.dot(m_ac2))*(m_ac2.dot(m_e2));
-        m_Transform(0,2) = 2*(m_e1.dot(m_ac1))*(m_ac2.dot(m_e1));
+        Tmat(0,0) = (m_e1.dot(m_ac1))*(m_ac1.dot(m_e1));
+        Tmat(0,1) = (m_e1.dot(m_ac2))*(m_ac2.dot(m_e2));
+        Tmat(0,2) = 2*(m_e1.dot(m_ac1))*(m_ac2.dot(m_e1));
         // Row 1
-        m_Transform(1,0) = (m_e2.dot(m_ac1))*(m_ac1.dot(m_e2));
-        m_Transform(1,1) = (m_e2.dot(m_ac2))*(m_ac2.dot(m_e2));
-        m_Transform(1,2) = 2*(m_e2.dot(m_ac1))*(m_ac2.dot(m_e2));
+        Tmat(1,0) = (m_e2.dot(m_ac1))*(m_ac1.dot(m_e2));
+        Tmat(1,1) = (m_e2.dot(m_ac2))*(m_ac2.dot(m_e2));
+        Tmat(1,2) = 2*(m_e2.dot(m_ac1))*(m_ac2.dot(m_e2));
         // Row 2
-        m_Transform(2,0) = (m_e1.dot(m_ac1))*(m_ac1.dot(m_e2));
-        m_Transform(2,1) = (m_e1.dot(m_ac2))*(m_ac2.dot(m_e2));
-        m_Transform(2,2) = (m_e1.dot(m_ac1))*(m_ac2.dot(m_e2)) + (m_e1.dot(m_ac2))*(m_ac1.dot(m_e2));
+        Tmat(2,0) = (m_e1.dot(m_ac1))*(m_ac1.dot(m_e2));
+        Tmat(2,1) = (m_e1.dot(m_ac2))*(m_ac2.dot(m_e2));
+        Tmat(2,2) = (m_e1.dot(m_ac1))*(m_ac2.dot(m_e2)) + (m_e1.dot(m_ac2))*(m_ac1.dot(m_e2));
 
-        result.reshapeCol(k,3,3) = result.reshapeCol(k,3,3) * m_Transform;
+        Cmat = Cmat * Tmat;
+
+        if (m_matrix)
+            result.reshapeCol(k,3,3) = Cmat;
+        else
+        {
+            gsMatrix<T> Eij(2,2);
+            computeMetric(k,true,true);
+
+            if (m_moment==0)
+            {
+                Eij = 0.5*(m_metricA - m_metricA_def);
+                gsDebugVar(Eij);
+            }
+            else if (m_moment==2)
+            {
+                Eij = (m_metricB - m_metricB_def);
+                gsDebugVar(Eij);
+            }
+            else
+            {
+                gsDebug<<"Warning: no material model known in simplification";
+            }
+            Eij(0,1) += Eij(1,0);
+            std::swap(Eij(1,0), Eij(1,1));
+            Eij.resize(4,1);
+            Eij.conservativeResize(3,1);
+            result = Cmat * Eij;
+        }
+
+
+
+
+
+
+
+        // else
+        // {
+        //     // result.col(k) = Cmat *
+        // }
     }
-
 
     return result;
 };
@@ -528,7 +627,11 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
 
             break;
 
-        case 1: // nonlinear Incompressible Neo-Hookean
+        case 1: // composite material model
+            // NO IMPLEMENTATION
+            break;
+
+        case 2: // nonlinear Incompressible Neo-Hookean
             GISMO_ASSERT( ( (i < 2) && (j < 2) && (k < 2) && (l < 2) ) , "Index out of range. i="<<i<<", j="<<j<<", k="<<k<<", l="<<l);
             return 2.0*m_par1val*m_J0*m_metricG(i,j)*m_metricG(k,l) + m_metricG(i,k)*m_metricG(j,l) + m_metricG(i,l)*m_metricG(j,k);
             break;
@@ -554,6 +657,9 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
 template<class T>
 T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j) const
 {
+
+    // CHECK IF QUANTITIES HAVE BEEN COMPUTED!
+
     gsMatrix<T> tmp;
     switch (m_model)
     {
@@ -561,7 +667,7 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j) const
             if (m_moment==0)
             {
                 GISMO_ASSERT( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
-                tmp = 0.5*(m_metricA - m_metricA_def);
+                tmp = 0.5*(m_metricA_def - m_metricA);
             }
             else if (m_moment==2)
             {
@@ -575,8 +681,52 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j) const
             return    Cijkl(i,j,0,0) * tmp(0,0) + Cijkl(i,j,0,1) * tmp(0,1)
                     + Cijkl(i,j,1,0) * tmp(1,0) + Cijkl(i,j,1,1) * tmp(1,1);
             break;
-        case 1: // compressible
+
+        // composite material model
+        // Note: Provides the strain tensor.
+        case 1:
+            // NO IMPLEMENTATION
+            break;
+
+        case 2: // nonlinear Incompressible Neo-Hookean
             return m_par1val * (m_metricG(i,j) - math::pow(m_J0,-2.) * m_metricG_def(i,j) );
+            break;
+    }
+}
+
+template<class T>
+gsMatrix<T> gsMaterialMatrix<T>::S() const
+{
+
+    // CHECK IF QUANTITIES HAVE BEEN COMPUTED!
+
+    gsMatrix<T> tmp;
+    switch (m_model)
+    {
+        case 0: // linear St. Venant-Kirchhoff
+
+            break;
+
+        // composite material model
+        // Note: Provides the strain tensor.
+        case 1:
+            if (m_moment==0)
+            {
+                tmp = 0.5*(m_metricA - m_metricA_def);
+            }
+            else if (m_moment==2)
+            {
+                tmp = (m_metricB - m_metricB_def);
+            }
+            else
+            {
+                gsDebug<<"Warning: no material model known in simplification";
+            }
+            return tmp;
+            break;
+
+        case 2: // nonlinear Incompressible Neo-Hookean
+
             break;
     }
 }
@@ -593,8 +743,8 @@ gsMatrix<T> gsMaterialMatrix<T>::eval3D_Incompressible(const gsMatrix<T>& u) con
     m_map.points     = u.topRows(2);
     m_map_def.points = u.topRows(2);
 
-    static_cast<const gsFunction<T>&>( m_patches->piece(0)     ).computeMap(m_map);
-    static_cast<const gsFunction<T>&>( m_defpatches->piece(0)  ).computeMap(m_map_def);
+    static_cast<const gsFunction<T>&>( m_patches->piece(m_pIndex)     ).computeMap(m_map);
+    static_cast<const gsFunction<T>&>( m_defpatches->piece(m_pIndex)  ).computeMap(m_map_def);
 
     // NOTE 2: in the case that parametric value is needed it suffices
     // to evaluate Youngs modulus and Poisson's ratio at

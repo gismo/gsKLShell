@@ -309,6 +309,10 @@ private:
 
 
         // evaluate the geometry map of U
+        // gsDebugVar(_u.data().values[0]);
+        // gsDebugVar(_u.data().values[2]);
+        // gsDebugVar(_u.data().values[2].rows());
+        // gsDebugVar(_u.data().values[2].cols());
         tmp =_u.data().values[2].reshapeCol(k, cols(), _u.data().dim.second );
         vEv = _v.eval(k);
         res = vEv * tmp.transpose();
@@ -634,6 +638,12 @@ private:
 
 public:
 
+    /*
+        _A : material matrix
+        _B : E_f_der2
+        _C : E_f
+    */
+
     flatdot2_expr(_expr<E1> const& A, _expr<E2> const& B, _expr<E3> const& C) : _A(A),_B(B),_C(C)
     {
         //GISMO_ASSERT( _u.rows()*_u.cols() == _n*_m, "Wrong dimension"); //
@@ -652,7 +662,7 @@ public:
         GISMO_ASSERT(_B.rows()==_A.cols(), "Dimensions: "<<_B.rows()<<","<< _A.cols()<< "do not match");
         GISMO_ASSERT(_A.rowSpan(), "First entry should be rowSpan");
         GISMO_ASSERT(_B.colSpan(), "Second entry should be colSpan.");
-        GISMO_ASSERT(_C.cols()==_B.rows(), "Dimensions: "<<_C.rows()<<","<< _B.rows()<< "do not match");
+        GISMO_ASSERT(_C.cols()==_B.rows(), "Dimensions: "<<_C.cols()<<","<< _B.rows()<< "do not match");
 
         res.resize(An, Bn);
         for (index_t i = 0; i!=An; ++i)

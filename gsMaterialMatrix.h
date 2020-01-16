@@ -73,19 +73,20 @@ public:
 
     short_t targetDim() const;
 
-    // HOW TO DO THIS??
     mutable gsMaterialMatrix<T> * m_piece; // todo: improve the way pieces are accessed
 
-    const gsFunction<T> & piece(const index_t k) const
+    const gsFunction<T> & piece(const index_t p) const
     {
-        delete m_piece;
+        // delete m_piece;
         // m_piece = new gsMaterialMatrix(m_patches->piece(k), *m_thickness, *m_YoungsModulus, *m_PoissonRatio);
         m_piece = new gsMaterialMatrix(*this);
-        m_piece->setPatch(k);
+        m_piece->setPatch(p);
         return *m_piece;
     }
 
-    void setPatch(index_t k) {m_pIndex = k; }
+    ~gsMaterialMatrix() { delete m_piece; }
+
+    void setPatch(index_t p) {m_pIndex = p; }
 
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
@@ -103,6 +104,7 @@ protected:
 
     T Cijkl(const index_t i, const index_t j, const index_t k, const index_t l) const;
     T Sij  (const index_t i, const index_t j) const;
+    gsMatrix<T> S() const;
 
     // void eval_Linear(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     // void eval_Incompressible(const gsMatrix<T>& u, gsMatrix<T>& result) const;
@@ -112,6 +114,7 @@ protected:
     gsMatrix<T> multiplyZ (const gsMatrix<T>& u) const;
 
     void computeMetric(index_t k, bool computedeformed=false, bool computefull=false, T z=0.0) const;
+    void computePoints(const gsMatrix<T> & u, bool deformed=true) const;
 
 protected:
     // general
@@ -144,7 +147,7 @@ protected:
     const std::vector<T>                m_phis;
     mutable gsVector<T>                 m_normal, m_e1, m_e2, m_ac1, m_ac2, m_a1, m_a2;
     mutable gsMatrix<T>                 m_covBasis, m_covMetric, m_conBasis, m_conMetric;
-    mutable real_t                      m_E1, m_E2, m_G12, m_nu12, m_nu21, m_t, m_t_tot,
+    mutable T                           m_E1, m_E2, m_G12, m_nu12, m_nu21, m_t, m_t_tot,
                                         m_t_temp, m_z, m_z_mid, m_phi;
     mutable gsMatrix<T>                 m_Dmat, m_Transform;
 
