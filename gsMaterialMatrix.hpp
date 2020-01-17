@@ -46,6 +46,8 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
     m_model = 0;
     m_moment = 0;
     m_matrix = true;
+    m_numGauss = 10;
+
     m_map.flags = m_map_def.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
 }
 
@@ -68,6 +70,8 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
     m_model = 0;
     m_moment = 0;
     m_matrix = true;
+    m_numGauss = 10;
+
     m_map.flags = m_map_def.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
 }
 
@@ -93,6 +97,8 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T>            & mp,
     m_model = 1;
     m_moment = 0;
     m_matrix = true;
+    m_numGauss = 10;
+
     m_map.flags = m_map_def.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
 }
 
@@ -168,10 +174,21 @@ short_t gsMaterialMatrix<T>::targetDim() const
 template <class T>
 void gsMaterialMatrix<T>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
+    m_map.points = u;
+    m_map_def.points = u;
+    static_cast<const gsFunction<T>&>(m_patches->piece(0)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+    static_cast<const gsFunction<T>&>(m_defpatches->piece(0)).computeMap(m_map_def); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+
+    // Compute the thickness
+    m_thickness->eval_into(m_map.values[0], m_Tmat);
+    m_par1->eval_into(m_map.values[0], m_par1mat);
+    m_par2->eval_into(m_map.values[0], m_par2mat);
+
     switch (m_model)
     {
         case 0 : // linear model
-            result = multiplyZ(u); // the matrix does not depend on thickness so we can multiply
+            // result = multiplyZ(u); // the matrix does not depend on thickness so we can multiply
+            result = integrateZ(u); // the matrix does not depend on thickness so we can multiply
             break;
         case 1 : // composite model
             result = eval_Composite(u); // thickness integration is done inside
@@ -182,7 +199,6 @@ void gsMaterialMatrix<T>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) c
         // case 3 : eval3D_Compressible(u,result);
         //     break;
     }
-
 }
 
 /*
@@ -192,12 +208,13 @@ void gsMaterialMatrix<T>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) c
 */
 
 template <class T>
-void gsMaterialMatrix<T>::eval3D_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+gsMatrix<T> gsMaterialMatrix<T>::eval3D(const index_t i, const gsMatrix<T> & z) const
 {
+    gsMatrix<T> result;
     switch (m_model)
     {
         case 0 :
-            result = eval3D_Linear(u);
+            result = evalThickness(i, z);
             break;
         case 1 :
             gsDebug<<"No eval3D function for composites available. Something went wrong...";
@@ -208,6 +225,15 @@ void gsMaterialMatrix<T>::eval3D_into(const gsMatrix<T>& u, gsMatrix<T>& result)
         // case 2 : eval3D_Incompressible(u,result);
         //     break;
     }
+    return result;
+}
+
+template <class T>
+gsMatrix<T> gsMaterialMatrix<T>::eval3D(const index_t i) const
+{
+    gsMatrix<T> z(1,1);
+    z.setZero();
+    return eval3D(i,z);
 }
 
 // multiplies the material matrix by the thickness on all points
@@ -222,24 +248,16 @@ gsMatrix<T> gsMaterialMatrix<T>::multiplyZ(const gsMatrix<T>& u) const
         result.setZero();
     else                    // then the moment is even
     {
-        m_map.points = u;
-        static_cast<const gsFunction<T>&>(m_patches->piece(0)).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
-
-        // Compute the thickness
-        m_thickness->eval_into(m_map.values[0], m_Tmat);
-
-        // Define evaluation points
-        m_points.resize(u.rows() + 1, u.cols() );
-        m_points.topRows(u.rows()) = u;
-        m_points.bottomRows(1).setZero(); // we dont use this, since the function we evaluate is by choice not dependent on thickness
-        this->eval3D_into(m_points,result);
+        // auxilary variable since eval
+        gsMatrix<T> z(1,1);
+        z.setZero();
 
         T fac;
-        GISMO_ASSERT(u.cols()==result.cols(),"Number of columns of input and points is not equal. result.cols() = "<<result.cols()<<" and u.cols() = "<<u.cols());
-        for (index_t j = 0; j != u.cols(); ++j) // points
+        for (index_t i = 0; i != u.cols(); ++i) // points
         {
-            fac = 2.0/(m_moment+1) * math::pow( m_Tmat(0,j) / 2.0 , m_moment + 1);
-            result.col(j) *= fac;
+            m_evalPoints = this->evalThickness(i,z);
+            fac = 2.0/(m_moment+1) * math::pow( m_Tmat(0,i) / 2.0 , m_moment + 1);
+            result.col(i) = m_evalPoints * fac;
         }
 
     }
@@ -253,51 +271,44 @@ gsMatrix<T> gsMaterialMatrix<T>::integrateZ(const gsMatrix<T>& u) const
     // Input: points in R2
     // Ouput: results in targetDim
     gsMatrix<T> result(9,1);
-
-    // NOTE 1: if the input \a u is considered to be in physical coordinates
-    // then we first need to invert the points to parameter space
-    // m_patches.patch(0).invertPoints(u, m_map.points, 1e-8) which is not exact (!),
-    // otherwise we just use the input paramteric points
-    m_map.points = u;
-
-    static_cast<const gsFunction<T>&>(m_patches->piece(0)).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
-
-    // NOTE 2: in the case that parametric value is needed it suffices
-    // to evaluate Youngs modulus and Poisson's ratio at
-    // \a u instead of _tmp.values[0].
-    m_thickness->eval_into(m_map.values[0], m_Tmat);
-
     result.resize(this->targetDim(),u.cols());
+    result.setZero();
 
-    m_numGauss = 10;
     m_gauss = gsGaussRule<T>(m_numGauss);
-    m_points = gsMatrix<T>(u.rows() + 1,m_numGauss);
+    m_points3D.resize(1,m_numGauss);
+
+    gsMatrix<T> quNodes(1,m_numGauss);
+    gsVector<T> quWeights(m_numGauss);
+    // m_points.conservativeResize(m_points.rows()+1,Eigen::NoChange);
 
     T res;
-    for (index_t j = 0; j != u.cols(); ++j) // points
+    for (index_t j = 0; j != u.cols(); ++j) // for all points
     {
         // Compute values of in-plane points
-        m_points.topRows(u.rows()) = u.col(j).replicate(1,m_numGauss);
+        // m_points3D.topRows(u.rows()) = u.col(j).replicate(1,m_numGauss);
+        // m_points3D.row(0) = u.col(j).replicate(1,m_numGauss);
 
         // set new integration point
         m_tHalf = m_Tmat(0,j)/2.0;
-        m_gauss.mapTo(-m_tHalf,m_tHalf,m_quNodes,m_quWeights);
-        m_points.bottomRows(1) = m_quNodes;
+        m_gauss.mapTo(-m_tHalf,m_tHalf,quNodes,quWeights);
+        m_points3D.bottomRows(1) = quNodes;
 
-        this->eval3D_into(m_points,m_evalPoints);
+        m_evalPoints = this->eval3D(j, m_points3D);
+        // gsDebugVar(m_evalPoints);
         for (index_t i=0; i!=this->targetDim(); ++i) // components
         {
             res = 0.0;
             for (index_t k = 0; k != m_numGauss; ++k) // compute integral
-                res += m_quWeights.at(k) * math::pow(m_quNodes(0,k),m_moment) * m_evalPoints(i,k);
+                res += quWeights.at(k) * math::pow(quNodes(0,k),m_moment) * m_evalPoints(i,k);
             result(i,j) = res;
         }
+
     }
     return result;
 }
 
 template<class T>
-void gsMaterialMatrix<T>::computeMetric(index_t k, bool computedeformed, bool computefull, T z) const
+void gsMaterialMatrix<T>::computeMetric(index_t k, T z, bool computedeformed, bool computefull) const
 {
     // k: index of quadrature point
     // computedeformed: compute quantities also on deformed shape
@@ -345,30 +356,71 @@ void gsMaterialMatrix<T>::computeMetric(index_t k, bool computedeformed, bool co
     }
 }
 
+// template <class T>
+// gsMatrix<T> gsMaterialMatrix<T>::eval3D_Linear(const gsMatrix<T>& u, const gsMatrix<T>& z) const
+// {
+//     // gsInfo<<"TO DO: evaluate moments using thickness";
+//     // Input: in-plane points in R2 (u)
+//     //        out-of-plane points (through thickness) in R1 (z)
+//     // Output: material matrix in R9 (cols stacked in rows; every row corresponds to a point)
+//     gsMatrix<T> result(this->targetDim(), u.cols() * z.cols());
+//     result.setZero();
+
+//     index_t sz = z.cols();
+//     for( index_t i=0; i < u.cols(); ++i )
+//         {
+//             gsDebugVar(u.col(i));
+//             for( index_t j=0; j < z.cols(); ++j )
+//             {
+//                 // Evaluate material properties on the quadrature point
+//                 m_par1val = m_par1mat(0,i);
+//                 m_par2val = m_par2mat(0,i);
+
+//                 if (m_matrix)
+//                 {
+//                     this->computeMetric(i,z(0,j)); // on point i, on height z(0,j)
+
+//                     gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j+i*sz,3,3);
+//                     /*
+//                         C = C1111,  C1122,  C1112
+//                             symm,   C2222,  C2212
+//                             symm,   symm,   C1212
+//                     */
+//                     C(0,0)          = Cijkl(0,0,0,0); // C1111
+//                     C(1,1)          = Cijkl(1,1,1,1); // C2222
+//                     C(2,2)          = Cijkl(0,1,0,1); // C1212
+//                     C(1,0) = C(0,1) = Cijkl(0,0,1,1); // C1122
+//                     C(2,0) = C(0,2) = Cijkl(0,0,0,1); // C1112
+//                     C(2,1) = C(1,2) = Cijkl(1,1,0,1); // C2212
+//                 }
+//                 else
+//                 {
+//                     this->computeMetric(i,z(0,j),true,true);
+
+//                     gsDebugVar(m_metricA_def);
+//                     // gsDebugVar(m_metricB_def);
+
+//                     result(0,j+i*sz) = Sij(0,0);
+//                     result(1,j+i*sz) = Sij(1,1);
+//                     result(2,j+i*sz) = Sij(0,1);
+//                 }
+//             }
+//             gsDebugVar(result);
+//         }
+
+//     return result;
+// }
+
 template <class T>
-gsMatrix<T> gsMaterialMatrix<T>::eval3D_Linear(const gsMatrix<T>& u) const
+gsMatrix<T> gsMaterialMatrix<T>::evalThickness(const index_t i, const gsMatrix<T>& z) const
 {
     // gsInfo<<"TO DO: evaluate moments using thickness";
-    // Input: points in R3
-    // Output: material matrix in R9 (cols stacked in rows; every row corresponds to a point)
-    gsMatrix<T> result(this->targetDim(), u.cols());
+    // Input: j index in-plane point
+    //        z out-of-plane coordinate (through thickness) in R1 (z)
+    gsMatrix<T> result(this->targetDim(), z.cols());
     result.setZero();
 
-    // NOTE 1: if the input \a u is considered to be in physical coordinates
-    // then we first need to invert the points to parameter space
-    // m_patches.patch(0).invertPoints(u, m_map.points, 1e-8) which is not exact (!),
-    // otherwise we just use the input paramteric points
-    m_map.points = m_map_def.points = u.topRows(2);
-
-    static_cast<const gsFunction<T>&>(m_patches->piece(m_pIndex)).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
-
-    // NOTE 2: in the case that parametric value is needed it suffices
-    // to evaluate Youngs modulus and Poisson's ratio at
-    // \a u instead of _tmp.values[0].
-    m_par1->eval_into(m_map.values[0], m_par1mat);
-    m_par2->eval_into(m_map.values[0], m_par2mat);
-
-    for( index_t i=0; i< u.cols(); ++i )
+    for( index_t j=0; j < z.cols(); ++j )
     {
         // Evaluate material properties on the quadrature point
         m_par1val = m_par1mat(0,i);
@@ -376,9 +428,9 @@ gsMatrix<T> gsMaterialMatrix<T>::eval3D_Linear(const gsMatrix<T>& u) const
 
         if (m_matrix)
         {
-            this->computeMetric(i);
+            this->computeMetric(i,z.at(j)); // on point i, on height z(0,j)
 
-            gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(i,3,3);
+            gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j,3,3);
             /*
                 C = C1111,  C1122,  C1112
                     symm,   C2222,  C2212
@@ -393,17 +445,12 @@ gsMatrix<T> gsMaterialMatrix<T>::eval3D_Linear(const gsMatrix<T>& u) const
         }
         else
         {
-            static_cast<const gsFunction<T>&>(m_defpatches->piece(m_pIndex)).computeMap(m_map_def); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
-
-            this->computeMetric(i,true,true);
-
-            result(0,i) = Sij(0,0);
-            result(1,i) = Sij(1,1);
-            result(2,i) = Sij(0,1);
+            this->computeMetric(i,z.at(j),true,true);
+            result(0,j) = Sij(0,0);
+            result(1,j) = Sij(1,1);
+            result(2,j) = Sij(0,1);
         }
     }
-
-
     return result;
 }
 
@@ -561,7 +608,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Composite(const gsMatrix<T>& u) const
         else
         {
             gsMatrix<T> Eij(2,2);
-            computeMetric(k,true,true);
+            computeMetric(k,0.0,true,true); // height is set to 0, but we do not need m_metricG
 
             if (m_moment==0)
             {
@@ -755,7 +802,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval3D_Incompressible(const gsMatrix<T>& u) con
     m_result.resize( targetDim() , u.cols() );
     for( index_t k=0; k< u.cols(); ++k )
     {
-        this->computeMetric(k, true, true, u(2,k));
+        this->computeMetric(k, u(2,k), true, true);
 
         // Evaluate material properties on the quadrature point
         m_par1val = m_par1mat(0,k);

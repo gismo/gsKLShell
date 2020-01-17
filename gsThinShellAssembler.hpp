@@ -593,26 +593,6 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
                     m_Ef_der2
                     ) * meas(m_ori)
                 );
-
-    gsExprEvaluator ev(m_assembler);
-    gsVector<> pt(2); pt.setConstant(0.1);
-
-
-    gsMatrix<T> evresult = ev.eval( m_Em,pt );
-    gsInfo << "Eval on point ("<<pt.at(0)<<" , "<<pt.at(1)<<") :\n"<< evresult;
-    gsInfo << "\nEnd ("<< evresult.rows()<< " x "<<evresult.cols()<<")\n";
-
-    evresult = ev.eval( m_N,pt );
-    gsInfo << "Eval on point ("<<pt.at(0)<<" , "<<pt.at(1)<<") :\n"<< evresult;
-    gsInfo << "\nEnd ("<< evresult.rows()<< " x "<<evresult.cols()<<")\n";
-
-    evresult = ev.eval( mm0,pt );
-    gsInfo << "Eval on point ("<<pt.at(0)<<" , "<<pt.at(1)<<") :\n"<< evresult;
-    gsInfo << "\nEnd ("<< evresult.rows()<< " x "<<evresult.cols()<<")\n";
-
-    evresult = ev.eval( mm2,pt );
-    gsInfo << "Eval on point ("<<pt.at(0)<<" , "<<pt.at(1)<<") :\n"<< evresult;
-    gsInfo << "\nEnd ("<< evresult.rows()<< " x "<<evresult.cols()<<")\n";
 }
 template<class T>
 void gsThinShellAssembler<T>::assembleMatrix(const gsMatrix<T> & solVector)

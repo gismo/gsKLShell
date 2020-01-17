@@ -96,8 +96,9 @@ public:
     void makeVector()     { m_matrix = false; }
 
 protected:
-    void eval3D_into(const gsMatrix<T>& u, gsMatrix<T>& result) const;
-    gsMatrix<T> eval3D_Linear(const gsMatrix<T>& u) const;
+    gsMatrix<T> eval3D(const index_t i, const gsMatrix<T>& z) const;
+    gsMatrix<T> eval3D(const index_t i) const;
+    gsMatrix<T> evalThickness(const index_t i, const gsMatrix<T>& z) const;
     gsMatrix<T> eval_Composite(const gsMatrix<T>& u) const;
     gsMatrix<T> eval3D_Incompressible(const gsMatrix<T>& u) const;
     gsMatrix<T> eval3D_Compressible(const gsMatrix<T>& u) const;
@@ -113,7 +114,7 @@ protected:
     gsMatrix<T> integrateZ(const gsMatrix<T>& u) const;
     gsMatrix<T> multiplyZ (const gsMatrix<T>& u) const;
 
-    void computeMetric(index_t k, bool computedeformed=false, bool computefull=false, T z=0.0) const;
+    void computeMetric(index_t k, T z=0.0, bool computedeformed=false, bool computefull=false) const;
     void computePoints(const gsMatrix<T> & u, bool deformed=true) const;
 
 protected:
@@ -159,9 +160,9 @@ protected:
     mutable T                           m_par1val, m_par2val, m_J0;
 
     // integrateZ
-    mutable gsMatrix<T> m_points, m_evalPoints;
-    mutable gsMatrix<T> m_quNodes;
-    mutable gsVector<T> m_quWeights;
+    mutable gsMatrix<T> m_points2D, m_points3D, m_evalPoints;
+    // mutable gsMatrix<T> m_quNodes;
+    // mutable gsVector<T> m_quWeights;
     mutable gsGaussRule<T> m_gauss;
     mutable index_t m_numGauss;
     mutable T m_tHalf;
