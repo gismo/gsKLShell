@@ -211,9 +211,6 @@ void gsMaterialMatrix<T>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) c
     m_material = m_options.getInt("MaterialLaw");
     m_compressible = m_options.getInt("Compressibility");
 
-    gsInfo<<"Material law = "<<m_material<<"\n";
-    gsInfo<<"Compressibility = "<<m_compressible<<"\n";
-
     this->computePoints(u);
 
     if (m_material==0)
@@ -372,13 +369,9 @@ void gsMaterialMatrix<T>::computeMetric(index_t k, T z, bool computedeformed, bo
         // Construct metric of coordinate system g = [a_ij - 2*theta3*b_ij]
 
         m_metricG.resize(3,3);
-        m_metricG.block(0,0,2,2)        = m_metricA - 2 * z * m_metricB;
         m_metricG.setZero();
+        m_metricG.block(0,0,2,2)        = m_metricA - 2 * z * m_metricB;
         m_metricG(2,2) = 1.0;
-
-        m_J0 = math::sqrt( m_metricG_def.determinant() / m_metricG.determinant() );
-        m_J0 = math::pow( m_J0, -2 );
-
     }
     if (computedeformed)
     {
@@ -484,7 +477,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Incompressible(const index_t i, const gsMa
 
         if (m_matrix)
         {
-            this->computeMetric(i,z.at(j)); // on point i, on height z(0,j)
+            this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
 
             gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j,3,3);
             /*
@@ -735,7 +728,7 @@ T gsMaterialMatrix<T>::Cijkl_c(const index_t i, const index_t j, const index_t k
     GISMO_ASSERT(c.cols()==3,"Matrix c must be 3x3");
     GISMO_ASSERT(cinv.cols()==cinv.rows(),"Matrix cinv must be square");
     GISMO_ASSERT(cinv.cols()==3,"Matrix cinv must be 3x3");
-    GISMO_ASSERT( ( (i < 2) && (j < 2) && (k < 2) && (l < 2) ) , "Index out of range. i="<<i<<", j="<<j<<", k="<<k<<", l="<<l);
+    GISMO_ASSERT( ( (i <=2) && (j <=2) && (k <=2) && (l <=2) ) , "Index out of range. i="<<i<<", j="<<j<<", k="<<k<<", l="<<l);
     GISMO_ASSERT(m_compressible,"Material model is not compressible?");
 
     if (m_material==0 || m_material==1) // svk
@@ -803,12 +796,21 @@ T gsMaterialMatrix<T>::Sij_i(const index_t i, const index_t j) const
 template<class T>
 T gsMaterialMatrix<T>::Sij_c(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
-    gsMatrix<T> tmp;
+    T tmp;
     if (m_material==0 || m_material==1)
         gsWarn<<"Incompressible material stress tensor requested, but not needed. How?";
     else if (m_material==2)
     {
-            return m_par1val * math::pow( m_J , -2.0/3.0 ) * ( m_metricG(i,j) - 1.0/3.0 * c.trace() * cinv(i,j) ) + 0.5 * m_par2val * ( m_J*m_J - 1 ) * cinv(i,j);
+            gsDebugVar(m_par1val);
+            gsDebugVar(m_J);
+            gsDebugVar(m_metricG(i,j));
+            gsDebugVar(c);
+            gsDebugVar(cinv);
+            gsDebugVar(m_par2val);
+
+
+            tmp =  m_par1val * math::pow( m_J , -2.0/3.0 ) * ( m_metricG(i,j) - 1.0/3.0 * c.trace() * cinv(i,j) ) + 0.5 * m_par2val * ( m_J*m_J - 1 ) * cinv(i,j);
+            return tmp;
     }
     else
         GISMO_ERROR("Material model not implemented (Sij_i).");
@@ -828,7 +830,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatr
         m_par1val = m_par1mat(0,i);
         m_par2val = m_par2mat(0,i);
 
-        this->computeMetric(i,z.at(j)); // on point i, on height z(0,j)
+        this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
 
         // Define objects
         gsMatrix<T,3,3> c, cinv;
@@ -836,13 +838,12 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatr
 
         // Initialize c
         c.setZero();
-        gsDebugVar(m_metricG_def);
         c.block(0,0,2,2) = m_metricG_def.block(0,0,2,2);
         c(2,2) = 1.0; // c33
         cinv = c.inverse();
         // note: can also just do c = jacGdef because the normal has length one and hence c(2,2) is 1. CHECK!
 
-        index_t itmax = 20;
+        index_t itmax = 2;
         T tol = 1e-6;
         S33 = 0.0;
         C3333 = 1.0;
@@ -858,7 +859,6 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatr
 
             S33     = Sij_c(2,2,c,cinv);
             C3333   = Cijkl_c(2,2,2,2,c,cinv);
-
             if (S33 < tol)
             {
                 // gsInfo<<"Converged in "<<it<<" iterations, S33 = "<<S33<<" and tolerance = "<<tol<<"\n";
@@ -895,6 +895,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatr
                 // std::terminate();
             }
         }
+        return result;
     }
 }
 
