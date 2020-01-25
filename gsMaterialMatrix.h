@@ -52,9 +52,19 @@ public:
                         const std::vector<std::pair<T,T>> & PoissonRatios,
                         const std::vector<T>                phi);
 
+    gsMaterialMatrix(   const gsFunctionSet<T>            & mp,
+                        const gsFunctionSet<T>            & mp_def,
+                        const std::vector<T>                thickness,
+                        const std::vector<std::pair<T,T>> & YoungsModuli,
+                        const std::vector<T>              & ShearModuli,
+                        const std::vector<std::pair<T,T>> & PoissonRatios,
+                        const std::vector<T>                phi);
+
 
     /// @brief Returns the list of default options for assembly
-    gsOptionList defaultOptions();
+    gsOptionList & options() {return m_options;}
+
+
 
     /// Shared pointer for gsMaterialMatrix
     typedef memory::shared_ptr< gsMaterialMatrix > Ptr;
@@ -96,16 +106,22 @@ public:
     void makeVector()     { m_matrix = false; }
 
 protected:
+    void initialize();
+    void defaultOptions();
+
     gsMatrix<T> eval3D(const index_t i, const gsMatrix<T>& z) const;
     gsMatrix<T> eval3D(const index_t i) const;
-    gsMatrix<T> evalThickness(const index_t i, const gsMatrix<T>& z) const;
+    gsMatrix<T> eval_Compressible(const index_t i, const gsMatrix<T>& z) const;
+    gsMatrix<T> eval_Incompressible(const index_t i, const gsMatrix<T>& z) const;
     gsMatrix<T> eval_Composite(const gsMatrix<T>& u) const;
     gsMatrix<T> eval3D_Incompressible(const gsMatrix<T>& u) const;
     gsMatrix<T> eval3D_Compressible(const gsMatrix<T>& u) const;
 
-    T Cijkl(const index_t i, const index_t j, const index_t k, const index_t l) const;
-    T Sij  (const index_t i, const index_t j) const;
-    gsMatrix<T> S() const;
+    T Cijkl_i(const index_t i, const index_t j, const index_t k, const index_t l) const;
+    T Cijkl_c(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    T Sij_i  (const index_t i, const index_t j) const;
+    T Sij_c  (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    // T Sij  (const index_t i, const index_t j, gsMatrix<T> & cinv) const;
 
     // void eval_Linear(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     // void eval_Incompressible(const gsMatrix<T>& u, gsMatrix<T>& result) const;
@@ -119,7 +135,6 @@ protected:
 
 protected:
     // general
-    index_t m_model;
     index_t m_pIndex;
     index_t m_numParameters; // how many parameters for the material model?
     int m_moment;
@@ -140,6 +155,7 @@ protected:
     mutable gsMatrix<T> m_Emat,m_Nmat,m_Tmat;
     mutable real_t m_lambda, m_mu, m_Cconstant;
 
+
     // Composite material matrix
     const std::vector<std::pair<T,T>>   m_YoungsModuli;
     const std::vector<T>                m_ShearModuli;
@@ -157,8 +173,7 @@ protected:
     mutable gsMatrix<T>                 m_metricB_def, m_metricB, m_metricG, m_metricG_def;
     mutable gsVector<T>                 m_normal_def;
     mutable gsMatrix<T>                 m_par1mat, m_par2mat;
-    mutable T                           m_par1val, m_par2val, m_J0;
-
+    mutable T                           m_par1val, m_par2val, m_J0, m_J;
     // integrateZ
     mutable gsMatrix<T> m_points2D, m_points3D, m_evalPoints;
     // mutable gsMatrix<T> m_quNodes;
@@ -166,6 +181,33 @@ protected:
     mutable gsGaussRule<T> m_gauss;
     mutable index_t m_numGauss;
     mutable T m_tHalf;
+
+
+    mutable gsOptionList m_options;
+
+    /// @brief Specifies the material law to use
+    struct material_law
+    {
+        enum type
+        {
+            SvK_Isotropic = 0,          /// Psi = ........ S = 2*mu*E + lambda*tr(E)*I
+            SvK_Orthotropic = 1,        /// Psi = ........ S = 2*mu*E + lambda*tr(E)*I
+            NHK = 2,       /// Psi = ........ S = lambda*ln(J)*C^-1 + mu*(I-C^-1)
+            MR = 4        /// Psi = ........ S = lambda*ln(J)*C^-1 + mu*(I-C^-1)
+        };
+    };
+    /// @brief Specifies (in)compressibility
+    struct compressibility
+    {
+        enum type
+        {
+            incompressible = 0,
+            compressible = 1
+        };
+    };
+
+    mutable index_t m_material;
+    mutable bool m_compressible;
 
 
 };
