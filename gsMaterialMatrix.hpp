@@ -15,9 +15,7 @@
 
 /*
     To Do:
-    - Finish Compressible and Incompressible
-    - Add option to assemble stress tensor. Note: this requires computation of the strain as well!!!!!!!
-    - Add option to the class for different material models, to avoid making lambda functions. Note; use references to m_defG etc
+    - Make computeMetric() depending on the material model.
 */
 
 
