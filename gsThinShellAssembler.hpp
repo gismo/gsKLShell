@@ -60,12 +60,15 @@ gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
 }
 
 template <class T>
-gsOptionList gsThinShellAssembler<T>::defaultOptions()
+void gsThinShellAssembler<T>::defaultOptions()
 {
-    gsOptionList & opt = m_assembler.options();
-    // to do
-    // opt.addInt("MaterialLaw","Material law: 0 for St. Venant-Kirchhof, 1 for Neo-Hooke",material_law::saint_venant_kirchhoff);
-    return opt;
+    m_options.addInt("NonlinearLoads","Nonlinear Loads: 0: off, 1: on",nl_loads::off);
+}
+
+template <class T>
+void gsThinShellAssembler<T>::getOptions() const
+{
+    m_nl_loads = m_options.getInt("NonlinearLoads");
 }
 
 /*
@@ -77,15 +80,13 @@ gsOptionList gsThinShellAssembler<T>::defaultOptions()
 template <class T>
 void gsThinShellAssembler<T>::initialize()
 {
+    this->defaultOptions();
+
     //gsInfo<<"Active options:\n"<< m_assembler.options() <<"\n";
     m_defpatches = m_patches;
 
     // Elements used for numerical integration
     m_assembler.setIntegrationElements(m_basis);
-
-    // // initialize expression evaluator
-    // gsExprEvaluator<T> evaluator(m_assembler);
-    // m_evaluator = evaluator;
 
     // Initialize the geometry maps
     m_assembler.getMap(m_patches);           // this map is used for integrals
@@ -131,172 +132,6 @@ void gsThinShellAssembler<T>::assembleClamped()
 {
 
 }
-
-// template <class T>
-// void gsThinShellAssembler<T>::createBendingStrips(gsMultiPatch<T> & mp, gsMultiPatch<T> & strips, gsStripIndices & indices)
-// {
-//     index_t bsize1, bsize2, par1, par2, dir1, dir2;
-//     gsMatrix<unsigned> tempIndices;
-//     gsMatrix<T> coefs;
-//     std::vector<index_t> patches;
-//     gsKnotVector<> kv0, kv1;
-//     gsTensorBSplineBasis<2,real_t> basis;
-//     gsTensorBSpline<2,real_t> shape;
-
-//     indices.clear();
-
-//     GISMO_ASSERT(( mp.nPatches()==1 || mp.nInterfaces()!=0 ),"Multiple patches, but no interfaces?? nPatches="<<mp.nPatches()<<", nInterfaces="<<mp.nInterfaces());
-//     if (mp.nInterfaces()!=0)
-//     {
-//         for (typename gsMultiPatch<>::const_iiterator it = mp.iBegin(); it<mp.iEnd(); it++)
-//         {
-//             bsize1 = mp.basis(it->first().patch).boundary(it->first()).size();
-//             bsize2 = mp.basis(it->second().patch).boundary(it->second()).size();
-
-//             GISMO_ASSERT(bsize2==bsize1, "Number of control points along boundary are not equal.");
-
-//             // Collect indices of patch
-//             tempIndices = gsMatrix<unsigned>(bsize1,3);
-
-
-//             tempIndices.col(0) = mp.basis(it->first().patch).boundaryOffset(it->first(),1);
-//             tempIndices.col(1) = mp.basis(it->second().patch).boundaryOffset(it->second(),0);
-//             tempIndices.col(2) = mp.basis(it->second().patch).boundaryOffset(it->second(),1);
-
-//             par1 = it->first().parameter();
-//             par2 = it->second().parameter();
-//             dir1 = it->first().direction();
-//             dir2 = it->second().direction();
-
-//             // matchInterface and then shift with stride index. NOTE: this does not work since the stride is not implemented for gsBasis and some TensorBases...
-//             // gsMatrix<unsigned> bndThis, bndOther;
-//             // mp.basis(it->first().patch).matchWith(*it, mp.basis(it->second().patch), bndThis,bndOther);
-//             // gsDebugVar(bndThis);
-//             // gsDebugVar(bndOther);
-
-//             if (((par1 != par2) && ( dir1 != dir2 ))) // || ((par1 == par2) && ( dir1 == dir2 )) //then the directions should be different
-//                 tempIndices.col(0).reverseInPlace();
-
-//             // Collect control point coordinates
-//             coefs = gsMatrix<T>(3*bsize1,mp.targetDim());
-
-//             // Helper vector for patch numbers
-//             patches = std::vector<index_t>{it->first().patch, it->second().patch, it->second().patch};
-//             for (index_t j=0; j!=3; ++j)
-//             for (index_t i=0; i!=bsize1; ++i)
-//                       coefs.row(i*3 + j) = mp.patch(patches[j]).coef(tempIndices(i,j));
-
-//             // Make a basis
-//             kv0.initUniform(0,1,0,3,1);
-//             kv1.initUniform(0,1,bsize1-2,2,1);  // TODO: WHAT IF BSIZE1<2?
-
-//             basis = gsTensorBSplineBasis<2,real_t>(kv0,kv1);
-//             shape = gsTensorBSpline<2,real_t>(basis,coefs);
-
-//             strips.addPatch(shape);
-//             indices.push_back(tempIndices);
-//         }
-//     }
-// }
-
-// template <class T>
-// void gsThinShellAssembler<T>::assembleBendingStrips()
-// {
-//     // make strips on m_patches and on m_defpatches
-//     this->createBendingStrips(m_patches,m_strips,m_stripIndices);
-
-//     gsMaterialMatrix m_mm0 = m_materialMat;
-//     gsMaterialMatrix m_mm2 = m_materialMat;
-//     m_mm2.setMoment(2);
-//     variable mm0 = m_stripAssembler.getCoeff(m_mm0);
-//     variable mm2 = m_stripAssembler.getCoeff(m_mm2);
-
-//     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
-//     variable m_m2 = m_stripAssembler.getCoeff(mult2t);
-
-//     for (index_t k=0; k!=m_strips.nPatches(); ++k) // for each strip
-//     {
-//          geometryMap S   = m_stripAssembler.getMap(m_strips.patch(k));
-
-//         // set assembler for the strips (over all strips together)
-//         m_stripAssembler.setIntegrationElements(m_strips.basis(k));
-//         space stripSpace = m_stripAssembler.getSpace(m_strips.basis(k), 3, 0); // last argument is the space ID
-
-//         auto m_Ef_der   = ( deriv2(stripSpace,sn(S).normalized().tr() ) + deriv2(S,var1(stripSpace,S) ) ) * reshape(m_m2,3,3); //[checked]
-//         auto m_M_der    = m_Ef_der * reshape(mm2,3,3);
-
-//         m_stripAssembler.initSystem();
-//         m_stripAssembler.assemble( ( m_M_der * m_Ef_der.tr() ) * meas(S) );
-
-//         // for (index_t i=0; i!=m_stripIndices[k].rows(); ++i)
-//         // {
-//         //     index_t gidx = stripSpace.index(  )
-//         //     (this->matrix())(stripSpace.index)
-//         // }
-//         // make assembler
-//         // assemble object
-//         // add the entries to the systrem matrix BUT THAT IS A REFERENCE TO AN OBJECT IN gsExprAssembler!!
-//     }
-
-
-//     // after writing in sparsematrix;
-//     // m_matrix.makeCompressed();
-// }
-
-// template <class T>
-// void gsThinShellAssembler<T>::assembleBendingStrips()
-// {
-//     // make strips on m_patches and on m_defpatches
-//     this->createBendingStrips(m_patches,m_strips,m_stripIndices);
-//     this->createBendingStrips(m_defpatches,m_defstrips,m_defstripIndices);
-
-
-//     geometryMap S;
-//     geometryMap defS;
-
-//     gsMaterialMatrix m_mm0 = m_materialMat;
-//     gsMaterialMatrix m_mm2 = m_materialMat;
-//     m_mm2.setMoment(2);
-//     variable mm0 = m_stripAssembler.getCoeff(m_mm0);
-//     variable mm2 = m_stripAssembler.getCoeff(m_mm2);
-
-//     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
-//     variable m_m2 = m_stripAssembler.getCoeff(mult2t);
-
-//     auto m_Ef       = ( deriv2(m_ori,sn(S).normalized().tr()) - deriv2(m_def,sn(defS).normalized().tr()) ) * reshape(m_m2,3,3) ; //[checked]
-//     auto m_M        = m_Ef * reshape(mm,3,3);
-
-//     auto m_Ef_der   = ( deriv2(m_space,sn(defS).normalized().tr() ) + deriv2(m_def,var1(m_space,defS) ) ) * reshape(m_m2,3,3); //[checked]
-//     auto m_M_der    = m_Ef_der * reshape(mm2,3,3);
-
-//     for (index_t k=0; k!=m_strips.nPatches(); ++k)
-//     {
-//         S   = A.getMap(m_strips.patch(k));
-//         defS= A.getMap(m_defstrips.patch(k));
-
-//         // set assembler for the strips (over all strips together)
-//         m_stripAssembler.setIntegrationElements(m_strips.basis(k));
-//         space stripSpace = m_stripAssembler.getSpace(m_strips.basis(k), 3, 0); // last argument is the space ID
-
-
-//         m_stripAssembler.initSystem();
-
-//         m_stripAssembler.assemble(
-//             ( m_M_der * m_Ef_der.tr() ) * meas(m_ori)
-//             ,
-//             - ( - m_M * m_Ef_der.tr() * meas(m_ori) ).tr()
-//             );
-
-
-//         // make assembler
-//         // assemble object
-//         // add the entries to the systrem matrix BUT THAT IS A REFERENCE TO AN OBJECT IN gsExprAssembler!!
-//     }
-
-
-//     // after writing in sparsematrix;
-//     // m_matrix.makeCompressed();
-// }
 
 template<class T>
 void gsThinShellAssembler<T>::applyLoads()
@@ -450,8 +285,34 @@ void gsThinShellAssembler<T>::applyLoads()
 // }
 
 template<class T>
+void gsThinShellAssembler<T>::assembleMass()
+{
+    this->getOptions();
+
+    m_assembler.cleanUp();
+
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+
+    // Initialize stystem
+    m_assembler.initSystem();
+    gsMaterialMatrix m_mm = m_materialMat;
+    m_mm.makeDensity();
+    variable mm0 = m_assembler.getCoeff(m_mm);
+
+    space       m_space = m_assembler.trialSpace(0);
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+
+    // assemble system
+    m_assembler.assemble(mm0*m_space*m_space.tr());
+}
+
+template<class T>
 void gsThinShellAssembler<T>::assemble()
 {
+    this->getOptions();
+
+    m_assembler.cleanUp();
+
     m_assembler.getMap(m_patches);           // this map is used for integrals
     m_assembler.getMap(m_defpatches);
 
@@ -673,10 +534,6 @@ void gsThinShellAssembler<T>::assemble(const gsMultiPatch<T> & deformed,
 
     m_assembler.cleanUp();
     assembleVector(deformed);
-
-    // m_assembler.cleanUp();
-
-    // assemble();
 }
 template<class T>
 void gsThinShellAssembler<T>::assemble(const gsMatrix<T> & solVector,
@@ -742,6 +599,8 @@ void gsThinShellAssembler<T>::constructStress(const gsMultiPatch<T> & deformed,
                                                     gsPiecewiseFunction<T> & result,
                                                     stress_type::type type)
 {
+
+
     result.clear();
 
     for (index_t p = 0; p < m_patches.nPatches(); ++p )

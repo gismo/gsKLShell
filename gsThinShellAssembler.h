@@ -69,7 +69,7 @@ public:
 
 
     /// @brief Returns the list of default options for assembly
-    gsOptionList defaultOptions();
+    gsOptionList & options() {return m_options;}
 
     //--------------------- PROBLEM FORMULATION-------------------------------//
     void setPointLoads(const gsPointLoads<T> & pLoads){ m_pLoads = pLoads; }
@@ -79,6 +79,9 @@ public:
     /// @brief Assembles the stiffness matrix and the RHS for the LINEAR ELASTICITY
     /// set *assembleMatrix* to false to only assemble the RHS;
     void assemble();
+
+    void assembleMass();
+
 
     /// @ brief Assembles the tangential matrix and the residual for a iteration of Newton's method for displacement formulation;
     /// set *assembleMatrix* to false to only assemble the residual;
@@ -141,6 +144,9 @@ protected:
 
 
     void initialize();
+    void defaultOptions();
+    void getOptions() const;
+
     void defineComponents();
 
     void assembleNeumann();
@@ -200,6 +206,20 @@ protected:
 
 
     gsMatrix<T> m_rhs;
+
+    mutable gsOptionList m_options;
+
+    mutable bool m_nl_loads;
+
+    /// @brief Specifies the material law to use
+    struct nl_loads
+    {
+        enum type
+        {
+            off = false,
+            on  = true,
+        };
+    };
 
 
     // /*
