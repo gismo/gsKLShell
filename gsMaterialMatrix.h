@@ -34,24 +34,46 @@ public:
         \param[in] ...
 
     */
+    // Without deformed geometry
     gsMaterialMatrix(   const gsFunctionSet<T> & mp,
                         const gsFunction<T> & thickness,
                         const gsFunction<T> & YoungsModulus,
                         const gsFunction<T> & PoissonRatio);
+    gsMaterialMatrix(   const gsFunctionSet<T> & mp,
+                        const gsFunction<T> & thickness,
+                        const gsFunction<T> & YoungsModulus,
+                        const gsFunction<T> & PoissonRatio,
+                        const gsFunction<T> & Density);
 
+    // With deformed geometry
     gsMaterialMatrix(   const gsFunctionSet<T> & mp,
                         const gsFunctionSet<T> & mp_def,
                         const gsFunction<T> & thickness,
                         const gsFunction<T> & YoungsModulus,
                         const gsFunction<T> & PoissonRatio);
+    gsMaterialMatrix(   const gsFunctionSet<T> & mp,
+                        const gsFunctionSet<T> & mp_def,
+                        const gsFunction<T> & thickness,
+                        const gsFunction<T> & YoungsModulus,
+                        const gsFunction<T> & PoissonRatio,
+                        const gsFunction<T> & Density);
 
+    // Laminates without deformed
     gsMaterialMatrix(   const gsFunctionSet<T>            & mp,
                         const std::vector<T>                thickness,
                         const std::vector<std::pair<T,T>> & YoungsModuli,
                         const std::vector<T>              & ShearModuli,
                         const std::vector<std::pair<T,T>> & PoissonRatios,
                         const std::vector<T>                phi);
+    gsMaterialMatrix(   const gsFunctionSet<T>            & mp,
+                        const std::vector<T>                thickness,
+                        const std::vector<std::pair<T,T>> & YoungsModuli,
+                        const std::vector<T>              & ShearModuli,
+                        const std::vector<std::pair<T,T>> & PoissonRatios,
+                        const std::vector<T>                phi,
+                        const std::vector<T>                density);
 
+    // Laminates with deformed
     gsMaterialMatrix(   const gsFunctionSet<T>            & mp,
                         const gsFunctionSet<T>            & mp_def,
                         const std::vector<T>                thickness,
@@ -59,6 +81,14 @@ public:
                         const std::vector<T>              & ShearModuli,
                         const std::vector<std::pair<T,T>> & PoissonRatios,
                         const std::vector<T>                phi);
+    gsMaterialMatrix(   const gsFunctionSet<T>            & mp,
+                        const gsFunctionSet<T>            & mp_def,
+                        const std::vector<T>                thickness,
+                        const std::vector<std::pair<T,T>> & YoungsModuli,
+                        const std::vector<T>              & ShearModuli,
+                        const std::vector<std::pair<T,T>> & PoissonRatios,
+                        const std::vector<T>                phi,
+                        const std::vector<T>                density);
 
 
     /// @brief Returns the list of default options for assembly
@@ -102,12 +132,14 @@ public:
 
 public:
     void setMoment(int m)   { m_moment = m; }
-    void makeMatrix()     { m_matrix = true; }
-    void makeVector()     { m_matrix = false; }
+    void makeMatrix()     { m_output=2; } 
+    void makeVector()     { m_output=1; }
+    void makeDensity()    { m_output=0; }
 
 protected:
     void initialize();
     void defaultOptions();
+    void getOptions() const;
 
     gsMatrix<T> eval3D(const index_t i, const gsMatrix<T>& z) const;
     gsMatrix<T> eval3D(const index_t i) const;
@@ -138,7 +170,6 @@ protected:
     index_t m_pIndex;
     index_t m_numParameters; // how many parameters for the material model?
     int m_moment;
-    bool m_matrix;
     mutable gsMatrix<T> m_result;
 
     // constructor
@@ -147,12 +178,13 @@ protected:
     const gsFunction<T> * m_thickness;
     const gsFunction<T> * m_par2;
     const gsFunction<T> * m_par1;
+    const gsFunction<T> * m_density;
 
 
     // Linear material matrix
     mutable gsMapData<T> m_map, m_map_def;
     mutable gsMatrix<T> m_metricA, m_metricA_def;
-    mutable gsMatrix<T> m_Emat,m_Nmat,m_Tmat;
+    mutable gsMatrix<T> m_Emat,m_Nmat,m_Tmat,m_rhomat;
     mutable real_t m_lambda, m_mu, m_Cconstant;
 
 
@@ -162,10 +194,11 @@ protected:
     const std::vector<std::pair<T,T>>   m_PoissonRatios;
     const std::vector<T>                m_thickValues;
     const std::vector<T>                m_phis;
+    const std::vector<T>                m_densities;
     mutable gsVector<T>                 m_normal, m_e1, m_e2, m_ac1, m_ac2, m_a1, m_a2;
     mutable gsMatrix<T>                 m_covBasis, m_covMetric, m_conBasis, m_conMetric;
     mutable T                           m_E1, m_E2, m_G12, m_nu12, m_nu21, m_t, m_t_tot,
-                                        m_t_temp, m_z, m_z_mid, m_phi;
+                                        m_t_temp, m_z, m_z_mid, m_phi, m_rho;
     mutable gsMatrix<T>                 m_Dmat, m_Transform;
 
     // Compressible material matrix
@@ -208,6 +241,8 @@ protected:
 
     mutable index_t m_material;
     mutable bool m_compressible;
+    mutable int m_output;
+
 
 
 };

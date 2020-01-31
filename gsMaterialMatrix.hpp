@@ -43,6 +43,24 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
 {
     initialize();
 }
+// Linear material models; no strain computation
+template<class T>
+gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
+                                        const gsFunction<T> & thickness,
+                                        const gsFunction<T> & par1,
+                                        const gsFunction<T> & par2,
+                                        const gsFunction<T> & density
+                                        )
+                                        :
+                                        m_patches(&mp),
+                                        m_thickness(&thickness),
+                                        m_par1(&par1),
+                                        m_par2(&par2),
+                                        m_density(&density),
+                                        m_piece(nullptr)
+{
+    initialize();
+}
 
 // Linear material models
 template<class T>
@@ -58,6 +76,26 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
                                         m_thickness(&thickness),
                                         m_par1(&par1),
                                         m_par2(&par2),
+                                        m_piece(nullptr)
+{
+    initialize();
+}
+// Linear material models
+template<class T>
+gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
+                                        const gsFunctionSet<T> & mp_def,
+                                        const gsFunction<T> & thickness,
+                                        const gsFunction<T> & par1,
+                                        const gsFunction<T> & par2,
+                                        const gsFunction<T> & density
+                                        )
+                                        :
+                                        m_patches(&mp),
+                                        m_defpatches(&mp_def),
+                                        m_thickness(&thickness),
+                                        m_par1(&par1),
+                                        m_par2(&par2),
+                                        m_density(&density),
                                         m_piece(nullptr)
 {
     initialize();
@@ -84,6 +122,29 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T>            & mp,
     initialize();
     m_options.setInt("MaterialLaw",material_law::SvK_Orthotropic);
 }
+// Composite material model
+template<class T>
+gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T>            & mp,
+                                        const std::vector<T>                thickness,
+                                        const std::vector<std::pair<T,T>> & YoungsModuli,
+                                        const std::vector<T>              & ShearModuli,
+                                        const std::vector<std::pair<T,T>> & PoissonRatios,
+                                        const std::vector<T>                phis,
+                                        const std::vector<T>                densities                                        
+                                        )
+                                        :
+                                        m_patches(&mp),
+                                        m_YoungsModuli(YoungsModuli),
+                                        m_ShearModuli(ShearModuli),
+                                        m_PoissonRatios(PoissonRatios),
+                                        m_thickValues(thickness),
+                                        m_phis(phis),
+                                        m_densities(densities),
+                                        m_piece(nullptr)
+{
+    initialize();
+    m_options.setInt("MaterialLaw",material_law::SvK_Orthotropic);
+}
 
 // Composite material model
 template<class T>
@@ -103,6 +164,31 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T>            & mp,
                                         m_PoissonRatios(PoissonRatios),
                                         m_thickValues(thickness),
                                         m_phis(phis),
+                                        m_piece(nullptr)
+{
+    initialize();
+    m_options.setInt("MaterialLaw",material_law::SvK_Orthotropic);
+}
+// Composite material model
+template<class T>
+gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T>            & mp,
+                                        const gsFunctionSet<T>            & mp_def,
+                                        const std::vector<T>                thickness,
+                                        const std::vector<std::pair<T,T>> & YoungsModuli,
+                                        const std::vector<T>              & ShearModuli,
+                                        const std::vector<std::pair<T,T>> & PoissonRatios,
+                                        const std::vector<T>                phis,
+                                        const std::vector<T>                densities
+                                        )
+                                        :
+                                        m_patches(&mp),
+                                        m_defpatches(&mp_def),
+                                        m_YoungsModuli(YoungsModuli),
+                                        m_ShearModuli(ShearModuli),
+                                        m_PoissonRatios(PoissonRatios),
+                                        m_thickValues(thickness),
+                                        m_phis(phis),
+                                        m_densities(densities),
                                         m_piece(nullptr)
 {
     initialize();
@@ -158,10 +244,24 @@ short_t gsMaterialMatrix<T>::domainDim() const { return 2; }
 template <class T>
 short_t gsMaterialMatrix<T>::targetDim() const
 {
-    if (m_matrix)
+    if (m_output==2)
         return 9;
-    else
+    else if (m_output==1)
         return 3;
+    else if (m_output==0)
+        return 1;
+    else 
+    {
+        GISMO_ERROR("This option is unknown");
+        return 1;
+    }
+}
+
+template <class T>
+void gsMaterialMatrix<T>::getOptions() const
+{
+    m_material = m_options.getInt("MaterialLaw");
+    m_compressible = m_options.getInt("Compressibility");
 }
 
 template <class T>
@@ -175,7 +275,7 @@ void gsMaterialMatrix<T>::initialize()
 
     // Initialize some parameters
     m_moment = 0;
-    m_matrix = true;
+    m_output = 2;
 }
 
 
@@ -206,18 +306,50 @@ template <class T>
 void gsMaterialMatrix<T>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
 
-    m_material = m_options.getInt("MaterialLaw");
-    m_compressible = m_options.getInt("Compressibility");
+    this->getOptions();
 
-    this->computePoints(u);
+    if ((m_output==1) || (m_output==2)) // for matrix and vector
+    {
+        this->computePoints(u);
 
-    if (m_material==0)
-        result = integrateZ(u);
-    else if (m_material==1)
-        result = eval_Composite(u); // thickness integration is done inside
-    else
-        result = integrateZ(u);
+        if (m_material==0)
+            result = integrateZ(u);
+        else if (m_material==1)
+            result = eval_Composite(u); // thickness integration is done inside
+        else
+            result = integrateZ(u);
+    }
+    else if (m_output==0)
+    {
+        m_map.flags = NEED_VALUE;
+        static_cast<const gsFunction<T>&>(m_patches->piece(0)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
 
+        if (m_material==1)
+        {
+            result.resize(this->targetDim(), 1);
+            GISMO_ASSERT(m_thickValues.size()==m_densities.size(),"Size of vectors of thickness and densities is not equal: " << m_thickValues.size()<<" & "<<m_phis.size());
+            for (size_t i = 0; i != m_thickValues.size(); ++i) // loop over laminates
+            {
+                m_t = m_thickValues[i];
+                m_rho = m_densities[i];
+                result(0,0) = m_t*m_rho;
+            }
+            result.replicate(0,u.cols());
+        }
+        else
+        {
+            result.resize(this->targetDim(), u.cols());
+            m_thickness->eval_into(m_map.values[0], m_Tmat);
+            m_density->eval_into(m_map.values[0], m_rhomat);
+            for (index_t i = 0; i != u.cols(); ++i) // points
+            {
+                result(0,i) = m_Tmat(0,i)*m_rhomat(0,i);
+            }
+        }
+        
+    }
+    else 
+        GISMO_ERROR("Output type unknown");
 }
 
 /*
@@ -473,7 +605,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Incompressible(const index_t i, const gsMa
         m_par1val = m_par1mat(0,i);
         m_par2val = m_par2mat(0,i);
 
-        if (m_matrix)
+        if (m_output==2)
         {
             this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
 
@@ -490,13 +622,15 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Incompressible(const index_t i, const gsMa
             C(2,0) = C(0,2) = Cijkl_i(0,0,0,1); // C1112
             C(2,1) = C(1,2) = Cijkl_i(1,1,0,1); // C2212
         }
-        else
+        else if (m_output==1)
         {
             this->computeMetric(i,z.at(j),true,true);
             result(0,j) = Sij_i(0,0);
             result(1,j) = Sij_i(1,1);
             result(2,j) = Sij_i(0,1);
         }
+        else 
+            GISMO_ERROR("no vector or matrix produced");
     }
     return result;
 }
@@ -650,9 +784,9 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Composite(const gsMatrix<T>& u) const
 
         Cmat = Cmat * Tmat;
 
-        if (m_matrix)
+        if (m_output==2)
             result.reshapeCol(k,3,3) = Cmat;
-        else
+        else if (m_output==1)
         {
             gsMatrix<T> Eij(2,2);
             computeMetric(k,0.0,true,true); // height is set to 0, but we do not need m_metricG
@@ -671,6 +805,8 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Composite(const gsMatrix<T>& u) const
             Eij.conservativeResize(3,1);
             result.col(k) = Cmat * Eij;
         }
+        else
+            GISMO_ERROR("no vector or matrix produced");
     }
 
     return result;
@@ -860,7 +996,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatr
             if (S33 < tol)
             {
                 // gsInfo<<"Converged in "<<it<<" iterations, S33 = "<<S33<<" and tolerance = "<<tol<<"\n";
-                if (m_matrix)
+                if (m_output==2)
                     {
                         /*
                             C =     C1111,  C1122,  C1112
@@ -880,12 +1016,14 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatr
                         C(2,1) = Cijkl_c(1,1,0,1,c,cinv) - ( Cijkl_c(1,1,2,2,c,cinv) * Cijkl_c(2,2,0,1,c,cinv) ) / (Cijkl_c(2,2,2,2,c,cinv)); // C2212
                         C(2,2) = Cijkl_c(0,1,0,1,c,cinv) - ( Cijkl_c(0,1,2,2,c,cinv) * Cijkl_c(2,2,0,1,c,cinv) ) / (Cijkl_c(2,2,2,2,c,cinv)); // C1212
                     }
-                    else
+                    else if (m_output==1)
                     {
                         result(0,j) = Sij_c(0,0,c,cinv); // S11
                         result(1,j) = Sij_c(1,1,c,cinv); // S22
                         result(2,j) = Sij_c(0,1,c,cinv); // S12
                     }
+                    else
+                        GISMO_ERROR("no vector or matrix produced");
                 }
             else if (it == itmax - 1)
             {
