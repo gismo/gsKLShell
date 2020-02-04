@@ -73,6 +73,10 @@ public:
 
     //--------------------- PROBLEM FORMULATION-------------------------------//
     void setPointLoads(const gsPointLoads<T> & pLoads){ m_pLoads = pLoads; }
+    void setFoundation(const gsFunction<T> & foundation) { m_foundFun = &foundation; m_foundInd = true; }
+    // void setFoundation(const T & foundation) { m_foundFun = gsConstantFunction<T>(foundation,2); m_foundInd = true; }
+    // NOTE: can we improve the m_foundInd indicator? e.g. by checking if m_foundation exists?
+
 
     //--------------------- SYSTEM ASSEMBLY ----------------------------------//
 
@@ -81,6 +85,7 @@ public:
     void assemble();
 
     void assembleMass();
+    void assembleFoundation();
 
 
     /// @ brief Assembles the tangential matrix and the residual for a iteration of Newton's method for displacement formulation;
@@ -129,6 +134,7 @@ public:
                                gsPiecewiseFunction<T> & result,
                                stress_type::type type);
 
+    gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed, const T z=0);
 
     /// @brief Check whether the displacement field is valid, i.e. J = det(F) > 0;
     /// return -1 if yes or a number of the first invalid patch
@@ -195,6 +201,7 @@ protected:
 
     const gsFunction<T> * m_forceFun;
     const gsFunction<T> * m_thickFun;
+    const gsFunction<T> * m_foundFun;
     typename gsFunction<T>::Ptr m_YoungsModulus;
     typename gsFunction<T>::Ptr m_PoissonsRatio;
 
@@ -210,6 +217,7 @@ protected:
     mutable gsOptionList m_options;
 
     mutable bool m_nl_loads;
+    mutable bool m_foundInd;
 
     /// @brief Specifies the material law to use
     struct nl_loads

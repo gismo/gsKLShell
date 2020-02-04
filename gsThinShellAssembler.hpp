@@ -110,6 +110,9 @@ void gsThinShellAssembler<T>::initialize()
     m_mapper = m_space.mapper();
     m_dim = m_space.dim();
 
+    // foundation is off by default
+    m_foundInd = false;
+
 }
 
 
@@ -302,8 +305,31 @@ void gsThinShellAssembler<T>::assembleMass()
     space       m_space = m_assembler.trialSpace(0);
     geometryMap m_ori   = m_assembler.exprData()->getMap();
 
+    // gsVector<> pt(2);
+    // pt.setConstant(0.5);
+    // gsExprEvaluator<T> evaluator(m_assembler);
+    // gsDebug<<evaluator.eval(mm0,pt)<<"\n";
+
     // assemble system
-    m_assembler.assemble(mm0*m_space*m_space.tr());
+    m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
+}
+
+template<class T>
+void gsThinShellAssembler<T>::assembleFoundation()
+{
+    this->getOptions();
+
+    m_assembler.cleanUp();
+
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+
+    // Initialize stystem
+    m_assembler.initSystem();
+    variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
+    space       m_space = m_assembler.trialSpace(0);
+
+    m_assembler.assemble(m_found.val()*m_space*m_space.tr()*meas(m_ori));
 }
 
 template<class T>
@@ -347,16 +373,36 @@ void gsThinShellAssembler<T>::assemble()
 
     // auto m_M_der    = pow(m_thick.val(),3) / 12.0 * m_Sf_der;
 
-    // assemble system
-    m_assembler.assemble(
-        (
-            m_N_der * m_Em_der.tr()
-            +
-            m_M_der * m_Ef_der.tr()
-        ) * meas(m_ori)
-        ,
-        m_space * m_force * meas(m_ori)
-        );
+    if (!m_foundInd) // no foundation
+    {
+        // assemble system
+        m_assembler.assemble(
+            (
+                m_N_der * m_Em_der.tr()
+                +
+                m_M_der * m_Ef_der.tr()
+            ) * meas(m_ori)
+            ,
+            m_space * m_force * meas(m_ori)
+            );
+    }
+    // else
+    // {
+    //     variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
+    //     // assemble system
+    //     m_assembler.assemble(
+    //         (
+    //             m_N_der * m_Em_der.tr()
+    //             +
+    //             m_M_der * m_Ef_der.tr()
+    //             +
+    //             m_found.val()*m_space*m_space.tr()
+    //         ) * meas(m_ori)
+    //         ,
+    //         m_space * m_force * meas(m_ori)
+    //         );
+    // }
+
 
     // Assemble the loads
     if ( m_pLoads.numLoads() != 0 )
@@ -365,6 +411,12 @@ void gsThinShellAssembler<T>::assemble()
         applyLoads();
     }
     // Neumann
+
+    gsVector<> pt(2);
+    pt.setConstant(0.5);
+    gsExprEvaluator<> evaluator(m_assembler);
+    gsDebug<<evaluator.eval(reshape(mm0,3,3),pt)<<"\n";
+
 }
 
 // TO DO
@@ -442,8 +494,10 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     auto m_Ef_der2  = flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_M.tr()  ).symmetrize()
                         + var2(m_space,m_space,m_def, m_M.tr() );
 
-    // Assemble matrix
-    m_assembler.assemble(
+    if (!m_foundInd) // no foundation
+    {
+        // Assemble matrix
+        m_assembler.assemble(
                 (
                     m_N_der * m_Em_der.tr()
                     +
@@ -452,8 +506,27 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
                     m_M_der * m_Ef_der.tr()
                     -
                     m_Ef_der2
-                    ) * meas(m_ori)
-                );
+                ) * meas(m_ori)
+            );
+    }
+    // else
+    // {
+    //     variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
+    //     // Assemble matrix
+    //     m_assembler.assemble(
+    //             (
+    //                  m_N_der * m_Em_der.tr()
+    //                  +
+    //                  m_Em_der2
+    //                  +
+    //                  m_M_der * m_Ef_der.tr()
+    //                  -
+    //                  m_Ef_der2
+    //                  +
+    //                 m_found.val()*m_space*m_space.tr()
+    //             ) * meas(m_ori)
+    //         );
+    // }
 }
 template<class T>
 void gsThinShellAssembler<T>::assembleMatrix(const gsMatrix<T> & solVector)
@@ -501,10 +574,26 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
 
     auto m_Ef_der   = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
 
-    // Assemble vector
-    m_assembler.assemble(m_space * m_force * meas(m_ori) -
-                ( ( m_N * m_Em_der.tr() - m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
-                );
+    if (!m_foundInd) // no foundation
+    {
+        // Assemble vector
+        m_assembler.assemble(m_space * m_force * meas(m_ori) -
+                    ( ( m_N * m_Em_der.tr() - m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+                    );
+    }
+    // else
+    // {
+    //     variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
+    //     // Assemble vector
+    //     m_assembler.assemble(
+    //                 m_space * m_force * meas(m_ori)
+    //                 -
+    //                 ( ( m_N * m_Em_der.tr() - m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+    //                 +
+
+    //                 );
+    // }
+
 
     // Assemble the loads
     if ( m_pLoads.numLoads() != 0 )
@@ -591,20 +680,60 @@ void gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T> & solVecto
     deformed = constructDisplacement(solVector);
 }
 
-/*
-    To do; make warnings
-*/
+template <class T>
+gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T> & u, const gsMultiPatch<T> & deformed, const T z)
+{
+    gsMatrix<T> result(3,u.cols());
+
+    this->getOptions();
+
+    m_assembler.cleanUp();
+
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    m_assembler.getMap(deformed);
+
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+    geometryMap m_def   = m_assembler.exprData()->getMap2();
+
+    m_assembler.initSystem();
+
+    auto expr       = jac(m_def);
+    auto expr2      = sn(m_def);
+
+    gsExprEvaluator<> evaluator(m_assembler);
+
+    gsMatrix<> metricA(3,3);
+    gsMatrix<> evs;
+    metricA.setZero();
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        metricA.block(0,0,2,2) = evaluator.eval(expr,u.col(k)).block(0,0,2,2);
+        metricA.col(2) = evaluator.eval(expr2,u.col(k));
+        metricA = metricA.transpose()*metricA;
+        Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
+        eigSolver.compute(metricA);
+        evs = eigSolver.eigenvalues();
+        for (index_t r=0; r!=3; r++)
+            result(r,k) = math::sqrt(evs(r,0));
+    }
+
+    // result.col(0) = evaluator.eval(expr,pt);
+    return result;
+}
+
 template <class T>
 void gsThinShellAssembler<T>::constructStress(const gsMultiPatch<T> & deformed,
                                                     gsPiecewiseFunction<T> & result,
                                                     stress_type::type type)
 {
-
-
     result.clear();
 
     for (index_t p = 0; p < m_patches.nPatches(); ++p )
         result.addPiecePointer(new gsShellStressFunction<T>(m_patches,deformed,m_materialMat,p,type,m_assembler));
 }
+
+/*
+    To do; make warnings
+*/
 
 }// namespace gismo

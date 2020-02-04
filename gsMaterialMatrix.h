@@ -132,7 +132,7 @@ public:
 
 public:
     void setMoment(int m)   { m_moment = m; }
-    void makeMatrix()     { m_output=2; } 
+    void makeMatrix()     { m_output=2; }
     void makeVector()     { m_output=1; }
     void makeDensity()    { m_output=0; }
 
@@ -183,7 +183,7 @@ protected:
 
     // Linear material matrix
     mutable gsMapData<T> m_map, m_map_def;
-    mutable gsMatrix<T> m_metricA, m_metricA_def;
+    mutable gsMatrix<T> m_metricAcov, m_metricAcon, m_metricAcov_def, m_metricAcon_def, m_metricBcov, m_metricBcon, m_metricBcov_def, m_metricBcon_def;
     mutable gsMatrix<T> m_Emat,m_Nmat,m_Tmat,m_rhomat;
     mutable real_t m_lambda, m_mu, m_Cconstant;
 
@@ -203,7 +203,7 @@ protected:
 
     // Compressible material matrix
     mutable gsMatrix<T>                 m_deriv2_def, m_deriv2;
-    mutable gsMatrix<T>                 m_metricB_def, m_metricB, m_metricG, m_metricG_def;
+    mutable gsMatrix<T>                 m_metricGcov, m_metricGcon, m_metricGcov_def, m_metricGcon_def;
     mutable gsVector<T>                 m_normal_def;
     mutable gsMatrix<T>                 m_par1mat, m_par2mat;
     mutable T                           m_par1val, m_par2val, m_J0, m_J;
@@ -226,7 +226,7 @@ protected:
             SvK_Isotropic = 0,          /// Psi = ........ S = 2*mu*E + lambda*tr(E)*I
             SvK_Orthotropic = 1,        /// Psi = ........ S = 2*mu*E + lambda*tr(E)*I
             NHK = 2,       /// Psi = ........ S = lambda*ln(J)*C^-1 + mu*(I-C^-1)
-            MR = 4        /// Psi = ........ S = lambda*ln(J)*C^-1 + mu*(I-C^-1)
+            MR = 3        /// Psi = ........ S = lambda*ln(J)*C^-1 + mu*(I-C^-1)
         };
     };
     /// @brief Specifies (in)compressibility
