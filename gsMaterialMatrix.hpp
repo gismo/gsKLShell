@@ -871,17 +871,11 @@ T gsMaterialMatrix<T>::Cijkl_c(const index_t i, const index_t j, const index_t k
     {
         T mu = m_par1val / (2 * (1 + m_par2val));
         T K  = m_par1val / ( 3 - 6 * m_par2val);
-        T traceC = m_metricGcov_def(0,0)*m_metricGcon(0,0) + m_metricGcov_def(1,1)*m_metricGcon(1,1) + c(2,2);
-        // T traceC = c.trace();
-
-        // gsDebugVar(2*cinv(i,j)*cinv(k,l) + 3*cinv(i,k)*cinv(j,l) + 3*cinv(i,l)*cinv(j,k));
-        // gsDebugVar(traceC);
-        // gsDebugVar(6 *( m_metricGcon(i,j)*cinv(k,l) + cinv(i,j)*m_metricGcon(k,l) ));
-        // gsDebugVar( m_J*m_J*cinv(i,j)*cinv(k,l) - 0.5*(m_J*m_J-1)*( cinv(i,k)*cinv(j,l) + cinv(i,l)*cinv(j,k) ) );
-        // gsDebugVar(math::pow( m_J , -2.0/3.0 ));
-        // gsDebugVar(1.0 / 9.0 * mu * math::pow( m_J , -2.0/3.0 ) * ( traceC * ( 2.0*cinv(i,j)*cinv(k,l) + 3.0*cinv(i,k)*cinv(j,l) + 3.0*cinv(i,l)*cinv(j,k) )
-        //                     - 6.0 *( m_metricGcon(i,j)*cinv(k,l) + cinv(i,j)*m_metricGcon(k,l) ) ));
-        // gsDebugVar(K * ( m_J*m_J*cinv(i,j)*cinv(k,l) - 0.5*(m_J*m_J-1)*( cinv(i,k)*cinv(j,l) + cinv(i,l)*cinv(j,k) ) ));
+        T traceC =  m_metricGcov_def(0,0)*m_metricGcon(0,0) + 
+                    m_metricGcov_def(0,1)*m_metricGcon(0,1) + 
+                    m_metricGcov_def(1,0)*m_metricGcon(1,0) + 
+                    m_metricGcov_def(1,1)*m_metricGcon(1,1) + 
+                    c(2,2);
 
         return 1.0 / 9.0 * mu * math::pow( m_J , -2.0/3.0 ) * ( traceC * ( 2.0*cinv(i,j)*cinv(k,l) + 3.0*cinv(i,k)*cinv(j,l) + 3.0*cinv(i,l)*cinv(j,k) )
                             - 6.0 *( m_metricGcon(i,j)*cinv(k,l) + cinv(i,j)*m_metricGcon(k,l) ) ) + K * ( m_J*m_J*cinv(i,j)*cinv(k,l) - 0.5*(m_J*m_J-1)*( cinv(i,k)*cinv(j,l) + cinv(i,l)*cinv(j,k) ) );
@@ -953,8 +947,11 @@ T gsMaterialMatrix<T>::Sij_c(const index_t i, const index_t j, const gsMatrix<T>
     {
         T mu = m_par1val / (2 * (1 + m_par2val));
         T K  = m_par1val / ( 3 - 6 * m_par2val);
-        T traceC = m_metricGcov_def(0,0)*m_metricGcon(0,0) + m_metricGcov_def(1,1)*m_metricGcon(1,1) + c(2,2);
-        // T traceC = c.trace();
+        T traceC =  m_metricGcov_def(0,0)*m_metricGcon(0,0) + 
+                    m_metricGcov_def(0,1)*m_metricGcon(0,1) + 
+                    m_metricGcov_def(1,0)*m_metricGcon(1,0) + 
+                    m_metricGcov_def(1,1)*m_metricGcon(1,1) + 
+                    c(2,2);
 
         tmp =  mu * math::pow( m_J , -2.0/3.0 ) * ( m_metricGcon(i,j) - 1.0/3.0 * traceC * cinv(i,j) ) + 0.5 * K * ( m_J*m_J - 1 ) * cinv(i,j);
         return tmp;
@@ -981,7 +978,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatr
 
         // Define objects
         gsMatrix<T,3,3> c, cinv;
-        T S33, C3333, dc33, traceC;
+        T S33, C3333, dc33;
         S33 = dc33 = 0.0;
         C3333 = 1.0;
 

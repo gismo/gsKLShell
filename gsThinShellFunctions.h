@@ -29,15 +29,15 @@ struct stress_type
 {
     enum type
     {
-        von_mises = 0,  /// compute only von Mises stress
+        von_mises          = 0,  /// compute only von Mises stress
         von_mises_membrane = 1,  /// compute only von Mises stress - membrane stresses
         von_mises_flexural = 2,  /// compute only von Mises stress - flexural stresses
-        membrane    = 3,  /// compute normal and shear stresses due to membrane component
-        flexural    = 4,  /// compute normal and shear stresses due to membrane component
-        total    = 5,  /// compute normal and shear stresses due to both components
+        membrane           = 3,  /// compute normal and shear stresses due to membrane component
+        flexural           = 4,  /// compute normal and shear stresses due to membrane component
+        total              = 5,  /// compute normal and shear stresses due to both components
         membrane_strain    = 6,  /// compute normal and shear stresses due to both components
         flexural_strain    = 7,  /// compute normal and shear stresses due to both components
-        debug    = 8,  /// compute normal vector
+        principal_stretch  = 8,  /// principal stretches
     };
 };
 

@@ -53,6 +53,9 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     auto S_m    = (E_m * reshape(mm0,3,3) ) * Ttilde;
     auto S_f    = (E_f * reshape(mm2,3,3) ) * Ttilde;
 
+    auto jacobian   = jac(m_def);
+    auto normal     = sn(m_def);
+
     gsExprEvaluator ev(m_assembler);
     switch (m_stress_type)
     {
@@ -74,6 +77,22 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
         case stress_type::flexural_strain :
             for (index_t k = 0; k != u.cols(); ++k)
                 result.col(k) = ev.eval(E_f.tr(),u.col(k));
+            break;
+        case stress_type::principal_stretch :
+            gsMatrix<> metricA(3,3);
+            gsMatrix<> evs;
+            Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
+            metricA.setZero();
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                metricA.block(0,0,2,2) = ev.eval(jacobian,u.col(k)).block(0,0,2,2);
+                metricA.col(2) = ev.eval(normal,u.col(k));
+                metricA = metricA.transpose()*metricA;
+                eigSolver.compute(metricA);
+                evs = eigSolver.eigenvalues();
+                for (index_t r=0; r!=3; r++)
+                    result(r,k) = math::sqrt(evs(r,0));
+            }
             break;
     }
 }
