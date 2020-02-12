@@ -418,10 +418,10 @@ void gsThinShellAssembler<T>::assemble()
     }
     // Neumann
 
-    gsVector<> pt(2);
-    pt.setConstant(0.5);
-    gsExprEvaluator<> evaluator(m_assembler);
-    gsDebug<<evaluator.eval(reshape(mm1,3,3),pt)<<"\n";
+    // gsVector<> pt(2);
+    // pt.setConstant(0.5);
+    // gsExprEvaluator<> evaluator(m_assembler);
+    // gsDebug<<evaluator.eval(reshape(mm1,3,3),pt)<<"\n";
 
 }
 
@@ -490,7 +490,7 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     // auto m_Ef       = ( deriv2(m_ori,sn(m_ori).normalized().tr()) ) ;//* reshape(m_m2,3,3) ; //[checked]
     // auto m_Sf       = m_Ef * reshape(m_materialMat,3,3);
     // auto m_M        = pow(m_thick.val(),3) / 12.0 * m_Sf;
-    auto m_M        = S2; // output is a column
+    auto m_M        = -S2; // output is a column
     // auto m_M        = m_Ef * reshape(mm2,3,3);
 
     auto m_Ef_der   = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
@@ -535,10 +535,12 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     //             ) * meas(m_ori)
     //         );
     // }
-    gsVector<> pt(2);
-    pt.setConstant(0.5);
-    gsExprEvaluator<> evaluator(m_assembler);
-    gsDebug<<evaluator.eval(reshape(mm1,3,3),pt)<<"\n";
+    // gsVector<> pt(2);
+    // pt.setConstant(0.5);
+    // gsExprEvaluator<> evaluator(m_assembler);
+    // gsDebug<<"\n"<<evaluator.eval(reshape(mm0,3,3),pt)<<"\n";
+    // gsDebug<<"\n"<<evaluator.eval(S0,pt)<<"\n";
+    // gsDebug<<"\n"<<evaluator.eval(S2,pt)<<"\n";
 
 }
 template<class T>
@@ -557,12 +559,14 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
     // Initialize vector
     m_assembler.initVector();
 
-    gsMaterialMatrix m_mm0 = m_materialMat;
-    gsMaterialMatrix m_mm2 = m_materialMat;
-    m_mm2.setMoment(2);
-    // gsMaterialMatrix materialMat(m_patches, *m_thickFun, *m_YoungsModulus, *m_PoissonsRatio);
-    variable mm0 = m_assembler.getCoeff(m_mm0);
-    variable mm2 = m_assembler.getCoeff(m_mm2);
+    gsMaterialMatrix m_S0 = m_materialMat;
+    m_S0.makeVector();
+    gsMaterialMatrix m_S2 = m_materialMat;
+    m_S2.makeVector();
+    m_S2.setMoment(2);
+
+    variable S0 = m_assembler.getCoeff(m_S0);
+    variable S2 = m_assembler.getCoeff(m_S2);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m_m2 = m_assembler.getCoeff(mult2t);
@@ -573,25 +577,19 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
     variable m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
     // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
 
-    auto m_Em       = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) ; //[checked]
-    // auto m_Sm       = m_Em * reshape(m_materialMat,3,3);
-    // auto m_N        = m_thick.val() * m_Sm;
-    auto m_N    = m_Em * reshape(mm0,3,3);
-
+    // auto m_Em       = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) ; //[checked]
+    auto m_N        = S0;
     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ;
 
-    auto m_Ef       = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) ; //[checked]
-    // auto m_Sf       = m_Ef * reshape(m_materialMat,3,3);
-    // auto m_M        = pow(m_thick.val(),3) / 12.0 * m_Sf;
-    auto m_M        = m_Ef * reshape(mm2,3,3);
-
+    // auto m_Ef       = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) ; //[checked]
+    auto m_M        = -S2; // output is a column
     auto m_Ef_der   = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
 
     if (!m_foundInd) // no foundation
     {
         // Assemble vector
         m_assembler.assemble(m_space * m_force * meas(m_ori) -
-                    ( ( m_N * m_Em_der.tr() - m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+                    ( ( m_N.tr() * m_Em_der.tr() - m_M.tr() * m_Ef_der.tr() ) * meas(m_ori) ).tr()
                     );
     }
     // else
