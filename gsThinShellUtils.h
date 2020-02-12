@@ -592,6 +592,13 @@ public:
             for (index_t j = 0; j!=Bn; ++j)
             {
                 tmp.noalias() = eB.middleCols(i*Bc,Bc) * eA.middleCols(j*Ac,Ac);
+                // evaluate tmp11*C11 + tmp22*C22 + (tmp12+tmp21)*C12
+                // tmp(0,0) *= eC.at(0);
+                // tmp(1,1) *= eC.at(1);
+                // tmp(0,1) += tmp(1,0);
+                // tmp(0,1) *= eC.at(1);
+                // tmp(1,0) = 0.0;
+                // res(i,j) = tmp.sum();
                 tmp(0,0) *= eC.at(0);
                 tmp(0,1) *= eC.at(2);
                 tmp(1,0) *= eC.at(2);
