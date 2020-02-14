@@ -196,7 +196,7 @@ protected:
 
     // Linear material matrix
     mutable gsMapData<T> m_map, m_map_def;
-    mutable gsMatrix<T> m_Acov_ori, m_Acon_ori, m_Acov_def, m_Acon_def, m_Bcov_ori, m_Bcon_ori, m_Bcov_def, m_Bcon_def;
+    mutable gsMatrix<T,2,2> m_Acov_ori, m_Acon_ori, m_Acov_def, m_Acon_def, m_Bcov_ori, m_Bcon_ori, m_Bcov_def, m_Bcon_def;
     mutable gsMatrix<T> m_Acov_ori_mat, m_Acon_ori_mat, m_Acov_def_mat, m_Acon_def_mat, m_Bcov_ori_mat, m_Bcov_def_mat;
     mutable gsMatrix<T> m_Emat,m_Nmat,m_Tmat,m_rhomat;
     mutable real_t m_lambda, m_mu, m_Cconstant;
@@ -218,7 +218,7 @@ protected:
 
     // Compressible material matrix
     mutable gsMatrix<T>                 m_deriv2_def, m_deriv2_ori;
-    mutable gsMatrix<T>                 m_Gcov_ori, m_Gcon_ori, m_Gcov_def, m_Gcon_def;
+    mutable gsMatrix<T,3,3>             m_Gcov_ori, m_Gcon_ori, m_Gcov_def, m_Gcon_def;
     mutable gsMatrix<T>                 m_par1mat, m_par2mat;
     mutable T                           m_par1val, m_par2val, m_J0, m_J;
     // integrateZ
