@@ -844,7 +844,7 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
     }
     else if (m_material==1)
         gsWarn<<"Compressible material matrix  requested, but not needed. How?";
-    else if (m_material==2)
+    else if (m_material==9)
     {
         T mu = m_par1val / (2.*(1. + m_par2val));
         tmp = mu*1./math::pow(m_J0,2.)*(2.*m_Gcon_def(i,j)*m_Gcon_def(k,l) + m_Gcon_def(i,k)*m_Gcon_def(j,l) + m_Gcon_def(i,l)*m_Gcon_def(j,k));
@@ -888,7 +888,7 @@ T gsMaterialMatrix<T>::Cijkl3D(const index_t i, const index_t j, const index_t k
     T tmp = 0.0;
     if (m_material==0 || m_material==1) // svk
         gsWarn<<"Compressible material matrix requested, but not needed. How?";
-    else if (m_material==2)
+    else if (m_material==9)
     {
         T mu = m_par1val / (2 * (1 + m_par2val));
         T K  = m_par1val / ( 3 - 6 * m_par2val);
@@ -936,21 +936,23 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j) const
         // --------------------------
         // Saint Venant Kirchhoff
         // --------------------------
-        if (m_moment==0)
-        {
-            GISMO_ASSERT( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
-            stress = 0.5*(m_Acov_def - m_Acov_ori);
-        }
-        else if (m_moment==2)
-        {
-            GISMO_ASSERT( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
-            // tmp = (m_Bcov_ori - m_Bcov_def);
-            stress = (m_Bcov_def - m_Bcov_ori);
-        }
-        else
-        {
-            GISMO_ERROR("Warning: no material model known in simplification");
-        }
+        // if (m_moment==0)
+        // {
+        //     GISMO_ASSERT( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
+        //     stress = 0.5*(m_Acov_def - m_Acov_ori);
+        // }
+        // else if (m_moment==2)
+        // {
+        //     GISMO_ASSERT( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
+        //     // tmp = (m_Bcov_ori - m_Bcov_def);
+        //     stress = (m_Bcov_def - m_Bcov_ori);
+        // }
+        // else
+        // {
+        //     GISMO_ERROR("Warning: no material model known in simplification");
+        // }
+        stress = 0.5 * (m_Gcov_def - m_Gcov_ori);
+
 
         // gsDebug<<"Cijkl(i,j,0,0) = "<<Cijkl(i,j,0,0)<<"\t"
         //        <<"Cijkl(i,j,0,1) = "<<Cijkl(i,j,0,1)<<"\t"
@@ -975,7 +977,7 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j) const
         // --------------------------
         gsWarn<<"Incompressible material stress tensor requested, but not needed. How?";
     }
-    else if (m_material==2)
+    else if (m_material==9)
     {
         // --------------------------
         // Neo-Hoookean
@@ -1007,7 +1009,7 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j, const gsMatrix<T> &
     T tmp = 0.0;
     if (m_material==0 || m_material==1)
         gsWarn<<"Incompressible material stress tensor requested, but not needed. How?";
-    else if (m_material==2)
+    else if (m_material==9)
     {
         T mu = m_par1val / (2 * (1 + m_par2val));
         T K  = m_par1val / ( 3 - 6 * m_par2val);
