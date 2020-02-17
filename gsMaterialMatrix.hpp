@@ -280,14 +280,14 @@ void gsMaterialMatrix<T>::computePoints(const gsMatrix<T> & u, bool deformed) co
 {
     m_map.points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(0)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
-    this->computeMetricUndeformed(u);
+    this->computeMetricUndeformed();
 
     if (m_defpatches->nPieces()!=0)
     {
         m_map_def.flags = m_map.flags;
         m_map_def.points = u;
         static_cast<const gsFunction<T>&>(m_defpatches->piece(0)).computeMap(m_map_def); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
-        this->computeMetricDeformed(u);
+        this->computeMetricDeformed();
     }
 
     // Compute the thickness
@@ -297,6 +297,9 @@ void gsMaterialMatrix<T>::computePoints(const gsMatrix<T> & u, bool deformed) co
         m_par1->eval_into(m_map.values[0], m_par1mat);
         m_par2->eval_into(m_map.values[0], m_par2mat);
     }
+
+    this->computeBasisUndeformed();
+    this->computeBasisDeformed();
 
 }
 
@@ -620,14 +623,6 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Incompressible(const index_t i, const gsMa
         else
             GISMO_ERROR("no vector or matrix produced");
     }
-
-    // gsMatrix<T> C(3,3);
-    // C.setZero();
-    // C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
-    // C(2,2) = math::pow(m_J0,-2.0);
-    // computeStretch(C);
-
-    // gsDebugVar(math::pow(m_J0,-2.0));
 
     return result;
 }
@@ -1134,6 +1129,21 @@ T gsMaterialMatrix<T>::dPsi(const index_t i, const index_t j) const
     {
         // return 2.0*m_par1val*m_J0*m_G(i,j)*m_G(k,l) + m_G(i,k)*m_G(j,l) + m_G(i,l)*m_G(j,k);
     }
+    else if (m_material==4)
+    {
+        gsMatrix<T> C(3,3);
+        C.setZero();
+        C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+        C(2,2) = math::pow(m_J0,-2.0);
+        computeStretch(C);
+
+        T result = 0.0;
+        for (index_t a = 0; a != m_stretches.rows(); a++)
+            result += dPsi(a)*(
+                        ( m_gcov_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcov_ori.col(j).dot(m_stretchvec.col(a)) )
+                        );
+        return  result;
+    }
     else
         GISMO_ERROR("Material model not implemented.");
 }
@@ -1154,10 +1164,29 @@ T gsMaterialMatrix<T>::d2Psi(const index_t i, const index_t j, const index_t k, 
     {
         // return 2.0*m_par1val*m_J0*m_G(i,j)*m_G(k,l) + m_G(i,k)*m_G(j,l) + m_G(i,l)*m_G(j,k);
     }
+    else if (m_material==4)
+    {
+        gsMatrix<T> C(3,3);
+        C.setZero();
+        C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+        C(2,2) = math::pow(m_J0,-2.0);
+        computeStretch(C);
+
+        T result = 0.0;
+        for (index_t a = 0; a != m_stretches.rows(); a++)
+            for (index_t b = 0; b != m_stretches.rows(); b++)
+                result += d2Psi(a,b)*(
+                            ( m_gcov_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcov_ori.col(j).dot(m_stretchvec.col(a)) )*
+                            ( m_gcov_ori.col(k).dot(m_stretchvec.col(b)) )*( m_gcov_ori.col(l).dot(m_stretchvec.col(b)) )
+                            );
+        return  result;
+    }
     else
         GISMO_ERROR("Material model not implemented.");
 }
-
+// ---------------------------------------------------------------------------------------------------------------------------------
+//                                          COMPRESSIBLE
+// ---------------------------------------------------------------------------------------------------------------------------------
 template<class T>
 T gsMaterialMatrix<T>::dPsi(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1213,7 +1242,52 @@ T gsMaterialMatrix<T>::d2Psi(const index_t i, const index_t j, const index_t k, 
     else
         GISMO_ERROR("Material model not implemented.");
 }
+// ---------------------------------------------------------------------------------------------------------------------------------
+//                                          STRETCHES
+// ---------------------------------------------------------------------------------------------------------------------------------
+template<class T>
+T gsMaterialMatrix<T>::dPsi(const index_t a) const
+{
+    T mu = m_par1val / (2. * (1. + m_par2val));
 
+    GISMO_ASSERT( ( (a < 3) ) , "Index out of range. a="<<a);
+    GISMO_ASSERT(!m_compressible,"Material model is not incompressible?");
+
+    if (m_material==2)
+    {
+        return mu * m_stretches(a,0);
+    }
+    else if (m_material==3)
+    {
+        // return 2.0*m_par1val*m_J0*m_G(i,j)*m_G(k,l) + m_G(i,k)*m_G(j,l) + m_G(i,l)*m_G(j,k);
+    }
+    else if (m_material==4)
+    {
+
+    }
+    else
+        GISMO_ERROR("Material model not implemented.");
+}
+
+template<class T>
+T gsMaterialMatrix<T>::d2Psi(const index_t a, const index_t b) const
+{
+    T mu = m_par1val / (2. * (1. + m_par2val));
+
+    GISMO_ASSERT( ( (a < 3) && (b < 3) ) , "Index out of range. a="<<a<<", b="<<b);
+    GISMO_ASSERT(!m_compressible,"Material model is not incompressible?");
+
+    if (m_material==2)
+    {
+        return ( a==b ? mu : 0.0 );
+    }
+    else if (m_material==3)
+    {
+        // return 2.0*m_par1val*m_J0*m_G(i,j)*m_G(k,l) + m_G(i,k)*m_G(j,l) + m_G(i,l)*m_G(j,k);
+    }
+    else
+        GISMO_ERROR("Material model not implemented.");
+}
 // ---------------------------------------------------------------------------------------------------------------------------------
 //                                          Metric Computations
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -1224,8 +1298,188 @@ void gsMaterialMatrix<T>::getMetric(index_t k, T z) const
     this->getMetricDeformed(k,z);
     this->getMetricUndeformed(k,z);
 
+    this->getBasisDeformed(k,z);
+    this->getBasisUndeformed(k,z);
+
     m_J0 = math::sqrt( m_Gcov_def.determinant() / m_Gcov_ori.determinant() );
 }
+
+// template<class T>
+// void gsMaterialMatrix<T>::getMetricDeformed(index_t k, T z) const
+// {
+//     GISMO_ASSERT(m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
+//     GISMO_ASSERT(m_Acon_def_mat.cols()!=0,"Is the metric initialized?");
+//     GISMO_ASSERT(m_Bcov_def_mat.cols()!=0,"Is the metric initialized?");
+
+//     m_Acov_def = m_Acov_def_mat.reshapeCol(k,2,2);
+//     m_Acon_def = m_Acon_def_mat.reshapeCol(k,2,2);
+//     m_Bcov_def = m_Bcov_def_mat.reshapeCol(k,2,2);
+
+
+//     m_Gcov_def.setZero();
+//     m_Gcov_def.block(0,0,2,2)= m_Acov_def - 2.0 * z * m_Bcov_def;
+//     m_Gcov_def(2,2) = 1.0;
+
+//     m_Gcon_def = m_Gcov_def.inverse();
+// }
+
+// template<class T>
+// void gsMaterialMatrix<T>::getMetricUndeformed(index_t k, T z) const
+// {
+
+//     GISMO_ASSERT(m_Acov_ori_mat.cols()!=0,"Is the metric initialized?");
+//     GISMO_ASSERT(m_Acon_ori_mat.cols()!=0,"Is the metric initialized?");
+//     GISMO_ASSERT(m_Bcov_ori_mat.cols()!=0,"Is the metric initialized?");
+
+//     m_Acov_ori = m_Acov_ori_mat.reshapeCol(k,2,2);
+//     m_Acon_ori = m_Acon_ori_mat.reshapeCol(k,2,2);
+//     m_Bcov_ori = m_Bcov_ori_mat.reshapeCol(k,2,2);
+
+//     m_Gcov_ori.resize(3,3);
+//     m_Gcon_ori.resize(3,3);
+
+//     m_Gcov_ori.setZero();
+//     m_Gcov_ori.block(0,0,2,2)= m_Acov_ori - 2.0 * z * m_Bcov_ori;
+//     m_Gcov_ori(2,2) = 1.0;
+
+//     m_Gcon_ori = m_Gcov_ori.inverse();
+// }
+
+
+// template<class T>
+// void gsMaterialMatrix<T>::computeMetricDeformed() const
+// {
+//     // k: index of quadrature point
+//     // computedeformed: compute quantities also on deformed shape
+//     // computeall: compute metric of full coordinate system rather than only in-plane basis
+
+//     gsMatrix<T> deriv2;
+//     gsMatrix<T,3,1> normal;
+//     gsMatrix<T,2,2> mixedB;
+
+//     m_Acov_def_mat.resize(4,m_map.points.cols());    m_Acov_def_mat.setZero();
+//     m_Acon_def_mat.resize(4,m_map.points.cols());    m_Acon_def_mat.setZero();
+//     m_Bcov_def_mat.resize(4,m_map.points.cols());    m_Bcov_def_mat.setZero();
+
+//     m_acov_def_mat.resize(2*3,m_map.points.cols());    m_acov_def_mat.setZero();
+//     m_acon_def_mat.resize(2*3,m_map.points.cols());    m_acon_def_mat.setZero();
+//     m_ncov_def_mat.resize(2*3,m_map.points.cols());    m_ncov_def_mat.setZero();
+
+//     gsMatrix<T> tmp;
+
+//     for (index_t k=0; k!= m_map.points.cols(); k++)
+//     {
+//         // covariant basis vectors
+//         m_acov_def_mat.reshapeCol(k,3,2)   = m_map.jacobian(k);
+//         gsAsMatrix<T,Dynamic,Dynamic> acov = m_acov_def_mat.reshapeCol(k,3,2);
+//         // Construct metric tensor a = [dcd1*dcd1, dcd1*dcd2; dcd2*dcd1, dcd2*dcd2]
+//         tmp                         = acov.transpose() * acov;
+
+//         m_Acov_def_mat.reshapeCol(k,2,2) = tmp;
+//         gsAsMatrix<T,Dynamic,Dynamic> metricAcov = m_Acov_def_mat.reshapeCol(k,2,2);
+//         m_Acon_def_mat.reshapeCol(k,2,2) = tmp.inverse();
+//         gsAsMatrix<T,Dynamic,Dynamic> metricAcon = m_Acon_def_mat.reshapeCol(k,2,2);
+
+//         // contravariant basis vectors
+//         gsAsMatrix<T,Dynamic,Dynamic> acon = m_acon_def_mat.reshapeCol(k,3,2);
+//         for (index_t i=0; i < 2; i++)
+//             acon.col(i)     = metricAcon(i,0)*acov.col(0) + metricAcon(i,1)*acov.col(1);
+
+//         // Construct metric tensor b = [d11c*n, d12c*n ; d21c*n, d22c*n]
+//         deriv2    = m_map.deriv2(k);
+//         deriv2.resize(3,3);
+//         normal    = m_map.normal(k).normalized();
+
+//         tmp(0,0) = deriv2.row(0).dot(normal);
+//         tmp(1,1) = deriv2.row(1).dot(normal);
+//         tmp(0,1) = tmp(1,0) = deriv2.row(2).dot(normal);
+
+//         m_Bcov_def_mat.reshapeCol(k,2,2) = tmp;
+//         gsAsMatrix<T,Dynamic,Dynamic> metricBcov = m_Bcov_def_mat.reshapeCol(k,2,2);
+
+//         // Mixed tensor
+//         for (index_t i=0; i < 2; i++)
+//             for (index_t j=0; j < 2; j++)
+//                 mixedB(i,j) = metricAcon(i,0)*metricBcov(0,j) + metricAcon(i,1)*metricBcov(1,j);
+
+//         // Derivative of the normal
+//         gsAsMatrix<T,Dynamic,Dynamic> ncov = m_ncov_def_mat.reshapeCol(k,3,2);
+//         for (index_t i=0; i < 2; i++)
+//             ncov.col(i)     = -mixedB(0,i)*acov.col(0) -mixedB(1,i)*acov.col(1);
+//     }
+// }
+
+// template<class T>
+// void gsMaterialMatrix<T>::computeMetricUndeformed() const
+// {
+//     // k: index of quadrature point
+//     // computedeformed: compute quantities also on deformed shape
+//     // computeall: compute metric of full coordinate system rather than only in-plane basis
+
+//     gsMatrix<T> deriv2;
+//     gsMatrix<T,3,1> normal;
+//     gsMatrix<T,2,2> mixedB;
+
+//     m_Acov_ori_mat.resize(4,m_map.points.cols());    m_Acov_ori_mat.setZero();
+//     m_Acon_ori_mat.resize(4,m_map.points.cols());    m_Acon_ori_mat.setZero();
+//     m_Bcov_ori_mat.resize(4,m_map.points.cols());    m_Bcov_ori_mat.setZero();
+
+//     m_acov_ori_mat.resize(2*3,m_map.points.cols());    m_acov_ori_mat.setZero();
+//     m_acon_ori_mat.resize(2*3,m_map.points.cols());    m_acon_ori_mat.setZero();
+//     m_ncov_ori_mat.resize(2*3,m_map.points.cols());    m_ncov_ori_mat.setZero();
+
+//     gsMatrix<T> tmp;
+
+//     for (index_t k=0; k!= m_map.points.cols(); k++)
+//     {
+//         // covariant basis vectors
+//         m_acov_ori_mat.reshapeCol(k,3,2)   = m_map.jacobian(k);
+//         gsAsMatrix<T,Dynamic,Dynamic> acov = m_acov_ori_mat.reshapeCol(k,3,2);
+//         // Construct metric tensor a = [dcd1*dcd1, dcd1*dcd2; dcd2*dcd1, dcd2*dcd2]
+//         tmp                         = acov.transpose() * acov;
+
+//         m_Acov_ori_mat.reshapeCol(k,2,2) = tmp;
+//         gsAsMatrix<T,Dynamic,Dynamic> metricAcov = m_Acov_ori_mat.reshapeCol(k,2,2);
+//         m_Acon_ori_mat.reshapeCol(k,2,2) = tmp.inverse();
+//         gsAsMatrix<T,Dynamic,Dynamic> metricAcon = m_Acon_ori_mat.reshapeCol(k,2,2);
+
+//         // contravariant basis vectors
+//         gsAsMatrix<T,Dynamic,Dynamic> acon = m_acon_ori_mat.reshapeCol(k,3,2);
+//         for (index_t i=0; i < 2; i++)
+//             acon.col(i)     = metricAcon(i,0)*acov.col(0) + metricAcon(i,1)*acov.col(1);
+
+//         // Construct metric tensor b = [d11c*n, d12c*n ; d21c*n, d22c*n]
+//         deriv2    = m_map.deriv2(k);
+//         deriv2.resize(3,3);
+//         normal    = m_map.normal(k).normalized();
+
+//         tmp(0,0) = deriv2.row(0).dot(normal);
+//         tmp(1,1) = deriv2.row(1).dot(normal);
+//         tmp(0,1) = tmp(1,0) = deriv2.row(2).dot(normal);
+
+//         m_Bcov_ori_mat.reshapeCol(k,2,2) = tmp;
+//         gsAsMatrix<T,Dynamic,Dynamic> metricBcov = m_Bcov_ori_mat.reshapeCol(k,2,2);
+
+//         // Mixed tensor
+//         for (index_t i=0; i < 2; i++)
+//             for (index_t j=0; j < 2; j++)
+//                 mixedB(i,j) = metricAcon(i,0)*metricBcov(0,j) + metricAcon(i,1)*metricBcov(1,j);
+
+//         // Derivative of the normal
+//         gsAsMatrix<T,Dynamic,Dynamic> ncov = m_ncov_ori_mat.reshapeCol(k,3,2);
+//         for (index_t i=0; i < 2; i++)
+//             ncov.col(i)     = -mixedB(0,i)*acov.col(0) -mixedB(1,i)*acov.col(1);
+//     }
+// }
+
+// template<class T>
+// void gsMaterialMatrix<T>::getMetric(index_t k, T z) const
+// {
+//     this->getMetricDeformed(k,z);
+//     this->getMetricUndeformed(k,z);
+
+//     m_J0 = math::sqrt( m_Gcov_def.determinant() / m_Gcov_ori.determinant() );
+// }
 
 template<class T>
 void gsMaterialMatrix<T>::getMetricDeformed(index_t k, T z) const
@@ -1266,7 +1520,7 @@ void gsMaterialMatrix<T>::getMetricUndeformed(index_t k, T z) const
 
 
 template<class T>
-void gsMaterialMatrix<T>::computeMetricDeformed(const gsMatrix<T> &u) const
+void gsMaterialMatrix<T>::computeMetricDeformed() const
 {
     GISMO_ASSERT(m_defpatches->nPieces()!=0,"Deformed multipatch is empty; cannot compute strains!");
     // k: index of quadrature point
@@ -1276,13 +1530,13 @@ void gsMaterialMatrix<T>::computeMetricDeformed(const gsMatrix<T> &u) const
     gsMatrix<T> deriv2;
     gsMatrix<T,3,1> normal;
 
-    m_Acov_def_mat.resize(4,u.cols());    m_Acov_def_mat.setZero();
-    m_Acon_def_mat.resize(4,u.cols());    m_Acon_def_mat.setZero();
-    m_Bcov_def_mat.resize(4,u.cols());    m_Bcov_def_mat.setZero();
+    m_Acov_def_mat.resize(4,m_map_def.points.cols());    m_Acov_def_mat.setZero();
+    m_Acon_def_mat.resize(4,m_map_def.points.cols());    m_Acon_def_mat.setZero();
+    m_Bcov_def_mat.resize(4,m_map_def.points.cols());    m_Bcov_def_mat.setZero();
 
     gsMatrix<T> tmp;
 
-    for (index_t k=0; k!= u.cols(); k++)
+    for (index_t k=0; k!= m_map_def.points.cols(); k++)
     {
         // Construct metric tensor a = [dcd1*dcd1, dcd1*dcd2; dcd2*dcd1, dcd2*dcd2]
         tmp                         = m_map_def.jacobian(k);
@@ -1307,7 +1561,7 @@ void gsMaterialMatrix<T>::computeMetricDeformed(const gsMatrix<T> &u) const
 }
 
 template<class T>
-void gsMaterialMatrix<T>::computeMetricUndeformed(const gsMatrix<T> &u) const
+void gsMaterialMatrix<T>::computeMetricUndeformed() const
 {
     // k: index of quadrature point
     // computedeformed: compute quantities also on deformed shape
@@ -1316,13 +1570,13 @@ void gsMaterialMatrix<T>::computeMetricUndeformed(const gsMatrix<T> &u) const
     gsMatrix<T> deriv2;
     gsMatrix<T,3,1> normal;
 
-    m_Acov_ori_mat.resize(4,u.cols());    m_Acov_ori_mat.setZero();
-    m_Acon_ori_mat.resize(4,u.cols());    m_Acon_ori_mat.setZero();
-    m_Bcov_ori_mat.resize(4,u.cols());    m_Bcov_ori_mat.setZero();
+    m_Acov_ori_mat.resize(4,m_map.points.cols());    m_Acov_ori_mat.setZero();
+    m_Acon_ori_mat.resize(4,m_map.points.cols());    m_Acon_ori_mat.setZero();
+    m_Bcov_ori_mat.resize(4,m_map.points.cols());    m_Bcov_ori_mat.setZero();
 
     gsMatrix<T> tmp;
 
-    for (index_t k=0; k!= u.cols(); k++)
+    for (index_t k=0; k!= m_map.points.cols(); k++)
     {
         // Construct metric tensor a = [dcd1*dcd1, dcd1*dcd2; dcd2*dcd1, dcd2*dcd2]
         tmp                         = m_map.jacobian(k);
@@ -1345,6 +1599,132 @@ void gsMaterialMatrix<T>::computeMetricUndeformed(const gsMatrix<T> &u) const
     m_Gcon_ori.resize(3,3); m_Gcon_ori.setZero();
 }
 
+template<class T>
+void gsMaterialMatrix<T>::getBasis(index_t k, T z) const
+{
+    this->getBasisDeformed(k,z);
+    this->getBasisUndeformed(k,z);
+
+    gsDebugVar(m_gcov_def.transpose()*m_gcov_def);
+    gsDebugVar(m_Gcov_def);
+}
+
+template<class T>
+void gsMaterialMatrix<T>::getBasisDeformed(index_t k, T z) const
+{
+    GISMO_ASSERT(m_acov_def_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ASSERT(m_acon_def_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ASSERT(m_ncov_def_mat.cols()!=0,"Is the basis initialized?");
+
+    m_acov_def = m_acov_def_mat.reshapeCol(k,3,2);
+    m_acon_def = m_acon_def_mat.reshapeCol(k,3,2);
+    m_ncov_def = m_ncov_def_mat.reshapeCol(k,3,2);
+
+    m_gcov_def = m_acov_def - z * m_ncov_def;
+}
+
+template<class T>
+void gsMaterialMatrix<T>::getBasisUndeformed(index_t k, T z) const
+{
+    GISMO_ASSERT(m_acov_ori_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ASSERT(m_acon_ori_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ASSERT(m_ncov_ori_mat.cols()!=0,"Is the basis initialized?");
+
+    m_acov_ori = m_acov_ori_mat.reshapeCol(k,3,2);
+    m_acon_ori = m_acon_ori_mat.reshapeCol(k,3,2);
+    m_ncov_ori = m_ncov_ori_mat.reshapeCol(k,3,2);
+
+    m_gcov_ori = m_acov_ori - z * m_ncov_ori;
+}
+
+template<class T>
+void gsMaterialMatrix<T>::computeBasisUndeformed() const
+{
+    m_acov_ori_mat.resize(2*3,m_map.points.cols());    m_acov_ori_mat.setZero();
+    m_acon_ori_mat.resize(2*3,m_map.points.cols());    m_acon_ori_mat.setZero();
+    m_ncov_ori_mat.resize(2*3,m_map.points.cols());    m_ncov_ori_mat.setZero();
+
+    gsMatrix<T,2,2> mixedB;
+
+    for (index_t k=0; k!= m_map.points.cols(); k++)
+    {
+        gsAsMatrix<T,Dynamic,Dynamic> acov = m_acov_ori_mat.reshapeCol(k,3,2);
+        acov = m_map.jacobian(k);
+
+        gsAsMatrix<T,Dynamic,Dynamic> metricAcon = m_Acon_ori_mat.reshapeCol(k,2,2);
+        gsAsMatrix<T,Dynamic,Dynamic> metricBcov = m_Bcov_ori_mat.reshapeCol(k,2,2);
+
+        gsAsMatrix<T,Dynamic,Dynamic> acon = m_acon_ori_mat.reshapeCol(k,3,2);
+        for (index_t i=0; i < 2; i++)
+            acon.col(i)     = metricAcon(i,0)*acov.col(0) + metricAcon(i,1)*acov.col(1);
+
+
+
+        for (index_t i=0; i < 2; i++)
+            for (index_t j=0; j < 2; j++)
+                mixedB(i,j) = metricAcon(i,0)*metricBcov(0,j) + metricAcon(i,1)*metricBcov(1,j);
+
+        gsAsMatrix<T,Dynamic,Dynamic> ncov = m_ncov_ori_mat.reshapeCol(k,3,2);
+        for (index_t i=0; i < 2; i++)
+            ncov.col(i)     = -mixedB(0,i)*acov.col(0) -mixedB(1,i)*acov.col(1);
+
+
+        // for testing
+        gsMatrix<T> metricB(2,2);
+        for (index_t i=0; i < 2; i++)
+            for (index_t j=0; j < 2; j++)
+                metricB(i,j) = -ncov.col(j).transpose()*acov.col(i);
+        // for testing
+        gsMatrix<T,2,2> metricAcon2;
+        for (index_t i=0; i < 2; i++)
+            for (index_t j=0; j < 2; j++)
+                metricAcon2(i,j) = acon.col(i).transpose()*acon.col(j);
+
+    }
+}
+
+template<class T>
+void gsMaterialMatrix<T>::computeBasisDeformed() const
+{
+    m_acov_def_mat.resize(2*3,m_map.points.cols());    m_acov_def_mat.setZero();
+    m_acon_def_mat.resize(2*3,m_map.points.cols());    m_acon_def_mat.setZero();
+    m_ncov_def_mat.resize(2*3,m_map.points.cols());    m_ncov_def_mat.setZero();
+
+    gsMatrix<T,2,2> mixedB;
+
+    for (index_t k=0; k!= m_map.points.cols(); k++)
+    {
+        gsAsMatrix<T,Dynamic,Dynamic> acov = m_acov_def_mat.reshapeCol(k,3,2);
+        acov = m_map.jacobian(k);
+
+        gsAsMatrix<T,Dynamic,Dynamic> metricAcon = m_Acon_def_mat.reshapeCol(k,2,2);
+        gsAsMatrix<T,Dynamic,Dynamic> metricBcov = m_Bcov_def_mat.reshapeCol(k,2,2);
+
+        gsAsMatrix<T,Dynamic,Dynamic> acon = m_acon_def_mat.reshapeCol(k,3,2);
+        for (index_t i=0; i < 2; i++)
+            acon.col(i)     = metricAcon(i,0)*acov.col(0) + metricAcon(i,1)*acov.col(1);
+
+        gsMatrix<T,2,2> metricAcon2;
+        for (index_t i=0; i < 2; i++)
+            for (index_t j=0; j < 2; j++)
+                metricAcon2(i,j) = acon.col(i).transpose()*acon.col(j);
+
+        for (index_t i=0; i < 2; i++)
+            for (index_t j=0; j < 2; j++)
+                mixedB(i,j) = metricAcon(i,0)*metricBcov(0,j) + metricAcon(i,1)*metricBcov(1,j);
+
+        gsAsMatrix<T,Dynamic,Dynamic> ncov = m_ncov_def_mat.reshapeCol(k,3,2);
+        for (index_t i=0; i < 2; i++)
+            ncov.col(i)     = -mixedB(0,i)*acov.col(0) -mixedB(1,i)*acov.col(1);
+
+        gsMatrix<T> metricB(2,2);
+        for (index_t i=0; i < 2; i++)
+            for (index_t j=0; j < 2; j++)
+                metricB(i,j) = -ncov.col(j).transpose()*acov.col(i);
+
+    }
+}
+
 
 template<class T>
 void gsMaterialMatrix<T>::computeStretch(const gsMatrix<T> & C) const
@@ -1363,6 +1743,22 @@ void gsMaterialMatrix<T>::computeStretch(const gsMatrix<T> & C) const
     gsDebugVar(eigSolver.eigenvectors());
 }
 
+// template<class T>
+// gsMatrix<T> gsMaterialMatrix<T>::basisTransform(const gsMatrix<T> & basis1, const gsMatrix<T> & basis2) const
+// {
+//     GISMO_ASSERT(basis1.cols()==basis2.cols(),"Number of basis vectors should be the same! basis1.cols() = "<<basis1.cols()<<", basis2.cols() = "<<basis2.cols());
+//     GISMO_ASSERT(basis1.rows()==basis2.rows(),"Basis dimensions should be the same! basis1.rows() = "<<basis1.rows()<<", basis2.rows() = "<<basis2.rows());
+//     index_t nc = basis1.cols();
 
+//     gsMatrix<T> result(nc,nc);
+
+//     for (index_t i = 1; i != nc; i++)
+//         for (index_t j = 1; j != nc; j++)
+//         {
+
+//         }
+
+
+// }
 
 } // end namespace

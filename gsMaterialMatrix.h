@@ -155,8 +155,10 @@ protected:
     T Sij    (const index_t i, const index_t j) const;
     T Sij    (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
 
-    T dPsi   (const index_t i, const index_t j) const;
+    T dPsi   (const index_t i) const;
+    T dPsi   (const index_t a, const index_t b) const;
     T dPsi   (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    T d2Psi  (const index_t a, const index_t b) const;
     T d2Psi  (const index_t i, const index_t j, const index_t k, const index_t l) const;
     T d2Psi  (const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
 
@@ -169,11 +171,16 @@ protected:
     gsMatrix<T> integrateZ(const gsMatrix<T>& u) const;
     gsMatrix<T> multiplyZ (const gsMatrix<T>& u) const;
 
-    void computeMetricDeformed(const gsMatrix<T>& u) const;
-    void computeMetricUndeformed(const gsMatrix<T>& u) const;
+    void computeMetricDeformed() const;
+    void computeMetricUndeformed() const;
+    void computeBasisDeformed() const;
+    void computeBasisUndeformed() const;
     void getMetric(index_t k, T z) const;
     void getMetricDeformed(index_t k, T z) const;
     void getMetricUndeformed(index_t k, T z) const;
+    void getBasis(index_t k, T z) const;
+    void getBasisDeformed(index_t k, T z) const;
+    void getBasisUndeformed(index_t k, T z) const;
 
     void computeStretch(const gsMatrix<T> & C ) const;
     void computePoints(const gsMatrix<T> & u, bool deformed=true) const;
@@ -197,7 +204,9 @@ protected:
     // Linear material matrix
     mutable gsMapData<T> m_map, m_map_def;
     mutable gsMatrix<T,2,2> m_Acov_ori, m_Acon_ori, m_Acov_def, m_Acon_def, m_Bcov_ori, m_Bcon_ori, m_Bcov_def, m_Bcon_def;
+    mutable gsMatrix<T,3,2> m_acov_ori, m_acon_ori, m_acov_def, m_acon_def, m_ncov_ori, m_ncov_def;
     mutable gsMatrix<T> m_Acov_ori_mat, m_Acon_ori_mat, m_Acov_def_mat, m_Acon_def_mat, m_Bcov_ori_mat, m_Bcov_def_mat;
+    mutable gsMatrix<T> m_acov_ori_mat, m_acon_ori_mat, m_acov_def_mat, m_acon_def_mat, m_ncov_ori_mat, m_ncov_def_mat;
     mutable gsMatrix<T> m_Emat,m_Nmat,m_Tmat,m_rhomat;
     mutable real_t m_lambda, m_mu, m_Cconstant;
 
@@ -219,6 +228,7 @@ protected:
     // Compressible material matrix
     mutable gsMatrix<T>                 m_deriv2_def, m_deriv2_ori;
     mutable gsMatrix<T,3,3>             m_Gcov_ori, m_Gcon_ori, m_Gcov_def, m_Gcon_def;
+    mutable gsMatrix<T,3,2>             m_gcov_ori, m_gcov_def;
     mutable gsMatrix<T>                 m_par1mat, m_par2mat;
     mutable T                           m_par1val, m_par2val, m_J0, m_J;
     // integrateZ
