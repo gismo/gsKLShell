@@ -32,12 +32,14 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     // Initialize stystem
     m_assembler.initSystem();
 
-    gsMaterialMatrix m_mm0 = m_materialMat;
-    m_mm0.setMoment(0);
-    gsMaterialMatrix m_mm2 = m_materialMat;
-    m_mm2.setMoment(2);
-    variable mm0 = m_assembler.getCoeff(m_mm0);
-    variable mm2 = m_assembler.getCoeff(m_mm2);
+    gsMaterialMatrix m_S0 = m_materialMat;
+    m_S0.makeVector(0);
+    gsMaterialMatrix m_S1 = m_materialMat;
+    m_S1.makeVector(1);
+
+    variable S0 = m_assembler.getCoeff(m_S0);
+    variable S1 = m_assembler.getCoeff(m_S1);
+
     geometryMap m_ori   = m_assembler.exprData()->getMap();
     geometryMap m_def   = m_assembler.exprData()->getMap2();
 
@@ -50,8 +52,8 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     auto E_m     = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) * That;
     auto E_f     = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) * That;
 
-    auto S_m    = (E_m * reshape(mm0,3,3) ) * Ttilde;
-    auto S_f    = (E_f * reshape(mm2,3,3) ) * Ttilde;
+    auto S_m    = S0;
+    auto S_f    = S1;
 
     auto jacobian   = jac(m_def);
     auto normal     = sn(m_def);

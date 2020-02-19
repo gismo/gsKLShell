@@ -357,7 +357,7 @@ void gsMaterialMatrix<T>::eval_into_dens(const gsMatrix<T>& u, gsMatrix<T>& resu
 }
 
 template <class T>
-void gsMaterialMatrix<T>::eval_into_NP(const gsMatrix<T>& u, gsMatrix<T>& result) const
+void gsMaterialMatrix<T>::eval_into_AP(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     // Define the moment to take
     if      (m_outputType==1) // output is a vector
@@ -546,18 +546,6 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Incompressible(const index_t i, const gsMa
             C(1,0) = C(0,1) = Cijkl(0,0,1,1); // C1122
             C(2,0) = C(0,2) = Cijkl(0,0,0,1); // C1112
             C(2,1) = C(1,2) = Cijkl(1,1,0,1); // C2212
-
-            // gsDebug<<"m_J0 = "<<m_J0<<"\tz = "<<z.at(j)
-            //         <<"\n a_def = \n"<<m_Acov_def
-            //         <<"\n b_def = \n"<<m_Bcov_def
-            //         <<"\n g_def = \n"<<m_Gcov_def
-            //         <<"\n g_def_det = \n"<<m_Gcov_def.determinant()
-            //         <<"\n a_ori = \n"<<m_Acov_ori
-            //         <<"\n b_ori = \n"<<m_Bcov_ori
-            //         <<"\n g_ori = \n"<<m_Gcov_ori
-            //         <<"\n g_ori_det = \n"<<m_Gcov_ori.determinant()
-            //         <<"\n";
-
         }
         else if (m_outputType==1)
         {
@@ -567,17 +555,6 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Incompressible(const index_t i, const gsMa
             result(0,j) = Sij(0,0);
             result(1,j) = Sij(1,1);
             result(2,j) = Sij(0,1);
-
-            // gsDebug<<"m_J0 = "<<m_J0<<"\tz = "<<z.at(j)
-            //         <<"\n a_def = \n"<<m_Acov_def
-            //         <<"\n b_def = \n"<<m_Bcov_def
-            //         <<"\n g_def = \n"<<m_Gcov_def
-            //         <<"\n g_def_det = \n"<<m_Gcov_def.determinant()
-            //         <<"\n a_ori = \n"<<m_Acov_ori
-            //         <<"\n b_ori = \n"<<m_Bcov_ori
-            //         <<"\n g_ori = \n"<<m_Gcov_ori
-            //         <<"\n g_ori_det = \n"<<m_Gcov_ori.determinant()
-            //         <<"\n";
         }
         else
             GISMO_ERROR("no vector or matrix produced");

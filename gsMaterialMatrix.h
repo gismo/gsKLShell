@@ -129,12 +129,15 @@ public:
     void setPatch(index_t p) {m_pIndex = p; }
 
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    void eval_into_dens(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    void eval_into_DD(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    void eval_into_AP(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    void eval_into_NP(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
 public:
-    void setMoment(int m)   { m_moment = m; }
-    void makeMatrix()     { m_output=2; }
-    void makeVector()     { m_output=1; }
-    void makeDensity()    { m_output=0; }
+    void makeMatrix(int num=0)     { m_outputType=2; m_output = num;}
+    void makeVector(int num=0)     { m_outputType=1; m_output = num;}
+    void makeDensity()             { m_outputType=0; }
 
 protected:
     void initialize();
@@ -145,9 +148,10 @@ protected:
     gsMatrix<T> eval3D(const index_t i) const;
     gsMatrix<T> eval_Compressible(const index_t i, const gsMatrix<T>& z) const;
     gsMatrix<T> eval_Incompressible(const index_t i, const gsMatrix<T>& z) const;
-    gsMatrix<T> eval_Composite(const gsMatrix<T>& u) const;
     gsMatrix<T> eval3D_Incompressible(const gsMatrix<T>& u) const;
     gsMatrix<T> eval3D_Compressible(const gsMatrix<T>& u) const;
+
+    gsMatrix<T> eval_Composite(const gsMatrix<T>& u, const index_t moment) const;
 
     T Cijkl  (const index_t i, const index_t j, const index_t k, const index_t l) const;
     T Cijkl3D(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
@@ -168,8 +172,8 @@ protected:
     // void eval_Incompressible(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     // void eval_Compressible(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
-    gsMatrix<T> integrateZ(const gsMatrix<T>& u) const;
-    gsMatrix<T> multiplyZ (const gsMatrix<T>& u) const;
+    gsMatrix<T> integrateZ(const gsMatrix<T>& u, const index_t moment) const;
+    gsMatrix<T> multiplyZ (const gsMatrix<T>& u, const index_t moment) const;
 
     void computeMetricDeformed() const;
     void computeMetricUndeformed() const;
@@ -189,7 +193,7 @@ protected:
     // general
     index_t m_pIndex;
     index_t m_numParameters; // how many parameters for the material model?
-    int m_moment;
+    mutable int m_moment;
     mutable gsMatrix<T> m_result;
 
     // constructor
@@ -263,9 +267,21 @@ protected:
         };
     };
 
+    /// @brief Specifies (in)compressibility
+    struct integration
+    {
+        enum type
+        {
+            DD = 0,
+            AP = 1,
+            NP = 2
+        };
+    };
+
     mutable index_t m_material;
     mutable bool m_compressible;
-    mutable int m_output;
+    mutable int m_outputType, m_output;
+    mutable int m_integration;
 
 
 

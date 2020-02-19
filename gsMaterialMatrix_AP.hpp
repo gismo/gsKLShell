@@ -310,13 +310,13 @@ void gsMaterialMatrix<T>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) c
     if ((m_outputType==1) || (m_outputType==2)) // for matrix and vector
     {
         if (m_integration==0) // DD method
-            this->eval_into_NP(u,result);
+            this->eval_into_AP(u,result);
             // this->eval_into_DD(u,result);
         else if (m_integration==1) // AP method
-            this->eval_into_NP(u,result);
+            this->eval_into_AP(u,result);
             // this->eval_into_AP(u,result);
         else if (m_integration==2) // NP method
-            this->eval_into_NP(u,result);
+            this->eval_into_AP(u,result);
     }
     // This is for density and thickness output
     else if (m_outputType==0)
@@ -465,72 +465,24 @@ gsMatrix<T> gsMaterialMatrix<T>::multiplyZ(const gsMatrix<T>& u, const index_t m
     return result;
 }
 
-// integrates the material matrix over its last coordinate (thickness)
 template <class T>
-gsMatrix<T> gsMaterialMatrix<T>::integrateZ(const gsMatrix<T>& u, const index_t moment) const
+gsMatrix<T> gsMaterialMatrix<T>::eval_Incompressible(const gsMatrix<T> &u) const
 {
-    // Input: points in R2
-    // Ouput: results in targetDim
-
-    // Perform integration
-    m_numGauss = m_options.getInt("NumGauss");
-
-    gsMatrix<T> result(9,1);
-    result.resize(this->targetDim(),u.cols());
+    // Input: 
+    //      u: evaluation points
+    gsMatrix<T> result(this->targetDim(), u.cols());
     result.setZero();
 
-    m_gauss = gsGaussRule<T>(m_numGauss);
-    gsMatrix<T> pts(1,m_numGauss);
-    gsMatrix<T> evalPoints;
-    // m_points3D.resize(1,m_numGauss);
-
-    gsMatrix<T> quNodes(1,m_numGauss);
-    gsVector<T> quWeights(m_numGauss);
-    // m_points.conservativeResize(m_points.rows()+1,Eigen::NoChange);
-
-    T res;
-    for (index_t j = 0; j != u.cols(); ++j) // for all points
-    {
-        // Compute values of in-plane points
-        // m_points3D.topRows(u.rows()) = u.col(j).replicate(1,m_numGauss);
-        // m_points3D.row(0) = u.col(j).replicate(1,m_numGauss);
-
-        // set new integration point
-        m_tHalf = m_Tmat(0,j)/2.0;
-        m_gauss.mapTo(-m_tHalf,m_tHalf,quNodes,quWeights);
-        pts.row(0) = quNodes;
-
-        evalPoints = this->eval3D(j, pts);
-        // gsDebugVar(m_evalPoints);
-        for (index_t i=0; i!=this->targetDim(); ++i) // components
-        {
-            res = 0.0;
-            for (index_t k = 0; k != m_numGauss; ++k) // compute integral
-                res += quWeights.at(k) * math::pow(quNodes(0,k),moment) * evalPoints(i,k);
-            result(i,j) = res;
-        }
-
-    }
-    return result;
-}
-
-template <class T>
-gsMatrix<T> gsMaterialMatrix<T>::eval_Incompressible(const index_t i, const gsMatrix<T>& z) const
-{
-    // gsInfo<<"TO DO: evaluate moments using thickness";
-    // Input: j index in-plane point
-    //        z out-of-plane coordinate (through thickness) in R1 (z)
-    gsMatrix<T> result(this->targetDim(), z.cols());
-    result.setZero();
-
-    for( index_t j=0; j < z.cols(); ++j ) // through-thickness points
+    for( index_t k=0; k < u.cols(); ++k ) // evaluation points
     {
         // Evaluate material properties on the quadrature point
-        m_par1val = m_par1mat(0,i);
-        m_par2val = m_par2mat(0,i);
+        m_par1val = m_par1mat(0,k);
+        m_par2val = m_par2mat(0,k);
 
         if (m_outputType==2)
         {
+            // NOTE: compute metric A and metric B only!! G does not make sense to compute.
+
             // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
             this->getMetric(i,z.at(j)); // on point i, on height z(0,j)
 
@@ -540,44 +492,59 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Incompressible(const index_t i, const gsMa
                     symm,   C2222,  C2212
                     symm,   symm,   C1212
             */
-            C(0,0)          = Cijkl(0,0,0,0); // C1111
-            C(1,1)          = Cijkl(1,1,1,1); // C2222
-            C(2,2)          = Cijkl(0,1,0,1); // C1212
-            C(1,0) = C(0,1) = Cijkl(0,0,1,1); // C1122
-            C(2,0) = C(0,2) = Cijkl(0,0,0,1); // C1112
-            C(2,1) = C(1,2) = Cijkl(1,1,0,1); // C2212
-
-            // gsDebug<<"m_J0 = "<<m_J0<<"\tz = "<<z.at(j)
-            //         <<"\n a_def = \n"<<m_Acov_def
-            //         <<"\n b_def = \n"<<m_Bcov_def
-            //         <<"\n g_def = \n"<<m_Gcov_def
-            //         <<"\n g_def_det = \n"<<m_Gcov_def.determinant()
-            //         <<"\n a_ori = \n"<<m_Acov_ori
-            //         <<"\n b_ori = \n"<<m_Bcov_ori
-            //         <<"\n g_ori = \n"<<m_Gcov_ori
-            //         <<"\n g_ori_det = \n"<<m_Gcov_ori.determinant()
-            //         <<"\n";
-
+            if (m_output==0)
+            {
+                C(0,0)          = Aijkl(0,0,0,0); // C1111
+                C(1,1)          = Aijkl(1,1,1,1); // C2222
+                C(2,2)          = Aijkl(0,1,0,1); // C1212
+                C(1,0) = C(0,1) = Aijkl(0,0,1,1); // C1122
+                C(2,0) = C(0,2) = Aijkl(0,0,0,1); // C1112
+                C(2,1) = C(1,2) = Aijkl(1,1,0,1); // C2212
+            }
+            else if (m_output==1)
+            {
+                C(0,0)          = Bijkl(0,0,0,0); // C1111
+                C(1,1)          = Bijkl(1,1,1,1); // C2222
+                C(2,2)          = Bijkl(0,1,0,1); // C1212
+                C(1,0) = C(0,1) = Bijkl(0,0,1,1); // C1122
+                C(2,0) = C(0,2) = Bijkl(0,0,0,1); // C1112
+                C(2,1) = C(1,2) = Bijkl(1,1,0,1); // C2212
+            }
+            else if (m_output==2)
+            {
+                C(0,0)          = Cijkl(0,0,0,0); // C1111
+                C(1,1)          = Cijkl(1,1,1,1); // C2222
+                C(2,2)          = Cijkl(0,1,0,1); // C1212
+                C(1,0) = C(0,1) = Cijkl(0,0,1,1); // C1122
+                C(2,0) = C(0,2) = Cijkl(0,0,0,1); // C1112
+                C(2,1) = C(1,2) = Cijkl(1,1,0,1); // C2212
+            }
+            else if (m_output==3)
+            {
+                C(0,0)          = Dijkl(0,0,0,0); // C1111
+                C(1,1)          = Dijkl(1,1,1,1); // C2222
+                C(2,2)          = Dijkl(0,1,0,1); // C1212
+                C(1,0) = C(0,1) = Dijkl(0,0,1,1); // C1122
+                C(2,0) = C(0,2) = Dijkl(0,0,0,1); // C1112
+                C(2,1) = C(1,2) = Dijkl(1,1,0,1); // C2212
+            }
         }
         else if (m_outputType==1)
         {
             // this->computeMetric(i,z.at(j),true,true);
             this->getMetric(i,z.at(j)); // on point i, on height z(0,j)
-
-            result(0,j) = Sij(0,0);
-            result(1,j) = Sij(1,1);
-            result(2,j) = Sij(0,1);
-
-            // gsDebug<<"m_J0 = "<<m_J0<<"\tz = "<<z.at(j)
-            //         <<"\n a_def = \n"<<m_Acov_def
-            //         <<"\n b_def = \n"<<m_Bcov_def
-            //         <<"\n g_def = \n"<<m_Gcov_def
-            //         <<"\n g_def_det = \n"<<m_Gcov_def.determinant()
-            //         <<"\n a_ori = \n"<<m_Acov_ori
-            //         <<"\n b_ori = \n"<<m_Bcov_ori
-            //         <<"\n g_ori = \n"<<m_Gcov_ori
-            //         <<"\n g_ori_det = \n"<<m_Gcov_ori.determinant()
-            //         <<"\n";
+            if (m_output==0)
+            {
+                result(0,j) = Sij(0,0);
+                result(1,j) = Sij(1,1);
+                result(2,j) = Sij(0,1);   
+            }
+            else if (m_output==1)
+            {
+                result(0,j) = Mij(0,0);
+                result(1,j) = Mij(1,1);
+                result(2,j) = Mij(0,1);   
+            }
         }
         else
             GISMO_ERROR("no vector or matrix produced");
@@ -586,182 +553,132 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Incompressible(const index_t i, const gsMa
     return result;
 }
 
-template <class T>
-gsMatrix<T> gsMaterialMatrix<T>::eval_Composite(const gsMatrix<T>& u, const index_t moment) const
+template<class T>
+gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatrix<T>& z) const
 {
-    // Initialize and result
-    gsMatrix<T> result(this->targetDim(), u.cols());
-    gsMatrix<T,3,3> Dmat, Tmat, Cmat;
+    // Input: j index in-plane point
+    //        z out-of-plane coordinate (through thickness) in R1 (z)
+    gsMatrix<T> result(this->targetDim(), z.cols());
+    result.setZero();
 
-    Cmat.setZero();
-    Dmat.setZero();
-    Tmat.setZero();
-    // static_cast<const gsFunction<T>*>(_mp)->computeMap(_tmp);
-    GISMO_ASSERT(m_YoungsModuli.size()==m_PoissonRatios.size(),"Size of vectors of Youngs Moduli and Poisson Ratios is not equal: " << m_YoungsModuli.size()<<" & "<<m_PoissonRatios.size());
-    GISMO_ASSERT(m_YoungsModuli.size()==m_ShearModuli.size(),"Size of vectors of Youngs Moduli and Shear Moduli is not equal: " << m_YoungsModuli.size()<<" & "<<m_ShearModuli.size());
-    GISMO_ASSERT(m_thickValues.size()==m_phis.size(),"Size of vectors of thickness and angles is not equal: " << m_thickValues.size()<<" & "<<m_phis.size());
-    GISMO_ASSERT(m_YoungsModuli.size()==m_thickValues.size(),"Size of vectors of material properties and laminate properties is not equal: " << m_YoungsModuli.size()<<" & "<<m_thickValues.size());
-    GISMO_ASSERT(m_YoungsModuli.size()!=0,"No laminates defined");
-
-    // Compute total thickness (sum of entries)
-    m_t_tot = std::accumulate(m_thickValues.begin(), m_thickValues.end(), 0.0);
-
-    // compute mid-plane height of total plate
-    m_z_mid = m_t_tot / 2.0;
-
-    // now we use t_temp to add the thickness of all plies iteratively
-    m_t_temp = 0.0;
-
-    for (size_t i = 0; i != m_phis.size(); ++i) // loop over laminates
+    for( index_t j=0; j < z.cols(); ++j ) // through thickness
     {
-        // Compute all quantities
-        m_E1 = m_YoungsModuli[i].first;
-        m_E2 = m_YoungsModuli[i].second;
-        m_G12 = m_ShearModuli[i];
-        m_nu12 = m_PoissonRatios[i].first;
-        m_nu21 = m_PoissonRatios[i].second;
-        m_t = m_thickValues[i];
-        m_phi = m_phis[i];
+        // Evaluate material properties on the quadrature point
+        m_par1val = m_par1mat(0,i);
+        m_par2val = m_par2mat(0,i);
 
-        GISMO_ASSERT(m_nu21*m_E1 == m_nu12*m_E2, "No symmetry in material properties for ply "<<i<<". nu12*E2!=nu21*E1:\n"<<
-                "\tnu12 = "<<m_nu12<<"\t E2 = "<<m_E2<<"\t nu12*E2 = "<<m_nu12*m_E2<<"\n"
-              <<"\tnu21 = "<<m_nu21<<"\t E1 = "<<m_E1<<"\t nu21*E1 = "<<m_nu21*m_E1);
+        // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
+        this->getMetric(i,z.at(j)); // on point i, on height z(0,j)
 
-        // Fill material matrix
-        Dmat(0,0) = m_E1 / (1-m_nu12*m_nu21);
-        Dmat(1,1) = m_E2 / (1-m_nu12*m_nu21);
-        Dmat(2,2) = m_G12;
-        Dmat(0,1) = m_nu21*m_E1 / (1-m_nu12*m_nu21);
-        Dmat(1,0) = m_nu12*m_E2 / (1-m_nu12*m_nu21);
-        Dmat(2,0) = Dmat(0,2) = Dmat(2,1) = Dmat(1,2) = 0.0;
+        // Define objects
+        gsMatrix<T,3,3> c, cinv;
+        T S33, C3333, dc33;
+        S33 = 0.0;
+        dc33 = 0.0;
+        C3333 = 1.0;
 
-        // Make transformation matrix
-        Tmat(0,0) = Tmat(1,1) = math::pow(math::cos(m_phi),2);
-        Tmat(0,1) = Tmat(1,0) = math::pow(math::sin(m_phi),2);
-        Tmat(2,0) = Tmat(0,2) = Tmat(2,1) = Tmat(1,2) = math::sin(m_phi) * math::cos(m_phi);
-        Tmat(2,0) *= -2.0;
-        Tmat(2,1) *= 2.0;
-        Tmat(1,2) *= -1.0;
-        Tmat(2,2) = math::pow(math::cos(m_phi),2) - math::pow(math::sin(m_phi),2);
+        index_t itmax = 100;
+        T tol = 1e-6;
 
-        // Compute laminate stiffness matrix
-        Dmat = Tmat.transpose() * Dmat * Tmat;
+        // Initialize c
+        c.setZero();
+        c.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+        c(2,2) = 1.0; // c33
+        cinv.block(0,0,2,2) = m_Gcon_def.block(0,0,2,2);
+        cinv(2,2) = 1.0;
 
-        m_z = math::abs(m_z_mid - (m_t/2.0 + m_t_temp) ); // distance from mid-plane of plate
-
-        switch (moment)
+        for (index_t it = 0; it < itmax; it++)
         {
-            case 0:
-                Cmat += Dmat * m_t; // A
-                break;
-            case 1:
-                Cmat += Dmat * m_t*m_z; // B
-                break;
-            case 2:
-                Cmat += Dmat * ( m_t*math::pow(m_z,2) + math::pow(m_t,3)/12.0 ); // D
-                break;
-        }
-        // Note: we put everything in the first column, to replicate further after the loop;
-        // since all cols are equal up to now
-        // (ASSUMPTION THAT THE MATERIAL PARAMETERS ARE CONSTANT)
+            dc33 = -2. * S33 / C3333;
+            c(2,2) += dc33;
 
-        m_t_temp += m_t;
-    }
+            GISMO_ASSERT(c(2,2)>= 0,"ERROR! c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33);
+            cinv(2,2) = 1.0/c(2,2);
 
-    GISMO_ASSERT(m_t_tot==m_t_temp,"Total thickness after loop is wrong. t_temp = "<<m_t_temp<<" and sum(thickness) = "<<m_t_tot);
+            m_J = m_J0 * math::sqrt( c(2,2) );
 
-    // m_map.points = m_map_def.points = u.topRows(2);
-    // static_cast<const gsFunction<T>&>(m_patches->piece(m_pIndex)).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
-    // static_cast<const gsFunction<T>&>(m_defpatches->piece(m_pIndex)).computeMap(m_map_def); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+            S33     = Sij(2,2,c,cinv);
+            C3333   = Cijkl3D(2,2,2,2,c,cinv);
 
-    // TRANSFORMATION OF THE MATRIX FROM LOCAL CARTESIAN TO CURVILINEAR
-    // Compute covariant bases in deformed and undeformed configuration
-
-    m_covBasis.resize(3,3);
-    m_conBasis.resize(3,3);
-    for (index_t k = 0; k != u.cols(); ++k)
-    {
-        m_covBasis.leftCols(2) = m_map.jacobian(k);
-        m_covBasis.col(2)      = m_map.normal(k).normalized();
-        m_covMetric = m_covBasis.transpose() * m_covBasis;
-
-        m_conMetric = m_covMetric.template block<3,3>(0,0).inverse();
-
-        m_conBasis.col(0) = m_conMetric(0,0)*m_covBasis.col(0)+m_conMetric(0,1)*m_covBasis.col(1)+m_conMetric(0,2)*m_covBasis.col(2);
-        m_conBasis.col(1) = m_conMetric(1,0)*m_covBasis.col(0)+m_conMetric(1,1)*m_covBasis.col(1)+m_conMetric(1,2)*m_covBasis.col(2);
-        // conBasis.col(2) = m_conMetric(2,0)*m_covBasis.col(0)+m_conMetric(2,1)*m_covBasis.col(1)+m_conMetric(2,2)*m_covBasis.col(2);
-
-        m_e1 = m_covBasis.col(0); m_e1.normalize();
-        m_e2 = m_conBasis.col(1); m_e2.normalize();
-        // e3 = normal;
-
-        m_ac1 = m_conBasis.col(0);
-        m_ac2 = m_conBasis.col(1);
-
-        m_a1 = m_covBasis.col(0);
-        m_a2 = m_covBasis.col(1);
-
-        Tmat.setZero();
-        // Covariant to local cartesian
-        Tmat(0,0) = (m_e1.dot(m_a1))*(m_a1.dot(m_e1));
-        Tmat(0,1) = (m_e1.dot(m_a2))*(m_a2.dot(m_e2));
-        Tmat(0,2) = 2*(m_e1.dot(m_a1))*(m_a2.dot(m_e1));
-        // Row 1
-        Tmat(1,0) = (m_e2.dot(m_a1))*(m_a1.dot(m_e2));
-        Tmat(1,1) = (m_e2.dot(m_a2))*(m_a2.dot(m_e2));
-        Tmat(1,2) = 2*(m_e2.dot(m_a1))*(m_a2.dot(m_e2));
-        // Row 2
-        Tmat(2,0) = (m_e1.dot(m_a1))*(m_a1.dot(m_e2));
-        Tmat(2,1) = (m_e1.dot(m_a2))*(m_a2.dot(m_e2));
-        Tmat(2,2) = (m_e1.dot(m_a1))*(m_a2.dot(m_e2)) + (m_e1.dot(m_a2))*(m_a1.dot(m_e2));
-
-        Tmat = Tmat.template block<3,3>(0,0).inverse(); // !!!!
-
-        Cmat = Tmat * Cmat;
-
-        Tmat.setZero();
-        // Contravariant to local cartesian
-        Tmat(0,0) = (m_e1.dot(m_ac1))*(m_ac1.dot(m_e1));
-        Tmat(0,1) = (m_e1.dot(m_ac2))*(m_ac2.dot(m_e2));
-        Tmat(0,2) = 2*(m_e1.dot(m_ac1))*(m_ac2.dot(m_e1));
-        // Row 1
-        Tmat(1,0) = (m_e2.dot(m_ac1))*(m_ac1.dot(m_e2));
-        Tmat(1,1) = (m_e2.dot(m_ac2))*(m_ac2.dot(m_e2));
-        Tmat(1,2) = 2*(m_e2.dot(m_ac1))*(m_ac2.dot(m_e2));
-        // Row 2
-        Tmat(2,0) = (m_e1.dot(m_ac1))*(m_ac1.dot(m_e2));
-        Tmat(2,1) = (m_e1.dot(m_ac2))*(m_ac2.dot(m_e2));
-        Tmat(2,2) = (m_e1.dot(m_ac1))*(m_ac2.dot(m_e2)) + (m_e1.dot(m_ac2))*(m_ac1.dot(m_e2));
-
-        Cmat = Cmat * Tmat;
-
-        if (m_outputType==2)
-            result.reshapeCol(k,3,3) = Cmat;
-        else if (m_outputType==1)
-        {
-            gsMatrix<T> Eij(2,2);
-            // computeMetric(k,0.0,true,true); // height is set to 0, but we do not need m_G
-
-            if (m_moment==0)
-                Eij = 0.5*(m_Acov_def - m_Acov_ori);
-            else if (m_moment==2)
-                Eij = (m_Bcov_def - m_Bcov_ori);
-            else
+            if (abs(S33) < tol)
             {
-                gsDebug<<"Warning: no material model known in simplification";
-            }
-            Eij(0,1) += Eij(1,0);
-            std::swap(Eij(1,0), Eij(1,1));
-            Eij.resize(4,1);
-            Eij.conservativeResize(3,1);
-            result.col(k) = Cmat * Eij;
-        }
-        else
-            GISMO_ERROR("no vector or matrix produced");
-    }
+                // gsInfo<<"Converged in "<<it<<" iterations, abs(S33) = "<<abs(S33)<<" and tolerance = "<<tol<<"\n";
+                if (m_outputType==2)
+                    {
+                        gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j,3,3);
+                        /*
+                            C = C1111,  C1122,  C1112
+                                symm,   C2222,  C2212
+                                symm,   symm,   C1212
+                        */
+                        if (m_output==0)
+                        {
+                            C(0,0)          = Aijkl(0,0,0,0,c,cinv); // C1111
+                            C(1,1)          = Aijkl(1,1,1,1,c,cinv); // C2222
+                            C(2,2)          = Aijkl(0,1,0,1,c,cinv); // C1212
+                            C(1,0) = C(0,1) = Aijkl(0,0,1,1,c,cinv); // C1122
+                            C(2,0) = C(0,2) = Aijkl(0,0,0,1,c,cinv); // C1112
+                            C(2,1) = C(1,2) = Aijkl(1,1,0,1,c,cinv); // C2212
+                        }
+                        else if (m_output==1)
+                        {
+                            C(0,0)          = Bijkl(0,0,0,0,c,cinv); // C1111
+                            C(1,1)          = Bijkl(1,1,1,1,c,cinv); // C2222
+                            C(2,2)          = Bijkl(0,1,0,1,c,cinv); // C1212
+                            C(1,0) = C(0,1) = Bijkl(0,0,1,1,c,cinv); // C1122
+                            C(2,0) = C(0,2) = Bijkl(0,0,0,1,c,cinv); // C1112
+                            C(2,1) = C(1,2) = Bijkl(1,1,0,1,c,cinv); // C2212
+                        }
+                        else if (m_output==2)
+                        {
+                            C(0,0)          = Cijkl(0,0,0,0,c,cinv); // C1111
+                            C(1,1)          = Cijkl(1,1,1,1,c,cinv); // C2222
+                            C(2,2)          = Cijkl(0,1,0,1,c,cinv); // C1212
+                            C(1,0) = C(0,1) = Cijkl(0,0,1,1,c,cinv); // C1122
+                            C(2,0) = C(0,2) = Cijkl(0,0,0,1,c,cinv); // C1112
+                            C(2,1) = C(1,2) = Cijkl(1,1,0,1,c,cinv); // C2212
+                        }
+                        else if (m_output==3)
+                        {
+                            C(0,0)          = Dijkl(0,0,0,0,c,cinv); // C1111
+                            C(1,1)          = Dijkl(1,1,1,1,c,cinv); // C2222
+                            C(2,2)          = Dijkl(0,1,0,1,c,cinv); // C1212
+                            C(1,0) = C(0,1) = Dijkl(0,0,1,1,c,cinv); // C1122
+                            C(2,0) = C(0,2) = Dijkl(0,0,0,1,c,cinv); // C1112
+                            C(2,1) = C(1,2) = Dijkl(1,1,0,1,c,cinv); // C2212
+                        }
+                    }
+                    else if (m_outputType==1)
+                    {
+                        if (m_output==0)
+                        {
+                            result(0,j) = Sij(0,0,c,cinv);
+                            result(1,j) = Sij(1,1,c,cinv);
+                            result(2,j) = Sij(0,1,c,cinv);   
+                        }
+                        else if (m_output==1)
+                        {
+                            result(0,j) = Mij(0,0,c,cinv);
+                            result(1,j) = Mij(1,1,c,cinv);
+                            result(2,j) = Mij(0,1,c,cinv);   
+                        }
+                    }
+                else
+                    GISMO_ERROR("no vector or matrix produced");
 
+                    break;
+            }
+
+
+            else if (it == itmax - 1)
+            {
+                gsInfo<<"Error: Method did not converge, S33 = "<<S33<<" and tolerance = "<<tol<<"\n";
+                // std::terminate();
+            }
+        }
+    }
     return result;
-};
+}
 
 /*
     Available class members:
@@ -789,10 +706,6 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
         mu = m_par1val / (2.*(1. + m_par2val));
         lambda = m_par1val * m_par2val / ( (1. + m_par2val)*(1.-2.*m_par2val)) ;
         Cconstant = 2*lambda*mu/(lambda+2*mu);
-
-        // gsDebugVar(m_Acon_ori);
-        // gsDebugVar(m_Acov_ori);
-        // gsDebugVar(m_Bcov_ori);
 
         tmp = Cconstant*m_Acon_ori(i,j)*m_Acon_ori(k,l) + mu*(m_Acon_ori(i,k)*m_Acon_ori(j,l) + m_Acon_ori(i,l)*m_Acon_ori(j,k));
     }
@@ -886,43 +799,13 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j) const
     T tmp = 0.0;
     if (m_material==0)
     {
-        gsMatrix<T> stress;
+        gsMatrix<T> strain;
         // --------------------------
         // Saint Venant Kirchhoff
         // --------------------------
-        // if (m_moment==0)
-        // {
-        //     GISMO_ASSERT( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
-        //     stress = 0.5*(m_Acov_def - m_Acov_ori);
-        // }
-        // else if (m_moment==2)
-        // {
-        //     GISMO_ASSERT( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
-        //     // tmp = (m_Bcov_ori - m_Bcov_def);
-        //     stress = (m_Bcov_def - m_Bcov_ori);
-        // }
-        // else
-        // {
-        //     GISMO_ERROR("Warning: no material model known in simplification");
-        // }
-        stress = 0.5 * (m_Gcov_def - m_Gcov_ori);
-
-
-        // gsDebug<<"Cijkl(i,j,0,0) = "<<Cijkl(i,j,0,0)<<"\t"
-        //        <<"Cijkl(i,j,0,1) = "<<Cijkl(i,j,0,1)<<"\t"
-        //        <<"Cijkl(i,j,1,0) = "<<Cijkl(i,j,1,0)<<"\t"
-        //        <<"Cijkl(i,j,1,1) = "<<Cijkl(i,j,1,1)<<"\n";
-
-        // gsDebug<<"Sij(0,0) = "<<stress(0,0)<<"\t"
-        //        <<"Sij(0,1) = "<<stress(0,1)<<"\t"
-        //        <<"Sij(1,0) = "<<stress(1,0)<<"\t"
-        //        <<"Sij(1,1) = "<<stress(1,1)<<"\n";
-
-        // gsDebugVar(Cijkl(i,j,0,0) * stress(0,0) + Cijkl(i,j,0,1) * stress(0,1)
-        //         + Cijkl(i,j,1,0) * stress(1,0) + Cijkl(i,j,1,1) * stress(1,1));
-
-        tmp =     Cijkl(i,j,0,0) * stress(0,0) + Cijkl(i,j,0,1) * stress(0,1)
-                + Cijkl(i,j,1,0) * stress(1,0) + Cijkl(i,j,1,1) * stress(1,1);
+        stress = 0.5 * (m_Acov_def - m_Acov_ori);
+        tmp =     Cijkl(i,j,0,0) * strain(0,0) + Cijkl(i,j,0,1) * strain(0,1)
+                + Cijkl(i,j,1,0) * strain(1,0) + Cijkl(i,j,1,1) * strain(1,1);
     }
     else if (m_material==1)
     {
@@ -936,18 +819,60 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j) const
         // --------------------------
         // Neo-Hoookean
         // --------------------------
-        T mu = m_par1val / (2. * (1. + m_par2val));
+        // T mu = m_par1val / (2. * (1. + m_par2val));
 
         // gsDebugVar(mu);
         // gsDebugVar(mu * (m_Gcon_ori(i,j) - 1./math::pow(m_J0,2.) * m_Gcon_def(i,j) ));
-        tmp = mu * (m_Gcon_ori(i,j) - 1./math::pow(m_J0,2.) * m_Gcon_def(i,j) );
+        // tmp = mu * (m_Gcon_ori(i,j) - 1./math::pow(m_J0,2.) * m_Gcon_def(i,j) );
     }
     else
     {
         // --------------------------
         // Generalized
         // --------------------------
-        tmp = 2.0 * dPsi(i,j) - 2.0 * dPsi(2,2) * math::pow(m_J0,-2.0)*m_Gcon_def(i,j);
+        // tmp = 2.0 * dPsi(i,j) - 2.0 * dPsi(2,2) * math::pow(m_J0,-2.0)*m_Gcon_def(i,j);
+    }
+    return tmp;
+}
+
+template<class T>
+T gsMaterialMatrix<T>::dSij(const index_t i, const index_t j) const
+{
+    T tmp = 0.0;
+    if (m_material==0)
+    {
+        gsMatrix<T> strain;
+        // --------------------------
+        // Saint Venant Kirchhoff
+        // --------------------------
+        stress = 0.5 * (m_Gcov_def - m_Gcov_ori);
+        tmp =     Cijkl(i,j,0,0) * strain(0,0) + Cijkl(i,j,0,1) * strain(0,1)
+                + Cijkl(i,j,1,0) * strain(1,0) + Cijkl(i,j,1,1) * strain(1,1);
+    }
+    else if (m_material==1)
+    {
+        // --------------------------
+        // Composite
+        // --------------------------
+        gsWarn<<"Incompressible material stress tensor requested, but not needed. How?";
+    }
+    else if (m_material==9)
+    {
+        // --------------------------
+        // Neo-Hoookean
+        // --------------------------
+        // T mu = m_par1val / (2. * (1. + m_par2val));
+
+        // gsDebugVar(mu);
+        // gsDebugVar(mu * (m_Gcon_ori(i,j) - 1./math::pow(m_J0,2.) * m_Gcon_def(i,j) ));
+        // tmp = mu * (m_Gcon_ori(i,j) - 1./math::pow(m_J0,2.) * m_Gcon_def(i,j) );
+    }
+    else
+    {
+        // --------------------------
+        // Generalized
+        // --------------------------
+        // tmp = 2.0 * dPsi(i,j) - 2.0 * dPsi(2,2) * math::pow(m_J0,-2.0)*m_Gcon_def(i,j);
     }
     return tmp;
 }
@@ -965,108 +890,20 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j, const gsMatrix<T> &
         gsWarn<<"Incompressible material stress tensor requested, but not needed. How?";
     else if (m_material==9)
     {
-        T mu = m_par1val / (2 * (1 + m_par2val));
-        T K  = m_par1val / ( 3 - 6 * m_par2val);
-        T traceC =  m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
-                    m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
-                    m_Gcov_def(1,0)*m_Gcon_ori(1,0) +
-                    m_Gcov_def(1,1)*m_Gcon_ori(1,1) +
-                    c(2,2);
+        // T mu = m_par1val / (2 * (1 + m_par2val));
+        // T K  = m_par1val / ( 3 - 6 * m_par2val);
+        // T traceC =  m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
+        //             m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
+        //             m_Gcov_def(1,0)*m_Gcon_ori(1,0) +
+        //             m_Gcov_def(1,1)*m_Gcon_ori(1,1) +
+        //             c(2,2);
 
-        tmp =  mu * math::pow( m_J , -2.0/3.0 ) * ( m_Gcon_ori(i,j) - 1.0/3.0 * traceC * cinv(i,j) ) + 0.5 * K * ( m_J*m_J - 1 ) * cinv(i,j);
+        // tmp =  mu * math::pow( m_J , -2.0/3.0 ) * ( m_Gcon_ori(i,j) - 1.0/3.0 * traceC * cinv(i,j) ) + 0.5 * K * ( m_J*m_J - 1 ) * cinv(i,j);
     }
     else
-        tmp = 2.0 * dPsi(i,j,c,cinv);
+        // tmp = 2.0 * dPsi(i,j,c,cinv);
 
     return tmp;
-}
-
-template<class T>
-gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatrix<T>& z) const
-{
-    // Input: j index in-plane point
-    //        z out-of-plane coordinate (through thickness) in R1 (z)
-    gsMatrix<T> result(this->targetDim(), z.cols());
-    result.setZero();
-
-    for( index_t j=0; j < z.cols(); ++j ) // through thickness
-    {
-        // Evaluate material properties on the quadrature point
-        m_par1val = m_par1mat(0,i);
-        m_par2val = m_par2mat(0,i);
-
-        // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
-        this->getMetric(i,z.at(j)); // on point i, on height z(0,j)
-
-        // Define objects
-        gsMatrix<T,3,3> c, cinv;
-        T S33, C3333, dc33;
-        S33 = 0.0;
-        dc33 = 0.0;
-        C3333 = 1.0;
-
-        index_t itmax = 100;
-        T tol = 1e-6;
-
-        // Initialize c
-        c.setZero();
-        c.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
-        c(2,2) = 1.0; // c33
-        cinv.block(0,0,2,2) = m_Gcon_def.block(0,0,2,2);
-        cinv(2,2) = 1.0;
-
-        for (index_t it = 0; it < itmax; it++)
-        {
-            dc33 = -2. * S33 / C3333;
-            c(2,2) += dc33;
-
-            GISMO_ASSERT(c(2,2)>= 0,"ERROR! c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33);
-            cinv(2,2) = 1.0/c(2,2);
-
-            m_J = m_J0 * math::sqrt( c(2,2) );
-
-            S33     = Sij(2,2,c,cinv);
-            C3333   = Cijkl3D(2,2,2,2,c,cinv);
-
-            if (abs(S33) < tol)
-            {
-                // gsInfo<<"Converged in "<<it<<" iterations, abs(S33) = "<<abs(S33)<<" and tolerance = "<<tol<<"\n";
-                if (m_outputType==2)
-                    {
-                        gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j,3,3);
-                        /*
-                            C = C1111,  C1122,  C1112
-                                symm,   C2222,  C2212
-                                symm,   symm,   C1212
-                        */
-                        C(0,0)          = Cijkl(0,0,0,0,c,cinv); // C1111
-                        C(1,1)          = Cijkl(1,1,1,1,c,cinv); // C2222
-                        C(2,2)          = Cijkl(0,1,0,1,c,cinv); // C1212
-                        C(1,0) = C(0,1) = Cijkl(0,0,1,1,c,cinv); // C1122
-                        C(2,0) = C(0,2) = Cijkl(0,0,0,1,c,cinv); // C1112
-                        C(2,1) = C(1,2) = Cijkl(1,1,0,1,c,cinv); // C2212
-                    }
-                    else if (m_outputType==1)
-                    {
-                        result(0,j) = Sij(0,0,c,cinv); // S11
-                        result(1,j) = Sij(1,1,c,cinv); // S22
-                        result(2,j) = Sij(0,1,c,cinv); // S12
-                    }
-                else
-                    GISMO_ERROR("no vector or matrix produced");
-
-                    break;
-            }
-
-
-            else if (it == itmax - 1)
-            {
-                gsInfo<<"Error: Method did not converge, S33 = "<<S33<<" and tolerance = "<<tol<<"\n";
-                // std::terminate();
-            }
-        }
-    }
-    return result;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
