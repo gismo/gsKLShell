@@ -94,7 +94,7 @@ void gsThinShellAssembler<T>::initialize()
 
     // Set the discretization space
     space m_space = m_assembler.getSpace(m_basis, 3, 0); // last argument is the space ID
-    m_space.setInterfaceCont(0); // todo: 1 (smooth basis)
+    m_space.setup(m_bcs, dirichlet::interpolation, 0);
 
     // Define fields as variables:
     // ... surface force
@@ -105,7 +105,7 @@ void gsThinShellAssembler<T>::initialize()
 
     // call a defineComponents() depending on model
 
-    assembleDirichlet();
+    // assembleDirichlet();
 
     m_mapper = m_space.mapper();
     m_dim = m_space.dim();
@@ -119,7 +119,9 @@ void gsThinShellAssembler<T>::initialize()
 template <class T>
 void gsThinShellAssembler<T>::assembleNeumann()
 {
-
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    variable g_N = m_assembler.getBdrFunction();
+    m_assembler.assembleRhsBc(m_space * g_N, m_bcs.neumannSides() );
 }
 
 template <class T>
@@ -127,13 +129,7 @@ void gsThinShellAssembler<T>::assembleDirichlet()
 {
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // if statement
-    m_space.addBc( m_bcs.get("Dirichlet") ); // (!) must be called only once
-}
-
-template <class T>
-void gsThinShellAssembler<T>::assembleClamped()
-{
-
+    m_space.setup(m_bcs, dirichlet::interpolation, 0);
 }
 
 template<class T>
@@ -297,7 +293,7 @@ void gsThinShellAssembler<T>::assembleMass()
     m_assembler.getMap(m_patches);           // this map is used for integrals
 
     // Initialize stystem
-    m_assembler.initSystem();
+    m_assembler.initSystem(false);
     gsMaterialMatrix m_mm = m_materialMat;
     m_mm.makeDensity();
     variable mm0 = m_assembler.getCoeff(m_mm);
@@ -325,7 +321,7 @@ void gsThinShellAssembler<T>::assembleFoundation()
     geometryMap m_ori   = m_assembler.exprData()->getMap();
 
     // Initialize stystem
-    m_assembler.initSystem();
+    m_assembler.initSystem(false);
     variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
     space       m_space = m_assembler.trialSpace(0);
 
@@ -343,7 +339,7 @@ void gsThinShellAssembler<T>::assemble()
     m_assembler.getMap(m_defpatches);
 
     // Initialize stystem
-    m_assembler.initSystem();
+    m_assembler.initSystem(false);
 
     gsMaterialMatrix m_mm0 = m_materialMat;
     m_mm0.makeMatrix(0);
@@ -380,6 +376,8 @@ void gsThinShellAssembler<T>::assemble()
 
     auto m_N_der    = m_Em_der * reshape(mm0,3,3) + m_Ef_der * reshape(mm1,3,3);
     auto m_M_der    = m_Em_der * reshape(mm1,3,3) + m_Ef_der * reshape(mm2,3,3);
+
+    gsDebug<<m_space.mapper();
 
     if (!m_foundInd) // no foundation
     {
@@ -448,8 +446,8 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     m_assembler.getMap(m_defpatches);
 
     // Initialize matrix
-    // m_assembler.initMatrix();
-    m_assembler.initSystem();
+    m_assembler.initMatrix(false);
+    // m_assembler.initSystem(false);
 
     gsMaterialMatrix m_mm0 = m_materialMat;
     m_mm0.makeMatrix(0);
@@ -544,7 +542,7 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
     m_assembler.getMap(m_defpatches);
 
     // Initialize vector
-    m_assembler.initVector();
+    m_assembler.initVector(1,false);
 
     gsMaterialMatrix m_S0 = m_materialMat;
     m_S0.makeVector(0);
@@ -575,6 +573,8 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
         m_assembler.assemble(m_space * m_force * meas(m_ori) -
                     ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
                     );
+
+        this->assembleNeumann();
     }
     // else
     // {
@@ -690,7 +690,7 @@ gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T>
     geometryMap m_ori   = m_assembler.exprData()->getMap();
     geometryMap m_def   = m_assembler.exprData()->getMap2();
 
-    m_assembler.initSystem();
+    m_assembler.initSystem(false);
 
     auto expr       = jac(m_def);
     auto expr2      = sn(m_def);
