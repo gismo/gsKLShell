@@ -94,7 +94,7 @@ void gsThinShellAssembler<T>::initialize()
 
     // Set the discretization space
     space m_space = m_assembler.getSpace(m_basis, 3, 0); // last argument is the space ID
-    m_space.setup(m_bcs, dirichlet::interpolation, 0);
+    // m_space.setup(m_bcs, dirichlet::interpolation, 0);
 
     // Define fields as variables:
     // ... surface force
@@ -105,7 +105,7 @@ void gsThinShellAssembler<T>::initialize()
 
     // call a defineComponents() depending on model
 
-    // assembleDirichlet();
+    this->assembleDirichlet();
 
     m_mapper = m_space.mapper();
     m_dim = m_space.dim();
@@ -184,104 +184,6 @@ void gsThinShellAssembler<T>::applyLoads()
         }
     }
 }
-
-// template<class T>
-// void gsShellAssembler<T>::assembleClamped()
-// {
-//     typedef gsBoundaryConditions<T>::const_iterator cIterator;
-
-//     for( cIterator iit = m_bcs.begin("clamped"); iit!=m_bcs.end("clamped"); ++iit)
-//     {
-//         const boundary_condition<T> * it = &iit->get();
-
-//         gsDofMapper & mapper  = m_dofMappers[it->unknown()];
-//         const patchSide & cur = it->side();
-//         // Get boundary dofs
-//         gsMatrix<unsigned> bDofs = m_basis[0][cur.patch].boundary(cur);
-
-//         // Cast to tensor b-spline basis
-//         const gsTensorBSplineBasis<2,T> * tp =
-//             dynamic_cast<const gsTensorBSplineBasis<2,T> *>(&m_basis[0][cur.patch]);
-
-//         if ( tp != NULL) // clamp adjacent dofs
-//         {
-//             const int str = tp->stride( cur.direction() );
-//             if ( cur.parameter() )
-//             {
-//                 for ( index_t k=0; k<bDofs.size(); ++k)
-//                     mapper.matchDof( cur.patch, (bDofs)(k,0),
-//                                      cur.patch, (bDofs)(k,0) - str );
-//             }
-//             else
-//             {
-//                 for ( index_t k=0; k<bDofs.size(); ++k)
-//                     mapper.matchDof( cur.patch, (bDofs)(k,0),
-//                                      cur.patch, (bDofs)(k,0) + str );
-//             }
-//         }
-//         else
-//             gsWarn<<"Unable to apply clamped condition.\n";
-
-//     }
-
-//     // SET MAPPERS IN SPACE!
-// }
-
-
-// template <class T>
-// void gsThinShellAssembler<T>::defineComponents()
-// {
-
-//     gsMaterialMatrix mm = m_materialMat;
-//     // gsMaterialMatrix materialMat(m_patches, *m_thickFun, *m_YoungsModulus, *m_PoissonsRatio);
-//     variable m_materialMat = m_assembler.getCoeff(materialMat);
-
-//     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
-//     variable m_m2 = m_assembler.getCoeff(mult2t);
-
-//     /*
-//         We provide the following functions:                                 checked with previous assembler
-//             m_Em            membrane strain tensor.                             V
-//             m_Em_der        first variation of E_m.                             V
-//             m_Em_der2       second variation of E_m MULTIPLIED BY S_m.          V
-//             m_Ef            flexural strain tensor.                             V
-//             m_Ef_der        second variation of E_f.                            V
-//             m_Ef_der2       second variation of E_f MULTIPLIED BY S_f.          V
-
-//         Where:
-//             m_ori           geometry map of the the undeformed geometry,
-//             m_def           geometry map of the deformed geometry,
-//             m_materialMat   the material matrix,
-//             m_m2            an auxillary matrix to multiply the last row of a tensor with 2
-//             m_space         solution space
-//     **/
-
-//     space m_space = m_assembler.trialSpace(0);
-//     geometryMap m_ori = m_assembler.exprData()->getMap();
-//     geometryMap m_def = m_assembler.exprData()->getMap2();
-//     variable m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
-//     variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
-
-//     auto m_Em       = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) ; //[checked]
-//     auto m_Sm      = m_Em * reshape(m_materialMat,3,3);
-//     auto m_N        = m_thick.val() * m_Sm;
-//     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
-//     auto m_Sm_der  = m_Em_der * reshape(m_materialMat,3,3);
-//     auto m_N_der    = m_thick.val() * m_Sm_der;
-//     auto m_Em_der2  = flatdot( jac(m_space),jac(m_space).tr(), m_N ); //[checked]
-
-//     auto m_Ef       = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) ; //[checked]
-//     auto m_Sf      = m_Ef * reshape(m_materialMat,3,3);
-//     auto m_M        = m_thick.val() * m_thick.val() * m_thick.val() / 12.0 * m_Sf;
-//     auto m_Ef_der   = ( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
-//     auto m_Sf_der  = m_Ef_der * reshape(m_materialMat,3,3);
-//     auto m_M_der    = m_thick.val() * m_thick.val() * m_thick.val() / 12.0 * m_Sf_der;
-//     auto m_Ef_der2  = flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_M  ).symmetrize()
-//                         + var2(m_space,m_space,m_def,m_Ef * reshape(m_materialMat,3,3) );
-
-//     //auto m_ff       = m_force;
-
-// }
 
 template<class T>
 void gsThinShellAssembler<T>::assembleMass()
@@ -418,10 +320,12 @@ void gsThinShellAssembler<T>::assemble()
     }
     // Neumann
 
-    // gsVector<> pt(2);
-    // pt.setConstant(0.5);
-    // gsExprEvaluator<> evaluator(m_assembler);
-    // gsDebug<<evaluator.eval(reshape(mm1,3,3),pt)<<"\n";
+    gsVector<> pt(2);
+    pt.setConstant(0.5);
+    gsExprEvaluator<> evaluator(m_assembler);
+    gsDebug<<evaluator.eval(reshape(mm0,3,3),pt)<<"\n";
+    gsDebug<<evaluator.eval(reshape(mm1,3,3),pt)<<"\n";
+    gsDebug<<evaluator.eval(reshape(mm2,3,3),pt)<<"\n";
 
 }
 
