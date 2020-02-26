@@ -243,17 +243,23 @@ void gsThinShellAssembler<T>::assemble()
     // Initialize stystem
     m_assembler.initSystem(false);
 
-    gsMaterialMatrix m_mm0 = m_materialMat;
-    m_mm0.makeMatrix(0);
-    gsMaterialMatrix m_mm1 = m_materialMat;
-    m_mm1.makeMatrix(1);
-    gsMaterialMatrix m_mm2 = m_materialMat;
-    m_mm2.makeMatrix(2);
+    gsMaterialMatrix m_mmA = m_materialMat;
+    m_mmA.makeMatrix(0);
+    gsMaterialMatrix m_mmB = m_materialMat;
+    m_mmB.makeMatrix(1);
+    gsMaterialMatrix m_mmC = m_materialMat;
+    m_mmC.makeMatrix(2);
+    gsMaterialMatrix m_mmD = m_materialMat;
+    m_mmD.makeMatrix(3);
+    gsMaterialMatrix m_S0 = m_materialMat;
+    m_S0.makeVector(0);
+    gsMaterialMatrix m_S1 = m_materialMat;
+    m_S1.makeVector(1);
 
-    // gsMaterialMatrix materialMat(m_patches, *m_thickFun, *m_YoungsModulus, *m_PoissonsRatio);
-    variable mm0 = m_assembler.getCoeff(m_mm0);
-    variable mm1 = m_assembler.getCoeff(m_mm1);
-    variable mm2 = m_assembler.getCoeff(m_mm2);
+    variable mmA = m_assembler.getCoeff(m_mmA);
+    variable mmB = m_assembler.getCoeff(m_mmB);
+    variable mmC = m_assembler.getCoeff(m_mmC);
+    variable mmD = m_assembler.getCoeff(m_mmD);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m_m2 = m_assembler.getCoeff(mult2t);
@@ -276,8 +282,8 @@ void gsThinShellAssembler<T>::assemble()
 
     // auto m_M_der    = pow(m_thick.val(),3) / 12.0 * m_Sf_der;
 
-    auto m_N_der    = m_Em_der * reshape(mm0,3,3) + m_Ef_der * reshape(mm1,3,3);
-    auto m_M_der    = m_Em_der * reshape(mm1,3,3) + m_Ef_der * reshape(mm2,3,3);
+    auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
+    auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
 
     gsDebug<<m_space.mapper();
 
@@ -323,9 +329,10 @@ void gsThinShellAssembler<T>::assemble()
     gsVector<> pt(2);
     pt.setConstant(0.5);
     gsExprEvaluator<> evaluator(m_assembler);
-    gsDebug<<evaluator.eval(reshape(mm0,3,3),pt)<<"\n";
-    gsDebug<<evaluator.eval(reshape(mm1,3,3),pt)<<"\n";
-    gsDebug<<evaluator.eval(reshape(mm2,3,3),pt)<<"\n";
+    gsDebug<<evaluator.eval(reshape(mmA,3,3),pt)<<"\n";
+    gsDebug<<evaluator.eval(reshape(mmB,3,3),pt)<<"\n";
+    gsDebug<<evaluator.eval(reshape(mmC,3,3),pt)<<"\n";
+    gsDebug<<evaluator.eval(reshape(mmD,3,3),pt)<<"\n";
 
 }
 
@@ -353,20 +360,23 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     m_assembler.initMatrix(false);
     // m_assembler.initSystem(false);
 
-    gsMaterialMatrix m_mm0 = m_materialMat;
-    m_mm0.makeMatrix(0);
-    gsMaterialMatrix m_mm1 = m_materialMat;
-    m_mm1.makeMatrix(1);
-    gsMaterialMatrix m_mm2 = m_materialMat;
-    m_mm2.makeMatrix(2);
+    gsMaterialMatrix m_mmA = m_materialMat;
+    m_mmA.makeMatrix(0);
+    gsMaterialMatrix m_mmB = m_materialMat;
+    m_mmB.makeMatrix(1);
+    gsMaterialMatrix m_mmC = m_materialMat;
+    m_mmC.makeMatrix(2);
+    gsMaterialMatrix m_mmD = m_materialMat;
+    m_mmD.makeMatrix(3);
     gsMaterialMatrix m_S0 = m_materialMat;
     m_S0.makeVector(0);
     gsMaterialMatrix m_S1 = m_materialMat;
     m_S1.makeVector(1);
 
-    variable mm0 = m_assembler.getCoeff(m_mm0);
-    variable mm1 = m_assembler.getCoeff(m_mm1);
-    variable mm2 = m_assembler.getCoeff(m_mm2);
+    variable mmA = m_assembler.getCoeff(m_mmA);
+    variable mmB = m_assembler.getCoeff(m_mmB);
+    variable mmC = m_assembler.getCoeff(m_mmC);
+    variable mmD = m_assembler.getCoeff(m_mmD);
     variable S0 = m_assembler.getCoeff(m_S0);
     variable S1 = m_assembler.getCoeff(m_S1);
 
@@ -388,8 +398,8 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     auto m_Ef_der2  = -(flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_M  ).symmetrize()
                             + var2(m_space,m_space,m_def, m_M ));
 
-    auto m_N_der    = m_Em_der * reshape(mm0,3,3) + m_Ef_der * reshape(mm1,3,3);
-    auto m_M_der    = m_Em_der * reshape(mm1,3,3) + m_Ef_der * reshape(mm2,3,3);
+    auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
+    auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
 
     if (!m_foundInd) // no foundation
     {
