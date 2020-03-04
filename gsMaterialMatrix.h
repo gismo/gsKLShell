@@ -159,6 +159,11 @@ protected:
     T Sij    (const index_t i, const index_t j) const;
     T Sij    (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
 
+    T Sij_S  (const index_t i, const index_t j) const;
+    T dSij_S (const index_t i, const index_t j) const;
+    T Cijkl_S(const index_t i, const index_t j, const index_t k, const index_t l) const;
+
+
     T dPsi   (const index_t i) const;
     T dPsi   (const index_t a, const index_t b) const;
     T dPsi   (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;

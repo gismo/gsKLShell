@@ -285,8 +285,6 @@ void gsThinShellAssembler<T>::assemble()
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
 
-    gsDebug<<m_space.mapper();
-
     if (!m_foundInd) // no foundation
     {
         // assemble system
@@ -299,6 +297,8 @@ void gsThinShellAssembler<T>::assemble()
             ,
             m_space * m_force * meas(m_ori)
             );
+
+        this->assembleNeumann();
     }
     // else
     // {
@@ -326,13 +326,13 @@ void gsThinShellAssembler<T>::assemble()
     }
     // Neumann
 
-    gsVector<> pt(2);
-    pt.setConstant(0.5);
-    gsExprEvaluator<> evaluator(m_assembler);
-    gsDebug<<evaluator.eval(reshape(mmA,3,3),pt)<<"\n";
-    gsDebug<<evaluator.eval(reshape(mmB,3,3),pt)<<"\n";
-    gsDebug<<evaluator.eval(reshape(mmC,3,3),pt)<<"\n";
-    gsDebug<<evaluator.eval(reshape(mmD,3,3),pt)<<"\n";
+    // gsVector<> pt(2);
+    // pt.setConstant(0.5);
+    // gsExprEvaluator<> evaluator(m_assembler);
+    // gsDebug<<evaluator.eval(reshape(mmA,3,3),pt)<<"\n";
+    // gsDebug<<evaluator.eval(reshape(mmB,3,3),pt)<<"\n";
+    // gsDebug<<evaluator.eval(reshape(mmC,3,3),pt)<<"\n";
+    // gsDebug<<evaluator.eval(reshape(mmD,3,3),pt)<<"\n";
 
 }
 
@@ -353,6 +353,9 @@ void gsThinShellAssembler<T>::assemble()
 template <class T>
 void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
 {
+    m_assembler.cleanUp();
+    m_defpatches = deformed;
+
     m_assembler.getMap(m_patches);           // this map is used for integrals
     m_assembler.getMap(m_defpatches);
 
@@ -445,6 +448,10 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
 template<class T>
 void gsThinShellAssembler<T>::assembleMatrix(const gsMatrix<T> & solVector)
 {
+    // gsMultiPatch<T> deformed;
+    // constructSolution(solVector, deformed);
+    // assembleMatrix(deformed);
+
     constructSolution(solVector, m_defpatches);
     assembleMatrix(m_defpatches);
 }
@@ -452,6 +459,9 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMatrix<T> & solVector)
 template <class T>
 void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
 {
+    m_assembler.cleanUp();
+    m_defpatches = deformed;
+
     m_assembler.getMap(m_patches);           // this map is used for integrals
     m_assembler.getMap(m_defpatches);
 
@@ -514,6 +524,10 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
 template<class T>
 void gsThinShellAssembler<T>::assembleVector(const gsMatrix<T> & solVector)
 {
+    // gsMultiPatch<T> deformed;
+    // constructSolution(solVector, deformed);
+    // assembleVector(deformed);
+
     constructSolution(solVector, m_defpatches);
     assembleVector(m_defpatches);
 }
@@ -522,23 +536,20 @@ template<class T>
 void gsThinShellAssembler<T>::assemble(const gsMultiPatch<T> & deformed,
                                         bool Matrix)
 {
-    m_defpatches = deformed;
-
     if (Matrix)
-    {
-        m_assembler.cleanUp();
         assembleMatrix(deformed);
-    }
 
-    m_assembler.cleanUp();
     assembleVector(deformed);
 }
 template<class T>
 void gsThinShellAssembler<T>::assemble(const gsMatrix<T> & solVector,
                                         bool Matrix)
 {
+    // gsMultiPatch<T> deformed;
+    // constructSolution(solVector, deformed);
+    // assemble(deformed,Matrix);
+
     constructSolution(solVector, m_defpatches);
-    gsDebugVar(m_defpatches);
     assemble(m_defpatches,Matrix);
 }
 
@@ -606,21 +617,37 @@ gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T>
 
     m_assembler.initSystem(false);
 
-    auto expr       = jac(m_def);
-    auto expr2      = sn(m_def);
+    auto Gdef   = jac(m_def);
+    auto Gori   = jac(m_ori);
+    auto normalDef = sn(m_def);
+    auto normalOri = sn(m_ori);
 
     gsExprEvaluator<> evaluator(m_assembler);
 
-    gsMatrix<> metricA(3,3);
-    gsMatrix<> evs;
-    metricA.setZero();
-    for (index_t k=0; k!=u.cols(); k++)
+    gsMatrix<> Aori(3,3);
+    gsMatrix<> Adef(3,3);
+    gsMatrix<> tmp(2,2);
+    gsMatrix<> evs, evecs;
+    Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
+
+    T J0;
+    for (index_t k = 0; k != u.cols(); ++k)
     {
-        metricA.block(0,0,2,2) = evaluator.eval(expr,u.col(k)).block(0,0,2,2);
-        metricA.col(2) = evaluator.eval(expr2,u.col(k));
-        metricA = metricA.transpose()*metricA;
-        Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
-        eigSolver.compute(metricA);
+        Aori.setZero();
+        Adef.setZero();
+        tmp.setZero();
+        tmp = evaluator.eval(Gori,u.col(k)).block(0,0,2,2);
+        tmp = tmp.transpose()*tmp;
+        Aori.block(0,0,2,2) = tmp;
+
+        tmp = evaluator.eval(Gdef,u.col(k)).block(0,0,2,2);
+        tmp = tmp.transpose()*tmp;
+        Adef.block(0,0,2,2) = tmp;
+
+        J0 = math::sqrt( Adef.block(0,0,2,2).determinant() / Aori.block(0,0,2,2).determinant() );
+
+        Adef(2,2) = math::pow(J0,-2.0);
+        eigSolver.compute(Adef);
         evs = eigSolver.eigenvalues();
         for (index_t r=0; r!=3; r++)
             result(r,k) = math::sqrt(evs(r,0));
