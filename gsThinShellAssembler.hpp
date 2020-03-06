@@ -330,12 +330,17 @@ void gsThinShellAssembler<T>::assemble()
     // Neumann
 
     // gsVector<> pt(2);
-    // pt.setConstant(0.5);
+    // pt.setConstant(0.25);
     // gsExprEvaluator<> evaluator(m_assembler);
     // gsDebug<<evaluator.eval(reshape(mmA,3,3),pt)<<"\n";
     // gsDebug<<evaluator.eval(reshape(mmB,3,3),pt)<<"\n";
     // gsDebug<<evaluator.eval(reshape(mmC,3,3),pt)<<"\n";
     // gsDebug<<evaluator.eval(reshape(mmD,3,3),pt)<<"\n";
+
+    // gsDebug<<evaluator.eval((m_N_der * m_Em_der.tr()
+    //             +
+    //             m_M_der * m_Ef_der.tr()
+    //         ) * meas(m_ori),pt)<<"\n";
 
 }
 
