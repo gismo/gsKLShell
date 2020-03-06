@@ -119,9 +119,12 @@ void gsThinShellAssembler<T>::initialize()
 template <class T>
 void gsThinShellAssembler<T>::assembleNeumann()
 {
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     variable g_N = m_assembler.getBdrFunction();
-    m_assembler.assembleRhsBc(m_space * g_N, m_bcs.neumannSides() );
+    m_assembler.assembleRhsBc(m_space * g_N * otangent(m_ori).norm(), m_bcs.neumannSides() );
 }
 
 template <class T>

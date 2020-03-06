@@ -21,6 +21,63 @@
 namespace gismo{
 namespace expr{
 
+template<class T>
+class otangent_expr : public _expr<otangent_expr<T> >
+{
+    typename gsGeometryMap<T>::Nested_t _G;
+
+public:
+    typedef T Scalar;
+
+    otangent_expr(const gsGeometryMap<T> & G) : _G(G) { }
+
+    mutable gsVector<T,3> onormal, normal;
+
+    MatExprType eval(const index_t k) const
+    {
+        GISMO_ASSERT(_G.data().dim.second==3,"Domain dimension should be 3, is "<<_G.data().dim.second);
+
+        gsMatrix<T> Jacobian = _G.data().jacobian(k);
+
+        onormal = _G.data().outNormal(k);
+        normal =  _G.data().normal(k);
+
+        return normal.cross(onormal);
+
+        // gsMatrix<T> result(_G.data().dim.second,1);
+        // result.setZero();
+        // return result;
+        // if (_G.data().dim.second!=3)
+        //     return normal.head(_G.data().dim.second);
+        // else
+        //     return normal;
+    }
+
+    index_t rows() const { return _G.data().dim.second; }
+    index_t cols() const { return 1; }
+
+    const gsFeSpace<T> & rowVar() const {return gsNullExpr<T>::get();}
+    const gsFeSpace<T> & colVar() const {return gsNullExpr<T>::get();}
+
+    static constexpr bool rowSpan() {return false;}
+    static bool colSpan() {return false;}
+
+    void setFlag() const { _G.data().flags |= NEED_OUTER_NORMAL | NEED_NORMAL | NEED_DERIV; }
+
+    void parse(gsSortedVector<const gsFunctionSet<Scalar>*> & evList) const
+    {
+        //GISMO_ASSERT(NULL!=m_fd, "FeVariable: FuncData member not registered");
+        evList.push_sorted_unique(&_G.source());
+        _G.data().flags |= NEED_OUTER_NORMAL | NEED_NORMAL | NEED_DERIV;
+    }
+
+    // Normalized to unit length
+    normalized_expr<otangent_expr<T> > normalized()
+    { return normalized_expr<otangent_expr<T> >(*this); }
+
+    void print(std::ostream &os) const { os << "tv2("; _G.print(os); os <<")"; }
+};
+
 // Comments for var1:
 // - TODO: dimensionm indep. later on
 template<class E>
@@ -946,6 +1003,9 @@ public:
 
     void print(std::ostream &os) const { os << "cartconinv("; _G.print(os); os <<")"; }
 };
+
+template<class T> EIGEN_STRONG_INLINE
+otangent_expr<T> otangent(const gsGeometryMap<T> & u) { return otangent_expr<T>(u); }
 
 template<class E> EIGEN_STRONG_INLINE
 var1_expr<E> var1(const E & u, const gsGeometryMap<typename E::Scalar> & G) { return var1_expr<E>(u, G); }
