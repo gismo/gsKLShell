@@ -410,10 +410,8 @@ gsMatrix<T> gsMaterialMatrix<T>::eval3D(const index_t i, const gsMatrix<T> & z) 
 
     if (m_material == 0 ) // svk
         result = eval_Incompressible(i, z);
-
     else if (m_material == 1) // composite
-        gsDebug<<"No eval3D function for composites available. Something went wrong...";
-
+        gsInfo<<"No eval3D function for composites available. Something went wrong...";
     else if ((m_material == 2) && (m_compressible)) // NHK
         result = eval_Compressible(i, z);
     else if ((m_material == 2) && (!m_compressible)) // NHK
@@ -513,7 +511,6 @@ gsMatrix<T> gsMaterialMatrix<T>::integrateZ(const gsMatrix<T>& u, const index_t 
         pts.row(0) = quNodes;
 
         evalPoints = this->eval3D(j, pts);
-        // gsDebugVar(m_evalPoints);
         for (index_t i=0; i!=this->targetDim(); ++i) // components
         {
             res = 0.0;
@@ -777,10 +774,6 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
         mu = m_par1val / (2.*(1. + m_par2val));
         lambda = m_par1val * m_par2val / ( (1. + m_par2val)*(1.-2.*m_par2val)) ;
         Cconstant = 2*lambda*mu/(lambda+2*mu);
-
-        // gsDebugVar(m_Acon_ori);
-        // gsDebugVar(m_Acov_ori);
-        // gsDebugVar(m_Bcov_ori);
 
         tmp = Cconstant*m_Acon_ori(i,j)*m_Acon_ori(k,l) + mu*(m_Acon_ori(i,k)*m_Acon_ori(j,l) + m_Acon_ori(i,l)*m_Acon_ori(j,k));
     }
@@ -1559,8 +1552,8 @@ void gsMaterialMatrix<T>::computeMetricUndeformed() const
     m_acon_ori_mat.resize(2*3,m_map.points.cols());    m_acon_ori_mat.setZero();
     m_ncov_ori_mat.resize(2*3,m_map.points.cols());    m_ncov_ori_mat.setZero();
 
-    gsMatrix<T> tmp;
-
+    gsMatrix<T,2,2> tmp;
+    tmp.setZero();
     for (index_t k=0; k!= m_map.points.cols(); k++)
     {
         // covariant basis vectors
