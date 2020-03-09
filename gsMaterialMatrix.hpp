@@ -836,8 +836,8 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
                             // gsDebugVar(( ( (m_stretchvec.col(b)) ) ));
                             // gsDebugVar(( ( (m_stretchvec.col(b)) ) ));
 
-                            T fac = ( m_gcov_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcov_ori.col(j).dot(m_stretchvec.col(b)) )*
-                                    ( m_gcov_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcov_ori.col(l).dot(m_stretchvec.col(d)) );
+                            T fac = ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
+                                    ( m_gcon_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(d)) );
 
                             gsDebug<<"a = "<<a<<"; b = "<<b<<"; c = "<<c<<"; d = "<<d<<"; Cabcd = "<<Cabcd(a,b,c,d)<<"; fac = "<<fac<<"; prod = "<<fac*Cabcd(a,b,c,d)<<"\n";
                             gsDebug<<"i = "<<i<<"; j = "<<j<<"; k = "<<k<<"; l = "<<l<<"\n";
@@ -1408,15 +1408,13 @@ T gsMaterialMatrix<T>::Cabcd(const index_t a, const index_t b, const index_t c, 
 
     T tmp = 0.0;
 
-    // gsDebug<<"a = "<<a<<"; b = "<<b<<"; m_stretches(a) "<<m_stretches(a)<<"; m_stretches(b) "<<m_stretches(b)<<"\n";
-
     if ( (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) < 1e-12) && (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) > 1e-14) )
         gsInfo<<"Warning: difference in stretches is close to machine precision?\n";
 
     if (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) < 1e-14)
         tmp = 1.0 / (2.0 * m_stretches(a) ) * ( dSa_db(b,b) - dSa_db(a,b));
     else
-        tmp = ( Sa(b)-Sa(a) ) / (m_stretches(b) - m_stretches(a));
+        tmp = ( Sa(b)-Sa(a) ) / (math::pow(m_stretches(b),2) - math::pow(m_stretches(a),2));
 
     return 1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d) + tmp * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b))
             + delta(a,b)*delta(c,d)*1/(math::pow(m_stretches(a),2) * math::pow(m_stretches(c),2)) * ( math::pow(m_stretches(2),2) * d2Psi_dab(2,2) + 2*dPsi_da(2)*m_stretches(2) );
