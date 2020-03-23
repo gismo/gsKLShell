@@ -799,8 +799,7 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
 
         tmp = 0.0;
         index_t maxIdx = 2;
-        gsDebug<<"g ori = \n"<<m_gcon_ori<<"\n";
-        gsDebug<<"eivec = \n"<<m_stretchvec<<"\n";
+
         for (index_t a = 0; a != maxIdx; a++)
             for (index_t b = 0; b != maxIdx; b++)
                 for (index_t c = 0; c != maxIdx; c++)
@@ -808,43 +807,17 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
                     {
                         if (((a==b)&&(c==d)) || (((a==c)&&(b==d)) && (a!=b)) || (((a==d)&&(b==c)) && (a!=b)))
                         {
-                            // gsDebug<<"i = "<<i<<"\tj = "<<j<<"\tk = "<<k<<"\tl = "<<l<<"\ta = "<<a<<"\tb = "<<b<<"\tc = "<<c<<"\td = "<<d<<"\n";
-
-                            // gsDebugVar(Cabcd(a,b,c,d));
-
-                            // gsDebugVar(( m_gcov_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcov_ori.col(j).dot(m_stretchvec.col(b)) )*
-                            //            ( m_gcov_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcov_ori.col(l).dot(m_stretchvec.col(d)) ));
-                            // gsDebugVar(d2Psi(a,b));
-                            // gsDebug<<"i = "<<i<<"\tj = "<<j<<"\tk = "<<k<<"\tl = "<<l<<"\ta = "<<a<<"\tb = "<<b<<"\n";
-                            // gsDebugVar(( ( m_gcov_ori.col(i).dot(m_stretchvec.col(a)) ) ));
-                            // gsDebugVar(( ( m_gcov_ori.col(j).dot(m_stretchvec.col(a)) ) ));
-                            // gsDebugVar(( ( m_gcov_ori.col(k).dot(m_stretchvec.col(b)) ) ));
-                            // gsDebugVar(( ( m_gcov_ori.col(l).dot(m_stretchvec.col(b)) ) ));
-
-                            // gsDebugVar(( ( m_gcov_ori.col(i) ) ));
-                            // gsDebugVar(( ( m_gcov_ori.col(j) ) ));
-                            // gsDebugVar(( ( m_gcov_ori.col(k) ) ));
-                            // gsDebugVar(( ( m_gcov_ori.col(l) ) ));
-
-                            // gsDebugVar(( ( (m_stretchvec.col(b)) ) ));
-                            // gsDebugVar(( ( (m_stretchvec.col(b)) ) ));
 
                             T fac = ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
                                     ( m_gcon_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(d)) );
 
                             gsDebug<<"a = "<<a<<"; b = "<<b<<"; c = "<<c<<"; d = "<<d<<"; Cabcd = "<<Cabcd(a,b,c,d)<<"; fac = "<<fac<<"; prod = "<<fac*Cabcd(a,b,c,d)<<"\n";
                             gsDebug<<"i = "<<i<<"; j = "<<j<<"; k = "<<k<<"; l = "<<l<<"\n";
-                            gsDebugVar(m_gcon_ori.col(i).dot(m_stretchvec.col(a)));
-                            gsDebugVar(m_gcon_ori.col(j).dot(m_stretchvec.col(b)));
-                            gsDebugVar(m_gcon_ori.col(k).dot(m_stretchvec.col(c)));
-                            gsDebugVar(m_gcon_ori.col(l).dot(m_stretchvec.col(d)));
 
                             tmp +=  Cabcd(a,b,c,d)*(
-                                    ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
-                                    ( m_gcon_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(d)) )
+                                    ( m_gcov_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcov_ori.col(j).dot(m_stretchvec.col(b)) )*
+                                    ( m_gcov_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcov_ori.col(l).dot(m_stretchvec.col(d)) )
                                     );
-
-                            // gsDebug<<"----------------------------------------------------------------------\n";
                         }
                         else
                             continue;
@@ -1839,13 +1812,17 @@ void gsMaterialMatrix<T>::computeStretch(const gsMatrix<T> & C) const
     evs = eigSolver.eigenvalues();
     for (index_t r=0; r!=2; r++)
         m_stretches(r,0) = math::sqrt(evs(r,0));
-    m_stretches(2,0) = math::sqrt(C(2,2));
+
+    m_stretches(2,0) = 1.0 / (m_stretches(0)*m_stretches(1));
+
+    // m_stretches(2,0) = math::sqrt(C(2,2));
 
     m_stretchvec.setZero();
     m_stretchvec.block(0,0,2,2) = eigSolver.eigenvectors();
     m_stretchvec(2,2) = 1.0;
+
     // gsDebugVar(m_stretchvec);
-    // gsDebugVar(m_stretches);
+    gsDebugVar(m_stretches);
 }
 
 // template<class T>
