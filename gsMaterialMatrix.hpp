@@ -555,8 +555,6 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Incompressible(const index_t i, const gsMa
             C(1,0) = C(0,1) = Cijkl(0,0,1,1); // C1122
             C(2,0) = C(0,2) = Cijkl(0,0,0,1); // C1112
             C(2,1) = C(1,2) = Cijkl(1,1,0,1); // C2212
-
-            gsDebugVar(C);
         }
         else if (m_outputType==1)
         {
@@ -797,6 +795,9 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
         C(2,2) = math::pow(m_J0,-2.0);
         computeStretch(C);
 
+        // gsDebugVar(m_gcov_ori);
+        // gsDebugVar(m_stretchvec);
+
         tmp = 0.0;
         index_t maxIdx = 2;
 
@@ -811,12 +812,13 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
                             T fac = ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
                                     ( m_gcon_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(d)) );
 
-                            gsDebug<<"a = "<<a<<"; b = "<<b<<"; c = "<<c<<"; d = "<<d<<"; Cabcd = "<<Cabcd(a,b,c,d)<<"; fac = "<<fac<<"; prod = "<<fac*Cabcd(a,b,c,d)<<"\n";
+                            gsDebug<<"a = "<<a<<"; b = "<<b<<"; c = "<<c<<"; d = "<<d<<"; Cabcd = "<<Cabcd(a,b,c,d)<<"\n";
+                            gsDebug<<"fac =  "<<fac<<"; Contributions: 1: "<<m_gcon_ori.col(i).dot(m_stretchvec.col(a))<<"; 2: "<<m_gcon_ori.col(j).dot(m_stretchvec.col(b))<<"; c: "<<m_gcon_ori.col(k).dot(m_stretchvec.col(c))<<"; d: "<<m_gcon_ori.col(l).dot(m_stretchvec.col(d))<<"\n";
                             gsDebug<<"i = "<<i<<"; j = "<<j<<"; k = "<<k<<"; l = "<<l<<"\n";
 
                             tmp +=  Cabcd(a,b,c,d)*(
-                                    ( m_gcov_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcov_ori.col(j).dot(m_stretchvec.col(b)) )*
-                                    ( m_gcov_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcov_ori.col(l).dot(m_stretchvec.col(d)) )
+                                    ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
+                                    ( m_gcon_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(d)) )
                                     );
                         }
                         else
@@ -1579,7 +1581,9 @@ void gsMaterialMatrix<T>::getMetric(index_t k, T z) const
     // this->getBasisUndeformed(k,z);
     this->getBasis(k,z);
 
-    m_J0 = math::sqrt( m_Gcov_def.determinant() / m_Gcov_ori.determinant() );
+    T ratio = m_Gcov_def.determinant() / m_Gcov_ori.determinant();
+    GISMO_ASSERT(ratio > 0, "Jacobian determinant is negative!");
+    m_J0 = math::sqrt( ratio );
 }
 
 template<class T>
@@ -1701,8 +1705,6 @@ void gsMaterialMatrix<T>::getBasisUndeformed(index_t k, T z) const
     //         gsDebugVar( z*z*m_ncov_ori.col(r).transpose()*m_ncov_ori.col(c));
     //     }
 
-
-
     // gsDebugVar(result1);
     // gsDebugVar(result2);
     // gsDebugVar(m_Gcon_ori);
@@ -1802,27 +1804,56 @@ void gsMaterialMatrix<T>::computeStretch(const gsMatrix<T> & C) const
     // gsDebugVar(m_stretchvec);
     // gsDebugVar(m_stretches);
 
+    // T traceC = C(0,0)*m_Gcon_ori(0,0) + C(1,0)*m_Gcon_ori(1,0) + C(0,1)*m_Gcon_ori(0,1) + C(1,1)*m_Gcon_ori(1,1);
+    // T I_1 = traceC + C(2,2);
+    // T I_2 = C(2,2) * traceC + math::pow(m_J0,2);
+    // T I_3 = math::pow(m_J0,2) * C(3,3);
+
+    // // characteristic polynomial: lambda^3 - I_1 * lambda^2 + I_2 * lambda - I_3 = 0
+    // // delta0 = b^2 - 3*a*c
+    // // delta1 = 2 * b^3 - 9*a*b*c + 27 * a^2*d
+    // // C = ( (delta1 +- sqrt(delta1^2 - 4*delta0^3) ) / 2 )^(1/3)
+    // T delta0 = math::pow(-I_1,2) - 3 * 1.0 * I_2;
+    // T delta1 = 2.0 * math::pow(-I_1,3) - 9 * 1.0 * (-I_1) * I_2 + 27 * 1.0 * (-I_3);
+    // T Cplus = math::pow( (delta1 + math::sqrt(math::pow(delta1,2) - 4*math::pow(delta0,3)) ) / 2 , 1/3);
+    // T Cmin  = math::pow( (delta1 - math::sqrt(math::pow(delta1,2) - 4*math::pow(delta0,3)) ) / 2 , 1/3);
+
+    gsMatrix<> Ccart(3,3);
+    Ccart.setZero();
+    gsMatrix<> eye(3,3);
+    eye.setIdentity();
+    for (index_t i=0; i!=3; i++)
+        for (index_t j=0; j!=3; j++)
+            for (index_t a=0; a!=3; a++)
+                for (index_t b=0; b!=3; b++)
+                    Ccart(i,j) += C(a,b) * m_gcon_ori(i,a) * m_gcon_ori(j,b);
+
+    // gsDebugVar(Ccart);
+    // gsDebugVar(m_Gcon_ori*C);
+
 
     m_stretches.resize(3,1);
     m_stretchvec.resize(3,3);
     gsMatrix<T,2,1> evs;
     Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
 
-    eigSolver.compute(C.block(0,0,2,2));
+    eigSolver.compute(Ccart.block(0,0,2,2));
     evs = eigSolver.eigenvalues();
     for (index_t r=0; r!=2; r++)
         m_stretches(r,0) = math::sqrt(evs(r,0));
 
-    m_stretches(2,0) = 1.0 / (m_stretches(0)*m_stretches(1));
-
-    // m_stretches(2,0) = math::sqrt(C(2,2));
+    // m_stretches(2,0) = 1.0 / (m_stretches(0)*m_stretches(1));
+//
+    // gsDebugVar(C(2,2));
+    m_stretches(2,0) = math::sqrt(Ccart(2,2));
 
     m_stretchvec.setZero();
     m_stretchvec.block(0,0,2,2) = eigSolver.eigenvectors();
     m_stretchvec(2,2) = 1.0;
 
     // gsDebugVar(m_stretchvec);
-    gsDebugVar(m_stretches);
+    // gsDebugVar(m_stretches);
+
 }
 
 // template<class T>
