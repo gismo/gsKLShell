@@ -796,7 +796,12 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
         computeStretch(C);
 
         // gsDebugVar(m_gcov_ori);
-        // gsDebugVar(m_stretchvec);
+        // gsDebugVar(m_gcon_ori);
+        // gsDebugVar(m_Gcov_ori);
+        // gsDebugVar(m_Gcov_def);
+
+        gsDebugVar(m_stretchvec);
+        gsDebugVar(m_stretches);
 
         tmp = 0.0;
         index_t maxIdx = 2;
@@ -809,12 +814,12 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
                         if (((a==b)&&(c==d)) || (((a==c)&&(b==d)) && (a!=b)) || (((a==d)&&(b==c)) && (a!=b)))
                         {
 
-                            T fac = ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
-                                    ( m_gcon_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(d)) );
+                            // T fac = ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
+                            //         ( m_gcon_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(d)) );
 
-                            gsDebug<<"a = "<<a<<"; b = "<<b<<"; c = "<<c<<"; d = "<<d<<"; Cabcd = "<<Cabcd(a,b,c,d)<<"\n";
-                            gsDebug<<"fac =  "<<fac<<"; Contributions: 1: "<<m_gcon_ori.col(i).dot(m_stretchvec.col(a))<<"; 2: "<<m_gcon_ori.col(j).dot(m_stretchvec.col(b))<<"; c: "<<m_gcon_ori.col(k).dot(m_stretchvec.col(c))<<"; d: "<<m_gcon_ori.col(l).dot(m_stretchvec.col(d))<<"\n";
-                            gsDebug<<"i = "<<i<<"; j = "<<j<<"; k = "<<k<<"; l = "<<l<<"\n";
+                            // gsDebug<<"a = "<<a<<"; b = "<<b<<"; c = "<<c<<"; d = "<<d<<"; Cabcd = "<<Cabcd(a,b,c,d)<<"\n";
+                            // gsDebug<<"fac =  "<<fac<<"; Contributions: 1: "<<m_gcon_ori.col(i).dot(m_stretchvec.col(a))<<"; 2: "<<m_gcon_ori.col(j).dot(m_stretchvec.col(b))<<"; 3: "<<m_gcon_ori.col(k).dot(m_stretchvec.col(c))<<"; 4: "<<m_gcon_ori.col(l).dot(m_stretchvec.col(d))<<"\n";
+                            // gsDebug<<"i = "<<i<<"; j = "<<j<<"; k = "<<k<<"; l = "<<l<<"\n";
 
                             tmp +=  Cabcd(a,b,c,d)*(
                                     ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
@@ -953,19 +958,22 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j) const
         C(2,2) = math::pow(m_J0,-2.0);
         computeStretch(C);
 
+        gsDebugVar(m_stretches);
+        gsDebugVar(m_stretchvec);
+
         tmp = 0.0;
         for (index_t a = 0; a != 2; a++)
         {
 
-            T fac = ( m_gcov_ori.col(i).dot(m_stretchvec.col(a)) )*
-                    ( m_gcov_ori.col(j).dot(m_stretchvec.col(a)) );
+            // T fac = ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*
+            //         ( m_gcon_ori.col(j).dot(m_stretchvec.col(a)) );
 
-            // gsDebug<<"a = "<<a<<"; Sa = "<<Sa(a)<<"; fac = "<<fac<<"; prod = "<<fac*Sa(a)<<"\n";
-            // gsDebug<<"i = "<<i<<"; j = "<<j<<"\n";
+            // gsDebug<<"Sa = "<<Sa(a)<<"; fac = "<<fac<<"; prod = "<<fac*Sa(a)<<"\n";
+            // gsDebug<<"a = "<<a<<"; i = "<<i<<"; j = "<<j<<"\n";
             // gsDebug<<"g ori = \n"<<m_gcov_ori<<"\n";
             // gsDebug<<"eivec = \n"<<m_stretchvec<<"\n";
             tmp += Sa(a)*(
-                        ( m_gcov_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcov_ori.col(j).dot(m_stretchvec.col(a)) )
+                        ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(a)) )
                         );
         }
     }
@@ -1360,6 +1368,12 @@ T gsMaterialMatrix<T>::dp_da(const index_t a) const
 template<class T>
 T gsMaterialMatrix<T>::Sa(const index_t a) const
 {
+    // gsDebugVar(m_stretches(a));
+    // gsDebugVar(dPsi_da(a));
+    // gsDebugVar(p());
+    // gsDebugVar(dJ_da(a));
+    // T result = 1.0/m_stretches(a) * (dPsi_da(a) - p() * dJ_da(a) );
+    // gsDebugVar(result);
     return 1.0/m_stretches(a) * (dPsi_da(a) - p() * dJ_da(a) );
 }
 
@@ -1379,10 +1393,21 @@ T gsMaterialMatrix<T>::Cabcd(const index_t a, const index_t b, const index_t c, 
     if ( (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) < 1e-12) && (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) > 1e-14) )
         gsInfo<<"Warning: difference in stretches is close to machine precision?\n";
 
-    if (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) < 1e-14)
+    if (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) < 1e-3)
+    {
+        gsDebugVar(abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)));
         tmp = 1.0 / (2.0 * m_stretches(a) ) * ( dSa_db(b,b) - dSa_db(a,b));
+    }
     else
+    {
+        gsDebug<<"Option2\n";
         tmp = ( Sa(b)-Sa(a) ) / (math::pow(m_stretches(b),2) - math::pow(m_stretches(a),2));
+    }
+
+    gsDebug <<"Breakdown C\n"
+            <<"Term 1: "<<1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d)<<"\n"
+            <<"Term 2: "<<tmp * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b))<<"\n"
+            <<"Term 3: "<<delta(a,b)*delta(c,d)*1/(math::pow(m_stretches(a),2) * math::pow(m_stretches(c),2)) * ( math::pow(m_stretches(2),2) * d2Psi_dab(2,2) + 2*dPsi_da(2)*m_stretches(2) )<<"\n";
 
     return 1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d) + tmp * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b))
             + delta(a,b)*delta(c,d)*1/(math::pow(m_stretches(a),2) * math::pow(m_stretches(c),2)) * ( math::pow(m_stretches(2),2) * d2Psi_dab(2,2) + 2*dPsi_da(2)*m_stretches(2) );
@@ -1788,22 +1813,6 @@ void gsMaterialMatrix<T>::computeBasisDeformed() const
 template<class T>
 void gsMaterialMatrix<T>::computeStretch(const gsMatrix<T> & C) const
 {
-    // m_stretches.resize(3,1);
-    // m_stretchvec.resize(3,3);
-    // gsMatrix<T,3,3> evs, evecs;
-    // Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
-
-    // eigSolver.compute(C);
-    // evs = eigSolver.eigenvalues();
-    // evecs = eigSolver.eigenvectors();
-    // for (index_t r=0; r!=3; r++)
-    //     m_stretches(r,0) = math::sqrt(evs(r,0));
-
-    // m_stretchvec = eigSolver.eigenvectors();
-
-    // gsDebugVar(m_stretchvec);
-    // gsDebugVar(m_stretches);
-
     // T traceC = C(0,0)*m_Gcon_ori(0,0) + C(1,0)*m_Gcon_ori(1,0) + C(0,1)*m_Gcon_ori(0,1) + C(1,1)*m_Gcon_ori(1,1);
     // T I_1 = traceC + C(2,2);
     // T I_2 = C(2,2) * traceC + math::pow(m_J0,2);
@@ -1820,36 +1829,42 @@ void gsMaterialMatrix<T>::computeStretch(const gsMatrix<T> & C) const
 
     gsMatrix<> Ccart(3,3);
     Ccart.setZero();
-    gsMatrix<> eye(3,3);
-    eye.setIdentity();
+    gsMatrix<> cart(3,3);
+    // cart.setIdentity();
+    cart.col(0) = m_gcov_def.col(0).normalized();
+    cart.col(1) = m_gcon_def.col(1).normalized();
+    cart.col(2) = m_gcov_def.col(0).cross(m_gcov_def.col(1)).normalized();
+
+    gsDebugVar(cart);
+
     for (index_t i=0; i!=3; i++)
         for (index_t j=0; j!=3; j++)
             for (index_t a=0; a!=3; a++)
                 for (index_t b=0; b!=3; b++)
-                    Ccart(i,j) += C(a,b) * m_gcon_ori(i,a) * m_gcon_ori(j,b);
+                    Ccart(i,j) += C(a,b) * m_gcon_ori.col(a).dot(cart.col(i)) * m_gcon_ori.col(b).dot(cart.col(j));
 
-    // gsDebugVar(Ccart);
+    gsDebugVar(Ccart);
     // gsDebugVar(m_Gcon_ori*C);
 
 
     m_stretches.resize(3,1);
     m_stretchvec.resize(3,3);
-    gsMatrix<T,2,1> evs;
+    gsMatrix<T,3,1> evs;
     Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
 
-    eigSolver.compute(Ccart.block(0,0,2,2));
+    eigSolver.compute(Ccart);
     evs = eigSolver.eigenvalues();
-    for (index_t r=0; r!=2; r++)
+    for (index_t r=0; r!=3; r++)
         m_stretches(r,0) = math::sqrt(evs(r,0));
 
     // m_stretches(2,0) = 1.0 / (m_stretches(0)*m_stretches(1));
-//
     // gsDebugVar(C(2,2));
-    m_stretches(2,0) = math::sqrt(Ccart(2,2));
+    // m_stretches(2,0) = math::sqrt(Ccart(2,2));
 
     m_stretchvec.setZero();
-    m_stretchvec.block(0,0,2,2) = eigSolver.eigenvectors();
-    m_stretchvec(2,2) = 1.0;
+    m_stretchvec = eigSolver.eigenvectors();
+    m_stretchvec = cart;
+    // m_stretchvec(2,2) = 1.0;
 
     // gsDebugVar(m_stretchvec);
     // gsDebugVar(m_stretches);
