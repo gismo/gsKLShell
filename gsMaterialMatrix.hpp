@@ -1607,7 +1607,7 @@ void gsMaterialMatrix<T>::getMetric(index_t k, T z) const
     this->getBasis(k,z);
 
     T ratio = m_Gcov_def.determinant() / m_Gcov_ori.determinant();
-    GISMO_ASSERT(ratio > 0, "Jacobian determinant is negative!");
+    GISMO_ASSERT(ratio > 0, "Jacobian determinant is negative! det(GCov_def) = "<<m_Gcov_def.determinant()<<"; Gcov_ori = "<<m_Gcov_ori.determinant());
     m_J0 = math::sqrt( ratio );
 }
 
@@ -1813,19 +1813,14 @@ void gsMaterialMatrix<T>::computeBasisDeformed() const
 template<class T>
 void gsMaterialMatrix<T>::computeStretch(const gsMatrix<T> & C) const
 {
-    // T traceC = C(0,0)*m_Gcon_ori(0,0) + C(1,0)*m_Gcon_ori(1,0) + C(0,1)*m_Gcon_ori(0,1) + C(1,1)*m_Gcon_ori(1,1);
-    // T I_1 = traceC + C(2,2);
-    // T I_2 = C(2,2) * traceC + math::pow(m_J0,2);
-    // T I_3 = math::pow(m_J0,2) * C(3,3);
+    m_stretches.resize(3,1);
+    m_stretchvec.resize(3,3);
 
-    // // characteristic polynomial: lambda^3 - I_1 * lambda^2 + I_2 * lambda - I_3 = 0
-    // // delta0 = b^2 - 3*a*c
-    // // delta1 = 2 * b^3 - 9*a*b*c + 27 * a^2*d
-    // // C = ( (delta1 +- sqrt(delta1^2 - 4*delta0^3) ) / 2 )^(1/3)
-    // T delta0 = math::pow(-I_1,2) - 3 * 1.0 * I_2;
-    // T delta1 = 2.0 * math::pow(-I_1,3) - 9 * 1.0 * (-I_1) * I_2 + 27 * 1.0 * (-I_3);
-    // T Cplus = math::pow( (delta1 + math::sqrt(math::pow(delta1,2) - 4*math::pow(delta0,3)) ) / 2 , 1/3);
-    // T Cmin  = math::pow( (delta1 - math::sqrt(math::pow(delta1,2) - 4*math::pow(delta0,3)) ) / 2 , 1/3);
+    Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
+
+    gsVector<T> eigenvalues = computeEigenvalues(C);
+    for (index_t r=0; r!=eigenvalues.size(); r++)
+        m_stretches.at(r) = math::sqrt(eigenvalues.at(r));
 
     gsMatrix<> Ccart(3,3);
     Ccart.setZero();
@@ -1844,22 +1839,12 @@ void gsMaterialMatrix<T>::computeStretch(const gsMatrix<T> & C) const
                     Ccart(i,j) += C(a,b) * m_gcon_ori.col(a).dot(cart.col(i)) * m_gcon_ori.col(b).dot(cart.col(j));
 
     gsDebugVar(Ccart);
-    // gsDebugVar(m_Gcon_ori*C);
+    // Ccart = m_gcon_ori.transpose()*C*m_gcon_ori;
+    // gsDebugVar(Ccart);/
 
-
-    m_stretches.resize(3,1);
-    m_stretchvec.resize(3,3);
-    gsMatrix<T,3,1> evs;
-    Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
-
-    eigSolver.compute(Ccart);
-    evs = eigSolver.eigenvalues();
-    for (index_t r=0; r!=3; r++)
-        m_stretches(r,0) = math::sqrt(evs(r,0));
-
-    // m_stretches(2,0) = 1.0 / (m_stretches(0)*m_stretches(1));
-    // gsDebugVar(C(2,2));
-    // m_stretches(2,0) = math::sqrt(Ccart(2,2));
+    eigSolver.compute(Ccart.block(0,0,2,2));
+    gsDebugVar(eigSolver.eigenvalues());
+    gsDebugVar(eigSolver.eigenvectors());
 
     m_stretchvec.setZero();
     m_stretchvec = eigSolver.eigenvectors();
@@ -1869,6 +1854,59 @@ void gsMaterialMatrix<T>::computeStretch(const gsMatrix<T> & C) const
     // gsDebugVar(m_stretchvec);
     // gsDebugVar(m_stretches);
 
+}
+
+template<class T>
+gsVector<T> gsMaterialMatrix<T>::computeEigenvalues(const gsMatrix<T> & C) const
+{
+    // Using https://mathworld.wolfram.com/CubicFormula.html
+
+    T traceC = C(0,0)*m_Gcon_ori(0,0) + C(1,0)*m_Gcon_ori(1,0) + C(0,1)*m_Gcon_ori(0,1) + C(1,1)*m_Gcon_ori(1,1);
+    T I_1 = traceC + C(2,2);
+    T I_2 = C(2,2) * traceC + math::pow(m_J0,2);
+    T I_3 = math::pow(m_J0,2) * C(2,2);
+
+    T a = 1.0;
+    T b = -I_1;
+    T c = I_2;
+    T d = -I_3;
+
+    gsDebugVar(I_1);
+    gsDebugVar(I_2);
+    gsDebugVar(I_3);
+
+    T a0 = d / a;
+    T a1 = c / a;
+    T a2 = b / a;
+
+    T Q = ( 3*a1 - a2*a2 ) / 9.0;
+    T R = ( 9*a2*a1 - 27*a0 - 2*a2*a2*a2 ) / 54;
+    T D = Q*Q*Q + R*R;
+    T pi = 3.14159265358979323846;
+    std::vector<T> eigenvalues(3);
+
+    T tol = math::pow(1e-12,2); // quadratic machine tolerance, because R is squared
+    if (D < -tol)
+    {
+        T theta = math::acos( R / math::sqrt(-Q*Q*Q) );
+        eigenvalues[0] = 2 * math::sqrt(-Q) * math::cos( theta/3.0 ) - 1./3. * a2;
+        eigenvalues[1] = 2 * math::sqrt(-Q) * math::cos( (theta + 2. * pi)/3.0 ) - 1./3. * a2;
+        eigenvalues[2] = 2 * math::sqrt(-Q) * math::cos( (theta + 4. * pi)/3.0 ) - 1./3. * a2;
+    }
+    else if (D > tol)
+        GISMO_ERROR("Eigenvalues are complex. D = "<<D<<"; I_1 = "<<I_1<<"; I_2 = "<<I_2<<"; I_3 = "<<I_3);
+    else // abs(D) < tol
+    {
+        T S = math::pow(R,1./3.);
+        eigenvalues[0] = -1./3. * a2 + (2.*S);
+        eigenvalues[1] = eigenvalues[2] = -1./3. * a2 - 1./2. * (2.*S);
+    }
+    std::sort(eigenvalues.begin(),eigenvalues.end());
+    gsVector<T> output(3);
+    output.at(0) = eigenvalues[0];
+    output.at(1) = eigenvalues[1];
+    output.at(2) = eigenvalues[2];
+    return output;
 }
 
 // template<class T>

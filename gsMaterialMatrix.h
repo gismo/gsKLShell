@@ -196,6 +196,7 @@ protected:
     void getBasisUndeformed(index_t k, T z) const;
 
     void computeStretch(const gsMatrix<T> & C ) const;
+    gsVector<T> computeEigenvalues(const gsMatrix<T> & C ) const;
     void computePoints(const gsMatrix<T> & u, bool deformed=true) const;
 
 protected:
