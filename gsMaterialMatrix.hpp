@@ -798,18 +798,18 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
         computeStretch(C);
 
         tmp = 0.0;
-        index_t maxIdx = 2;
 
-        for (index_t a = 0; a != maxIdx; a++)
-            for (index_t b = 0; b != maxIdx; b++)
-                for (index_t c = 0; c != maxIdx; c++)
-                    for (index_t d = 0; d != maxIdx; d++)
+        for (index_t a = 0; a != 2; a++)
+            for (index_t b = 0; b != 2; b++)
+                for (index_t c = 0; c != 2; c++)
+                    for (index_t d = 0; d != 2; d++)
                     {
                         if (((a==b)&&(c==d)) || (((a==c)&&(b==d)) && (a!=b)) || (((a==d)&&(b==c)) && (a!=b)))
                         {
 
                             // T fac = ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
                             //         ( m_gcon_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(d)) );
+                            // // gsDebugVar(fac);
 
                             // gsDebug<<"a = "<<a<<"; b = "<<b<<"; c = "<<c<<"; d = "<<d<<"; Cabcd = "<<Cabcd(a,b,c,d)<<"\n";
                             // gsDebug<<"fac =  "<<fac<<"; Contributions: 1: "<<m_gcon_ori.col(i).dot(m_stretchvec.col(a))<<"; 2: "<<m_gcon_ori.col(j).dot(m_stretchvec.col(b))<<"; 3: "<<m_gcon_ori.col(k).dot(m_stretchvec.col(c))<<"; 4: "<<m_gcon_ori.col(l).dot(m_stretchvec.col(d))<<"\n";
@@ -955,13 +955,15 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j) const
         for (index_t a = 0; a != 2; a++)
         {
 
-            // T fac = ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*
-            //         ( m_gcon_ori.col(j).dot(m_stretchvec.col(a)) );
+            T faci = m_gcon_ori.col(i).dot(m_stretchvec.col(a));
+            T facj = m_gcon_ori.col(j).dot(m_stretchvec.col(a));
+            T fac = ( faci )* ( facj );
 
-            // gsDebug<<"Sa = "<<Sa(a)<<"; fac = "<<fac<<"; prod = "<<fac*Sa(a)<<"\n";
+            gsDebug<<"---------"<<"a = "<<a<<"; i = "<<i<<"; j = "<<j<<"\n";
+            gsDebug<<"Sa = "<<Sa(a)<<"; fac = "<<fac<<"; faci = "<<faci<<"; facj = "<<facj<<"; prod = "<<fac*Sa(a)<<"\n";
+            // gsDebug<<"m_gcon_ori.col(i).dot(m_stretchvec.col(a)) = "<<m_gcon_ori.col(i).dot(m_stretchvec.col(a))<<"\n";
+            // gsDebug<<"m_gcon_ori.col(j).dot(m_stretchvec.col(a)) = "<<m_gcon_ori.col(j).dot(m_stretchvec.col(a))<<"\n";
             // gsDebug<<"a = "<<a<<"; i = "<<i<<"; j = "<<j<<"\n";
-            // gsDebug<<"g ori = \n"<<m_gcov_ori<<"\n";
-            // gsDebug<<"eivec = \n"<<m_stretchvec<<"\n";
             tmp += Sa(a)*(
                         ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(a)) )
                         );
@@ -1361,7 +1363,7 @@ T gsMaterialMatrix<T>::dp_da(const index_t a) const
 template<class T>
 T gsMaterialMatrix<T>::Sa(const index_t a) const
 {
-    // gsDebugVar(m_stretches(a));
+    // gsDebugVar(1.0 / m_stretches(a));
     // gsDebugVar(dPsi_da(a));
     // gsDebugVar(p());
     // gsDebugVar(dJ_da(a));
@@ -1386,14 +1388,21 @@ T gsMaterialMatrix<T>::Cabcd(const index_t a, const index_t b, const index_t c, 
     if ( (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) < 1e-12) && (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) > 1e-14) )
         gsInfo<<"Warning: difference in stretches is close to machine precision?\n";
 
-    if (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) < 1e-3)
+    if (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) < 1e-14)
+    {
+        // gsDebug<<"Stretches are equal; (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) = "<<abs((m_stretches(a) - m_stretches(b)) / m_stretches(a))<<"\n";
         tmp = 1.0 / (2.0 * m_stretches(a) ) * ( dSa_db(b,b) - dSa_db(a,b));
+    }
     else
+    {
+        // gsDebug<<"Stress tensor is used\n";
         tmp = ( Sa(b)-Sa(a) ) / (math::pow(m_stretches(b),2) - math::pow(m_stretches(a),2));
+    }
+
     // gsDebug <<"Breakdown C\n"
-            // <<"Term 1: "<<1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d)<<"\n"
-            // <<"Term 2: "<<tmp * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b))<<"\n"
-            // <<"Term 3: "<<delta(a,b)*delta(c,d)*1/(math::pow(m_stretches(a),2) * math::pow(m_stretches(c),2)) * ( math::pow(m_stretches(2),2) * d2Psi_dab(2,2) + 2*dPsi_da(2)*m_stretches(2) )<<"\n";
+    //         <<"Term 1: "<<1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d)<<"\n"
+    //         <<"Term 2: "<<tmp * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b))<<"\n"
+    //         <<"Term 3: "<<delta(a,b)*delta(c,d)*1/(math::pow(m_stretches(a),2) * math::pow(m_stretches(c),2)) * ( math::pow(m_stretches(2),2) * d2Psi_dab(2,2) + 2*dPsi_da(2)*m_stretches(2) )<<"\n";
     return 1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d) + tmp * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b))
             + delta(a,b)*delta(c,d)*1/(math::pow(m_stretches(a),2) * math::pow(m_stretches(c),2)) * ( math::pow(m_stretches(2),2) * d2Psi_dab(2,2) + 2*dPsi_da(2)*m_stretches(2) );
 }
@@ -1578,6 +1587,16 @@ void gsMaterialMatrix<T>::computeMetricUndeformed() const
         gsAsMatrix<T,Dynamic,Dynamic> ncov = m_ncov_ori_mat.reshapeCol(k,3,2);
         for (index_t i=0; i < 2; i++)
             ncov.col(i)     = -mixedB(0,i)*acov.col(0) -mixedB(1,i)*acov.col(1);
+        // gsMatrix<T> metricB(2,2);
+        // for (index_t i=0; i < 2; i++)
+        //     for (index_t j=0; j < 2; j++)
+        //         metricB(i,j) = -ncov.col(j).transpose()*acov.col(i);
+
+
+        // // gsDebugVar(metricBcov);
+        // gsDebugVar(metricB);
+        // gsDebugVar(k);
+        // gsDebugVar(metricBcov-metricB);
     }
 }
 
@@ -1798,8 +1817,8 @@ void gsMaterialMatrix<T>::computeBasisDeformed() const
 template<class T>
 void gsMaterialMatrix<T>::computeStretch(const gsMatrix<T> & C) const
 {
-    m_stretches.resize(3,1);
-    m_stretchvec.resize(3,3);
+    m_stretches.resize(3,1);    m_stretches.setZero();
+    m_stretchvec.resize(3,3);   m_stretchvec.setZero();
 
     Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
 
@@ -1819,99 +1838,10 @@ void gsMaterialMatrix<T>::computeStretch(const gsMatrix<T> & C) const
     for (index_t k=0; k!=3; k++)
         m_stretches.at(k) = math::sqrt(m_stretches.at(k));
 
+    gsMatrix<T> ones(3,1);
+    ones.setOnes();
     gsDebugVar(m_stretchvec);
-    gsDebugVar(m_stretches);
-
-//     gsMatrix<T> D(3,3);
-//     D = C;
-//     D(2,2) = 0;
-//     gsMatrix<T> mat = m_gcon_ori * D * m_gcon_ori.transpose();
-//     // gsMatrix<T> mat = m_gcon_ori * C * m_gcon_ori.transpose();
-//     // gsMatrix<T> mat = m_gcon_ori * C * m_gcon_ori.transpose();
-// // gsMatrix<T> mat = C;
-//     // gsDebugVar(m_gcon_ori);
-//     gsDebugVar(mat);
-//     gsDebugVar(C);
-//     gsDebugVar(D);
-//     // gsDebugVar(m_gcon_ori);
-
-//     gsDebugVar(m_gcon_ori * C * m_gcon_ori.transpose());
-
-//     // eigSolver.compute(mat.block(0,0,2,2));
-//     eigSolver.compute(mat);
-
-//     index_t i = 0;
-//     for (index_t k=0; k!=3; k++)
-    //     {
-    //         if (abs( eigSolver.eigenvalues()(k,0) ) < 1e-16)
-    //         {
-    //             i = k;
-    //             gsDebugVar(i);
-    //         }
-    //         m_stretches.at(k) = math::sqrt(eigSolver.eigenvalues()(k,0));
-    //     }
-
-
-
-//     // m_stretches.at(2) = math::sqrt(mat(2,2));
-//     m_stretchvec.setZero();
-
-//     // m_stretchvec.block(0,0,2,2) = eigSolver.eigenvectors();
-//     // m_stretchvec(2,2) = 1.0;
-//     m_stretchvec = eigSolver.eigenvectors();
-
-//     m_stretchvec.col(i).swap(m_stretchvec.col(2));
-//     m_stretches.row(i).swap(m_stretches.row(2));
-//     m_stretches.at(2) = 1.0 / math::sqrt(m_J0_sq);
-
-//     gsDebugVar(eigSolver.eigenvalues());
-//     gsDebugVar(eigSolver.eigenvectors());
-
-
-//     gsDebugVar(m_stretchvec);
-//     gsDebugVar(m_stretches);
-//     gsDebugVar(1/math::sqrt(m_J0_sq));
-
-//     // gsDebugVar()
-
-
-//     gsInfo  <<m_stretches.at(0)/(1/math::sqrt(m_J0_sq))-1<<"\t"
-    //         <<m_stretches.at(1)/(1/math::sqrt(m_J0_sq))-1<<"\t"
-    //         <<m_stretches.at(2)/(1/math::sqrt(m_J0_sq))-1<<"\n";
-
-    // // gsInfo  <<(m_stretches.at(0)==(1/m_J0))<<"\t"
-    // //         <<(m_stretches.at(1)==(1/m_J0))<<"\t"
-    // //         <<(m_stretches.at(2)==(1/m_J0))
-    // //         <<"\n";
-
-    // gsInfo  <<(abs(m_stretches.at(0)/(1/math::sqrt(m_J0_sq))-1)<1e-12)<<"\t"
-    //         <<(abs(m_stretches.at(1)/(1/math::sqrt(m_J0_sq))-1)<1e-12)<<"\t"
-    //         <<(abs(m_stretches.at(2)/(1/math::sqrt(m_J0_sq))-1)<1e-12)
-    //         <<"\n";
-
-
-
-    // // rotation axis
-    // gsVector<T,3> k;
-    // gsVector<T,3> parnormal = m_stretchvec.col(2);
-    // gsVector<T,3> normal = m_gcov_def.col(2);
-
-    // gsDebugVar(parnormal);
-    // gsDebugVar(normal);
-
-    // k = (parnormal.cross(normal)).normalized();
-
-    // // gsDebugVar(k);
-
-    // // rotation
-    // T theta = math::acos( parnormal.dot(normal) / (m_stretchvec.col(2).norm() * normal.norm()) );
-
-    // Eigen::AngleAxis<T> AngleAxis(theta,k);
-    // gsMatrix<T,3,3> R = AngleAxis.toRotationMatrix();
-    // gsDebugVar(R);
-
-    // m_stretchvec = (R * m_stretchvec).eval();
-    // gsDebugVar(m_stretchvec);
+    gsDebugVar(m_stretches-ones);
 }
 
 // template<class T>
@@ -1966,6 +1896,59 @@ void gsMaterialMatrix<T>::computeStretch(const gsMatrix<T> & C) const
 //     output.at(2) = eigenvalues[2];
 //     return output;
 // }
+
+template<class T>
+gsVector<T> gsMaterialMatrix<T>::computeEigenvalues(const gsMatrix<T> & C) const
+{
+    // Using https://mathworld.wolfram.com/CubicFormula.html
+
+    T traceC = C.trace();
+    T I_1 = traceC;
+    T I_2 = 0.5 * ( traceC*traceC - (C*C).trace() );
+    T I_3 = C.determinant();
+
+    T a = 1.0;
+    T b = -I_1;
+    T c = I_2;
+    T d = -I_3;
+
+    gsDebugVar(I_1);
+    gsDebugVar(I_2);
+    gsDebugVar(I_3);
+
+    T a0 = d / a;
+    T a1 = c / a;
+    T a2 = b / a;
+
+    T Q = ( 3*a1 - a2*a2 ) / 9.0;
+    T R = ( 9*a2*a1 - 27*a0 - 2*a2*a2*a2 ) / 54;
+    T D = Q*Q*Q + R*R;
+    T pi = 3.14159265358979323846;
+    std::vector<T> eigenvalues(3);
+
+    T tol = math::pow(1e-12,2); // quadratic machine tolerance, because R is squared
+    if (D < -tol)
+    {
+        T theta = math::acos( R / math::sqrt(-Q*Q*Q) );
+        eigenvalues[0] = 2 * math::sqrt(-Q) * math::cos( theta/3.0 ) - 1./3. * a2;
+        eigenvalues[1] = 2 * math::sqrt(-Q) * math::cos( (theta + 2. * pi)/3.0 ) - 1./3. * a2;
+        eigenvalues[2] = 2 * math::sqrt(-Q) * math::cos( (theta + 4. * pi)/3.0 ) - 1./3. * a2;
+    }
+    else if (D > tol)
+        GISMO_ERROR("Eigenvalues are complex. D = "<<D<<"; I_1 = "<<I_1<<"; I_2 = "<<I_2<<"; I_3 = "<<I_3);
+    else // abs(D) < tol
+    {
+        T S = math::pow(R,1./3.);
+        eigenvalues[0] = -1./3. * a2 + (2.*S);
+        eigenvalues[1] = eigenvalues[2] = -1./3. * a2 - 1./2. * (2.*S);
+    }
+    std::sort(eigenvalues.begin(),eigenvalues.end());
+    gsVector<T> output(3);
+    output.at(0) = eigenvalues[0];
+    output.at(1) = eigenvalues[1];
+    output.at(2) = eigenvalues[2];
+    return output;
+}
 
 // template<class T>
 // gsMatrix<T> gsMaterialMatrix<T>::basisTransform(const gsMatrix<T> & basis1, const gsMatrix<T> & basis2) const
