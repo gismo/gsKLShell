@@ -45,6 +45,7 @@ public:
                         const gsFunction<T> & PoissonRatio,
                         const gsFunction<T> & Density);
 
+
     // With deformed geometry
     gsMaterialMatrix(   const gsFunctionSet<T> & mp,
                         const gsFunctionSet<T> & mp_def,
@@ -56,6 +57,12 @@ public:
                         const gsFunction<T> & thickness,
                         const gsFunction<T> & YoungsModulus,
                         const gsFunction<T> & PoissonRatio,
+                        const gsFunction<T> & Density);
+
+    gsMaterialMatrix(   const gsFunctionSet<T> & mp,
+                        const gsFunctionSet<T> & mp_def,
+                        const gsFunction<T> & thickness,
+                        const std::vector<gsFunction<T> *> &pars,
                         const gsFunction<T> & Density);
 
     // Laminates without deformed
@@ -139,6 +146,9 @@ public:
     void makeVector(int num=0)     { m_outputType=1; m_output = num;}
     void makeDensity()             { m_outputType=0; }
 
+    void info() const;
+
+
 protected:
     void initialize();
     void defaultOptions();
@@ -186,14 +196,9 @@ protected:
 
     void computeMetricDeformed() const;
     void computeMetricUndeformed() const;
-    void computeBasisDeformed() const;
-    void computeBasisUndeformed() const;
     void getMetric(index_t k, T z) const;
     void getMetricDeformed(index_t k, T z) const;
     void getMetricUndeformed(index_t k, T z) const;
-    void getBasis(index_t k, T z) const;
-    void getBasisDeformed(index_t k, T z) const;
-    void getBasisUndeformed(index_t k, T z) const;
 
     void computeStretch(const gsMatrix<T> & C ) const;
     gsVector<T> computeEigenvalues(const gsMatrix<T> & C ) const;
@@ -202,7 +207,7 @@ protected:
 protected:
     // general
     index_t m_pIndex;
-    index_t m_numParameters; // how many parameters for the material model?
+    index_t m_numPars; // how many parameters for the material model?
     mutable int m_moment;
     mutable gsMatrix<T> m_result;
 
@@ -210,9 +215,11 @@ protected:
     const gsFunctionSet<T> * m_patches;
     const gsFunctionSet<T> * m_defpatches;
     const gsFunction<T> * m_thickness;
+    const gsFunction<T> * m_par3;
     const gsFunction<T> * m_par2;
     const gsFunction<T> * m_par1;
     const gsFunction<T> * m_density;
+    const std::vector<gsFunction<T>* > m_pars;
 
 
     // Linear material matrix
@@ -243,8 +250,8 @@ protected:
     mutable gsMatrix<T>                 m_deriv2_def, m_deriv2_ori;
     mutable gsMatrix<T,3,3>             m_Gcov_ori, m_Gcon_ori, m_Gcov_def, m_Gcon_def;
     mutable gsMatrix<T,3,3>             m_gcov_ori, m_gcov_def,m_gcon_ori, m_gcon_def;
-    mutable gsMatrix<T>                 m_par1mat, m_par2mat;
-    mutable T                           m_par1val, m_par2val, m_J0, m_J0_sq, m_J, m_J_sq, m_Tval;
+    mutable gsMatrix<T>                 m_par1mat, m_par2mat, m_par3mat;
+    mutable T                           m_par1val, m_par2val, m_par3val, m_J0, m_J0_sq, m_J, m_J_sq, m_Tval;
     // integrateZ
     mutable gsMatrix<T> m_points2D, m_points3D, m_evalPoints;
     // mutable gsMatrix<T> m_quNodes;

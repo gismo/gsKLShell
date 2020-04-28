@@ -32,6 +32,11 @@ int delta(const int a, const int b)
     return (a==b) ? 1 : 0;
 }
 
+int idelta(const int a, const int b)
+{
+    return (a!=b) ? 1 : 0;
+}
+
 // Linear material models; no strain computation
 template<class T>
 gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
@@ -47,6 +52,7 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
                                         m_piece(nullptr)
 {
     initialize();
+    m_numPars=2;
 }
 // Linear material models; no strain computation
 template<class T>
@@ -65,6 +71,7 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
                                         m_piece(nullptr)
 {
     initialize();
+    m_numPars=2;
 }
 
 // Linear material models
@@ -84,6 +91,7 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
                                         m_piece(nullptr)
 {
     initialize();
+    m_numPars=2;
 }
 // Linear material models
 template<class T>
@@ -104,6 +112,33 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
                                         m_piece(nullptr)
 {
     initialize();
+    m_numPars=2;
+}
+
+// Linear material models
+template<class T>
+gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T> & mp,
+                                        const gsFunctionSet<T> & mp_def,
+                                        const gsFunction<T> & thickness,
+                                        const std::vector<gsFunction<T>*> &pars,
+                                        const gsFunction<T> & density
+                                        )
+                                        :
+                                        m_patches(&mp),
+                                        m_defpatches(&mp_def),
+                                        m_thickness(&thickness),
+                                        m_pars(pars),
+                                        m_density(&density),
+                                        m_piece(nullptr)
+{
+    initialize();
+    m_numPars = pars.size();
+    GISMO_ASSERT(m_numPars >= 2,"At least two material parameters expected");
+    m_par1 = pars[0];
+    m_par2 = pars[1];
+
+    if (m_numPars==3)
+        m_par3 = pars[2];
 }
 
 // Composite material model
@@ -125,6 +160,7 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T>            & mp,
                                         m_piece(nullptr)
 {
     initialize();
+    m_numPars=2;
     m_options.setInt("MaterialLaw",material_law::SvK_Orthotropic);
 }
 // Composite material model
@@ -148,6 +184,7 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T>            & mp,
                                         m_piece(nullptr)
 {
     initialize();
+    m_numPars=2;
     m_options.setInt("MaterialLaw",material_law::SvK_Orthotropic);
 }
 
@@ -172,6 +209,7 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T>            & mp,
                                         m_piece(nullptr)
 {
     initialize();
+    m_numPars=2;
     m_options.setInt("MaterialLaw",material_law::SvK_Orthotropic);
 }
 // Composite material model
@@ -197,6 +235,7 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T>            & mp,
                                         m_piece(nullptr)
 {
     initialize();
+    m_numPars=2;
     m_options.setInt("MaterialLaw",material_law::SvK_Orthotropic);
 }
 
@@ -223,6 +262,34 @@ gsMaterialMatrix<T>::gsMaterialMatrix(  const gsFunctionSet<T>            & mp,
 //     // normal and deriv2 only needed when ComputeFull
 // }
 
+template <class T>
+void gsMaterialMatrix<T>::info() const
+{
+    gsInfo  <<"---------------------------------------------------------------------\n"
+            <<"------------------------Material matrix class------------------------\n"
+            <<"---------------------------------------------------------------------\n\n";
+
+    gsInfo  <<"Material models:\n";
+    gsInfo  <<"Specification of material models is done using parameters I and M \n"
+            <<"combined and parameter C separately. E.g. for a Stretch-based \n"
+            <<"implementation of the NH model, use 12 as material model. \n"
+            <<"The conventions are:\n";
+
+    gsInfo  <<"* Implementations (I):\n"
+            <<"\t <none> \t Explicit implementation\n"
+            <<"\t 1      \t Stretch-based implementation\n"
+            <<"\t 2      \t General (using derivatives of Psi) implementation\n"
+            <<"* Material models (M):\n"
+            <<"\t 0      \t SvK Isotropic (Linear)\n"
+            <<"\t 1      \t SvK Orthotropic (Linear)\n"
+            <<"\t 2      \t NH Isotropic (Nonlinear)\n"
+            <<"\t 3      \t MR Isotropic (Nonlinear)\n"
+            <<"* Compressibility (C):\n"
+            <<"\t 0      \t Incompressible\n"
+            <<"\t 1      \t Compressible\n";
+    gsInfo  <<"---------------------------------------------------------------------\n\n";
+
+}
 
 template <class T>
 void gsMaterialMatrix<T>::defaultOptions()
@@ -305,6 +372,10 @@ void gsMaterialMatrix<T>::computePoints(const gsMatrix<T> & u, bool deformed) co
         m_thickness->eval_into(m_map.values[0], m_Tmat);
         m_par1->eval_into(m_map.values[0], m_par1mat);
         m_par2->eval_into(m_map.values[0], m_par2mat);
+        if (m_numPars==3)
+        {
+            m_par3->eval_into(m_map.values[0], m_par3mat);
+        }
     }
 }
 
@@ -412,15 +483,15 @@ gsMatrix<T> gsMaterialMatrix<T>::eval3D(const index_t i, const gsMatrix<T> & z) 
         result = eval_Incompressible(i, z);
     else if (m_material == 1) // composite
         gsInfo<<"No eval3D function for composites available. Something went wrong...";
-    else if ((m_material == 2) && (m_compressible)) // NHK
+    else if ((m_material >= 2) && (m_compressible)) // NHK
         result = eval_Compressible(i, z);
-    else if ((m_material == 2) && (!m_compressible)) // NHK
+    else if ((m_material >= 2) && (!m_compressible)) // NHK
         result = eval_Incompressible(i, z);
 
-    else if ((m_material == 4) && (m_compressible)) // NHK
-        result = eval_Compressible(i, z);
-    else if ((m_material == 4) && (!m_compressible)) // NHK
-        result = eval_Incompressible(i, z);
+    // else if ((m_material == 4) && (m_compressible)) // NHK
+    //     result = eval_Compressible(i, z);
+    // else if ((m_material == 4) && (!m_compressible)) // NHK
+    //     result = eval_Incompressible(i, z);
 
 
     else if (m_material==-1) // test for integration
@@ -537,6 +608,8 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Incompressible(const index_t i, const gsMa
         // Evaluate material properties on the quadrature point
         m_par1val = m_par1mat(0,i);
         m_par2val = m_par2mat(0,i);
+        if (m_numPars==3)
+            m_par3val = m_par3mat(0,i);
 
         if (m_outputType==2)
         {
@@ -765,72 +838,100 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
     GISMO_ASSERT(!m_compressible,"Material model is not incompressible?");
 
     T tmp = 0.0;
-    if (m_material==0) // svk
-    {
-        T lambda, mu, Cconstant;
+    // --------------------------
+    // Explicit implementations
+    // --------------------------
+        if (m_material==0) // svk
+        {
+            // --------------------------
+            // Saint Venant Kirchhoff
+            // --------------------------
+            T lambda, mu, Cconstant;
 
-        mu = m_par1val / (2.*(1. + m_par2val));
-        GISMO_ASSERT((1.-2.*m_par2val) != 0, "Division by zero in construction of SvK material parameters!");
-        lambda = m_par1val * m_par2val / ( (1. + m_par2val)*(1.-2.*m_par2val)) ;
-        Cconstant = 2*lambda*mu/(lambda+2*mu);
+            mu = m_par1val / (2.*(1. + m_par2val));
+            GISMO_ASSERT((1.-2.*m_par2val) != 0, "Division by zero in construction of SvK material parameters!");
+            lambda = m_par1val * m_par2val / ( (1. + m_par2val)*(1.-2.*m_par2val)) ;
+            Cconstant = 2*lambda*mu/(lambda+2*mu);
 
-        tmp = Cconstant*m_Acon_ori(i,j)*m_Acon_ori(k,l) + mu*(m_Acon_ori(i,k)*m_Acon_ori(j,l) + m_Acon_ori(i,l)*m_Acon_ori(j,k));
-    }
-    else if (m_material==1)
-        gsWarn<<"Compressible material matrix  requested, but not needed. How?";
-    else if (m_material==9)
-    {
-        T mu = m_par1val / (2.*(1. + m_par2val));
-        tmp = mu*1./m_J_sq*(2.*m_Gcon_def(i,j)*m_Gcon_def(k,l) + m_Gcon_def(i,k)*m_Gcon_def(j,l) + m_Gcon_def(i,l)*m_Gcon_def(j,k));
-    }
+            tmp = Cconstant*m_Acon_ori(i,j)*m_Acon_ori(k,l) + mu*(m_Acon_ori(i,k)*m_Acon_ori(j,l) + m_Acon_ori(i,l)*m_Acon_ori(j,k));
+        }
+        else if (m_material==1)
+            gsWarn<<"Compressible material matrix  requested, but not needed. How?";
+        else if (m_material==2)
+        {
+            // --------------------------
+            // Neo-Hookean
+            // --------------------------
+            T mu = m_par1val / (2.*(1. + m_par2val));
+            tmp = mu*1./m_J0_sq*(2.*m_Gcon_def(i,j)*m_Gcon_def(k,l) + m_Gcon_def(i,k)*m_Gcon_def(j,l) + m_Gcon_def(i,l)*m_Gcon_def(j,k));
+        }
 
-    else if (m_material==3)
-    {
-        // return 2.0*m_par1val*m_J0*m_G(i,j)*m_G(k,l) + m_G(i,k)*m_G(j,l) + m_G(i,l)*m_G(j,k);
-    }
-    else if (m_material==4)
-    {
-        gsMatrix<T> C(3,3);
-        C.setZero();
-        C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
-        // C.block(0,0,2,2) = (m_gcov_def.transpose()*m_gcov_def).block(0,0,2,2);
-        // gsDebugVar(m_gcov_def.transpose()*m_gcov_def);
-        C(2,2) = 1./m_J0_sq;
+        else if (m_material==3)
+        {
+            // --------------------------
+            // Mooney-Rivlin
+            // Parameter 3 is the ratio between c1 and c2.; c1 = m_par3val*c2
+            // --------------------------
+            GISMO_ASSERT(m_numPars==3,"Mooney-Rivlin model needs to be a 3 parameter model");
+            T traceCt =  m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
+                        m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
+                        m_Gcov_def(1,0)*m_Gcon_ori(1,0) +
+                        m_Gcov_def(1,1)*m_Gcon_ori(1,1);
 
-        computeStretch(C);
+            T mu = m_par1val / (2.*(1. + m_par2val));
+            T c2 = mu/(m_par3val + 1);
+            T c1 = m_par3val*c2;
 
-        tmp = 0.0;
+            T Gabcd = - 1./2. * ( m_Gcon_def(i,k)*m_Gcon_def(j,l) + m_Gcon_def(i,l)*m_Gcon_def(j,k) );
 
-        for (index_t a = 0; a != 2; a++)
-            for (index_t b = 0; b != 2; b++)
-                for (index_t c = 0; c != 2; c++)
-                    for (index_t d = 0; d != 2; d++)
-                    {
-                        if (((a==b)&&(c==d)) || (((a==c)&&(b==d)) && (a!=b)) || (((a==d)&&(b==c)) && (a!=b)))
+            tmp = (c1 + c2 * traceCt) *1./m_J0_sq*(2.*m_Gcon_def(i,j)*m_Gcon_def(k,l) + m_Gcon_def(i,k)*m_Gcon_def(j,l) + m_Gcon_def(i,l)*m_Gcon_def(j,k))// correct
+                    - 2. * c2 / m_J0_sq * ( m_Gcon_ori(i,j) * m_Gcon_def(k,l) + m_Gcon_def(i,j)*m_Gcon_ori(k,l)) // correct
+                    + 2. * c2 * m_J0_sq * ( Gabcd + m_Gcon_def(i,j)*m_Gcon_def(k,l) ); // Roohbakhshan
+        }
+    // --------------------------
+    // Stretch-based implementations
+    // --------------------------
+        else if ((m_material >= 10) && (m_material < 20))
+        {
+            gsMatrix<T> C(3,3);
+            C.setZero();
+            C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+            // C.block(0,0,2,2) = (m_gcov_def.transpose()*m_gcov_def).block(0,0,2,2);
+            // gsDebugVar(m_gcov_def.transpose()*m_gcov_def);
+            C(2,2) = 1./m_J0_sq;
+
+            computeStretch(C);
+
+            tmp = 0.0;
+
+            for (index_t a = 0; a != 2; a++)
+                for (index_t b = 0; b != 2; b++)
+                    for (index_t c = 0; c != 2; c++)
+                        for (index_t d = 0; d != 2; d++)
                         {
-
-                            // T fac = ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
-                            //         ( m_gcon_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(d)) );
-                            // // gsDebugVar(fac);
-
-                            // gsDebug<<"a = "<<a<<"; b = "<<b<<"; c = "<<c<<"; d = "<<d<<"; Cabcd = "<<Cabcd(a,b,c,d)<<"\n";
-                            // gsDebug<<"fac =  "<<fac<<"; Contributions: 1: "<<m_gcon_ori.col(i).dot(m_stretchvec.col(a))<<"; 2: "<<m_gcon_ori.col(j).dot(m_stretchvec.col(b))<<"; 3: "<<m_gcon_ori.col(k).dot(m_stretchvec.col(c))<<"; 4: "<<m_gcon_ori.col(l).dot(m_stretchvec.col(d))<<"\n";
-                            // gsDebug<<"i = "<<i<<"; j = "<<j<<"; k = "<<k<<"; l = "<<l<<"\n";
-
-                            tmp +=  Cabcd(a,b,c,d)*(
-                                    ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
-                                    ( m_gcon_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(d)) )
-                                    );
+                            if (((a==b)&&(c==d)) || (((a==c)&&(b==d)) && (a!=b)) || (((a==d)&&(b==c)) && (a!=b)))
+                                tmp +=  Cabcd(a,b,c,d)*(
+                                        ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
+                                        ( m_gcon_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(d)) )
+                                        );
+                            else
+                                continue;
                         }
-                        else
-                            continue;
-                    }
-    }
-    else // general version
-        tmp = 4.0 * d2Psi(i,j,k,l) + 4.0 * d2Psi(2,2,2,2)*math::pow(m_J0_sq,-2.0)*m_Gcon_def(i,j)*m_Gcon_def(k,l)
-                - 4.0 * d2Psi(2,2,i,j)*math::pow(m_J0_sq,-1.0)*m_Gcon_def(k,l) - 4.0 * d2Psi(2,2,k,l)*math::pow(m_J0_sq,-1.0)*m_Gcon_def(i,j)
-                + 2.0 * dPsi(2,2) * math::pow(m_J0_sq,-1.)*(2.*m_Gcon_def(i,j)*m_Gcon_def(k,l) + m_Gcon_def(i,k)*m_Gcon_def(j,l) + m_Gcon_def(i,l)*m_Gcon_def(j,k));
-
+        }
+    // --------------------------
+    // General implementations
+    // --------------------------
+        else if ((m_material >= 20) && (m_material < 30))
+        {
+            tmp = 4.0 * d2Psi(i,j,k,l) + 4.0 * d2Psi(2,2,2,2)*math::pow(m_J0_sq,-2.0)*m_Gcon_def(i,j)*m_Gcon_def(k,l)
+                    - 4.0/ m_J0_sq  * ( d2Psi(2,2,i,j)*m_Gcon_def(k,l) + d2Psi(2,2,k,l)*m_Gcon_def(i,j) )
+                    + 2.0 * dPsi(2,2) / m_J0_sq * (2.*m_Gcon_def(i,j)*m_Gcon_def(k,l) + m_Gcon_def(i,k)*m_Gcon_def(j,l) + m_Gcon_def(i,l)*m_Gcon_def(j,k));
+        }
+    // --------------------------
+    // Error
+    // --------------------------
+        else
+            GISMO_ERROR("Material model unknown (model = "<<m_material<<"). Use gsMaterialMatrix<T>::info() to see the options.");
     return tmp;
 }
 
@@ -855,29 +956,69 @@ T gsMaterialMatrix<T>::Cijkl3D(const index_t i, const index_t j, const index_t k
     GISMO_ASSERT( ( (i <3) && (j <3) && (k <3) && (l <3) ) , "Index out of range. i="<<i<<", j="<<j<<", k="<<k<<", l="<<l);
 
     T tmp = 0.0;
-    if (m_material==0 || m_material==1) // svk
-        gsWarn<<"Compressible material matrix requested, but not needed. How?";
-    else if (m_material==9)
-    {
-        T mu = m_par1val / (2 * (1 + m_par2val));
-        GISMO_ASSERT(3 - 6 * m_par2val != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
-        T K  = m_par1val / ( 3 - 6 * m_par2val);
-        T traceC =  m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
-                    m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
-                    m_Gcov_def(1,0)*m_Gcon_ori(1,0) +
-                    m_Gcov_def(1,1)*m_Gcon_ori(1,1) +
-                    c(2,2);
+    // --------------------------
+    // Explicit implementations
+    // --------------------------
+        if (m_material==0 || m_material==1) // svk
+            gsWarn<<"Compressible material matrix requested, but not needed. How?";
+        else if (m_material==2)
+        {
+            T mu = m_par1val / (2 * (1 + m_par2val));
+            GISMO_ASSERT(3 - 6 * m_par2val != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
+            T K  = m_par1val / ( 3 - 6 * m_par2val);
+            T traceC =  m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
+                        m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
+                        m_Gcov_def(1,0)*m_Gcon_ori(1,0) +
+                        m_Gcov_def(1,1)*m_Gcon_ori(1,1) +
+                        c(2,2);
 
-        tmp = 1.0 / 9.0 * mu * math::pow( m_J_sq , -1.0/3.0 ) * ( traceC * ( 2.0*cinv(i,j)*cinv(k,l) + 3.0*cinv(i,k)*cinv(j,l) + 3.0*cinv(i,l)*cinv(j,k) )
-                            - 6.0 *( m_Gcon_ori(i,j)*cinv(k,l) + cinv(i,j)*m_Gcon_ori(k,l) ) ) + K * ( m_J_sq*cinv(i,j)*cinv(k,l) - 0.5*(m_J_sq-1)*( cinv(i,k)*cinv(j,l) + cinv(i,l)*cinv(j,k) ) );
-    }
-    else if (m_material==3)
-    {
-        // return 2.0*m_par1val*m_J0*m_G(i,j)*m_G(k,l) + m_G(i,k)*m_G(j,l) + m_G(i,l)*m_G(j,k);
-    }
-    else
-        tmp = 4.0 * d2Psi(i,j,k,l,c,cinv);
+            tmp = 1.0 / 9.0 * mu * math::pow( m_J_sq , -1.0/3.0 ) * ( traceC * ( 2.0*cinv(i,j)*cinv(k,l) + 3.0*cinv(i,k)*cinv(j,l) + 3.0*cinv(i,l)*cinv(j,k) )
+                                - 6.0 *( m_Gcon_ori(i,j)*cinv(k,l) + cinv(i,j)*m_Gcon_ori(k,l) ) ) + K * ( m_J_sq*cinv(i,j)*cinv(k,l) - 0.5*(m_J_sq-1)*( cinv(i,k)*cinv(j,l) + cinv(i,l)*cinv(j,k) ) );
+        }
+        else if (m_material==3)
+        {
+            GISMO_ASSERT(m_numPars==3,"Mooney-Rivlin model needs to be a 3 parameter model");
+            // return 2.0*m_par1val*m_J0*m_G(i,j)*m_G(k,l) + m_G(i,k)*m_G(j,l) + m_G(i,l)*m_G(j,k);
+        }
+    // --------------------------
+    // Stretch-based implementations
+    // --------------------------
+        else if ((m_material >= 10) && (m_material < 20))
+        {
+            computeStretch(c);
+            tmp = 0.0;
 
+            for (index_t a = 0; a != 3; a++)
+                for (index_t b = 0; b != 3; b++)
+                    for (index_t c = 0; c != 3; c++)
+                        for (index_t d = 0; d != 3; d++)
+                        {
+                            if (((a==b)&&(c==d)) || (((a==c)&&(b==d)) && (a!=b)) || (((a==d)&&(b==c)) && (a!=b)))
+                                {
+                                    T fac = ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
+                                            ( m_gcon_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(d)) );
+                                    tmp +=  Cabcd(a,b,c,d)*(
+                                            ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
+                                            ( m_gcon_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(d)) )
+                                            );
+                                    gsDebugVar(fac);
+                                    gsDebug<<"a = "<<a<<"; b = "<<b<<"; c = "<<c<<"; d = "<<d<<"\n";
+                                }
+                            else
+                                continue;
+                        }
+        }
+    // --------------------------
+    // General implementations
+    // --------------------------
+        else if ((m_material >= 20) && (m_material < 30))
+            tmp = 4.0 * d2Psi(i,j,k,l,c,cinv);
+
+    // --------------------------
+    // Error
+    // --------------------------
+        else
+            GISMO_ERROR("Material model unknown (model = "<<m_material<<"). Use gsMaterialMatrix<T>::info() to see the options.");
     return tmp;
 }
 
@@ -900,81 +1041,93 @@ template<class T>
 T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j) const
 {
     T tmp = 0.0;
-    if (m_material==0)
-    {
-        gsMatrix<T> stress;
-        // --------------------------
-        // Saint Venant Kirchhoff
-        // --------------------------
-        // if (m_moment==0)
-        // {
-        //     GISMO_ASSERT( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
-        //     stress = 0.5*(m_Acov_def - m_Acov_ori);
-        // }
-        // else if (m_moment==2)
-        // {
-        //     GISMO_ASSERT( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
-        //     // tmp = (m_Bcov_ori - m_Bcov_def);
-        //     stress = (m_Bcov_def - m_Bcov_ori);
-        // }
-        // else
-        // {
-        //     GISMO_ERROR("Warning: no material model known in simplification");
-        // }
-        stress = 0.5 * (m_Gcov_def - m_Gcov_ori);
 
-        tmp =     Cijkl(i,j,0,0) * stress(0,0) + Cijkl(i,j,0,1) * stress(0,1)
-                + Cijkl(i,j,1,0) * stress(1,0) + Cijkl(i,j,1,1) * stress(1,1);
-    }
-    else if (m_material==1)
-    {
-        // --------------------------
-        // Composite
-        // --------------------------
-        gsWarn<<"Incompressible material stress tensor requested, but not needed. How?";
-    }
-    else if (m_material==9)
-    {
-        // --------------------------
-        // Neo-Hoookean
-        // --------------------------
-        T mu = m_par1val / (2. * (1. + m_par2val));
-
-        // gsDebugVar(mu);
-        // gsDebugVar(mu * (m_Gcon_ori(i,j) - 1./math::pow(m_J0,2.) * m_Gcon_def(i,j) ));
-        tmp = mu * (m_Gcon_ori(i,j) - 1./m_J0_sq * m_Gcon_def(i,j) );
-    }
-    else if (m_material==4)
-    {
-        gsMatrix<T> C(3,3);
-        C.setZero();
-        C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
-        C(2,2) = 1./m_J0_sq;
-
-        computeStretch(C);
-
-        tmp = 0.0;
-        for (index_t a = 0; a != 2; a++)
+    // --------------------------
+    // Explicit implementations
+    // --------------------------
+        if (m_material==0)
         {
+            gsMatrix<T> stress;
+            // --------------------------
+            // Saint Venant Kirchhoff
+            // --------------------------
+            stress = 0.5 * (m_Gcov_def - m_Gcov_ori);
 
-            // T faci = m_gcon_ori.col(i).dot(m_stretchvec.col(a));
-            // T facj = m_gcon_ori.col(j).dot(m_stretchvec.col(a));
-            // T fac = ( faci )* ( facj );
-
-            // gsDebug<<"---------"<<"a = "<<a<<"; i = "<<i<<"; j = "<<j<<"\n";
-            // gsDebug<<"Sa = "<<Sa(a)<<"; fac = "<<fac<<"; faci = "<<faci<<"; facj = "<<facj<<"; prod = "<<fac*Sa(a)<<"\n";
-            tmp += Sa(a)*(
-                        ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(a)) )
-                        );
+            tmp =     Cijkl(i,j,0,0) * stress(0,0) + Cijkl(i,j,0,1) * stress(0,1)
+                    + Cijkl(i,j,1,0) * stress(1,0) + Cijkl(i,j,1,1) * stress(1,1);
         }
-    }
-    else
-    {
-        // --------------------------
-        // Generalized
-        // --------------------------
-        tmp = 2.0 * dPsi(i,j) - 2.0 * dPsi(2,2) * math::pow(m_J0_sq,-1.0)*m_Gcon_def(i,j);
-    }
+        else if (m_material==1)
+        {
+            // --------------------------
+            // Composite
+            // --------------------------
+            gsWarn<<"Incompressible material stress tensor requested, but not needed. How?";
+        }
+        else if (m_material==2)
+        {
+            // --------------------------
+            // Neo-Hoookean
+            // --------------------------
+            T mu = m_par1val / (2. * (1. + m_par2val));
+
+            // gsDebugVar(mu);
+            // gsDebugVar(mu * (m_Gcon_ori(i,j) - 1./math::pow(m_J0,2.) * m_Gcon_def(i,j) ));
+            tmp = mu * (m_Gcon_ori(i,j) - 1./m_J0_sq * m_Gcon_def(i,j) );
+        }
+        else if (m_material==3)
+        {
+            // --------------------------
+            // Mooney-Rivlin
+            // Parameter 3 is the ratio between c1 and c2.
+            // --------------------------
+            GISMO_ASSERT(m_numPars==3,"Mooney-Rivlin model needs to be a 3 parameter model");
+            T traceCt =  m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
+                        m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
+                        m_Gcov_def(1,0)*m_Gcon_ori(1,0) +
+                        m_Gcov_def(1,1)*m_Gcon_ori(1,1);
+
+            T mu = m_par1val / (2.*(1. + m_par2val));
+            T c2 = mu/(m_par3val+1);
+            T c1 = m_par3val*c2;
+
+            tmp = c1 * ( m_Gcon_ori(i,j) - 1/m_J0_sq * m_Gcon_def(i,j) )
+                    + c2 / m_J0_sq * (m_Gcon_ori(i,j) - traceCt * m_Gcon_def(i,j) ) + c2 * m_J0_sq * m_Gcon_def(i,j);
+        }
+    // --------------------------
+    // Stretch-based implementations
+    // --------------------------
+        else if ( (m_material>=10) && (m_material<20) )
+        {
+            gsMatrix<T> C(3,3);
+            C.setZero();
+            C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+            C(2,2) = 1./m_J0_sq;
+
+            computeStretch(C);
+
+            tmp = 0.0;
+            for (index_t a = 0; a != 2; a++)
+            {
+                tmp += Sa(a)*(
+                            ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(a)) )
+                            );
+            }
+        }
+    // --------------------------
+    // General implementations
+    // --------------------------
+        else if ( (m_material>=20) && (m_material<30) )
+        {
+            // --------------------------
+            // Generalized
+            // --------------------------
+            tmp = 2.0 * dPsi(i,j) - 2.0 * dPsi(2,2) * math::pow(m_J0_sq,-1.0)*m_Gcon_def(i,j);
+        }
+    // --------------------------
+    // Error
+    // --------------------------
+        else
+            GISMO_ERROR("Material model unknown. Use gsMaterialMatrix<T>::info() to see the options.");
     return tmp;
 }
 
@@ -989,7 +1142,7 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j, const gsMatrix<T> &
     T tmp = 0.0;
     if (m_material==0 || m_material==1)
         gsWarn<<"Incompressible material stress tensor requested, but not needed. How?";
-    else if (m_material==9)
+    else if (m_material==2)
     {
         T mu = m_par1val / (2 * (1 + m_par2val));
         GISMO_ASSERT(3 - 6 * m_par2val != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
@@ -1002,112 +1155,36 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j, const gsMatrix<T> &
 
         tmp =  mu * math::pow( m_J_sq , -1.0/3.0 ) * ( m_Gcon_ori(i,j) - 1.0/3.0 * traceC * cinv(i,j) ) + 0.5 * K * ( m_J_sq - 1 ) * cinv(i,j);
     }
-    else
-        tmp = 2.0 * dPsi(i,j,c,cinv);
+    // --------------------------
+    // Stretch-based implementations
+    // --------------------------
+        else if ( (m_material>=10) && (m_material<20) )
+        {
+            gsMatrix<T> C(3,3);
+            C.setZero();
+            C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+            C(2,2) = 1./m_J0_sq;
 
+            computeStretch(C);
+
+            tmp = 0.0;
+            for (index_t a = 0; a != 2; a++)
+            {
+                tmp += Sa(a)*(
+                            ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(a)) )
+                            );
+            }
+        }
+
+    // --------------------------
+    // General implementations
+    // --------------------------
+        else if ((m_material >= 20) && (m_material < 30))
+        {
+            tmp = 2.0 * dPsi(i,j,c,cinv);
+        }
     return tmp;
 }
-
-// Stretch-based formulation
-
-// template<class T>
-// T gsMaterialMatrix<T>::Sa_S(const index_t a) const
-// {
-//     T tmp = 0.0;
-//     if (m_material==4)
-//     {
-//         // --------------------------
-//         // Neo-Hoookean
-//         // --------------------------
-//         T mu = m_par1val / (2. * (1. + m_par2val));
-
-//         // dPsidLambda_a
-//         T dpsi = delta(i,j) * mu * m_stretches(i);
-//         // S_a
-//         tmp = (1. / m_stretches(i)) * dpsi;
-//     }
-//     else
-//     {
-//         GISMO_ERROR("Not available");
-//     }
-//     return tmp;
-// }
-
-// template<class T>
-// T gsMaterialMatrix<T>::dSij_S(const index_t i, const index_t j) const
-// {
-//     T tmp = 0.0;
-//     if (m_material==0)
-//     {
-//         tmp = 0.0;
-//     }
-//     else if (m_material==1)
-//     {
-//         // --------------------------
-//         // Composite
-//         // --------------------------
-//         gsWarn<<"Incompressible material stress tensor requested, but not needed. How?";
-//     }
-//     else if (m_material==4)
-//     {
-//         // --------------------------
-//         // Neo-Hoookean
-//         // --------------------------
-//         T mu = m_par1val / (2. * (1. + m_par2val));
-
-//         // dPsidLambda_a
-//         T DpsiDa = mu * (math::pow(m_stretches(0),2)*math::pow(m_stretches(1),2)*math::pow(m_stretches(2),2)) / m_stretches(i);
-//         T D2psiDab = DpsiDa/m_stretches(j);
-//         if (i!=j)
-//             D2psiDab *= 2;
-//         // S_a
-//         tmp = (1. / m_stretches(i)) * D2psiDab + (1. / math::pow(m_stretches(i),2)) * DpsiDa;
-//     }
-//     else
-//     {
-//         tmp = 0.0;
-//     }
-//     return tmp;
-// }
-
-// template<class T>
-// T gsMaterialMatrix<T>::Cijkl_S(const index_t i, const index_t j, const index_t k, const index_t l) const
-// {
-//     T tmp = 0.0;
-//     if (m_material==0)
-//     {
-//         tmp = 0.0;
-//     }
-//     else if (m_material==1)
-//     {
-//         // --------------------------
-//         // Composite
-//         // --------------------------
-//         gsWarn<<"Incompressible material stress tensor requested, but not needed. How?";
-//     }
-//     else if (m_material==4)
-//     {
-//         // --------------------------
-//         // Neo-Hoookean
-//         // --------------------------
-//         if ((i==j) && (k==l))
-//             tmp = 1. / m_stretches(j) * dSij_S(i,j);
-//         else if ( ( ((i==k) && (j==l)) && (i!=j)) || ( ((i==l) && (j==k)) && (i!=j)) )
-//         {
-//             if (m_stretches(i)==m_stretches(j))
-//                 tmp = 1./2. * ( 1. / m_stretches(j) * dSij_S(j,j) - 1. / m_stretches(i) * dSij_S(j,j) );
-//             else
-//                 tmp = (Sij_S(j,j)-Sij_S(i,i)) / (m_stretches(j) * m_stretches(j) - m_stretches(i) * m_stretches(i));
-//         }
-//         else
-//             tmp = 0.0;
-//     }
-//     else
-//     {
-//         tmp = 0.0;
-//     }
-//     return tmp;
-// }
 
 template<class T>
 gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatrix<T>& z) const
@@ -1122,6 +1199,8 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatr
         // Evaluate material properties on the quadrature point
         m_par1val = m_par1mat(0,i);
         m_par2val = m_par2mat(0,i);
+        if (m_numPars==3)
+            m_par3val = m_par3mat(0,i);
 
         // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
         this->getMetric(i,z.at(j)); // on point i, on height z(0,j)
@@ -1134,7 +1213,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatr
         dc33 = 0.0;
         C3333 = 1.0;
 
-        index_t itmax = 10;
+        index_t itmax = 100;
         T tol = 1e-10;
 
         // Initialize c
@@ -1157,10 +1236,10 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatr
             GISMO_ASSERT(c(2,2)>= 0,"ERROR! c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
             cinv(2,2) = 1.0/c(2,2);
 
-            m_J = m_J0 * math::sqrt( c(2,2) );
+            m_J_sq = m_J0_sq * c(2,2) ;
 
             S33     = Sij(2,2,c,cinv);
-            C3333   = Cijkl3D(2,2,2,2,c,cinv);
+            C3333   = Cijkl3D(2,2,2,2,c,cinv); //  or Cijkl???
 
             // gsDebugVar(abs(S33/S33_old));
 
@@ -1205,41 +1284,66 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatr
 template<class T>
 T gsMaterialMatrix<T>::dPsi(const index_t i, const index_t j) const
 {
+    T tmp = 0.0;
     T mu = m_par1val / (2. * (1. + m_par2val));
 
     GISMO_ASSERT( ( (i < 3) && (j < 3) ) , "Index out of range. i="<<i<<", j="<<j);
     GISMO_ASSERT(!m_compressible,"Material model is not incompressible?");
 
-    if (m_material == 2)
+    if (m_material == 22)
+        tmp = 0.5 * mu * m_Gcon_ori(i,j);
+    else if (m_material==23)
     {
-        return 0.5 * mu * m_Gcon_ori(i,j);
-    }
-    else if (m_material==3)
-    {
-        // return 2.0*m_par1val*m_J0*m_G(i,j)*m_G(k,l) + m_G(i,k)*m_G(j,l) + m_G(i,l)*m_G(j,k);
+        T c2 = mu/(m_par3val+1);
+        T c1 = m_par3val*c2;
+        if ((i==2) && (j==2))
+        {
+            T traceCt =  m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
+                            m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
+                            m_Gcov_def(1,0)*m_Gcon_ori(1,0) +
+                            m_Gcov_def(1,1)*m_Gcon_ori(1,1);
+            tmp = c1/2.0 + c2 / 2.0 * traceCt;
+        }
+        else
+            tmp =  c1 / 2. * m_Gcon_ori(i,j) + c2 / 2. * ( 1. / m_J0_sq * m_Gcon_ori(i,j) + m_J0_sq * m_Gcon_def(i,j) );
     }
     else
         GISMO_ERROR("Material model not implemented.");
+
+    return tmp;
 }
 
 template<class T>
 T gsMaterialMatrix<T>::d2Psi(const index_t i, const index_t j, const index_t k, const index_t l) const
 {
+    T tmp = 0.0;
     T mu = m_par1val / (2. * (1. + m_par2val));
 
     GISMO_ASSERT( ( (i < 3) && (j < 3) && (k < 3) && (l < 3) ) , "Index out of range. i="<<i<<", j="<<j<<", k="<<k<<", l="<<l);
     GISMO_ASSERT(!m_compressible,"Material model is not incompressible?");
 
-    if (m_material == 2)
+    if (m_material == 22)
+        tmp = 0.0;
+    else if (m_material==23)
     {
-        return 0.0;
-    }
-    else if (m_material==3)
-    {
-        // return 2.0*m_par1val*m_J0*m_G(i,j)*m_G(k,l) + m_G(i,k)*m_G(j,l) + m_G(i,l)*m_G(j,k);
+        T c2 = mu/(m_par3val+1);
+        T c1 = m_par3val*c2;
+        if      ( ((i==2) && (j==2)) && !((k==2) || (l==2)) ) // dPsi/d22dkl
+            tmp = c2 / 2.0 * m_Gcon_ori(k,l);
+        else if ( !((i==2) && (j==2)) && ((k==2) || (l==2)) ) // dPsi/dijd22
+            tmp = c2 / 2.0 * m_Gcon_ori(i,j);
+        else if ( ((i==2) && (j==2)) && ((k==2) || (l==2)) ) // dPsi/d22d22
+            tmp = 0.0;
+        else
+        {
+            T Gabcd = - 1./2. * ( m_Gcon_def(i,k)*m_Gcon_def(j,l) + m_Gcon_def(i,l)*m_Gcon_def(j,k) );
+            tmp =  c2 / 2.0 * m_J0_sq * ( Gabcd + m_Gcon_def(i,j)*m_Gcon_def(k,l) );
+        }
     }
     else
-        GISMO_ERROR("Material model not implemented.");
+        GISMO_ERROR("Material model not implemented. material = "<<m_material);
+
+    return tmp;
 }
 // ---------------------------------------------------------------------------------------------------------------------------------
 //                                          COMPRESSIBLE
@@ -1247,6 +1351,7 @@ T gsMaterialMatrix<T>::d2Psi(const index_t i, const index_t j, const index_t k, 
 template<class T>
 T gsMaterialMatrix<T>::dPsi(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
+    T tmp = 0.0;
     T mu = m_par1val / (2. * (1. + m_par2val));
     GISMO_ASSERT(3 - 6 * m_par2val != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
     T K  = m_par1val / ( 3 - 6 * m_par2val);
@@ -1259,47 +1364,49 @@ T gsMaterialMatrix<T>::dPsi(const index_t i, const index_t j, const gsMatrix<T> 
     GISMO_ASSERT( ( (i < 3) && (j < 3) ) , "Index out of range. i="<<i<<", j="<<j);
     GISMO_ASSERT(m_compressible,"Material model is not compressible?");
 
-    if (m_material == 2)
-    {
-        T tmp = 0.5 * mu * math::pow(m_J_sq,-1./3.) * ( m_Gcon_ori(i,j) - 1.0/3.0 * traceC * cinv(i,j) ) + 0.25 * K * (m_J_sq - 1.0) * cinv(i,j);
-        return tmp;
-    }
-    else if (m_material==3)
+    if (m_material == 22)
+        tmp = 0.5 * mu * math::pow(m_J_sq,-1./3.) * ( m_Gcon_ori(i,j) - 1.0/3.0 * traceC * cinv(i,j) ) + 0.25 * K * (m_J_sq - 1.0) * cinv(i,j);
+    else if (m_material==23)
     {
         // return 2.0*m_par1val*m_J0*m_G(i,j)*m_G(k,l) + m_G(i,k)*m_G(j,l) + m_G(i,l)*m_G(j,k);
     }
     else
-        GISMO_ERROR("Material model not implemented (Cijkl.");
+        GISMO_ERROR("Material model not implemented (Cijkl).");
+
+    return tmp;
 }
 
 template<class T>
 T gsMaterialMatrix<T>::d2Psi(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
-   T mu = m_par1val / (2 * (1 + m_par2val));
-   GISMO_ASSERT(3 - 6 * m_par2val != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
-   T K  = m_par1val / ( 3 - 6 * m_par2val);
-   T traceC =  m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
-               m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
-               m_Gcov_def(1,0)*m_Gcon_ori(1,0) +
-               m_Gcov_def(1,1)*m_Gcon_ori(1,1) +
-               c(2,2);
+    T tmp = 0.0;
+    T mu = m_par1val / (2 * (1 + m_par2val));
+    GISMO_ASSERT(3 - 6 * m_par2val != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
+    T K  = m_par1val / ( 3 - 6 * m_par2val);
+    T traceC =  m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
+                m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
+                m_Gcov_def(1,0)*m_Gcon_ori(1,0) +
+                m_Gcov_def(1,1)*m_Gcon_ori(1,1) +
+                c(2,2);
 
     GISMO_ASSERT( ( (i < 3) && (j < 3) && (k < 3) && (l < 3) ) , "Index out of range. i="<<i<<", j="<<j<<", k="<<k<<", l="<<l);
     GISMO_ASSERT(m_compressible,"Material model is not compressible?");
 
-    if (m_material == 2)
+    if (m_material == 22)
     {
         T tmp = 1.0 / 36.0 * mu * math::pow( m_J_sq , -1.0/3.0 ) * ( traceC * ( 2.0*cinv(i,j)*cinv(k,l) + 3.0*cinv(i,k)*cinv(j,l) + 3.0*cinv(i,l)*cinv(j,k) )
-                            - 6.0 *( m_Gcon_ori(i,j)*cinv(k,l) + cinv(i,j)*m_Gcon_ori(k,l) ) )
-                            + 0.25 * K * ( m_J_sq*cinv(i,j)*cinv(k,l) - 0.5*(m_J_sq-1.0)*( cinv(i,k)*cinv(j,l) + cinv(i,l)*cinv(j,k) ) );
+                    - 6.0 *( m_Gcon_ori(i,j)*cinv(k,l) + cinv(i,j)*m_Gcon_ori(k,l) ) )
+                    + 0.25 * K * ( m_J_sq*cinv(i,j)*cinv(k,l) - 0.5*(m_J_sq-1.0)*( cinv(i,k)*cinv(j,l) + cinv(i,l)*cinv(j,k) ) );
         return tmp;
     }
-    else if (m_material==3)
+    else if (m_material==23)
     {
         // return 2.0*m_par1val*m_J0*m_G(i,j)*m_G(k,l) + m_G(i,k)*m_G(j,l) + m_G(i,l)*m_G(j,k);
     }
     else
         GISMO_ERROR("Material model not implemented.");
+
+    return tmp;
 }
 // ---------------------------------------------------------------------------------------------------------------------------------
 //                                          STRETCHES
@@ -1308,14 +1415,58 @@ T gsMaterialMatrix<T>::d2Psi(const index_t i, const index_t j, const index_t k, 
 template<class T>
 T gsMaterialMatrix<T>::dPsi_da(const index_t a) const
 {
+    GISMO_ASSERT( a < 3 , "Index out of range. a="<<a);
     T tmp = 0.0;
-    if (m_material==4)
+    T mu = m_par1val / (2 * (1 + m_par2val));
+    if (!m_compressible) // incompressible
     {
-        T mu = m_par1val / (2 * (1 + m_par2val));
-        tmp  = mu/2 * 2*m_stretches(a);
+            if (m_material==12)
+            {
+                tmp  = mu/2 * 2*m_stretches(a);
+            }
+            else if (m_material==13)
+            {
+                T c2 = mu/(m_par3val+1);
+                T c1 = m_par3val*c2;
+                tmp  = c1*m_stretches(a)
+                        + c2*m_stretches(a) * (   idelta(0,a)*m_stretches(0)*m_stretches(0)
+                                                + idelta(1,a)*m_stretches(1)*m_stretches(1)
+                                                + idelta(2,a)*m_stretches(2)*m_stretches(2) );
+            }
+            else if (m_material==14)
+            {
+                //
+            }
+            else
+                GISMO_ERROR("not available...");
     }
-    else
-        GISMO_ERROR("not available...");
+    else // compressible
+    {
+            GISMO_ASSERT(3 - 6 * m_par2val != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
+            T K  = m_par1val / ( 3 - 6 * m_par2val);
+            T traceC = m_stretches(0)*m_stretches(0) + m_stretches(1)*m_stretches(1) + m_stretches(2)*m_stretches(2);
+            if (m_material==12)
+            {
+                tmp  = mu * math::pow(m_J_sq,-1./3.) * ( -1./3. *  traceC / m_stretches(a) + m_stretches(a) ) + 0.5 * K / m_stretches(a) * (m_J_sq - 1);
+            }
+            else if (m_material==13)
+            {
+                // T c2 = mu/(m_par3val+1);
+                // T c1 = m_par3val*c2;
+                // tmp  = c1*m_stretches(a)
+                //         + c2*m_stretches(a) * (   idelta(0,a)*m_stretches(0)*m_stretches(0)
+                //                                 + idelta(1,a)*m_stretches(1)*m_stretches(1)
+                //                                 + idelta(2,a)*m_stretches(2)*m_stretches(2) );
+                GISMO_ERROR("not available...");
+            }
+            else if (m_material==14)
+            {
+                //
+            }
+            else
+                GISMO_ERROR("not available...");
+    }
+
 
     return tmp;
 }
@@ -1323,15 +1474,59 @@ T gsMaterialMatrix<T>::dPsi_da(const index_t a) const
 template<class T>
 T gsMaterialMatrix<T>::d2Psi_dab(const index_t a, const index_t b) const
 {
+    GISMO_ASSERT( ( (a < 3) && (b < 3) ) , "Index out of range. a="<<a<<", b="<<b);
     T tmp = 0.0;
-    if (m_material==4)
+    T mu = m_par1val / (2 * (1 + m_par2val));
+    if (!m_compressible)
     {
-        T mu = m_par1val / (2 * (1 + m_par2val));
-        tmp  = mu/2 * 2 * delta(a,b);
+        if (m_material==12)
+        {
+            tmp  = mu/2 * 2 * delta(a,b);
+        }
+        else if (m_material==13)
+        {
+            GISMO_ASSERT(m_numPars==3,"Mooney-Rivlin model needs to be a 3 parameter model");
+            T c2 = mu/(m_par3val+1);
+            T c1 = m_par3val*c2;
+
+            tmp  = c1 * delta(a,b)
+                    + idelta(a,b) * c2 * 2 * m_stretches(a) * m_stretches(b)
+                    + delta(a,b)  * c2 * ( idelta(0,a)*m_stretches(0)*m_stretches(0) + idelta(1,a)*m_stretches(1)*m_stretches(1) + idelta(2,a)*m_stretches(2)*m_stretches(2) );
+        }
+        else if (m_material==14)
+        {
+            //
+        }
+        else
+            GISMO_ERROR("not available...");
     }
     else
-        GISMO_ERROR("not available...");
+    {
+        GISMO_ASSERT(3 - 6 * m_par2val != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
+        m_J_sq = math::pow(m_stretches(0)*m_stretches(1)*m_stretches(2),2.0);
+        T K  = m_par1val / ( 3 - 6 * m_par2val);
+        T traceC = m_stretches(0)*m_stretches(0) + m_stretches(1)*m_stretches(1) + m_stretches(2)*m_stretches(2);
+        if (m_material==12)
+        {
+            tmp  = mu * math::pow(m_J_sq,1./3.) * ( -2./3. * m_stretches(a) / m_stretches(b) * ( m_stretches(a) - traceC / (3. * m_stretches(a) ) )
+                    - 2./3.* m_stretches(b) / m_stretches(a) + delta(a,b) * ( traceC / (3. * m_stretches(a) * m_stretches(a) ) + 1. ) )
+                    + K / (2. * m_stretches(a)) * ( 2*m_J_sq / m_stretches(b) - delta(a,b) * 1./m_stretches(a) * (m_J_sq - 1.0) );
+        }
+        else if (m_material==13)
+        {
+            // T c2 = mu/(m_par3val+1);
+            // T c1 = m_par3val*c2;
 
+            // tmp  =
+            GISMO_ERROR("not available...");
+        }
+        else if (m_material==14)
+        {
+            //
+        }
+        else
+            GISMO_ERROR("not available...");
+    }
     return tmp;
 }
 
@@ -1356,7 +1551,7 @@ T gsMaterialMatrix<T>::p() const
 template<class T>
 T gsMaterialMatrix<T>::dp_da(const index_t a) const
 {
-    return m_stretches(2) * d2Psi_dab(3,a) + delta(a,2) * dPsi_da(2);
+    return m_stretches(2) * d2Psi_dab(2,a) + delta(a,2) * dPsi_da(2);
 }
 
 template<class T>
@@ -1368,22 +1563,26 @@ T gsMaterialMatrix<T>::Sa(const index_t a) const
     // gsDebugVar(dJ_da(a));
     // T result = 1.0/m_stretches(a) * (dPsi_da(a) - p() * dJ_da(a) );
     // gsDebugVar(result);
-    return 1.0/m_stretches(a) * (dPsi_da(a) - p() * dJ_da(a) );
+    if (!m_compressible)
+        return 1.0/m_stretches(a) * (dPsi_da(a) - p() * dJ_da(a) );
+    else
+        return 1.0/m_stretches(a) * dPsi_da(a);
 }
 
 template<class T>
 T gsMaterialMatrix<T>::dSa_db(const index_t a, const index_t b) const
 {
-    return 1.0/m_stretches(a) * ( d2Psi_dab(a,b) - dp_da(a)*dJ_da(b) - dp_da(b)*dJ_da(a) - p() * d2J_dab(a,b) ) - delta(a,b) / math::pow(m_stretches(a),2) * (dPsi_da(a) - p() * dJ_da(a));
+    if (!m_compressible)
+        return 1.0/m_stretches(a) * ( d2Psi_dab(a,b) - dp_da(a)*dJ_da(b) - dp_da(b)*dJ_da(a) - p() * d2J_dab(a,b) ) - delta(a,b) / math::pow(m_stretches(a),2) * (dPsi_da(a) - p() * dJ_da(a));
+    else
+        return 1.0/m_stretches(a) * d2Psi_dab(a,b) - delta(a,b) / math::pow(m_stretches(a),2) * dPsi_da(a);
 }
 
 template<class T>
 T gsMaterialMatrix<T>::Cabcd(const index_t a, const index_t b, const index_t c, const index_t d) const
 {
-    GISMO_ASSERT( ( (a < 2) && (b < 2) && (c < 2) && (d < 2) ) , "Index out of range. a="<<a<<", b="<<b<<", c="<<c<<", d="<<d);
-
+    // Compute part with stress tensor involved.
     T tmp = 0.0;
-
     if ( (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) < 1e-12) && (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) > 1e-14) )
         gsInfo<<"Warning: difference in stretches is close to machine precision?\n";
 
@@ -1398,12 +1597,23 @@ T gsMaterialMatrix<T>::Cabcd(const index_t a, const index_t b, const index_t c, 
         tmp = ( Sa(b)-Sa(a) ) / (math::pow(m_stretches(b),2) - math::pow(m_stretches(a),2));
     }
 
-    // gsDebug <<"Breakdown C\n"
-    //         <<"Term 1: "<<1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d)<<"\n"
-    //         <<"Term 2: "<<tmp * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b))<<"\n"
-    //         <<"Term 3: "<<delta(a,b)*delta(c,d)*1/(math::pow(m_stretches(a),2) * math::pow(m_stretches(c),2)) * ( math::pow(m_stretches(2),2) * d2Psi_dab(2,2) + 2*dPsi_da(2)*m_stretches(2) )<<"\n";
-    return 1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d) + tmp * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b))
-            + delta(a,b)*delta(c,d)*1/(math::pow(m_stretches(a),2) * math::pow(m_stretches(c),2)) * ( math::pow(m_stretches(2),2) * d2Psi_dab(2,2) + 2*dPsi_da(2)*m_stretches(2) );
+
+    // Compute result
+    if (!m_compressible)
+    {
+        GISMO_ASSERT( ( (a < 2) && (b < 2) && (c < 2) && (d < 2) ) , "Index out of range. a="<<a<<", b="<<b<<", c="<<c<<", d="<<d);
+        return 1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d) + tmp * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b))
+                + delta(a,b)*delta(c,d)*1/(math::pow(m_stretches(a),2) * math::pow(m_stretches(c),2)) * ( math::pow(m_stretches(2),2) * d2Psi_dab(2,2) + 2*dPsi_da(2)*m_stretches(2) );
+    }
+    else
+    {
+        gsDebugVar(1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d));
+        gsDebugVar(tmp * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b)));
+
+        GISMO_ASSERT( ( (a < 3) && (b < 3) && (c < 3) && (d < 3) ) , "Index out of range. a="<<a<<", b="<<b<<", c="<<c<<", d="<<d);
+        return 1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d) + tmp * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b));
+    }
+
 }
 
 
@@ -1854,128 +2064,5 @@ void gsMaterialMatrix<T>::computeStretch(const gsMatrix<T> & C) const
     // gsDebugVar(m_stretches-ones);
 }
 
-// template<class T>
-// gsVector<T> gsMaterialMatrix<T>::computeEigenvalues(const gsMatrix<T> & C) const
-// {
-//     // Using https://mathworld.wolfram.com/CubicFormula.html
-
-//     T traceC = C(0,0)*m_Gcon_ori(0,0) + C(1,0)*m_Gcon_ori(1,0) + C(0,1)*m_Gcon_ori(0,1) + C(1,1)*m_Gcon_ori(1,1);
-//     T I_1 = traceC + C(2,2);
-//     T I_2 = C(2,2) * traceC + math::pow(m_J0,2);
-//     T I_3 = math::pow(m_J0,2) * C(2,2);
-
-//     T a = 1.0;
-//     T b = -I_1;
-//     T c = I_2;
-//     T d = -I_3;
-
-//     gsDebugVar(I_1);
-//     gsDebugVar(I_2);
-//     gsDebugVar(I_3);
-
-//     T a0 = d / a;
-//     T a1 = c / a;
-//     T a2 = b / a;
-
-//     T Q = ( 3*a1 - a2*a2 ) / 9.0;
-//     T R = ( 9*a2*a1 - 27*a0 - 2*a2*a2*a2 ) / 54;
-//     T D = Q*Q*Q + R*R;
-//     T pi = 3.14159265358979323846;
-//     std::vector<T> eigenvalues(3);
-
-//     T tol = math::pow(1e-12,2); // quadratic machine tolerance, because R is squared
-//     if (D < -tol)
-//     {
-//         T theta = math::acos( R / math::sqrt(-Q*Q*Q) );
-//         eigenvalues[0] = 2 * math::sqrt(-Q) * math::cos( theta/3.0 ) - 1./3. * a2;
-//         eigenvalues[1] = 2 * math::sqrt(-Q) * math::cos( (theta + 2. * pi)/3.0 ) - 1./3. * a2;
-//         eigenvalues[2] = 2 * math::sqrt(-Q) * math::cos( (theta + 4. * pi)/3.0 ) - 1./3. * a2;
-//     }
-//     else if (D > tol)
-//         GISMO_ERROR("Eigenvalues are complex. D = "<<D<<"; I_1 = "<<I_1<<"; I_2 = "<<I_2<<"; I_3 = "<<I_3);
-//     else // abs(D) < tol
-//     {
-//         T S = math::pow(R,1./3.);
-//         eigenvalues[0] = -1./3. * a2 + (2.*S);
-//         eigenvalues[1] = eigenvalues[2] = -1./3. * a2 - 1./2. * (2.*S);
-//     }
-//     std::sort(eigenvalues.begin(),eigenvalues.end());
-//     gsVector<T> output(3);
-//     output.at(0) = eigenvalues[0];
-//     output.at(1) = eigenvalues[1];
-//     output.at(2) = eigenvalues[2];
-//     return output;
-// }
-
-template<class T>
-gsVector<T> gsMaterialMatrix<T>::computeEigenvalues(const gsMatrix<T> & C) const
-{
-    // Using https://mathworld.wolfram.com/CubicFormula.html
-
-    T traceC = C.trace();
-    T I_1 = traceC;
-    T I_2 = 0.5 * ( traceC*traceC - (C*C).trace() );
-    T I_3 = C.determinant();
-
-    T a = 1.0;
-    T b = -I_1;
-    T c = I_2;
-    T d = -I_3;
-
-    gsDebugVar(I_1);
-    gsDebugVar(I_2);
-    gsDebugVar(I_3);
-
-    T a0 = d / a;
-    T a1 = c / a;
-    T a2 = b / a;
-
-    T Q = ( 3*a1 - a2*a2 ) / 9.0;
-    T R = ( 9*a2*a1 - 27*a0 - 2*a2*a2*a2 ) / 54;
-    T D = Q*Q*Q + R*R;
-    T pi = 3.14159265358979323846;
-    std::vector<T> eigenvalues(3);
-
-    T tol = math::pow(1e-12,2); // quadratic machine tolerance, because R is squared
-    if (D < -tol)
-    {
-        T theta = math::acos( R / math::sqrt(-Q*Q*Q) );
-        eigenvalues[0] = 2 * math::sqrt(-Q) * math::cos( theta/3.0 ) - 1./3. * a2;
-        eigenvalues[1] = 2 * math::sqrt(-Q) * math::cos( (theta + 2. * pi)/3.0 ) - 1./3. * a2;
-        eigenvalues[2] = 2 * math::sqrt(-Q) * math::cos( (theta + 4. * pi)/3.0 ) - 1./3. * a2;
-    }
-    else if (D > tol)
-        GISMO_ERROR("Eigenvalues are complex. D = "<<D<<"; I_1 = "<<I_1<<"; I_2 = "<<I_2<<"; I_3 = "<<I_3);
-    else // abs(D) < tol
-    {
-        T S = math::pow(R,1./3.);
-        eigenvalues[0] = -1./3. * a2 + (2.*S);
-        eigenvalues[1] = eigenvalues[2] = -1./3. * a2 - 1./2. * (2.*S);
-    }
-    std::sort(eigenvalues.begin(),eigenvalues.end());
-    gsVector<T> output(3);
-    output.at(0) = eigenvalues[0];
-    output.at(1) = eigenvalues[1];
-    output.at(2) = eigenvalues[2];
-    return output;
-}
-
-// template<class T>
-// gsMatrix<T> gsMaterialMatrix<T>::basisTransform(const gsMatrix<T> & basis1, const gsMatrix<T> & basis2) const
-// {
-//     GISMO_ASSERT(basis1.cols()==basis2.cols(),"Number of basis vectors should be the same! basis1.cols() = "<<basis1.cols()<<", basis2.cols() = "<<basis2.cols());
-//     GISMO_ASSERT(basis1.rows()==basis2.rows(),"Basis dimensions should be the same! basis1.rows() = "<<basis1.rows()<<", basis2.rows() = "<<basis2.rows());
-//     index_t nc = basis1.cols();
-
-//     gsMatrix<T> result(nc,nc);
-
-//     for (index_t i = 1; i != nc; i++)
-//         for (index_t j = 1; j != nc; j++)
-//         {
-
-//         }
-
-
-// }
 
 } // end namespace
