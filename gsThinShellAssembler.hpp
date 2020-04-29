@@ -139,7 +139,7 @@ template<class T>
 void gsThinShellAssembler<T>::applyLoads()
 {
     gsMatrix<T>        bVals;
-    gsMatrix<unsigned> acts,globalActs;
+    gsMatrix<index_t> acts,globalActs;
 
     space       m_space = m_assembler.trialSpace(0);
     m_mapper = m_space.mapper();
