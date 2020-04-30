@@ -215,9 +215,9 @@ protected:
     const gsFunctionSet<T> * m_patches;
     const gsFunctionSet<T> * m_defpatches;
     const gsFunction<T> * m_thickness;
-    const gsFunction<T> * m_par3;
-    const gsFunction<T> * m_par2;
     const gsFunction<T> * m_par1;
+    const gsFunction<T> * m_par2;
+    const gsFunction<T> * m_par3;
     const gsFunction<T> * m_density;
     const std::vector<gsFunction<T>* > m_pars;
 
