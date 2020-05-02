@@ -112,6 +112,8 @@ void gsThinShellAssembler<T>::initialize()
 
     // foundation is off by default
     m_foundInd = false;
+    // pressure is off by default
+    m_pressInd = false;
 
 }
 
@@ -288,7 +290,37 @@ void gsThinShellAssembler<T>::assemble()
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
 
-    if (!m_foundInd) // no foundation
+    if (m_foundInd) // no foundation
+    {
+        GISMO_ERROR("Not implemented");
+    }
+    else if (m_pressInd)
+    {
+        variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+
+        gsVector<> pt(2);
+        pt.setConstant(0.25);
+        gsExprEvaluator<> evaluator(m_assembler);
+
+        gsDebug<<evaluator.eval(m_pressure.val(),pt)<<"\n";
+        gsDebug<<evaluator.eval(m_space,pt)<<"\n";
+        gsDebug<<evaluator.eval(sn(m_def).normalized(),pt)<<"\n";
+
+        // Assemble vector
+        m_assembler.assemble(
+            (
+                m_N_der * m_Em_der.tr()
+                +
+                m_M_der * m_Ef_der.tr()
+            ) * meas(m_ori)
+            ,
+            m_space * m_force * meas(m_ori) + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
+            );
+
+        this->assembleNeumann();
+    }
+
+    else // no foundation, no pressure
     {
         // assemble system
         m_assembler.assemble(
@@ -412,7 +444,38 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
 
-    if (!m_foundInd) // no foundation
+    if (m_foundInd) // no foundation
+    {
+        GISMO_ERROR("not implemented");
+    }
+    else if (m_pressInd)
+    {
+        // gsVector<> pt(2);
+        // pt.setConstant(0.25);
+        // gsExprEvaluator<> evaluator(m_assembler);
+        // gsDebug<<evaluator.eval(m_def,pt)<<"\n";
+
+        // gsDebug<<evaluator.eval(m_pressure.val(),pt)<<"\n";
+        // gsDebug<<evaluator.eval(m_space,pt)<<"\n";
+        // gsDebug<<evaluator.eval(sn(m_def).normalized(),pt)<<"\n";
+
+
+        variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+        m_assembler.assemble(
+                (
+                    m_N_der * m_Em_der.tr()
+                    +
+                    m_Em_der2
+                    +
+                    m_M_der * m_Ef_der.tr()
+                    +
+                    m_Ef_der2
+                    -
+                    m_pressure.val() * m_space * var1(m_space,m_def).tr()
+                ) * meas(m_ori)
+            );
+    }
+    else // no foundation, no pressure
     {
         // Assemble matrix
         m_assembler.assemble(
@@ -451,6 +514,12 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     // gsDebug<<"\n"<<evaluator.eval(reshape(mm0,3,3),pt)<<"\n";
     // gsDebug<<"\n"<<evaluator.eval(S0,pt)<<"\n";
     // gsDebug<<"\n"<<evaluator.eval(S2,pt)<<"\n";
+
+    gsVector<> pt(2);
+    pt.setConstant(0.25);
+    gsExprEvaluator<> evaluator(m_assembler);
+    gsDebug<<"\n"<<evaluator.eval(m_N,pt)<<"\n";
+    gsDebug<<"\n"<<evaluator.eval(m_M,pt)<<"\n";
 
 }
 template<class T>
@@ -499,7 +568,33 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
     auto m_M        = S1.tr(); // output is a column
     auto m_Ef_der   = -( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
 
-    if (!m_foundInd) // no foundation
+    if (m_foundInd) // no foundation
+    {
+        //     variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
+        //     // Assemble vector
+        //     m_assembler.assemble(
+        //                 m_space * m_force * meas(m_ori)
+        //                 -
+        //                 ( ( m_N * m_Em_der.tr() - m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+        //                 +
+
+        //                 );
+        GISMO_ERROR("Not implemented");
+    }
+    else if (m_pressInd)
+    {
+        variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+
+        // Assemble vector
+        m_assembler.assemble(
+                        m_space * m_force * meas(m_ori)
+                      + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
+                      - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+                    );
+
+        this->assembleNeumann();
+    }
+    else
     {
         // Assemble vector
         m_assembler.assemble(m_space * m_force * meas(m_ori) -
@@ -510,15 +605,7 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
     }
     // else
     // {
-    //     variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
-    //     // Assemble vector
-    //     m_assembler.assemble(
-    //                 m_space * m_force * meas(m_ori)
-    //                 -
-    //                 ( ( m_N * m_Em_der.tr() - m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
-    //                 +
 
-    //                 );
     // }
 
 

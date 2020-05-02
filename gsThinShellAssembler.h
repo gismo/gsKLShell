@@ -74,6 +74,7 @@ public:
     //--------------------- PROBLEM FORMULATION-------------------------------//
     void setPointLoads(const gsPointLoads<T> & pLoads){ m_pLoads = pLoads; }
     void setFoundation(const gsFunction<T> & foundation) { m_foundFun = &foundation; m_foundInd = true; }
+    void setPressure(const gsFunction<T> & pressure) { m_pressFun = &pressure; m_pressInd = true; }
     // void setFoundation(const T & foundation) { m_foundFun = gsConstantFunction<T>(foundation,2); m_foundInd = true; }
     // NOTE: can we improve the m_foundInd indicator? e.g. by checking if m_foundation exists?
 
@@ -202,6 +203,7 @@ protected:
     const gsFunction<T> * m_forceFun;
     const gsFunction<T> * m_thickFun;
     const gsFunction<T> * m_foundFun;
+    const gsFunction<T> * m_pressFun;
     typename gsFunction<T>::Ptr m_YoungsModulus;
     typename gsFunction<T>::Ptr m_PoissonsRatio;
 
@@ -218,6 +220,7 @@ protected:
 
     mutable bool m_nl_loads;
     mutable bool m_foundInd;
+    mutable bool m_pressInd;
 
     /// @brief Specifies the material law to use
     struct nl_loads
