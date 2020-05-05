@@ -298,13 +298,13 @@ void gsThinShellAssembler<T>::assemble()
     {
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
 
-        gsVector<> pt(2);
-        pt.setConstant(0.25);
-        gsExprEvaluator<> evaluator(m_assembler);
+        // gsVector<> pt(2);
+        // pt.setConstant(0.25);
+        // gsExprEvaluator<> evaluator(m_assembler);
 
-        gsDebug<<evaluator.eval(m_pressure.val(),pt)<<"\n";
-        gsDebug<<evaluator.eval(m_space,pt)<<"\n";
-        gsDebug<<evaluator.eval(sn(m_def).normalized(),pt)<<"\n";
+        // gsDebug<<evaluator.eval(m_pressure.val(),pt)<<"\n";
+        // gsDebug<<evaluator.eval(m_space,pt)<<"\n";
+        // gsDebug<<evaluator.eval(sn(m_def).normalized(),pt)<<"\n";
 
         // Assemble vector
         m_assembler.assemble(
@@ -314,7 +314,7 @@ void gsThinShellAssembler<T>::assemble()
                 m_M_der * m_Ef_der.tr()
             ) * meas(m_ori)
             ,
-            m_space * m_force * meas(m_ori) + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
+            m_space * m_force * meas(m_ori) + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_def)
             );
 
         this->assembleNeumann();
@@ -470,9 +470,9 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
                     m_M_der * m_Ef_der.tr()
                     +
                     m_Ef_der2
-                    -
-                    m_pressure.val() * m_space * var1(m_space,m_def).tr()
                 ) * meas(m_ori)
+                -
+                m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_def)
             );
     }
     else // no foundation, no pressure
@@ -514,12 +514,6 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     // gsDebug<<"\n"<<evaluator.eval(reshape(mm0,3,3),pt)<<"\n";
     // gsDebug<<"\n"<<evaluator.eval(S0,pt)<<"\n";
     // gsDebug<<"\n"<<evaluator.eval(S2,pt)<<"\n";
-
-    gsVector<> pt(2);
-    pt.setConstant(0.25);
-    gsExprEvaluator<> evaluator(m_assembler);
-    gsDebug<<"\n"<<evaluator.eval(m_N,pt)<<"\n";
-    gsDebug<<"\n"<<evaluator.eval(m_M,pt)<<"\n";
 
 }
 template<class T>
@@ -588,7 +582,7 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
         // Assemble vector
         m_assembler.assemble(
                         m_space * m_force * meas(m_ori)
-                      + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
+                      + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_def)
                       - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
                     );
 
@@ -698,7 +692,7 @@ void gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T> & solVecto
 template <class T>
 gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T> & u, const gsMultiPatch<T> & deformed, const T z)
 {
-    gsDebug<<"Warning: Principle Stretch computation of gsThinShellAssembler is depreciated...\n";
+    // gsDebug<<"Warning: Principle Stretch computation of gsThinShellAssembler is depreciated...\n";
     gsMatrix<T> result(3,u.cols());
 
     this->getOptions();
@@ -713,72 +707,16 @@ gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T>
 
     m_assembler.initSystem(false);
 
-    auto Gdef   = jac(m_def);
-    auto Gori   = jac(m_ori);
-    auto normalDef = sn(m_def);
-    auto normalOri = sn(m_ori);
+    gsMaterialMatrix m_mm = m_materialMat;
+    m_mm.makeStretch();
+    variable mm0 = m_assembler.getCoeff(m_mm);
 
     gsExprEvaluator<> evaluator(m_assembler);
 
-    gsMatrix<> Acov_ori(3,3);
-    gsMatrix<> Acov_def(3,3);
-    gsMatrix<> Aori(3,3);
-    gsMatrix<> Adef(3,3);
-    gsMatrix<> tmp(2,2);
-    gsMatrix<> evs, evecs;
-    Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
-
-    T J0;
     for (index_t k = 0; k != u.cols(); ++k)
     {
-        Aori.setZero();
-        Adef.setZero();
-        tmp.setZero();
-        tmp = evaluator.eval(Gori,u.col(k)).block(0,0,2,2);
-        tmp = tmp.transpose()*tmp;
-        Aori.block(0,0,2,2) = tmp;
-
-        tmp = evaluator.eval(Gdef,u.col(k)).block(0,0,2,2);
-        tmp = tmp.transpose()*tmp;
-        Adef.block(0,0,2,2) = tmp;
-
-        J0 = math::sqrt( Adef.block(0,0,2,2).determinant() / Aori.block(0,0,2,2).determinant() );
-
-        Adef(2,2) = math::pow(J0,-2.0);
-        eigSolver.compute(Adef);
-        evs = eigSolver.eigenvalues();
-        for (index_t r=0; r!=3; r++)
-            result(r,k) = math::sqrt(evs(r,0));
+        result.col(k) = evaluator.eval(mm0,u.col(k));
     }
-
-    // m_stretches.resize(3,1);    m_stretches.setZero();
-    // m_stretchvec.resize(3,3);   m_stretchvec.setZero();
-
-    // Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
-
-    // gsMatrix<T> B(3,3);
-    // B.setZero();
-    // for (index_t k = 0; k != 2; k++)
-    //     for (index_t l = 0; l != 2; l++)
-    //         B += C(k,l) * m_gcon_ori.col(k) * m_gcon_ori.col(l).transpose();
-
-    // eigSolver.compute(B);
-
-    // m_stretchvec.leftCols(2) = eigSolver.eigenvectors().rightCols(2);
-    // m_stretchvec.col(2) = m_gcon_ori.col(2);
-    // m_stretches.block(0,0,2,1) = eigSolver.eigenvalues().block(1,0,2,1); // the eigenvalues are a 3x1 matrix, so we need to use matrix block-operations
-    // m_stretches.at(2) = 1/m_J0_sq;
-
-    // for (index_t k=0; k!=3; k++)
-    //     m_stretches.at(k) = math::sqrt(m_stretches.at(k));
-
-    // // DEBUGGING ONLY!
-    // gsMatrix<T> ones(3,1);
-    // ones.setOnes();
-    // gsDebugVar(m_stretchvec);
-    // gsDebugVar(m_stretches-ones);
-
-    // result.col(0) = evaluator.eval(expr,pt);
     return result;
 }
 

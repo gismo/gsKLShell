@@ -36,9 +36,12 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     m_S0.makeVector(0);
     gsMaterialMatrix m_S1 = m_materialMat;
     m_S1.makeVector(1);
+    gsMaterialMatrix m_mm = m_materialMat;
+    m_mm.makeStretch();
 
     variable S0 = m_assembler.getCoeff(m_S0);
     variable S1 = m_assembler.getCoeff(m_S1);
+    variable mm0 = m_assembler.getCoeff(m_mm);
 
     geometryMap m_ori   = m_assembler.exprData()->getMap();
     geometryMap m_def   = m_assembler.exprData()->getMap2();
@@ -83,57 +86,8 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
                 result.col(k) = ev.eval(E_f.tr(),u.col(k));
             break;
         case stress_type::principal_stretch :
-            gsMatrix<> Aori(3,3);
-            gsMatrix<> Adef(3,3);
-            gsMatrix<> tmp(2,2);
-            gsMatrix<> evs;
-            Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
-
-            T J0;
-            // for (index_t k = 0; k != u.cols(); ++k)
-            // {
-            //     Aori.setZero();
-            //     Adef.setZero();
-            //     tmp.setZero();
-            //     tmp = ev.eval(Gori,u.col(k)).block(0,0,2,2);
-            //     tmp = tmp.transpose()*tmp;
-            //     Aori.block(0,0,2,2) = tmp;
-
-            //     tmp = ev.eval(Gdef,u.col(k)).block(0,0,2,2);
-            //     tmp = tmp.transpose()*tmp;
-            //     Adef.block(0,0,2,2) = tmp;
-
-            //     J0 = math::sqrt( Adef.block(0,0,2,2).determinant() / Aori.block(0,0,2,2).determinant() );
-
-            //     Adef(2,2) = math::pow(J0,-2.0);
-            //     eigSolver.compute(Adef);
-            //     evs = eigSolver.eigenvalues();
-            //     for (index_t r=0; r!=3; r++)
-            //         result(r,k) = math::sqrt(evs(r,0));
-            // }
-
             for (index_t k = 0; k != u.cols(); ++k)
-            {
-                Aori.setZero();
-                Adef.setZero();
-                tmp.setZero();
-                tmp = ev.eval(Gori,u.col(k));
-                tmp = tmp.transpose()*tmp;
-                Aori = tmp;
-
-                tmp = ev.eval(Gdef,u.col(k));
-                tmp = tmp.transpose()*tmp;
-                Adef = tmp;
-
-                J0 = math::sqrt( Adef.determinant() / Aori.determinant() );
-
-                eigSolver.compute(Adef);
-                evs = eigSolver.eigenvalues();
-                for (index_t r=0; r!=2; r++)
-                    result(r,k) = math::sqrt(evs(r,0));
-                result(2,k) = 1./J0;
-
-            }
+                result.col(k) = ev.eval(mm0,u.col(k));
             break;
     }
 }
