@@ -34,30 +34,14 @@ public:
         \param[in] ...
 
     */
-    // Without deformed geometry
     gsMaterialMatrix(   const gsFunctionSet<T> & mp,
                         const gsFunction<T> & thickness,
-                        const gsFunction<T> & YoungsModulus,
-                        const gsFunction<T> & PoissonRatio);
-    gsMaterialMatrix(   const gsFunctionSet<T> & mp,
-                        const gsFunction<T> & thickness,
-                        const gsFunction<T> & YoungsModulus,
-                        const gsFunction<T> & PoissonRatio,
-                        const gsFunction<T> & Density);
+                        const std::vector<gsFunction<T> *> &pars);
 
-
-    // With deformed geometry
     gsMaterialMatrix(   const gsFunctionSet<T> & mp,
                         const gsFunctionSet<T> & mp_def,
                         const gsFunction<T> & thickness,
-                        const gsFunction<T> & YoungsModulus,
-                        const gsFunction<T> & PoissonRatio);
-    gsMaterialMatrix(   const gsFunctionSet<T> & mp,
-                        const gsFunctionSet<T> & mp_def,
-                        const gsFunction<T> & thickness,
-                        const gsFunction<T> & YoungsModulus,
-                        const gsFunction<T> & PoissonRatio,
-                        const gsFunction<T> & Density);
+                        const std::vector<gsFunction<T> *> &pars);
 
     gsMaterialMatrix(   const gsFunctionSet<T> & mp,
                         const gsFunctionSet<T> & mp_def,
@@ -137,6 +121,7 @@ public:
 
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     void eval_into_dens(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    void eval_into_stretch(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     void eval_into_DD(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     void eval_into_AP(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     void eval_into_NP(const gsMatrix<T>& u, gsMatrix<T>& result) const;
@@ -145,6 +130,7 @@ public:
     void makeMatrix(int num=0)     { m_outputType=2; m_output = num;}
     void makeVector(int num=0)     { m_outputType=1; m_output = num;}
     void makeDensity()             { m_outputType=0; }
+    void makeStretch()             { m_outputType=9; }
 
     void info() const;
 
@@ -197,6 +183,7 @@ protected:
     gsMatrix<T> integrateZ(const gsMatrix<T>& u) const;
     gsMatrix<T> multiplyZ (const gsMatrix<T>& u) const;
 
+    void computePoints(const gsMatrix<T> & u, bool deformed=true) const;
     void computeMetricDeformed() const;
     void computeMetricUndeformed() const;
     void getMetric(index_t k, T z) const;
@@ -204,8 +191,7 @@ protected:
     void getMetricUndeformed(index_t k, T z) const;
 
     void computeStretch(const gsMatrix<T> & C ) const;
-    gsVector<T> computeEigenvalues(const gsMatrix<T> & C ) const;
-    void computePoints(const gsMatrix<T> & u, bool deformed=true) const;
+    std::pair<gsVector<T>,gsMatrix<T>> evalStretch(const gsMatrix<T> & C ) const;
 
 protected:
     // general
@@ -218,11 +204,8 @@ protected:
     const gsFunctionSet<T> * m_patches;
     const gsFunctionSet<T> * m_defpatches;
     const gsFunction<T> * m_thickness;
-    const gsFunction<T> * m_par1;
-    const gsFunction<T> * m_par2;
-    const gsFunction<T> * m_par3;
     const gsFunction<T> * m_density;
-    const std::vector<gsFunction<T>* > m_pars;
+    mutable std::vector<gsFunction<T>* > m_pars;
 
 
     // Linear material matrix
@@ -253,8 +236,9 @@ protected:
     mutable gsMatrix<T>                 m_deriv2_def, m_deriv2_ori;
     mutable gsMatrix<T,3,3>             m_Gcov_ori, m_Gcon_ori, m_Gcov_def, m_Gcon_def, m_Gcov_ori_L, m_Gcov_def_L;
     mutable gsMatrix<T,3,3>             m_gcov_ori, m_gcov_def,m_gcon_ori, m_gcon_def;
-    mutable gsMatrix<T>                 m_par1mat, m_par2mat, m_par3mat;
-    mutable T                           m_par1val, m_par2val, m_par3val, m_J0, m_J0_sq, m_J, m_J_sq, m_Tval;
+    mutable gsMatrix<T>                 m_parmat;
+    mutable gsVector<T>                 m_parvals;
+    mutable T                           m_J0, m_J0_sq, m_J, m_J_sq, m_Tval;
     // integrateZ
     mutable gsMatrix<T> m_points2D, m_points3D, m_evalPoints;
     // mutable gsMatrix<T> m_quNodes;
