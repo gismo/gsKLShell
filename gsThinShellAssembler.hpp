@@ -314,7 +314,7 @@ void gsThinShellAssembler<T>::assemble()
                 m_M_der * m_Ef_der.tr()
             ) * meas(m_ori)
             ,
-            m_space * m_force * meas(m_ori) + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_def)
+            m_space * m_force * meas(m_ori) + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
             );
 
         this->assembleNeumann();
@@ -472,7 +472,7 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
                     m_Ef_der2
                 ) * meas(m_ori)
                 -
-                m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_def)
+                m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
             );
     }
     else // no foundation, no pressure
@@ -582,7 +582,7 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
         // Assemble vector
         m_assembler.assemble(
                         m_space * m_force * meas(m_ori)
-                      + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_def)
+                      + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
                       - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
                     );
 
@@ -670,6 +670,29 @@ void gsThinShellAssembler<T>::constructSolution(const gsMatrix<T> & solVector, g
 {
     deformed = constructSolution(solVector);
 }
+
+template <class T>
+T gsThinShellAssembler<T>::getArea(const gsMultiPatch<T> & geometry)
+{
+    // if (deformed)
+    //     m_assembler.getMap(m_defpatches);           // this map is used for integrals
+    // else
+    //     m_assembler.getMap(m_patches);           // this map is used for integrals
+
+    m_assembler.cleanUp();
+
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    m_assembler.getMap(geometry);           // this map is used for integrals
+
+    // Initialize vector
+    geometryMap G   = m_assembler.exprData()->getMap();
+    geometryMap defG   = m_assembler.exprData()->getMap2();
+
+    gsExprEvaluator<> evaluator(m_assembler);
+    T result = evaluator.integral(meas(defG));
+    return result;
+}
+
 
 template <class T>
 gsMultiPatch<T> gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T> & solVector) const

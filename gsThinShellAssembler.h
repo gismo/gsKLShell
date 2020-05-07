@@ -109,6 +109,8 @@ public:
     const gsMultiPatch<T> & strips()      const  {return m_strips;}
     const gsMultiPatch<T> & defStrips()   const  {return m_defstrips;}
 
+    T getArea(const gsMultiPatch<T> & geometry);
+
 
     //--------------------- SYSTEM ACCESS ----------------------------------//
     const gsSparseMatrix<T> & matrix()  const   {return m_assembler.matrix();}
