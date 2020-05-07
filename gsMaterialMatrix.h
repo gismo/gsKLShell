@@ -132,6 +132,12 @@ public:
     void makeDensity()             { m_outputType=0; }
     void makeStretch()             { m_outputType=9; }
 
+    void setParameters(const std::vector<gsFunction<T>*> &pars)
+    {
+        m_pars = pars;
+        m_numPars = m_pars.size();
+    }
+
     void info() const;
 
 
