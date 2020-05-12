@@ -511,7 +511,10 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     // gsVector<> pt(2);
     // pt.setConstant(0.5);
     // gsExprEvaluator<> evaluator(m_assembler);
-    // gsDebug<<"\n"<<evaluator.eval(reshape(mm0,3,3),pt)<<"\n";
+    // gsDebug<<"\n"<<evaluator.eval(reshape(mmA,3,3),pt)<<"\n";
+    // gsDebug<<"\n"<<evaluator.eval(reshape(mmB,3,3),pt)<<"\n";
+    // gsDebug<<"\n"<<evaluator.eval(reshape(mmC,3,3),pt)<<"\n";
+    // gsDebug<<"\n"<<evaluator.eval(reshape(mmD,3,3),pt)<<"\n";
     // gsDebug<<"\n"<<evaluator.eval(S0,pt)<<"\n";
     // gsDebug<<"\n"<<evaluator.eval(S2,pt)<<"\n";
 
@@ -609,6 +612,11 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
         m_rhs = m_assembler.rhs();
         applyLoads();
     }
+    // gsVector<> pt(2);
+    // pt.setConstant(0.5);
+    // gsExprEvaluator<> evaluator(m_assembler);
+    // gsDebug<<"\n"<<evaluator.eval(S0,pt)<<"\n";
+    // gsDebug<<"\n"<<evaluator.eval(S1,pt)<<"\n";
 }
 template<class T>
 void gsThinShellAssembler<T>::assembleVector(const gsMatrix<T> & solVector)
@@ -717,7 +725,7 @@ gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T>
 {
     // gsDebug<<"Warning: Principle Stretch computation of gsThinShellAssembler is depreciated...\n";
     gsMatrix<T> result(3,u.cols());
-
+    result.setZero();
     this->getOptions();
 
     m_assembler.cleanUp();
