@@ -917,7 +917,7 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
             T lambda, mu, Cconstant;
 
             mu = m_parvals.at(0) / (2.*(1. + m_parvals.at(1)));
-            GISMO_ASSERT((1.-2.*m_parvals.at(1)) != 0, "Division by zero in construction of SvK material parameters!");
+            GISMO_ASSERT((1.-2.*m_parvals.at(1)) != 0, "Division by zero in construction of SvK material parameters! (1.-2.*m_parvals.at(1)) = "<<(1.-2.*m_parvals.at(1))<<"; m_parvals.at(1) = "<<m_parvals.at(1));
             lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1))) ;
             Cconstant = 2*lambda*mu/(lambda+2*mu);
 
@@ -1647,6 +1647,12 @@ T gsMaterialMatrix<T>::d2Psi_dab(const index_t a, const index_t b) const
             + math::pow(m_stretches(0),2.)*math::pow(m_stretches(2),2.);
     T dI_2a = 2*m_stretches(a)*( I_1 - math::pow(m_stretches(a),2.0) );
     T dI_2b = 2*m_stretches(b)*( I_1 - math::pow(m_stretches(b),2.0) );
+
+    // T d2I_2;
+    // if (a!=b)
+    //     d2I_2 = 4.0*m_stretches(a)*m_stretches(b);
+    // else
+    //     d2I_2 = 2.0*(I_1 - m_stretches(a)*m_stretches(a));
     T d2I_2 = idelta(a,b)*4.0*m_stretches(a)*m_stretches(b) + delta(a,b)*2.0*(I_1 - m_stretches(a)*m_stretches(a));
 
     if (!m_compressible)
@@ -1744,7 +1750,11 @@ T gsMaterialMatrix<T>::dJ_da(const index_t a) const
 template<class T>
 T gsMaterialMatrix<T>::d2J_dab(const index_t a, const index_t b) const
 {
-    return ( 1.0 - delta(a,b) ) / ( m_stretches(a) * m_stretches(b) );
+    if (a==b)
+        return 0.0;
+    else
+        return 1.0  / ( m_stretches(a) * m_stretches(b) );
+    // return ( 1.0 - delta(a,b) ) / ( m_stretches(a) * m_stretches(b) );
 }
 
 template<class T>
@@ -1756,7 +1766,12 @@ T gsMaterialMatrix<T>::p() const
 template<class T>
 T gsMaterialMatrix<T>::dp_da(const index_t a) const
 {
-    return m_stretches(2) * d2Psi_dab(2,a) + delta(a,2) * dPsi_da(2);
+    if (a==2)
+        return m_stretches(2) * d2Psi_dab(2,a) + dPsi_da(2);
+    else
+        return m_stretches(2) * d2Psi_dab(2,a);
+
+    // return m_stretches(2) * d2Psi_dab(2,a) + delta(a,2) * dPsi_da(2);
 }
 
 template<class T>
@@ -1777,16 +1792,32 @@ T gsMaterialMatrix<T>::Sa(const index_t a) const
 template<class T>
 T gsMaterialMatrix<T>::dSa_db(const index_t a, const index_t b) const
 {
+    T tmp = 0.0;
     if (!m_compressible)
-        return 1.0/m_stretches(a) * ( d2Psi_dab(a,b) - dp_da(a)*dJ_da(b) - dp_da(b)*dJ_da(a) - p() * d2J_dab(a,b) ) - delta(a,b) / math::pow(m_stretches(a),2) * (dPsi_da(a) - p() * dJ_da(a));
+    {
+        tmp = 1.0/m_stretches(a) * ( d2Psi_dab(a,b) - dp_da(a)*dJ_da(b) - dp_da(b)*dJ_da(a) - p() * d2J_dab(a,b) );
+        if (a==b)
+            tmp += - 1.0 / math::pow(m_stretches(a),2) * (dPsi_da(a) - p() * dJ_da(a));
+
+        // return 1.0/m_stretches(a) * ( d2Psi_dab(a,b) - dp_da(a)*dJ_da(b) - dp_da(b)*dJ_da(a) - p() * d2J_dab(a,b) ) - delta(a,b) / math::pow(m_stretches(a),2) * (dPsi_da(a) - p() * dJ_da(a));
+    }
     else
-        return 1.0/m_stretches(a) * d2Psi_dab(a,b) - delta(a,b) / math::pow(m_stretches(a),2) * dPsi_da(a);
+    {
+        tmp = 1.0/m_stretches(a) * d2Psi_dab(a,b);
+        if (a==b)
+            tmp += - 1.0 / math::pow(m_stretches(a),2) * dPsi_da(a);
+
+        // return 1.0/m_stretches(a) * d2Psi_dab(a,b) - delta(a,b) / math::pow(m_stretches(a),2) * dPsi_da(a);
+    }
+
+    return tmp;
 }
 
 template<class T>
 T gsMaterialMatrix<T>::Cabcd(const index_t a, const index_t b, const index_t c, const index_t d) const
 {
     // Compute part with stress tensor involved.
+    T frac = 0.0;
     T tmp = 0.0;
     // if ( (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) < 1e-12) && (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) > 1e-14) )
     //     gsInfo<<"Warning: difference in stretches is close to machine precision?\n";
@@ -1794,26 +1825,36 @@ T gsMaterialMatrix<T>::Cabcd(const index_t a, const index_t b, const index_t c, 
     if (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) < 1e-14)
     {
         // gsDebug<<"Stretches are equal; (abs((m_stretches(a) - m_stretches(b)) / m_stretches(a)) = "<<abs((m_stretches(a) - m_stretches(b)) / m_stretches(a))<<"\n";
-        tmp = 1.0 / (2.0 * m_stretches(a) ) * ( dSa_db(b,b) - dSa_db(a,b));
+        frac = 1.0 / (2.0 * m_stretches(a) ) * ( dSa_db(b,b) - dSa_db(a,b));
     }
     else
-    {
-        // gsDebug<<"Stress tensor is used\n";
-        tmp = ( Sa(b)-Sa(a) ) / (math::pow(m_stretches(b),2) - math::pow(m_stretches(a),2));
-    }
+        frac = ( Sa(b)-Sa(a) ) / (math::pow(m_stretches(b),2) - math::pow(m_stretches(a),2));
 
 
     // Compute result
     if (!m_compressible)
     {
         GISMO_ASSERT( ( (a < 2) && (b < 2) && (c < 2) && (d < 2) ) , "Index out of range. a="<<a<<", b="<<b<<", c="<<c<<", d="<<d);
-        return 1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d) + tmp * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b))
-                + delta(a,b)*delta(c,d)*1/(math::pow(m_stretches(a),2) * math::pow(m_stretches(c),2)) * ( math::pow(m_stretches(2),2) * d2Psi_dab(2,2) + 2*dPsi_da(2)*m_stretches(2) );
+        if ( ( a==b && c==d) )
+            tmp += 1/m_stretches(c) * dSa_db(a,c) + 1/(math::pow(m_stretches(a),2) * math::pow(m_stretches(c),2)) * ( math::pow(m_stretches(2),2) * d2Psi_dab(2,2) + 2*dPsi_da(2)*m_stretches(2) );
+        else if (( ( a==d && b==c) || (a==d && b==c) ) && ( a != b ))
+            tmp += frac;
+        return tmp;
+
+        // return 1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d) + frac * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b))
+                // + delta(a,b)*delta(c,d)*1/(math::pow(m_stretches(a),2) * math::pow(m_stretches(c),2)) * ( math::pow(m_stretches(2),2) * d2Psi_dab(2,2) + 2*dPsi_da(2)*m_stretches(2) );
     }
     else
     {
         GISMO_ASSERT( ( (a < 3) && (b < 3) && (c < 3) && (d < 3) ) , "Index out of range. a="<<a<<", b="<<b<<", c="<<c<<", d="<<d);
-        return 1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d) + tmp * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b));
+        if ( ( (a==b) && (c==d)) )
+            tmp = 1/m_stretches(c) * dSa_db(a,c);
+        else if (( (a==d) && (b==c) && (a!=b) ) || ( ( (a==c) && (b==d) && (a!=b)) ))
+            tmp = frac;
+
+        return tmp;
+
+        // return 1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d) + frac * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b));
     }
 
 }
