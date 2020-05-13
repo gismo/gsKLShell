@@ -1798,6 +1798,7 @@ T gsMaterialMatrix<T>::dSa_db(const index_t a, const index_t b) const
         tmp = 1.0/m_stretches(a) * ( d2Psi_dab(a,b) - dp_da(a)*dJ_da(b) - dp_da(b)*dJ_da(a) - p() * d2J_dab(a,b) );
         if (a==b)
             tmp += - 1.0 / math::pow(m_stretches(a),2) * (dPsi_da(a) - p() * dJ_da(a));
+        return tmp;
 
         // return 1.0/m_stretches(a) * ( d2Psi_dab(a,b) - dp_da(a)*dJ_da(b) - dp_da(b)*dJ_da(a) - p() * d2J_dab(a,b) ) - delta(a,b) / math::pow(m_stretches(a),2) * (dPsi_da(a) - p() * dJ_da(a));
     }
@@ -1806,11 +1807,10 @@ T gsMaterialMatrix<T>::dSa_db(const index_t a, const index_t b) const
         tmp = 1.0/m_stretches(a) * d2Psi_dab(a,b);
         if (a==b)
             tmp += - 1.0 / math::pow(m_stretches(a),2) * dPsi_da(a);
+        return tmp;
 
         // return 1.0/m_stretches(a) * d2Psi_dab(a,b) - delta(a,b) / math::pow(m_stretches(a),2) * dPsi_da(a);
     }
-
-    return tmp;
 }
 
 template<class T>
@@ -1835,11 +1835,10 @@ T gsMaterialMatrix<T>::Cabcd(const index_t a, const index_t b, const index_t c, 
     if (!m_compressible)
     {
         GISMO_ASSERT( ( (a < 2) && (b < 2) && (c < 2) && (d < 2) ) , "Index out of range. a="<<a<<", b="<<b<<", c="<<c<<", d="<<d);
-        if ( ( a==b && c==d) )
-            tmp += 1/m_stretches(c) * dSa_db(a,c) + 1/(math::pow(m_stretches(a),2) * math::pow(m_stretches(c),2)) * ( math::pow(m_stretches(2),2) * d2Psi_dab(2,2) + 2*dPsi_da(2)*m_stretches(2) );
-        else if (( ( a==d && b==c) || (a==d && b==c) ) && ( a != b ))
-            tmp += frac;
-        return tmp;
+        if ( ( (a==b) && (c==d)) )
+            tmp = 1/m_stretches(c) * dSa_db(a,c) + 1/(math::pow(m_stretches(a),2) * math::pow(m_stretches(c),2)) * ( math::pow(m_stretches(2),2) * d2Psi_dab(2,2) + 2*dPsi_da(2)*m_stretches(2) );
+        else if (( (a==d) && (b==c) && (a!=b) ) || ( ( (a==c) && (b==d) && (a!=b)) ))
+            tmp = frac;
 
         // return 1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d) + frac * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b))
                 // + delta(a,b)*delta(c,d)*1/(math::pow(m_stretches(a),2) * math::pow(m_stretches(c),2)) * ( math::pow(m_stretches(2),2) * d2Psi_dab(2,2) + 2*dPsi_da(2)*m_stretches(2) );
@@ -1851,12 +1850,9 @@ T gsMaterialMatrix<T>::Cabcd(const index_t a, const index_t b, const index_t c, 
             tmp = 1/m_stretches(c) * dSa_db(a,c);
         else if (( (a==d) && (b==c) && (a!=b) ) || ( ( (a==c) && (b==d) && (a!=b)) ))
             tmp = frac;
-
-        return tmp;
-
         // return 1/m_stretches(c) * dSa_db(a,c) * delta(a,b) * delta(c,d) + frac * (delta(a,c)*delta(b,d) + delta(a,d)*delta(b,c)) * (1-delta(a,b));
     }
-
+    return tmp;
 }
 
 
