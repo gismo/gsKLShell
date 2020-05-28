@@ -971,20 +971,41 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
             computeStretch(C);
 
             tmp = 0.0;
-
             for (index_t a = 0; a != 2; a++)
-                for (index_t b = 0; b != 2; b++)
-                    for (index_t c = 0; c != 2; c++)
-                        for (index_t d = 0; d != 2; d++)
-                        {
-                            if (((a==b)&&(c==d)) || (((a==c)&&(b==d)) && (a!=b)) || (((a==d)&&(b==c)) && (a!=b)))
-                                tmp +=  Cabcd(a,b,c,d)*(
-                                        ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
-                                        ( m_gcon_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(d)) )
-                                        );
-                            else
-                                continue;
-                        }
+            {
+                // C_iiii
+                tmp +=  Cabcd(a,a,a,a)*(
+                        ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(a)) )*
+                        ( m_gcon_ori.col(k).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(a)) )
+                        );
+
+                for (index_t b = a+1; b != 2; b++)
+                {
+                    // C_iijj = C_jjii
+                    tmp +=  Cabcd(a,a,b,b)*(
+                                ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(a)) )*
+                                ( m_gcon_ori.col(k).dot(m_stretchvec.col(b)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(b)) )
+                                +
+                                ( m_gcon_ori.col(i).dot(m_stretchvec.col(b)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
+                                ( m_gcon_ori.col(k).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(a)) )
+                            );
+
+                    // C_ijij = Cjiji = Cijji = Cjiij
+                    tmp +=  Cabcd(a,b,a,b)*(
+                                ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
+                                ( m_gcon_ori.col(k).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(b)) )
+                                +
+                                ( m_gcon_ori.col(i).dot(m_stretchvec.col(b)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(a)) )*
+                                ( m_gcon_ori.col(k).dot(m_stretchvec.col(b)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(a)) )
+                                +
+                                ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
+                                ( m_gcon_ori.col(k).dot(m_stretchvec.col(b)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(a)) )
+                                +
+                                ( m_gcon_ori.col(i).dot(m_stretchvec.col(b)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(a)) )*
+                                ( m_gcon_ori.col(k).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(b)) )
+                            );
+                }
+            }
         }
     // --------------------------
     // General implementations
@@ -1014,11 +1035,17 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
     GISMO_ASSERT( ( (i <2) && (j <2) && (k <2) && (l <2) ) , "Index out of range. i="<<i<<", j="<<j<<", k="<<k<<", l="<<l);
     GISMO_ASSERT(m_compressible,"Material model is not compressible?");
 
+    T tmp = 0.0;
     if ((m_material >= 10) && (m_material < 20))
+    {
         computeStretch(c);
+        // use static condensation in the stretch-based formulation
+        // tmp = Cijkl3D(i,j,k,l,c,cinv) - ( Cijkl3D(i,j,2,2,c,cinv) * Cijkl3D(2,2,k,l,c,cinv) ) / Cijkl3D(2,2,2,2,c,cinv);
+        tmp = Cijkl3D(i,j,k,l,c,cinv);
+    }
+    else
+        tmp = Cijkl3D(i,j,k,l,c,cinv) - ( Cijkl3D(i,j,2,2,c,cinv) * Cijkl3D(2,2,k,l,c,cinv) ) / Cijkl3D(2,2,2,2,c,cinv);
 
-    // gsDebug<<"Warning: removed the condensation term here\n";
-    T tmp = Cijkl3D(i,j,k,l,c,cinv) - ( Cijkl3D(i,j,2,2,c,cinv) * Cijkl3D(2,2,k,l,c,cinv) ) / Cijkl3D(2,2,2,2,c,cinv);
     return tmp;
 }
 
@@ -1071,24 +1098,59 @@ T gsMaterialMatrix<T>::Cijkl3D(const index_t i, const index_t j, const index_t k
     // --------------------------
         else if ((m_material >= 10) && (m_material < 20))
         {
-            tmp = 0.0;
 
-            for (index_t a = 0; a != 3; a++)
-                for (index_t b = 0; b != 3; b++)
-                    for (index_t c = 0; c != 3; c++)
-                        for (index_t d = 0; d != 3; d++)
-                        {
-                            if (((a==b)&&(c==d)) || (((a==c)&&(b==d)) && (a!=b)) || (((a==d)&&(b==c)) && (a!=b)))
-                                {
-                                    tmp +=  Cabcd(a,b,c,d)*(
-                                            ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
-                                            ( m_gcon_ori.col(k).dot(m_stretchvec.col(c)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(d)) )
-                                            );
-                                    // gsDebug<<"a = "<<a<<"; b = "<<b<<"; c = "<<c<<"; d = "<<d<<"\n";
-                                }
-                            else
-                                continue;
-                        }
+            if ( (i==2) && (j==2) && (k==2) && (l==2) ) // if C3333 (no static condensation)
+                tmp = Cabcd(2,2,2,2);
+            else
+            {
+
+                tmp = 0.0;
+                T C = 0.0;
+                T C2222 = Cabcd(2,2,2,2);
+                // T Cab22,C22ab;
+                for (index_t a = 0; a != 2; a++)
+                {
+                    // C_iiii
+                    // if (!((i==2 || j==2 || k==2 || l==2) && a!=2))
+                    // C = Cabcd(a,a,a,a);
+                    C = Cabcd(a,a,a,a) - math::pow(Cabcd(2,2,a,a),2) / C2222;
+                    tmp +=  C*(
+                                ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(a)) )*
+                                ( m_gcon_ori.col(k).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(a)) )
+                            );
+
+                    for (index_t b = a+1; b != 2; b++)
+                    {
+                        // C_iijj
+                        // C = Cabcd(a,a,b,b);
+                        C = Cabcd(a,a,b,b) - Cabcd(a,a,2,2) * Cabcd(2,2,b,b) / C2222;
+                        tmp +=  C*(
+                                    ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(a)) )*
+                                    ( m_gcon_ori.col(k).dot(m_stretchvec.col(b)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(b)) )
+                                    +
+                                    ( m_gcon_ori.col(i).dot(m_stretchvec.col(b)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
+                                    ( m_gcon_ori.col(k).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(a)) )
+                                );
+
+                        // C_ijij = Cjiji = Cijji = Cjiij
+                        // C = Cabcd(a,b,a,b);
+                        C = Cabcd(a,b,a,b) - math::pow(Cabcd(2,2,a,b),2) / C2222;
+                        tmp +=  C*(
+                                    ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
+                                    ( m_gcon_ori.col(k).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(b)) )
+                                    +
+                                    ( m_gcon_ori.col(i).dot(m_stretchvec.col(b)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(a)) )*
+                                    ( m_gcon_ori.col(k).dot(m_stretchvec.col(b)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(a)) )
+                                    +
+                                    ( m_gcon_ori.col(i).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(b)) )*
+                                    ( m_gcon_ori.col(k).dot(m_stretchvec.col(b)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(a)) )
+                                    +
+                                    ( m_gcon_ori.col(i).dot(m_stretchvec.col(b)) )*( m_gcon_ori.col(j).dot(m_stretchvec.col(a)) )*
+                                    ( m_gcon_ori.col(k).dot(m_stretchvec.col(a)) )*( m_gcon_ori.col(l).dot(m_stretchvec.col(b)) )
+                                );
+                    }
+                }
+            }
         }
     // --------------------------
     // General implementations
@@ -1334,7 +1396,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatr
         {
             c(2,2) += dc33;
 
-            GISMO_ASSERT(c(2,2)>= 0,"ERROR! c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
+            GISMO_ASSERT(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
             cinv(2,2) = 1.0/c(2,2);
 
             m_J_sq = m_J0_sq * c(2,2) ;
