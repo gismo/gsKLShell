@@ -107,6 +107,8 @@ void gsThinShellAssembler<T>::initialize()
 
     this->assembleDirichlet();
 
+    m_ddofs = m_space.fixedPart();
+
     m_mapper = m_space.mapper();
     m_dim = m_space.dim();
 
@@ -114,7 +116,6 @@ void gsThinShellAssembler<T>::initialize()
     m_foundInd = false;
     // pressure is off by default
     m_pressInd = false;
-
 }
 
 
@@ -135,6 +136,15 @@ void gsThinShellAssembler<T>::assembleDirichlet()
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // if statement
     m_space.setup(m_bcs, dirichlet::interpolation, 0);
+}
+
+template <class T>
+void gsThinShellAssembler<T>::homogenizeDirichlet()
+{
+    // space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    // m_space.setup(m_bcs, dirichlet::homogeneous, 0);
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart().setZero();
 }
 
 template<class T>
@@ -431,6 +441,8 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     geometryMap m_def   = m_assembler.exprData()->getMap2();
     // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
 
+    this->homogenizeDirichlet();
+
     auto m_N        = S0.tr();
     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
     auto m_Em_der2  = flatdot( jac(m_space),jac(m_space).tr(), m_N ); //[checked]
@@ -559,6 +571,8 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
     variable m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
     // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
 
+    this->homogenizeDirichlet();
+
     auto m_N        = S0.tr();
     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ;
 
@@ -618,6 +632,119 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
     // gsDebug<<"\n"<<evaluator.eval(S0,pt)<<"\n";
     // gsDebug<<"\n"<<evaluator.eval(S1,pt)<<"\n";
 }
+
+template <class T>
+gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVector(const gsMultiPatch<T> & deformed, patchSide& ps, int com)
+{
+    gsExprAssembler<T> assembler;
+    assembler.setIntegrationElements(m_basis);
+    space u = assembler.getSpace(m_basis, 3, 0); // last argument is the space ID
+
+    assembler.initSystem();
+
+    m_defpatches = deformed;
+
+    assembler.getMap(m_patches);           // this map is used for integrals
+    assembler.getMap(m_defpatches);
+
+    // Initialize vector
+    // m_assembler.initVector(1,false);
+
+    gsMaterialMatrix m_S0 = m_materialMat;
+    m_S0.makeVector(0);
+    gsMaterialMatrix m_S1 = m_materialMat;
+    m_S1.makeVector(1);
+
+    variable S0 = assembler.getCoeff(m_S0);
+    variable S1 = assembler.getCoeff(m_S1);
+
+    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
+    variable m_m2 = assembler.getCoeff(mult2t);
+
+    geometryMap m_ori   = assembler.exprData()->getMap();
+    geometryMap m_def   = assembler.exprData()->getMap2();
+    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
+
+    // this->homogenizeDirichlet();
+
+    auto m_N        = S0.tr();
+    auto m_Em_der   = flat( jac(m_def).tr() * jac(u) ) ;
+
+    auto m_M        = S1.tr(); // output is a column
+    auto m_Ef_der   = -( deriv2(u,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(u,m_def) ) ) * reshape(m_m2,3,3); //[checked]
+
+    // Assemble vector
+    assembler.assemble(
+                  - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+                );
+
+    gsMatrix<T> Fint = assembler.rhs();
+    gsMatrix<T> result;
+    const gsMultiBasis<T> & mbasis =
+        *dynamic_cast<const gsMultiBasis<T>*>(&u.source());
+    gsMatrix<index_t> boundary;
+
+    typedef gsBoundaryConditions<T> bcList;
+
+    gsBoundaryConditions<real_t>::bcContainer container;
+    m_bcs.getConditionFromSide(ps,container);
+
+    for ( typename bcList::const_iterator it =  container.begin();
+          it != container.end() ; ++it )
+    {
+        if( it->unknown()!=u.id() ) continue;
+
+        if( (it->unkComponent()!=com) && (it->unkComponent()!=-1) ) continue;
+
+        const int k = it->patch();
+        const gsBasis<T> & basis = mbasis[k];
+
+        // if (it->type()==condition_type::dirichlet)
+        //     gsDebug<<"Dirichlet\n";
+        // else if (it->type()==condition_type::neumann)
+        //     gsDebug<<"Neumann\n";
+        // else
+        //     GISMO_ERROR("Type unknown");
+
+        // Get dofs on this boundary
+        boundary = basis.boundary(it->side());
+        result.resize(boundary.size(),1);
+
+        T offset = u.mapper().offset(k);
+        T size = u.mapper().size(com);
+        for (index_t l=0; l!= boundary.size(); ++l)
+        {
+            index_t ii = offset + size*com + boundary.at(l);
+            result.at(l) = Fint.at(ii);
+        }
+    }
+
+    // gsInfo<<"Neumann forces\n";
+    // for ( typename bcList::const_iterator it =  m_bcs.begin("Neumann");
+    //       it != m_bcs.end("Neumann") ; ++it )
+    // {
+    //     if( it->unknown()!=u.id() ) continue;
+    //     //
+    //     for (index_t r = 0; r!=u.dim(); ++r)
+    //     {
+    //         const int k = it->patch();
+    //         const gsBasis<T> & basis = mbasis[k];
+
+    //         // Get dofs on this boundary
+    //         boundary = basis.boundary(it->side());
+
+    //         T offset = u.mapper().offset(0);
+    //         T size = u.mapper().size(r);
+
+    //         for (index_t l=0; l!= boundary.size(); ++l)
+    //         {
+    //             index_t ii = offset + size*r + boundary.at(l);
+    //             gsInfo<<result.at(ii)<<"\n";
+    //         }
+    //     }
+    // }
+    return result;
+}
 template<class T>
 void gsThinShellAssembler<T>::assembleVector(const gsMatrix<T> & solVector)
 {
@@ -658,6 +785,8 @@ gsMultiPatch<T> gsThinShellAssembler<T>::constructSolution(const gsMatrix<T> & s
 
     // Solution vector and solution variable
     space m_space = m_assembler.trialSpace(0);
+    const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart() = m_ddofs;
+
     solution m_solution = m_assembler.getSolution(m_space, m_solvector);
 
     GISMO_ASSERT(m_defpatches.nPatches()==mp.nPatches(),"The number of patches of the result multipatch is not equal to that of the geometry!");

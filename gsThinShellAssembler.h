@@ -75,6 +75,17 @@ public:
     void setPointLoads(const gsPointLoads<T> & pLoads){ m_pLoads = pLoads; }
     void setFoundation(const gsFunction<T> & foundation) { m_foundFun = &foundation; m_foundInd = true; }
     void setPressure(const gsFunction<T> & pressure) { m_pressFun = &pressure; m_pressInd = true; }
+
+    void updateBCs(const gsBoundaryConditions<T> & bconditions)
+    {
+        m_bcs = bconditions;
+        space m_space = m_assembler.trialSpace(0);
+        this->assembleDirichlet();
+
+        m_ddofs = m_space.fixedPart();
+        m_mapper = m_space.mapper();
+    }
+    void homogenizeDirichlet();
     // void setFoundation(const T & foundation) { m_foundFun = gsConstantFunction<T>(foundation,2); m_foundInd = true; }
     // NOTE: can we improve the m_foundInd indicator? e.g. by checking if m_foundation exists?
 
@@ -101,6 +112,7 @@ public:
     void assembleMatrix(const gsMatrix<T>       & solVector );
 
     void assembleVector(const gsMultiPatch<T>   & deformed  );
+    gsMatrix<T> boundaryForceVector(const gsMultiPatch<T>   & deformed , patchSide& ps, int com );
     void assembleVector(const gsMatrix<T>       & solVector );
 
     //--------------------- GEOMETRY ACCESS --------------------------------//
@@ -199,6 +211,8 @@ protected:
     gsMultiPatch<T> m_defpatches;
     gsMultiBasis<T> m_basis;
     gsBoundaryConditions<T> m_bcs;
+
+    mutable gsMatrix<T> m_ddofs;
 
     gsMaterialMatrix<T> m_materialMat;
 
