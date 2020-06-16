@@ -50,18 +50,18 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     variable m_m2 = m_assembler.getCoeff(mult2t);
 
     auto That   = cartcon(m_ori);
-    auto Ttilde = cartcov(m_ori);
-    auto Tmat   = cartcov(m_def);
+    // auto Ttilde = cartcov(m_ori);
+    // auto Tmat   = cartcov(m_def);
     auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) * That;
     auto E_f    = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) * That;
 
     auto S_m    = S0;
     auto S_f    = S1;
 
-    auto Gdef   = jac(m_def);
-    auto Gori   = jac(m_ori);
-    auto normalDef = sn(m_def);
-    auto normalOri = sn(m_ori);
+    // auto Gdef   = jac(m_def);
+    // auto Gori   = jac(m_ori);
+    // auto normalDef = sn(m_def);
+    // auto normalOri = sn(m_ori);
 
     gsExprEvaluator ev(m_assembler);
     switch (m_stress_type)
@@ -75,6 +75,21 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
             for (index_t k = 0; k != u.cols(); ++k)
                 result.col(k) = ev.eval(S_f.tr(),u.col(k));
             break;
+
+        // TO BE IMPLEMENTED
+        // -------------------------------------
+        case stress_type::von_mises :
+            break;
+
+        case stress_type::von_mises_membrane :
+            break;
+
+        case stress_type::von_mises_flexural :
+            break;
+
+        case stress_type::total :
+            break;
+        // -------------------------------------
 
         case stress_type::membrane_strain :
             for (index_t k = 0; k != u.cols(); ++k)

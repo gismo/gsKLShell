@@ -822,7 +822,6 @@ T gsThinShellAssembler<T>::getArea(const gsMultiPatch<T> & geometry)
     m_assembler.getMap(geometry);           // this map is used for integrals
 
     // Initialize vector
-    geometryMap G   = m_assembler.exprData()->getMap();
     geometryMap defG   = m_assembler.exprData()->getMap2();
 
     gsExprEvaluator<> evaluator(m_assembler);
@@ -862,8 +861,8 @@ gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T>
     m_assembler.getMap(m_patches);           // this map is used for integrals
     m_assembler.getMap(deformed);
 
-    geometryMap m_ori   = m_assembler.exprData()->getMap();
-    geometryMap m_def   = m_assembler.exprData()->getMap2();
+    // geometryMap m_ori   = m_assembler.exprData()->getMap();
+    // geometryMap m_def   = m_assembler.exprData()->getMap2();
 
     m_assembler.initSystem(false);
 
@@ -887,7 +886,7 @@ void gsThinShellAssembler<T>::constructStress(const gsMultiPatch<T> & deformed,
 {
     result.clear();
 
-    for (index_t p = 0; p < m_patches.nPatches(); ++p )
+    for (size_t p = 0; p < m_patches.nPatches(); ++p )
         result.addPiecePointer(new gsShellStressFunction<T>(m_patches,deformed,m_materialMat,p,type,m_assembler));
 }
 
