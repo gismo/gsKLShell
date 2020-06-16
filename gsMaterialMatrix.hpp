@@ -251,8 +251,6 @@ void gsMaterialMatrix<T>::defaultOptions()
 
     m_options.addInt("Compressibility","Specifies whether the material is modelled compressibile or incompressible",compressibility::incompressible);
 
-    m_options.addInt("CompressibilityFunction","Specifies which compressibility function is used",compressibilityFun::bulkModulus);
-
     m_options.addInt("IntegrationMethod","Specifies thicknessintegration method; 0: Drectly Decoupled (DD); 1: Analytically Projected (AP); 2: Numerically Projected (NP)",integration::NP);
 
     m_options.addInt("NumGauss","Number of Gaussian points through thickness",4);
@@ -284,7 +282,6 @@ void gsMaterialMatrix<T>::getOptions() const
 {
     m_material = m_options.getInt("MaterialLaw");
     m_compressible = m_options.getInt("Compressibility");
-    m_compFun = m_options.getInt("CompressibilityFunction");
     m_integration = m_options.getInt("IntegrationMethod");
 }
 
@@ -1062,14 +1059,7 @@ T gsMaterialMatrix<T>::Cijkl3D(const index_t i, const index_t j, const index_t k
     T mu = m_parvals.at(0) / (2 * (1 + m_parvals.at(1)));
     GISMO_ASSERT(3 - 6 * m_parvals.at(1) != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
 
-    //  choose compressibility function (and parameter)
-    T K,lambda;
-    if (m_compFun==0)
-        K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1)); // or lambda
-    else if (m_compFun==1)
-        lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1))) ;
-    else
-        GISMO_ERROR("Compressibility function "<< m_compFun<<" unknown");
+    T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
 
     T dCinv = - 1./2.*( cinv(i,k)*cinv(j,l) + cinv(i,l)*cinv(j,k) );
     T traceCt = m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
@@ -1092,7 +1082,7 @@ T gsMaterialMatrix<T>::Cijkl3D(const index_t i, const index_t j, const index_t k
         else if (m_material==2)
             tmp = 1.0 / 9.0 * mu * math::pow( m_J_sq , -1.0/3.0 ) * ( I_1 * ( 2.0*cinv(i,j)*cinv(k,l) + 3.0*cinv(i,k)*cinv(j,l) + 3.0*cinv(i,l)*cinv(j,k) )
                                 - 6.0 *( m_Gcon_ori(i,j)*cinv(k,l) + cinv(i,j)*m_Gcon_ori(k,l) ) )
-                    + ( m_compFun==0 ? K : lambda ) * ( m_J_sq*cinv(i,j)*cinv(k,l) + (m_J_sq-1)*dCinv ) + ( m_compFun==0 ? 0 : - 4. * mu/2. * dCinv );
+                    + K * ( m_J_sq*cinv(i,j)*cinv(k,l) + (m_J_sq-1)*dCinv );
         else if (m_material==3)
         {
             GISMO_ASSERT(m_numPars==3,"Mooney-Rivlin model needs to be a 3 parameter model");
@@ -1103,7 +1093,7 @@ T gsMaterialMatrix<T>::Cijkl3D(const index_t i, const index_t j, const index_t k
                     + 1.0/9.0 * c2 * math::pow(m_J_sq, -2.0/3.0) *  ( 8.0*I_2*cinv(i,j)*cinv(k,l) - 12.0*I_2*dCinv
                                                                         - 12.0*dI_2(i,j,c,cinv)*cinv(k,l)- 12.0*cinv(i,j)*dI_2(k,l,c,cinv)
                                                                         + 18.0*d2I_2 )
-                    + ( m_compFun==0 ? K : lambda ) * ( m_J_sq*cinv(i,j)*cinv(k,l) + (m_J_sq-1)*dCinv ) + ( m_compFun==0 ? 0 : - 4. * mu/2. * dCinv );
+                    + K * ( m_J_sq*cinv(i,j)*cinv(k,l) + (m_J_sq-1)*dCinv );
         }
     // --------------------------
     // Stretch-based implementations
@@ -1313,14 +1303,7 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j, const gsMatrix<T> &
     T mu = m_parvals.at(0) / (2 * (1 + m_parvals.at(1)));
     GISMO_ASSERT(3 - 6 * m_parvals.at(1) != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
 
-    //  choose compressibility function (and parameter)
-    T K,lambda;
-    if (m_compFun==0)
-        K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1)); // or lambda
-    else if (m_compFun==1)
-        lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1))) ;
-    else
-        GISMO_ERROR("Compressibility function "<< m_compFun<<" unknown");
+    T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
 
     T traceCt = m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
                 m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
@@ -1333,8 +1316,7 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j, const gsMatrix<T> &
         gsWarn<<"Incompressible material stress tensor requested, but not needed. How?";
     else if (m_material==2)
         tmp =  mu * math::pow( m_J_sq , -1.0/3.0 ) * ( m_Gcon_ori(i,j) - 1.0/3.0 * I_1 * cinv(i,j) )
-                + ( m_compFun==0 ? K : lambda ) * 0.5 * ( m_J_sq - 1.0 ) * cinv(i,j)
-                + ( m_compFun==0 ? 0 : - 2. * mu * cinv(i,j) );
+                + K * 0.5 * ( m_J_sq - 1.0 ) * cinv(i,j);
     else if (m_material==3)
     {
         GISMO_ASSERT(m_numPars==3,"Mooney-Rivlin model needs to be a 3 parameter model");
@@ -1343,8 +1325,7 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j, const gsMatrix<T> &
 
         tmp =     c1 * math::pow( m_J_sq , -1.0/3.0 ) * ( m_Gcon_ori(i,j) - 1.0/3.0 * I_1 * cinv(i,j) )
                 + c2 * math::pow( m_J_sq , -2.0/3.0 ) * ( dI_2(i,j,c,cinv)- 2.0/3.0 * I_2 * cinv(i,j) )
-                + ( m_compFun==0 ? K : lambda ) * 0.5 * ( m_J_sq - 1.0 ) * cinv(i,j)
-                + ( m_compFun==0 ? 0 : - 2. * mu * cinv(i,j) );
+                + K * 0.5 * ( m_J_sq - 1.0 ) * cinv(i,j);
     }
     // --------------------------
     // Stretch-based implementations
@@ -1558,16 +1539,8 @@ T gsMaterialMatrix<T>::dPsi(const index_t i, const index_t j, const gsMatrix<T> 
     GISMO_ASSERT(3 - 6 * m_parvals.at(1) != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
 
     //  choose compressibility function (and parameter)
-    T K,lambda, dpsi_vol;
-    if (m_compFun==0)
-        K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1)); // or lambda
-    else if (m_compFun==1)
-        lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1))) ;
-    else
-        GISMO_ERROR("Compressibility function "<< m_compFun<<" unknown");
-
-    dpsi_vol = ( m_compFun==0 ? K : lambda ) * 0.25 * (m_J_sq - 1.0) * cinv(i,j)
-                + ( m_compFun==0 ? 0 : - mu / 2. * cinv(i,j) );
+    T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
+    dpsi_vol = K * 0.25 * (m_J_sq - 1.0) * cinv(i,j);
 
     T traceCt = m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
                 m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
@@ -1608,16 +1581,9 @@ T gsMaterialMatrix<T>::d2Psi(const index_t i, const index_t j, const index_t k, 
     T dCinv = - 1./2.*( cinv(i,k)*cinv(j,l) + cinv(i,l)*cinv(j,k) );
 
     //  choose compressibility function (and parameter)
-    T K,lambda, d2psi_vol;
-    if (m_compFun==0)
-        K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1)); // or lambda
-    else if (m_compFun==1)
-        lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1))) ;
-    else
-        GISMO_ERROR("Compressibility function "<< m_compFun<<" unknown");
+    T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
 
-    d2psi_vol = ( m_compFun==0 ? K : lambda ) * 0.25 * ( m_J_sq*cinv(i,j)*cinv(k,l) + (m_J_sq-1.0)*dCinv )
-                + ( m_compFun==0 ? 0 : - mu / 2. * dCinv  );
+    d2psi_vol = K * 0.25 * ( m_J_sq*cinv(i,j)*cinv(k,l) + (m_J_sq-1.0)*dCinv );
 
     T traceCt = m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
                 m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
@@ -1701,16 +1667,9 @@ T gsMaterialMatrix<T>::dPsi_da(const index_t a) const
             GISMO_ASSERT(3 - 6 * m_parvals.at(1) != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
             T beta  = -2.0;
             //  choose compressibility function (and parameter)
-            T K,lambda, dpsi_vol;
-            if (m_compFun==0)
-                K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1)); // or lambda
-            else if (m_compFun==1)
-                lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1))) ;
-            else
-                GISMO_ERROR("Compressibility function "<< m_compFun<<" unknown");
+            T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
 
-            dpsi_vol = ( m_compFun==0 ? K : lambda ) * 1. / (m_stretches(a)*beta) * (1.0 - math::pow(m_J_sq,-beta/2.0))
-                        + ( m_compFun==0 ? 0.0 : - mu / m_stretches(a) );
+            dpsi_vol = K / (m_stretches(a)*beta) * (1.0 - math::pow(m_J_sq,-beta/2.0));
 
             if (m_material==12)
                 tmp = mu/2.0 * math::pow(m_J_sq,-1./3.) * ( -2./3. *  I_1 / m_stretches(a) + dI_1a );
@@ -1801,18 +1760,8 @@ T gsMaterialMatrix<T>::d2Psi_dab(const index_t a, const index_t b) const
         m_J_sq = math::pow(m_stretches(0)*m_stretches(1)*m_stretches(2),2.0);
 
         T beta  = -2.0;
-        //  choose compressibility function (and parameter)
-        T K,lambda, d2psi_vol;
-        if (m_compFun==0)
-            K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1)); // or lambda
-        else if (m_compFun==1)
-            lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1))) ;
-        else
-            GISMO_ERROR("Compressibility function "<< m_compFun<<" unknown");
-
-        d2psi_vol = ( m_compFun==0 ? K : lambda ) * 1. / (beta*m_stretches(a)*m_stretches(b)) * ( beta*m_J_sq + delta(a,b) * (math::pow(m_J_sq,-beta/2.0) - 1.0) )
-                    + ( m_compFun==0 ? 0.0 : mu * delta(a,b) / (m_stretches(a)*m_stretches(b)) );
-
+        T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
+        d2psi_vol = K / (beta*m_stretches(a)*m_stretches(b)) * ( beta*m_J_sq + delta(a,b) * (math::pow(m_J_sq,-beta/2.0) - 1.0) );
 
         if (m_material==12)
         {

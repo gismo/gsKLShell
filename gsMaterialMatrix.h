@@ -276,16 +276,6 @@ protected:
             compressible = 1
         };
     };
-    /// @brief Specifies compressibility function
-    struct compressibilityFun
-    {
-        enum type
-        {
-            bulkModulus = 0,
-            lameParaneters = 1
-        };
-    };
-
     /// @brief Specifies (in)compressibility
     struct integration
     {
