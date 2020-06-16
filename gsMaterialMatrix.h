@@ -276,6 +276,15 @@ protected:
             compressible = 1
         };
     };
+    /// @brief Specifies compressibility function
+    struct compressibilityFun
+    {
+        enum type
+        {
+            bulkModulus = 0,
+            lameParaneters = 1
+        };
+    };
 
     /// @brief Specifies (in)compressibility
     struct integration
@@ -290,6 +299,7 @@ protected:
 
     mutable index_t m_material;
     mutable bool m_compressible;
+    mutable int m_compFun;
     mutable int m_outputType, m_output;
     mutable int m_integration;
 
