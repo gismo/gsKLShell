@@ -1540,7 +1540,7 @@ T gsMaterialMatrix<T>::dPsi(const index_t i, const index_t j, const gsMatrix<T> 
 
     //  choose compressibility function (and parameter)
     T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
-    dpsi_vol = K * 0.25 * (m_J_sq - 1.0) * cinv(i,j);
+    T dpsi_vol = K * 0.25 * (m_J_sq - 1.0) * cinv(i,j);
 
     T traceCt = m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
                 m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
@@ -1583,7 +1583,7 @@ T gsMaterialMatrix<T>::d2Psi(const index_t i, const index_t j, const index_t k, 
     //  choose compressibility function (and parameter)
     T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
 
-    d2psi_vol = K * 0.25 * ( m_J_sq*cinv(i,j)*cinv(k,l) + (m_J_sq-1.0)*dCinv );
+    T d2psi_vol = K * 0.25 * ( m_J_sq*cinv(i,j)*cinv(k,l) + (m_J_sq-1.0)*dCinv );
 
     T traceCt = m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
                 m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
@@ -1669,7 +1669,7 @@ T gsMaterialMatrix<T>::dPsi_da(const index_t a) const
             //  choose compressibility function (and parameter)
             T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
 
-            dpsi_vol = K / (m_stretches(a)*beta) * (1.0 - math::pow(m_J_sq,-beta/2.0));
+            T dpsi_vol = K / (m_stretches(a)*beta) * (1.0 - math::pow(m_J_sq,-beta/2.0));
 
             if (m_material==12)
                 tmp = mu/2.0 * math::pow(m_J_sq,-1./3.) * ( -2./3. *  I_1 / m_stretches(a) + dI_1a );
@@ -1761,7 +1761,7 @@ T gsMaterialMatrix<T>::d2Psi_dab(const index_t a, const index_t b) const
 
         T beta  = -2.0;
         T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
-        d2psi_vol = K / (beta*m_stretches(a)*m_stretches(b)) * ( beta*m_J_sq + delta(a,b) * (math::pow(m_J_sq,-beta/2.0) - 1.0) );
+        T d2psi_vol = K / (beta*m_stretches(a)*m_stretches(b)) * ( beta*m_J_sq + delta(a,b) * (math::pow(m_J_sq,-beta/2.0) - 1.0) );
 
         if (m_material==12)
         {
