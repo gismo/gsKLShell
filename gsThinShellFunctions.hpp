@@ -58,6 +58,8 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     auto S_m    = S0;
     auto S_f    = S1;
 
+    // Add first Piola-Kirchhoff (nominal) Stress tensor P = F * S
+
     // auto Gdef   = jac(m_def);
     // auto Gori   = jac(m_ori);
     // auto normalDef = sn(m_def);
