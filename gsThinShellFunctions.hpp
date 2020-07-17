@@ -58,6 +58,8 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     auto S_m    = S0;
     auto S_f    = S1;
 
+    // Add first Piola-Kirchhoff (nominal) Stress tensor P = F * S
+
     // auto Gdef   = jac(m_def);
     // auto Gori   = jac(m_ori);
     // auto normalDef = sn(m_def);
@@ -68,12 +70,15 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     {
         case stress_type::membrane :
             for (index_t k = 0; k != u.cols(); ++k)
-                result.col(k) = ev.eval(S_m.tr(),u.col(k));
+                result.col(k) = (ev.eval(S_m.tr(),u.col(k))).transpose();
             break;
 
         case stress_type::flexural :
             for (index_t k = 0; k != u.cols(); ++k)
-                result.col(k) = ev.eval(S_f.tr(),u.col(k));
+                result.col(k) = (ev.eval(S_f.tr(),u.col(k))).transpose();
+
+                // gsInfo<<"Stresses:\n"<<ev.eval(S_f.tr(),u.col(k))<<"\n";
+
             break;
 
         // TO BE IMPLEMENTED
