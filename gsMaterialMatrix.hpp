@@ -1043,9 +1043,8 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
     T tmp = 0.0;
     if ((m_material >= 10) && (m_material < 20))
     {
+        // static condensation is done before the projection
         computeStretch(c);
-        // use static condensation in the stretch-based formulation
-        // tmp = Cijkl3D(i,j,k,l,c,cinv) - ( Cijkl3D(i,j,2,2,c,cinv) * Cijkl3D(2,2,k,l,c,cinv) ) / Cijkl3D(2,2,2,2,c,cinv);
         tmp = Cijkl3D(i,j,k,l,c,cinv);
     }
     else
@@ -1800,7 +1799,7 @@ T gsMaterialMatrix<T>::d2Psi_dab(const index_t a, const index_t b) const
         T beta  = -2.0;
         T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
         T lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1)));
-        T d2psi_vol = K / (beta*m_stretches(a)*m_stretches(b)) * ( beta*m_J_sq + delta(a,b) * (math::pow(m_J_sq,-beta/2.0) - 1.0) );
+        T d2psi_vol = K / (beta*m_stretches(a)*m_stretches(b)) * ( beta*math::pow(m_J_sq,-beta/2.0) + delta(a,b) * (math::pow(m_J_sq,-beta/2.0) - 1.0) );
 
         if (m_material==12)
         {
