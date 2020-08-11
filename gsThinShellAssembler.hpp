@@ -848,23 +848,32 @@ void gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T> & solVecto
     deformed = constructDisplacement(solVector);
 }
 
+// template <class T>
+// void gsThinShellAssembler<T>::constructStresses(const gsMultiPatch<T> & deformed,
+//                                                     gsPiecewiseFunction<T> & result,
+//                                                     stress_type::type type) const
+// {
+//     deformed = constructDisplacement(solVector);
+// }
+
 template <class T>
 gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T> & u, const gsMultiPatch<T> & deformed, const T z)
 {
     // gsDebug<<"Warning: Principle Stretch computation of gsThinShellAssembler is depreciated...\n";
     gsMatrix<T> result(3,u.cols());
     result.setZero();
-    this->getOptions();
+    // this->getOptions();
 
     m_assembler.cleanUp();
+    m_defpatches = deformed;
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
-    m_assembler.getMap(deformed);
+    m_assembler.getMap(m_defpatches);
 
-    // geometryMap m_ori   = m_assembler.exprData()->getMap();
-    // geometryMap m_def   = m_assembler.exprData()->getMap2();
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+    geometryMap m_def   = m_assembler.exprData()->getMap2();
 
-    m_assembler.initSystem(false);
+    // m_assembler.initSystem(false);
 
     gsMaterialMatrix m_mm = m_materialMat;
     m_mm.makeStretch();
@@ -888,10 +897,22 @@ void gsThinShellAssembler<T>::constructStress(const gsMultiPatch<T> & deformed,
 
     for (size_t p = 0; p < m_patches.nPatches(); ++p )
         result.addPiecePointer(new gsShellStressFunction<T>(m_patches,deformed,m_materialMat,p,type,m_assembler));
+
 }
 
-/*
-    To do; make warnings
-*/
+// template <class T>
+// gsField<T> gsThinShellAssembler<T>::constructStress(const gsMultiPatch<T> & deformed,
+//                                                     stress_type::type type)
+// {
+//     gsPiecewiseFunction<T> result;
+//     result.clear();
+
+//     for (size_t p = 0; p < m_patches.nPatches(); ++p )
+//         result.addPiecePointer(new gsShellStressFunction<T>(m_patches,deformed,m_materialMat,p,type,m_assembler));
+
+//     gsField<T> stressField(m_patches,result, true);
+//     return stressField;
+
+// }
 
 }// namespace gismo

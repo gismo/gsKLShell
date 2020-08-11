@@ -86,6 +86,9 @@ public:
         m_mapper = m_space.mapper();
     }
     void homogenizeDirichlet();
+
+    index_t numDofs() const {return m_assembler.numDofs();}
+
     // void setFoundation(const T & foundation) { m_foundFun = gsConstantFunction<T>(foundation,2); m_foundInd = true; }
     // NOTE: can we improve the m_foundInd indicator? e.g. by checking if m_foundation exists?
 
@@ -148,6 +151,9 @@ public:
     void constructStress(const gsMultiPatch<T> & deformed,
                                gsPiecewiseFunction<T> & result,
                                stress_type::type type);
+
+    // gsField<T> constructStress(const gsMultiPatch<T> & deformed,
+                               // stress_type::type type);
 
     gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed, const T z=0);
 

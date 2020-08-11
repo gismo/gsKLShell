@@ -30,7 +30,7 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     m_assembler.getMap(m_defpatches);
 
     // Initialize stystem
-    m_assembler.initSystem();
+    // m_assembler.initSystem(false);
 
     gsMaterialMatrix m_S0 = m_materialMat;
     m_S0.makeVector(0);
@@ -50,13 +50,13 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     variable m_m2 = m_assembler.getCoeff(mult2t);
 
     auto That   = cartcon(m_ori);
-    // auto Ttilde = cartcov(m_ori);
+    auto Ttilde = cartcov(m_ori);
     // auto Tmat   = cartcov(m_def);
     auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) * That;
     auto E_f    = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) * That;
 
-    auto S_m    = S0;
-    auto S_f    = S1;
+    auto S_m    = S0.tr() * Ttilde;
+    auto S_f    = S1.tr() * Ttilde;
 
     // Add first Piola-Kirchhoff (nominal) Stress tensor P = F * S
 
@@ -70,15 +70,12 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     {
         case stress_type::membrane :
             for (index_t k = 0; k != u.cols(); ++k)
-                result.col(k) = (ev.eval(S_m.tr(),u.col(k))).transpose();
+                result.col(k) = (ev.eval(S_m,u.col(k))).transpose();
             break;
 
         case stress_type::flexural :
             for (index_t k = 0; k != u.cols(); ++k)
-                result.col(k) = (ev.eval(S_f.tr(),u.col(k))).transpose();
-
-                // gsInfo<<"Stresses:\n"<<ev.eval(S_f.tr(),u.col(k))<<"\n";
-
+                result.col(k) = (ev.eval(S_f,u.col(k))).transpose();
             break;
 
         // TO BE IMPLEMENTED
