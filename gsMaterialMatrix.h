@@ -122,15 +122,18 @@ public:
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     void eval_into_dens(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     void eval_into_stretch(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    void eval_into_stretchdir(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     void eval_into_DD(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     void eval_into_AP(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     void eval_into_NP(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
 public:
-    void makeMatrix(int num=0)     { m_outputType=2; m_output = num;}
-    void makeVector(int num=0)     { m_outputType=1; m_output = num;}
-    void makeDensity()             { m_outputType=0; }
-    void makeStretch()             { m_outputType=9; }
+    void makeMatrix(int num=0)          { m_outputType=2; m_output = num;}
+    void makeVector(int num=0)          { m_outputType=1; m_output = num;}
+    void makeDensity()                  { m_outputType=0; }
+    void makeStretch()                  { m_outputType=9; }
+    void makePrincipleStress(int num=0) { m_outputType=10;m_output = num;}
+    void makeDirections()               { m_outputType=11;}
 
     void setParameters(const std::vector<gsFunction<T>*> &pars)
     {
@@ -160,6 +163,9 @@ protected:
     T Cijkl  (const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
     T Sij    (const index_t i, const index_t j) const;
     T Sij    (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+
+    T Sii    (const index_t i) const;
+    T Sii    (const index_t i, const gsMatrix<T> & c) const;
 
     T dPsi   (const index_t i, const index_t j) const;
     T dPsi   (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;

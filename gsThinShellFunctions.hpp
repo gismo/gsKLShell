@@ -36,12 +36,22 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     m_S0.makeVector(0);
     gsMaterialMatrix m_S1 = m_materialMat;
     m_S1.makeVector(1);
-    gsMaterialMatrix m_mm = m_materialMat;
-    m_mm.makeStretch();
+    gsMaterialMatrix m_Sp0 = m_materialMat;
+    m_Sp0.makePrincipleStress(0);
+    gsMaterialMatrix m_Sp1 = m_materialMat;
+    m_Sp1.makePrincipleStress(1);
+    gsMaterialMatrix m_lambda = m_materialMat;
+    m_lambda.makeStretch();
+    gsMaterialMatrix m_lambdadir = m_materialMat;
+    m_lambdadir.makeDirections();
 
     variable S0 = m_assembler.getCoeff(m_S0);
     variable S1 = m_assembler.getCoeff(m_S1);
-    variable mm0 = m_assembler.getCoeff(m_mm);
+    variable Sp0 = m_assembler.getCoeff(m_Sp0);
+    variable Sp1 = m_assembler.getCoeff(m_Sp1);
+    variable lambda = m_assembler.getCoeff(m_lambda);
+    variable lambdadir = m_assembler.getCoeff(m_lambdadir);
+
 
     geometryMap m_ori   = m_assembler.exprData()->getMap();
     geometryMap m_def   = m_assembler.exprData()->getMap2();
@@ -66,6 +76,8 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     // auto normalOri = sn(m_ori);
 
     gsExprEvaluator ev(m_assembler);
+    gsMatrix<T> tmp;
+
     switch (m_stress_type)
     {
         case stress_type::membrane :
@@ -104,7 +116,37 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
             break;
         case stress_type::principal_stretch :
             for (index_t k = 0; k != u.cols(); ++k)
-                result.col(k) = ev.eval(mm0,u.col(k));
+                result.col(k) = ev.eval(lambda,u.col(k));
+            break;
+        case stress_type::principal_stress_membrane :
+            for (index_t k = 0; k != u.cols(); ++k)
+                result.col(k) = ev.eval(Sp0,u.col(k));
+            break;
+        case stress_type::principal_stress_flexural :
+            for (index_t k = 0; k != u.cols(); ++k)
+                result.col(k) = ev.eval(Sp1,u.col(k));
+            break;
+
+        case stress_type::principal_stretch_dir1 :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                tmp = ev.eval(lambdadir,u.col(k));
+                result.col(k) = tmp.reshape(3,3).col(0);
+            }
+            break;
+        case stress_type::principal_stretch_dir2 :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                tmp = ev.eval(lambdadir,u.col(k));
+                result.col(k) = tmp.reshape(3,3).col(1);
+            }
+            break;
+        case stress_type::principal_stretch_dir3 :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                tmp = ev.eval(lambdadir,u.col(k));
+                result.col(k) = tmp.reshape(3,3).col(2);
+            }
             break;
     }
 }

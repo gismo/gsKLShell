@@ -270,6 +270,10 @@ short_t gsMaterialMatrix<T>::targetDim() const
         return 1;
     else if (m_outputType==9)
         return 3;
+    else if (m_outputType==10)
+        return 2;
+    else if (m_outputType==11)
+        return 9;
     else
     {
         GISMO_ERROR("This option is unknown");
@@ -378,6 +382,10 @@ void gsMaterialMatrix<T>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) c
         this->eval_into_dens(u,result);
     else if (m_outputType==9)
         this->eval_into_stretch(u,result); // midplane stretches
+    else if (m_outputType==10)
+        this->eval_into_NP(u,result);
+    else if (m_outputType==11)
+        this->eval_into_stretchdir(u,result); // stretch directions
     else
         GISMO_ERROR("Output type unknown");
 }
@@ -500,6 +508,94 @@ void gsMaterialMatrix<T>::eval_into_stretch(const gsMatrix<T>& u, gsMatrix<T>& r
 }
 
 template <class T>
+void gsMaterialMatrix<T>::eval_into_stretchdir(const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    m_map.points = u;
+    static_cast<const gsFunction<T>&>(m_patches->piece(0)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+
+    this->computePoints(u);
+    result.resize(this->targetDim(), u.cols());
+    std::pair<gsVector<T>,gsMatrix<T>> res;
+
+    if (!m_compressible)
+    {
+        for (index_t i=0; i!= u.cols(); i++)
+        {
+            this->getMetric(i,0.0); // on point i, with height 0.0
+
+            gsMatrix<T> C(3,3);
+            C.setZero();
+            C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+            // C.block(0,0,2,2) = (m_gcov_def.transpose()*m_gcov_def).block(0,0,2,2);
+            // gsDebugVar(m_gcov_def.transpose()*m_gcov_def);
+            C(2,2) = 1./m_J0_sq;
+
+            res = evalStretch(C);
+            result.col(i) = res.second.reshape(9,1);
+            break;
+        }
+    }
+    else
+    {
+        for (index_t i=0; i!= u.cols(); i++)
+        {
+            for (index_t v=0; v!=m_parmat.rows(); v++)
+                m_parvals.at(v) = m_parmat(v,i);
+
+            this->getMetric(i,0.0); // on point i, with height 0.0
+
+            // Define objects
+            gsMatrix<T,3,3> c, cinv;
+            T S33, C3333, dc33;
+            // T S33_old;
+            S33 = 0.0;
+            dc33 = 0.0;
+            C3333 = 1.0;
+
+            index_t itmax = 100;
+            T tol = 1e-10;
+
+            // Initialize c
+            c.setZero();
+            c.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+            c(2,2) = math::pow(m_J0_sq,-1.0); // c33
+            // c(2,2) = 1.0; // c33
+            cinv.block(0,0,2,2) = m_Gcon_def.block(0,0,2,2);
+            cinv(2,2) = 1.0/c(2,2);
+
+            m_J_sq = m_J0_sq * c(2,2);
+            S33 = Sij(2,2,c,cinv);
+            // S33_old = (S33 == 0.0) ? 1.0 : S33;
+            C3333   = Cijkl3D(2,2,2,2,c,cinv);
+
+            dc33 = -2. * S33 / C3333;
+            for (index_t it = 0; it < itmax; it++)
+            {
+                c(2,2) += dc33;
+
+                GISMO_ASSERT(c(2,2)>= 0,"ERROR! c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
+                cinv(2,2) = 1.0/c(2,2);
+
+                m_J_sq = m_J0_sq * c(2,2) ;
+
+                S33     = Sij(2,2,c,cinv);
+                C3333   = Cijkl3D(2,2,2,2,c,cinv); //  or Cijkl???
+
+                dc33 = -2. * S33 / C3333;
+                if (abs(dc33) < tol)
+                {
+                    res = evalStretch(c);
+                    result.col(i) = res.second.reshape(9,1);
+                    gsDebugVar(res.second.reshape(9,1));
+                    break;
+                }
+                GISMO_ASSERT(it != itmax-1,"Error: Method did not converge, abs(dc33) = "<<abs(dc33)<<" and tolerance = "<<tol<<"\n");
+            }
+        }
+    }
+}
+
+template <class T>
 void gsMaterialMatrix<T>::eval_into_NP(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     // Define the moment to take
@@ -519,6 +615,13 @@ void gsMaterialMatrix<T>::eval_into_NP(const gsMatrix<T>& u, gsMatrix<T>& result
             m_moment=1;
         else if (m_output==3) // D matrix
             m_moment=2;
+        else
+            GISMO_ERROR("Something went wrong, m_output = "<<m_output);
+    else if (m_outputType==10) // output is a vector
+        if      (m_output==0) // N vector
+            m_moment=0;
+        else if (m_output==1) // M vector
+            m_moment=1;
         else
             GISMO_ERROR("Something went wrong, m_output = "<<m_output);
     else
@@ -706,6 +809,17 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Incompressible(const index_t i, const gsMa
             result(0,j) = Sij(0,0);
             result(1,j) = Sij(1,1);
             result(2,j) = Sij(0,1);
+        }
+        else if (m_outputType==10)
+        {
+
+            GISMO_ASSERT(m_material >= 10 && m_material < 20, "Only available for stretch-based materials.");
+
+            // this->computeMetric(i,z.at(j),true,true);
+            this->getMetric(i,z.at(j)); // on point i, on height z(0,j)
+
+            result(0,j) = Sii(0);
+            result(1,j) = Sii(1);
         }
         else
             GISMO_ERROR("no vector or matrix produced");
@@ -1029,7 +1143,7 @@ T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, 
     return tmp;
 }
 
-// Consensation of the 3D tensor for compressible materials
+// Condensation of the 3D tensor for compressible materials
 template<class T>
 T gsMaterialMatrix<T>::Cijkl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1369,6 +1483,23 @@ T gsMaterialMatrix<T>::Sij(const index_t i, const index_t j, const gsMatrix<T> &
 }
 
 template<class T>
+T gsMaterialMatrix<T>::Sii(const index_t i) const // principle stresses
+{
+    gsMatrix<T> C(3,3);
+    C.setZero();
+    C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+    C(2,2) = 1./m_J0_sq;
+    return Sii(i,C);
+}
+
+template<class T>
+T gsMaterialMatrix<T>::Sii(const index_t i, const gsMatrix<T> & c) const
+{
+    computeStretch(c);
+    return Sa(i);
+}
+
+template<class T>
 gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatrix<T>& z) const
 {
     // Input: j index in-plane point
@@ -1447,6 +1578,13 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatr
                         result(0,j) = Sij(0,0,c,cinv); // S11
                         result(1,j) = Sij(1,1,c,cinv); // S22
                         result(2,j) = Sij(0,1,c,cinv); // S12
+                    }
+                    else if (m_outputType==10)
+                    {
+                        GISMO_ASSERT(m_material >= 10 && m_material < 20, "Only available for stretch-based materials.");
+
+                        result(0,j) = Sii(0,c); // S11
+                        result(1,j) = Sii(1,c); // S22
                     }
                 else
                     GISMO_ERROR("no vector or matrix produced");
@@ -1691,7 +1829,7 @@ T gsMaterialMatrix<T>::dPsi_da(const index_t a) const
             else if (m_material==15)
                 GISMO_ERROR("Material model 15 is only for compressible materials...");
             else
-                GISMO_ERROR("not available...");
+                GISMO_ERROR("Material model "<<m_material<<" not available...");
     }
     else // compressible
     {
