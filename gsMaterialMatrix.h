@@ -34,6 +34,9 @@ public:
         \param[in] ...
 
     */
+    /// Default empty constructor
+    gsMaterialMatrix() { }
+
     gsMaterialMatrix(   const gsFunctionSet<T> & mp,
                         const gsFunction<T> & thickness,
                         const std::vector<gsFunction<T> *> &pars);

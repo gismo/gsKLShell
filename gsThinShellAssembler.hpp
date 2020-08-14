@@ -56,6 +56,14 @@ gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
                                         m_forceFun(&surface_force),
                                         m_materialMat(materialmatrix)
 {
+    this->defaultOptions();
+    m_dim = m_patches.geoDim();
+    if (m_dim==2)
+    {
+        m_type = 2;
+        gsWarn<<"Plate model assumed because the multipatch is planar, but the multipatch is embedded to 3D \n"; // because of the material matrix class
+        m_patches.embed(3);
+    }
     this->initialize();
 }
 
@@ -80,8 +88,6 @@ void gsThinShellAssembler<T>::getOptions() const
 template <class T>
 void gsThinShellAssembler<T>::initialize()
 {
-    this->defaultOptions();
-
     //gsInfo<<"Active options:\n"<< m_assembler.options() <<"\n";
     m_defpatches = m_patches;
 
@@ -93,7 +99,10 @@ void gsThinShellAssembler<T>::initialize()
     m_assembler.getMap(m_defpatches);
 
     // Set the discretization space
-    space m_space = m_assembler.getSpace(m_basis, 3, 0); // last argument is the space ID
+    // space m_space = m_assembler.getSpace(m_basis, m_dim, 0); // last argument is the space ID
+    gsDebugVar(m_dim);
+    space m_space = m_assembler.getSpace(m_basis, m_dim, 0); // last argument is the space ID
+    gsDebugVar(m_space.bcSize());
     // m_space.setup(m_bcs, dirichlet::interpolation, 0);
 
     // Define fields as variables:
@@ -108,9 +117,7 @@ void gsThinShellAssembler<T>::initialize()
     this->assembleDirichlet();
 
     m_ddofs = m_space.fixedPart();
-
     m_mapper = m_space.mapper();
-    m_dim = m_space.dim();
 
     // foundation is off by default
     m_foundInd = false;
@@ -136,6 +143,7 @@ void gsThinShellAssembler<T>::assembleDirichlet()
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // if statement
     m_space.setup(m_bcs, dirichlet::interpolation, 0);
+    gsDebugVar(m_space.bcSize());
 }
 
 template <class T>
@@ -170,6 +178,8 @@ void gsThinShellAssembler<T>::applyLoads()
 
     for (size_t i = 0; i< m_pLoads.numLoads(); ++i )
     {
+        if (m_pLoads[i].value.size()!=m_dim)
+            gsWarn<<"Point load has wrong dimension "<<m_pLoads[i].value.size()<<" instead of "<<m_dim<<"\n";
         // Compute actives and values of basis functions on point load location.
         if ( m_pLoads[i].parametric )   // in parametric space
         {
@@ -185,7 +195,7 @@ void gsThinShellAssembler<T>::applyLoads()
         }
 
         // Add the point load values in the right entries in the global RHS
-        for (size_t j = 0; j< 3; ++j)
+        for (size_t j = 0; j< m_dim; ++j)
         {
             if (m_pLoads[i].value[j] != 0.0)
             {
@@ -248,6 +258,15 @@ void gsThinShellAssembler<T>::assembleFoundation()
 template<class T>
 void gsThinShellAssembler<T>::assemble()
 {
+    if (m_type==0)
+        assembleShell();
+    else
+        assembleMembrane();
+}
+
+template<class T>
+void gsThinShellAssembler<T>::assembleShell()
+{
     this->getOptions();
 
     m_assembler.cleanUp();
@@ -266,10 +285,6 @@ void gsThinShellAssembler<T>::assemble()
     m_mmC.makeMatrix(2);
     gsMaterialMatrix m_mmD = m_materialMat;
     m_mmD.makeMatrix(3);
-    gsMaterialMatrix m_S0 = m_materialMat;
-    m_S0.makeVector(0);
-    gsMaterialMatrix m_S1 = m_materialMat;
-    m_S1.makeVector(1);
 
     variable mmA = m_assembler.getCoeff(m_mmA);
     variable mmB = m_assembler.getCoeff(m_mmB);
@@ -386,22 +401,142 @@ void gsThinShellAssembler<T>::assemble()
 
 }
 
-// TO DO
-// template <class T>
-// bool gsThinShellAssembler<T>::assemble(const gsMatrix<T> & solutionVector,
-//                                         const std::vector<gsMatrix<T> > & fixedDoFs,
-//                                         bool assembleMatrix)
-// {
-//     gsMultiPatch<T> displacement;
-//     constructSolution(solutionVector,fixedDoFs,displacement);
-//     if (checkSolution(displacement) != -1)
-//         return false;
-//     assemble(displacement,assembleMatrix);
-//     return true;
-// }
+template<class T>
+void gsThinShellAssembler<T>::assembleMembrane()
+{
+    this->getOptions();
+
+    m_assembler.cleanUp();
+
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    m_assembler.getMap(m_defpatches);
+
+    // Initialize stystem
+    m_assembler.initSystem(false);
+
+    gsMaterialMatrix m_mmA = m_materialMat;
+    m_mmA.makeMatrix(0);
+
+    variable mmA = m_assembler.getCoeff(m_mmA);
+
+    space       m_space = m_assembler.trialSpace(0);
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+    geometryMap m_def   = m_assembler.exprData()->getMap2();
+    variable m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
+    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
+
+    // gsFunctionExpr<> mult2t("1","0","0","0","1","0",2);
+    // variable m_m2 = m_assembler.getCoeff(mult2t);
+
+    auto jacG       = reshape(m_m2,3,2).tr() * jac(m_def);
+    auto m_Em_der   = flat( jacG.tr() * jac(m_space) ) ; //[checked]
+    // auto m_Sm_der   = m_Em_der * reshape(m_materialMat,3,3);
+    // auto m_N_der    = m_thick.val() * m_Sm_der;
+    // auto m_N_der    = m_Em_der * reshape(mm0,3,3);
+
+    auto m_N_der    = m_Em_der * reshape(mmA,3,3);
+
+    if (m_foundInd) // no foundation
+    {
+        GISMO_ERROR("Not implemented");
+    }
+    else if (m_pressInd)
+    {
+        variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+
+        // gsVector<> pt(2);
+        // pt.setConstant(0.25);
+        // gsExprEvaluator<> evaluator(m_assembler);
+
+        // gsDebug<<evaluator.eval(m_pressure.val(),pt)<<"\n";
+        // gsDebug<<evaluator.eval(m_space,pt)<<"\n";
+        // gsDebug<<evaluator.eval(sn(m_def).normalized(),pt)<<"\n";
+
+        // Assemble vector
+        m_assembler.assemble(
+            (
+                m_N_der * m_Em_der.tr()
+            ) * meas(m_ori)
+            ,
+            m_space * m_force * meas(m_ori) + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
+            );
+
+        this->assembleNeumann();
+    }
+
+    else // no foundation, no pressure
+    {
+        gsVector<> pt(2);
+        pt.setConstant(0.25);
+        gsExprEvaluator<> evaluator(m_assembler);
+        gsDebug<<evaluator.eval(jacG,pt)<<"\n";
+        gsDebug<<evaluator.eval(jac(m_space),pt)<<"\n";
+        gsDebug<<evaluator.eval(m_N_der * m_Em_der.tr(),pt)<<"\n";
+        gsDebug<<evaluator.eval(m_space * m_force * meas(m_ori),pt)<<"\n";
+        // assemble system
+        m_assembler.assemble(
+            (
+                m_N_der * m_Em_der.tr()
+            ) * meas(m_ori)
+            ,
+            m_space * m_force * meas(m_ori)
+            );
+
+        this->assembleNeumann();
+    }
+    // else
+    // {
+    //     variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
+    //     // assemble system
+    //     m_assembler.assemble(
+    //         (
+    //             m_N_der * m_Em_der.tr()
+    //             +
+    //             m_M_der * m_Ef_der.tr()
+    //             +
+    //             m_found.val()*m_space*m_space.tr()
+    //         ) * meas(m_ori)
+    //         ,
+    //         m_space * m_force * meas(m_ori)
+    //         );
+    // }
+
+
+    // Assemble the loads
+    if ( m_pLoads.numLoads() != 0 )
+    {
+        m_rhs = m_assembler.rhs();
+        applyLoads();
+    }
+    // Neumann
+
+    // gsVector<> pt(2);
+    // pt.setConstant(0.25);
+    // gsExprEvaluator<> evaluator(m_assembler);
+    // gsDebug<<evaluator.eval(reshape(mmA,3,3),pt)<<"\n";
+    // gsDebug<<evaluator.eval(reshape(mmB,3,3),pt)<<"\n";
+    // gsDebug<<evaluator.eval(reshape(mmC,3,3),pt)<<"\n";
+    // gsDebug<<evaluator.eval(reshape(mmD,3,3),pt)<<"\n";
+
+    // gsDebug<<evaluator.eval((m_N_der * m_Em_der.tr()
+    //             +
+    //             m_M_der * m_Ef_der.tr()
+    //         ) * meas(m_ori),pt)<<"\n";
+
+}
 
 template <class T>
 void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
+{
+    if (m_type==0)
+        assembleMatrixShell(deformed);
+    else
+        assembleMatrixMembrane(deformed);
+}
+
+
+template <class T>
+void gsThinShellAssembler<T>::assembleMatrixShell(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
     m_defpatches = deformed;
@@ -531,6 +666,108 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
     // gsDebug<<"\n"<<evaluator.eval(S2,pt)<<"\n";
 
 }
+
+template <class T>
+void gsThinShellAssembler<T>::assembleMatrixMembrane(const gsMultiPatch<T> & deformed)
+{
+    m_assembler.cleanUp();
+    m_defpatches = deformed;
+
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    m_assembler.getMap(m_defpatches);
+
+    // Initialize matrix
+    m_assembler.initMatrix(false);
+    // m_assembler.initSystem(false);
+
+    gsMaterialMatrix m_mmA = m_materialMat;
+    m_mmA.makeMatrix(0);
+    gsMaterialMatrix m_S0 = m_materialMat;
+    m_S0.makeVector(0);
+
+    variable mmA = m_assembler.getCoeff(m_mmA);
+    variable S0 = m_assembler.getCoeff(m_S0);
+
+    space       m_space = m_assembler.trialSpace(0);
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+    geometryMap m_def   = m_assembler.exprData()->getMap2();
+    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
+
+    this->homogenizeDirichlet();
+
+    auto m_N        = S0.tr();
+    auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
+    auto m_Em_der2  = flatdot( jac(m_space),jac(m_space).tr(), m_N ); //[checked]
+
+    auto m_N_der    = m_Em_der * reshape(mmA,3,3);
+
+    if (m_foundInd) // no foundation
+    {
+        GISMO_ERROR("not implemented");
+    }
+    else if (m_pressInd)
+    {
+        // gsVector<> pt(2);
+        // pt.setConstant(0.25);
+        // gsExprEvaluator<> evaluator(m_assembler);
+        // gsDebug<<evaluator.eval(m_def,pt)<<"\n";
+
+        // gsDebug<<evaluator.eval(m_pressure.val(),pt)<<"\n";
+        // gsDebug<<evaluator.eval(m_space,pt)<<"\n";
+        // gsDebug<<evaluator.eval(sn(m_def).normalized(),pt)<<"\n";
+
+
+        variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+        m_assembler.assemble(
+                (
+                    m_N_der * m_Em_der.tr()
+                    +
+                    m_Em_der2
+                ) * meas(m_ori)
+                -
+                m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
+            );
+    }
+    else // no foundation, no pressure
+    {
+        // Assemble matrix
+        m_assembler.assemble(
+                (
+                    m_N_der * m_Em_der.tr()
+                    +
+                    m_Em_der2
+                ) * meas(m_ori)
+            );
+    }
+    // else
+    // {
+    //     variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
+    //     // Assemble matrix
+    //     m_assembler.assemble(
+    //             (
+    //                  m_N_der * m_Em_der.tr()
+    //                  +
+    //                  m_Em_der2
+    //                  +
+    //                  m_M_der * m_Ef_der.tr()
+    //                  -
+    //                  m_Ef_der2
+    //                  +
+    //                 m_found.val()*m_space*m_space.tr()
+    //             ) * meas(m_ori)
+    //         );
+    // }
+    // gsVector<> pt(2);
+    // pt.setConstant(0.5);
+    // gsExprEvaluator<> evaluator(m_assembler);
+    // gsDebug<<"\n"<<evaluator.eval(reshape(mmA,3,3),pt)<<"\n";
+    // gsDebug<<"\n"<<evaluator.eval(reshape(mmB,3,3),pt)<<"\n";
+    // gsDebug<<"\n"<<evaluator.eval(reshape(mmC,3,3),pt)<<"\n";
+    // gsDebug<<"\n"<<evaluator.eval(reshape(mmD,3,3),pt)<<"\n";
+    // gsDebug<<"\n"<<evaluator.eval(S0,pt)<<"\n";
+    // gsDebug<<"\n"<<evaluator.eval(S2,pt)<<"\n";
+
+}
 template<class T>
 void gsThinShellAssembler<T>::assembleMatrix(const gsMatrix<T> & solVector)
 {
@@ -544,6 +781,15 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMatrix<T> & solVector)
 
 template <class T>
 void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
+{
+    if (m_type==0)
+        assembleVectorShell(deformed);
+    else
+        assembleVectorMembrane(deformed);
+}
+
+template <class T>
+void gsThinShellAssembler<T>::assembleVectorShell(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
     m_defpatches = deformed;
@@ -633,12 +879,104 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
     // gsDebug<<"\n"<<evaluator.eval(S1,pt)<<"\n";
 }
 
+
+template <class T>
+void gsThinShellAssembler<T>::assembleVectorMembrane(const gsMultiPatch<T> & deformed)
+{
+    m_assembler.cleanUp();
+    m_defpatches = deformed;
+
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    m_assembler.getMap(m_defpatches);
+
+    // Initialize vector
+    m_assembler.initVector(1,false);
+
+    gsMaterialMatrix m_S0 = m_materialMat;
+    m_S0.makeVector(0);
+
+    variable S0 = m_assembler.getCoeff(m_S0);
+
+    space m_space       = m_assembler.trialSpace(0);
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+    geometryMap m_def   = m_assembler.exprData()->getMap2();
+    variable m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
+    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
+
+    this->homogenizeDirichlet();
+
+    auto m_N        = S0.tr();
+    auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ;
+
+    if (m_foundInd) // no foundation
+    {
+        //     variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
+        //     // Assemble vector
+        //     m_assembler.assemble(
+        //                 m_space * m_force * meas(m_ori)
+        //                 -
+        //                 ( ( m_N * m_Em_der.tr() - m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+        //                 +
+
+        //                 );
+        GISMO_ERROR("Not implemented");
+    }
+    else if (m_pressInd)
+    {
+        variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+
+        // Assemble vector
+        m_assembler.assemble(
+                        m_space * m_force * meas(m_ori)
+                      + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
+                      - ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
+                    );
+
+        this->assembleNeumann();
+    }
+    else
+    {
+        // Assemble vector
+        m_assembler.assemble(m_space * m_force * meas(m_ori) -
+                    ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
+                    );
+
+        this->assembleNeumann();
+    }
+    // else
+    // {
+
+    // }
+
+
+    // Assemble the loads
+    if ( m_pLoads.numLoads() != 0 )
+    {
+        m_rhs = m_assembler.rhs();
+        applyLoads();
+    }
+    // gsVector<> pt(2);
+    // pt.setConstant(0.5);
+    // gsExprEvaluator<> evaluator(m_assembler);
+    // gsDebug<<"\n"<<evaluator.eval(S0,pt)<<"\n";
+    // gsDebug<<"\n"<<evaluator.eval(S1,pt)<<"\n";
+}
+
 template <class T>
 gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVector(const gsMultiPatch<T> & deformed, patchSide& ps, int com)
 {
+    if (m_type==0)
+        boundaryForceVectorShell(deformed,ps,com);
+    else
+        boundaryForceVectorMembrane(deformed,ps,com);
+}
+
+template <class T>
+gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVectorShell(const gsMultiPatch<T> & deformed, patchSide& ps, int com)
+{
     gsExprAssembler<T> assembler;
     assembler.setIntegrationElements(m_basis);
-    space u = assembler.getSpace(m_basis, 3, 0); // last argument is the space ID
+    space u = assembler.getSpace(m_basis, m_dim, 0); // last argument is the space ID
 
     assembler.initSystem();
 
@@ -745,6 +1083,111 @@ gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVector(const gsMultiPatch<T> &
     // }
     return result;
 }
+
+template <class T>
+gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVectorMembrane(const gsMultiPatch<T> & deformed, patchSide& ps, int com)
+{
+    gsExprAssembler<T> assembler;
+    assembler.setIntegrationElements(m_basis);
+    space u = assembler.getSpace(m_basis, m_dim, 0); // last argument is the space ID
+
+    assembler.initSystem();
+
+    m_defpatches = deformed;
+
+    assembler.getMap(m_patches);           // this map is used for integrals
+    assembler.getMap(m_defpatches);
+
+    // Initialize vector
+    // m_assembler.initVector(1,false);
+
+    gsMaterialMatrix m_S0 = m_materialMat;
+    m_S0.makeVector(0);
+
+    variable S0 = assembler.getCoeff(m_S0);
+
+    geometryMap m_ori   = assembler.exprData()->getMap();
+    geometryMap m_def   = assembler.exprData()->getMap2();
+    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
+
+    // this->homogenizeDirichlet();
+
+    auto m_N        = S0.tr();
+    auto m_Em_der   = flat( jac(m_def).tr() * jac(u) ) ;
+
+    // Assemble vector
+    assembler.assemble(
+                  - ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
+                );
+
+    gsMatrix<T> Fint = assembler.rhs();
+    gsMatrix<T> result;
+    const gsMultiBasis<T> & mbasis =
+        *dynamic_cast<const gsMultiBasis<T>*>(&u.source());
+    gsMatrix<index_t> boundary;
+
+    typedef gsBoundaryConditions<T> bcList;
+
+    gsBoundaryConditions<real_t>::bcContainer container;
+    m_bcs.getConditionFromSide(ps,container);
+
+    for ( typename bcList::const_iterator it =  container.begin();
+          it != container.end() ; ++it )
+    {
+        if( it->unknown()!=u.id() ) continue;
+
+        if( (it->unkComponent()!=com) && (it->unkComponent()!=-1) ) continue;
+
+        const int k = it->patch();
+        const gsBasis<T> & basis = mbasis[k];
+
+        // if (it->type()==condition_type::dirichlet)
+        //     gsDebug<<"Dirichlet\n";
+        // else if (it->type()==condition_type::neumann)
+        //     gsDebug<<"Neumann\n";
+        // else
+        //     GISMO_ERROR("Type unknown");
+
+        // Get dofs on this boundary
+        boundary = basis.boundary(it->side());
+        result.resize(boundary.size(),1);
+
+        T offset = u.mapper().offset(k);
+        T size = u.mapper().size(com);
+        for (index_t l=0; l!= boundary.size(); ++l)
+        {
+            index_t ii = offset + size*com + boundary.at(l);
+            result.at(l) = Fint.at(ii);
+        }
+    }
+
+    // gsInfo<<"Neumann forces\n";
+    // for ( typename bcList::const_iterator it =  m_bcs.begin("Neumann");
+    //       it != m_bcs.end("Neumann") ; ++it )
+    // {
+    //     if( it->unknown()!=u.id() ) continue;
+    //     //
+    //     for (index_t r = 0; r!=u.dim(); ++r)
+    //     {
+    //         const int k = it->patch();
+    //         const gsBasis<T> & basis = mbasis[k];
+
+    //         // Get dofs on this boundary
+    //         boundary = basis.boundary(it->side());
+
+    //         T offset = u.mapper().offset(0);
+    //         T size = u.mapper().size(r);
+
+    //         for (index_t l=0; l!= boundary.size(); ++l)
+    //         {
+    //             index_t ii = offset + size*r + boundary.at(l);
+    //             gsInfo<<result.at(ii)<<"\n";
+    //         }
+    //     }
+    // }
+    return result;
+}
+
 template<class T>
 void gsThinShellAssembler<T>::assembleVector(const gsMatrix<T> & solVector)
 {
@@ -869,10 +1312,6 @@ gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T>
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
     m_assembler.getMap(m_defpatches);
-
-    geometryMap m_ori   = m_assembler.exprData()->getMap();
-    geometryMap m_def   = m_assembler.exprData()->getMap2();
-
     // m_assembler.initSystem(false);
 
     gsMaterialMatrix m_mm = m_materialMat;

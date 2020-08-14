@@ -53,6 +53,9 @@ public:
 
     \ingroup Assembler
 */
+    /// Default empty constructor
+    gsThinShellAssembler() { }
+
     gsThinShellAssembler(const gsMultiPatch<T> & patches,
                         const gsMultiBasis<T> & basis,
                         const gsBoundaryConditions<T> & bconditions,
@@ -76,6 +79,18 @@ public:
     void setFoundation(const gsFunction<T> & foundation) { m_foundFun = &foundation; m_foundInd = true; }
     void setPressure(const gsFunction<T> & pressure) { m_pressFun = &pressure; m_pressInd = true; }
 
+    void setPlate()
+    {
+        m_type = 2;
+        m_dim = 2;
+        this->initialize();
+        // GISMO_ASSERT(m_patches.geoDim()==static_cast<index_t>(m_dim),"Domain dimension does not match element dimension? Domain dimension: "<<m_patches.geoDim()<<"; element dimension: "<<m_dim);
+    }
+    void setMembrane()
+    {
+        m_type = 1;
+    }
+
     void updateBCs(const gsBoundaryConditions<T> & bconditions)
     {
         m_bcs = bconditions;
@@ -98,6 +113,8 @@ public:
     /// @brief Assembles the stiffness matrix and the RHS for the LINEAR ELASTICITY
     /// set *assembleMatrix* to false to only assemble the RHS;
     void assemble();
+    void assembleShell();
+    void assembleMembrane();
 
     void assembleMass();
     void assembleFoundation();
@@ -112,11 +129,18 @@ public:
     void assemble(int i);
 
     void assembleMatrix(const gsMultiPatch<T>   & deformed  );
+    void assembleMatrixShell(const gsMultiPatch<T>   & deformed  );
+    void assembleMatrixMembrane(const gsMultiPatch<T>   & deformed  );
     void assembleMatrix(const gsMatrix<T>       & solVector );
 
     void assembleVector(const gsMultiPatch<T>   & deformed  );
-    gsMatrix<T> boundaryForceVector(const gsMultiPatch<T>   & deformed , patchSide& ps, int com );
+    void assembleVectorShell(const gsMultiPatch<T>   & deformed  );
+    void assembleVectorMembrane(const gsMultiPatch<T>   & deformed  );
     void assembleVector(const gsMatrix<T>       & solVector );
+
+    gsMatrix<T> boundaryForceVector(const gsMultiPatch<T>   & deformed , patchSide& ps, int com );
+    gsMatrix<T> boundaryForceVectorShell(const gsMultiPatch<T>   & deformed , patchSide& ps, int com );
+    gsMatrix<T> boundaryForceVectorMembrane(const gsMultiPatch<T>   & deformed , patchSide& ps, int com );
 
     //--------------------- GEOMETRY ACCESS --------------------------------//
     const gsMultiPatch<T> & geometry()    const  {return m_patches;}
@@ -137,8 +161,8 @@ public:
     //--------------------- SOLUTION CONSTRUCTION ----------------------------------//
 
     /// @brief Construct deformed shell geometry from computed solution vector
-    gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const;
-    void constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const;
+    virtual gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const;
+    virtual void constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const;
 
     gsMultiPatch<T> constructDisplacement(const gsMatrix<T> & solVector) const;
     void constructDisplacement(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const;
@@ -163,7 +187,6 @@ public:
 
     /// @brief Return minJ/maxJ
     T solutionJacRatio(const gsMultiPatch<T> & solution) const;
-
 
 
 protected:
@@ -233,7 +256,7 @@ protected:
 
     mutable gsMatrix<T> m_solvector;
 
-    index_t m_dim;
+    mutable size_t m_dim;
 
 
     gsMatrix<T> m_rhs;
@@ -244,6 +267,8 @@ protected:
     mutable bool m_foundInd;
     mutable bool m_pressInd;
 
+    mutable index_t m_type; // shell_type
+
     /// @brief Specifies the material law to use
     struct nl_loads
     {
@@ -253,6 +278,7 @@ protected:
             on  = true,
         };
     };
+
 
 
     // /*
