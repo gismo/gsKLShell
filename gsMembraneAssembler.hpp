@@ -1,4 +1,4 @@
-/** @file gsThinShellAssembler.hpp
+/** @file gsMembraneAssembler.hpp
 
     @brief Provides linear and nonlinear elasticity systems for thin shells.
 
@@ -22,7 +22,7 @@ namespace gismo
 {
 
 // template<class T>
-// gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
+// gsMembraneAssembler<T>::gsMembraneAssembler(  const gsMultiPatch<T> & patches,
 //                                         const gsMultiBasis<T> & basis,
 //                                         const gsBoundaryConditions<T> & bconditions,
 //                                         const gsFunction<T> & surface_force,
@@ -43,7 +43,7 @@ namespace gismo
 // }
 
 template<class T>
-gsThinShellAssembler<T>::gsMembraneAssembler(  const gsMultiPatch<T> & patches,
+gsMembraneAssembler<T>::gsMembraneAssembler(  const gsMultiPatch<T> & patches,
                                         const gsMultiBasis<T> & basis,
                                         const gsBoundaryConditions<T> & bconditions,
                                         const gsFunction<T> & surface_force,
@@ -60,13 +60,13 @@ gsThinShellAssembler<T>::gsMembraneAssembler(  const gsMultiPatch<T> & patches,
 }
 
 template <class T>
-void gsThinShellAssembler<T>::defaultOptions()
+void gsMembraneAssembler<T>::defaultOptions()
 {
     m_options.addInt("NonlinearLoads","Nonlinear Loads: 0: off, 1: on",nl_loads::off);
 }
 
 template <class T>
-void gsThinShellAssembler<T>::getOptions() const
+void gsMembraneAssembler<T>::getOptions() const
 {
     m_nl_loads = m_options.getInt("NonlinearLoads");
 }
@@ -78,7 +78,7 @@ void gsThinShellAssembler<T>::getOptions() const
 */
 
 template <class T>
-void gsThinShellAssembler<T>::initialize()
+void gsMembraneAssembler<T>::initialize()
 {
     this->defaultOptions();
 
@@ -120,7 +120,7 @@ void gsThinShellAssembler<T>::initialize()
 
 
 template <class T>
-void gsThinShellAssembler<T>::assembleNeumann()
+void gsMembraneAssembler<T>::assembleNeumann()
 {
     m_assembler.getMap(m_patches);           // this map is used for integrals
     geometryMap m_ori   = m_assembler.exprData()->getMap();
@@ -131,7 +131,7 @@ void gsThinShellAssembler<T>::assembleNeumann()
 }
 
 template <class T>
-void gsThinShellAssembler<T>::assembleDirichlet()
+void gsMembraneAssembler<T>::assembleDirichlet()
 {
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // if statement
@@ -139,7 +139,7 @@ void gsThinShellAssembler<T>::assembleDirichlet()
 }
 
 template <class T>
-void gsThinShellAssembler<T>::homogenizeDirichlet()
+void gsMembraneAssembler<T>::homogenizeDirichlet()
 {
     // space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // m_space.setup(m_bcs, dirichlet::homogeneous, 0);
@@ -148,7 +148,7 @@ void gsThinShellAssembler<T>::homogenizeDirichlet()
 }
 
 template<class T>
-void gsThinShellAssembler<T>::applyLoads()
+void gsMembraneAssembler<T>::applyLoads()
 {
     gsMatrix<T>        bVals;
     gsMatrix<index_t> acts,globalActs;
@@ -201,7 +201,7 @@ void gsThinShellAssembler<T>::applyLoads()
 }
 
 template<class T>
-void gsThinShellAssembler<T>::assembleMass()
+void gsMembraneAssembler<T>::assembleMass()
 {
     this->getOptions();
 
@@ -228,7 +228,7 @@ void gsThinShellAssembler<T>::assembleMass()
 }
 
 template<class T>
-void gsThinShellAssembler<T>::assembleFoundation()
+void gsMembraneAssembler<T>::assembleFoundation()
 {
     this->getOptions();
 
@@ -246,7 +246,7 @@ void gsThinShellAssembler<T>::assembleFoundation()
 }
 
 template<class T>
-void gsThinShellAssembler<T>::assemble()
+void gsMembraneAssembler<T>::assemble()
 {
     this->getOptions();
 
@@ -388,7 +388,7 @@ void gsThinShellAssembler<T>::assemble()
 
 // TO DO
 // template <class T>
-// bool gsThinShellAssembler<T>::assemble(const gsMatrix<T> & solutionVector,
+// bool gsMembraneAssembler<T>::assemble(const gsMatrix<T> & solutionVector,
 //                                         const std::vector<gsMatrix<T> > & fixedDoFs,
 //                                         bool assembleMatrix)
 // {
@@ -401,7 +401,7 @@ void gsThinShellAssembler<T>::assemble()
 // }
 
 template <class T>
-void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
+void gsMembraneAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
     m_defpatches = deformed;
@@ -532,7 +532,7 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
 
 }
 template<class T>
-void gsThinShellAssembler<T>::assembleMatrix(const gsMatrix<T> & solVector)
+void gsMembraneAssembler<T>::assembleMatrix(const gsMatrix<T> & solVector)
 {
     // gsMultiPatch<T> deformed;
     // constructSolution(solVector, deformed);
@@ -543,7 +543,7 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMatrix<T> & solVector)
 }
 
 template <class T>
-void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
+void gsMembraneAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
     m_defpatches = deformed;
@@ -634,7 +634,7 @@ void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
 }
 
 template <class T>
-gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVector(const gsMultiPatch<T> & deformed, patchSide& ps, int com)
+gsMatrix<T> gsMembraneAssembler<T>::boundaryForceVector(const gsMultiPatch<T> & deformed, patchSide& ps, int com)
 {
     gsExprAssembler<T> assembler;
     assembler.setIntegrationElements(m_basis);
@@ -746,7 +746,7 @@ gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVector(const gsMultiPatch<T> &
     return result;
 }
 template<class T>
-void gsThinShellAssembler<T>::assembleVector(const gsMatrix<T> & solVector)
+void gsMembraneAssembler<T>::assembleVector(const gsMatrix<T> & solVector)
 {
     // gsMultiPatch<T> deformed;
     // constructSolution(solVector, deformed);
@@ -757,7 +757,7 @@ void gsThinShellAssembler<T>::assembleVector(const gsMatrix<T> & solVector)
 }
 
 template<class T>
-void gsThinShellAssembler<T>::assemble(const gsMultiPatch<T> & deformed,
+void gsMembraneAssembler<T>::assemble(const gsMultiPatch<T> & deformed,
                                         bool Matrix)
 {
     if (Matrix)
@@ -766,7 +766,7 @@ void gsThinShellAssembler<T>::assemble(const gsMultiPatch<T> & deformed,
     assembleVector(deformed);
 }
 template<class T>
-void gsThinShellAssembler<T>::assemble(const gsMatrix<T> & solVector,
+void gsMembraneAssembler<T>::assemble(const gsMatrix<T> & solVector,
                                         bool Matrix)
 {
     // gsMultiPatch<T> deformed;
@@ -778,7 +778,7 @@ void gsThinShellAssembler<T>::assemble(const gsMatrix<T> & solVector,
 }
 
 template <class T>
-gsMultiPatch<T> gsThinShellAssembler<T>::constructSolution(const gsMatrix<T> & solVector) const
+gsMultiPatch<T> gsMembraneAssembler<T>::constructSolution(const gsMatrix<T> & solVector) const
 {
     m_solvector = solVector;
     gsMultiPatch<T> mp = m_patches;
@@ -803,13 +803,13 @@ gsMultiPatch<T> gsThinShellAssembler<T>::constructSolution(const gsMatrix<T> & s
 }
 
 template <class T>
-void gsThinShellAssembler<T>::constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
+void gsMembraneAssembler<T>::constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
 {
     deformed = constructSolution(solVector);
 }
 
 template <class T>
-T gsThinShellAssembler<T>::getArea(const gsMultiPatch<T> & geometry)
+T gsMembraneAssembler<T>::getArea(const gsMultiPatch<T> & geometry)
 {
     // if (deformed)
     //     m_assembler.getMap(m_defpatches);           // this map is used for integrals
@@ -831,7 +831,7 @@ T gsThinShellAssembler<T>::getArea(const gsMultiPatch<T> & geometry)
 
 
 template <class T>
-gsMultiPatch<T> gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T> & solVector) const
+gsMultiPatch<T> gsMembraneAssembler<T>::constructDisplacement(const gsMatrix<T> & solVector) const
 {
     gsMultiPatch<T> displacement = constructSolution(solVector);
     for ( size_t k =0; k!=displacement.nPatches(); ++k) // Deform the geometry
@@ -843,13 +843,13 @@ gsMultiPatch<T> gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T>
 }
 
 template <class T>
-void gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
+void gsMembraneAssembler<T>::constructDisplacement(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
 {
     deformed = constructDisplacement(solVector);
 }
 
 // template <class T>
-// void gsThinShellAssembler<T>::constructStresses(const gsMultiPatch<T> & deformed,
+// void gsMembraneAssembler<T>::constructStresses(const gsMultiPatch<T> & deformed,
 //                                                     gsPiecewiseFunction<T> & result,
 //                                                     stress_type::type type) const
 // {
@@ -857,9 +857,9 @@ void gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T> & solVecto
 // }
 
 template <class T>
-gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T> & u, const gsMultiPatch<T> & deformed, const T z)
+gsMatrix<T> gsMembraneAssembler<T>::computePrincipalStretches(const gsMatrix<T> & u, const gsMultiPatch<T> & deformed, const T z)
 {
-    // gsDebug<<"Warning: Principle Stretch computation of gsThinShellAssembler is depreciated...\n";
+    // gsDebug<<"Warning: Principle Stretch computation of gsMembraneAssembler is depreciated...\n";
     gsMatrix<T> result(3,u.cols());
     result.setZero();
     // this->getOptions();
@@ -889,7 +889,7 @@ gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T>
 }
 
 template <class T>
-void gsThinShellAssembler<T>::constructStress(const gsMultiPatch<T> & deformed,
+void gsMembraneAssembler<T>::constructStress(const gsMultiPatch<T> & deformed,
                                                     gsPiecewiseFunction<T> & result,
                                                     stress_type::type type)
 {
@@ -901,7 +901,7 @@ void gsThinShellAssembler<T>::constructStress(const gsMultiPatch<T> & deformed,
 }
 
 // template <class T>
-// gsField<T> gsThinShellAssembler<T>::constructStress(const gsMultiPatch<T> & deformed,
+// gsField<T> gsMembraneAssembler<T>::constructStress(const gsMultiPatch<T> & deformed,
 //                                                     stress_type::type type)
 // {
 //     gsPiecewiseFunction<T> result;

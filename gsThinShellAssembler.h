@@ -70,6 +70,8 @@ public:
     //                     const gsFunction<T> & YoungsModulus,
     //                     const gsFunction<T> & PoissonsRatio);
 
+    // GISMO_CLONE_FUNCTION(gsThinShellAssembler)
+
 
     /// @brief Returns the list of default options for assembly
     gsOptionList & options() {return m_options;}

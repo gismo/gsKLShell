@@ -8,6 +8,9 @@
 // #include <gsThinShell2/gsThinPlateAssembler.h>
 // #include <gsThinShell2/gsThinPlateAssembler.hpp>
 
+// #include <gsThinShell2/gsMembraneAssembler.h>
+// #include <gsThinShell2/gsMembraneAssembler.hpp>
+
 #include <gsThinShell2/gsThinShellFunctions.h>
 #include <gsThinShell2/gsThinShellFunctions.hpp>
 
@@ -20,4 +23,5 @@ namespace gismo
 	CLASS_TEMPLATE_INST gsShellStressFunction<real_t>;
 	CLASS_TEMPLATE_INST gsThinShellAssembler<real_t>;
 	// CLASS_TEMPLATE_INST gsThinPlateAssembler<real_t>;
+	// CLASS_TEMPLATE_INST gsMembraneAssembler<real_t>;
 }

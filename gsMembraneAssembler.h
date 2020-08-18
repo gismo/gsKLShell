@@ -31,7 +31,7 @@ namespace gismo
     \ingroup gsThinShell
 */
 template <class T>
-class gsMembraneAssembler : public gsThinShellAssembler
+class gsMembraneAssembler : public gsThinShellAssembler<T>
 {
 public:
     // typedef gsExprAssembler<T> Base;

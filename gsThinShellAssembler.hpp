@@ -64,6 +64,8 @@ gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
         gsWarn<<"Plate model assumed because the multipatch is planar, but the multipatch is embedded to 3D \n"; // because of the material matrix class
         m_patches.embed(3);
     }
+    else
+        m_type = 0;
     this->initialize();
 }
 
@@ -100,9 +102,7 @@ void gsThinShellAssembler<T>::initialize()
 
     // Set the discretization space
     // space m_space = m_assembler.getSpace(m_basis, m_dim, 0); // last argument is the space ID
-    gsDebugVar(m_dim);
     space m_space = m_assembler.getSpace(m_basis, m_dim, 0); // last argument is the space ID
-    gsDebugVar(m_space.bcSize());
     // m_space.setup(m_bcs, dirichlet::interpolation, 0);
 
     // Define fields as variables:
@@ -143,7 +143,6 @@ void gsThinShellAssembler<T>::assembleDirichlet()
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // if statement
     m_space.setup(m_bcs, dirichlet::interpolation, 0);
-    gsDebugVar(m_space.bcSize());
 }
 
 template <class T>
@@ -428,7 +427,8 @@ void gsThinShellAssembler<T>::assembleMembrane()
     // gsFunctionExpr<> mult2t("1","0","0","0","1","0",2);
     // variable m_m2 = m_assembler.getCoeff(mult2t);
 
-    auto jacG       = reshape(m_m2,3,2).tr() * jac(m_def);
+    auto jacG       = jac(m_def);
+    // auto jacG       = reshape(m_m2,3,2).tr() * jac(m_def);
     auto m_Em_der   = flat( jacG.tr() * jac(m_space) ) ; //[checked]
     // auto m_Sm_der   = m_Em_der * reshape(m_materialMat,3,3);
     // auto m_N_der    = m_thick.val() * m_Sm_der;
@@ -466,13 +466,13 @@ void gsThinShellAssembler<T>::assembleMembrane()
 
     else // no foundation, no pressure
     {
-        gsVector<> pt(2);
-        pt.setConstant(0.25);
-        gsExprEvaluator<> evaluator(m_assembler);
-        gsDebug<<evaluator.eval(jacG,pt)<<"\n";
-        gsDebug<<evaluator.eval(jac(m_space),pt)<<"\n";
-        gsDebug<<evaluator.eval(m_N_der * m_Em_der.tr(),pt)<<"\n";
-        gsDebug<<evaluator.eval(m_space * m_force * meas(m_ori),pt)<<"\n";
+        // gsVector<> pt(2);
+        // pt.setConstant(0.25);
+        // gsExprEvaluator<> evaluator(m_assembler);
+        // gsDebug<<evaluator.eval(jacG,pt)<<"\n";
+        // gsDebug<<evaluator.eval(jac(m_space),pt)<<"\n";
+        // gsDebug<<evaluator.eval(m_N_der * m_Em_der.tr(),pt)<<"\n";
+        // gsDebug<<evaluator.eval(m_space * m_force * meas(m_ori),pt)<<"\n";
         // assemble system
         m_assembler.assemble(
             (
