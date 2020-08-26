@@ -813,7 +813,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Incompressible(const index_t i, const gsMa
         else if (m_outputType==10)
         {
 
-            GISMO_ASSERT(m_material >= 10 && m_material < 20, "Only available for stretch-based materials.");
+            // GISMO_ASSERT(m_material >= 10 && m_material < 20, "Only available for stretch-based materials.");
 
             // this->computeMetric(i,z.at(j),true,true);
             this->getMetric(i,z.at(j)); // on point i, on height z(0,j)
@@ -1805,11 +1805,11 @@ T gsMaterialMatrix<T>::dPsi_da(const index_t a) const
 
     if (!m_compressible) // incompressible
     {
-            if (m_material==12)
+            if (m_material==12 || m_material==2 || m_material==22)// second and third case for plotting principal stress
             {
                 tmp  = mu/2 * dI_1a;
             }
-            else if (m_material==13)
+            else if (m_material==13 || m_material==3 || m_material==23)// second and third case for plotting principal stress
             {
                 T c2 = mu/(m_parvals.at(2)+1);
                 T c1 = m_parvals.at(2)*c2;
