@@ -346,6 +346,21 @@ void gsThinShellAssembler<T>::assembleShell()
 
     else // no foundation, no pressure
     {
+        // gsVector<> pt(2);
+        // pt.setConstant(0.25);
+        // gsExprEvaluator<> evaluator(m_assembler);
+
+        // gsDebug<<evaluator.eval(deriv2(m_space,sn(m_def).normalized().tr()) ,pt,1)<<"\n";
+        // gsDebug<<evaluator.eval(deriv2(m_def,var1(m_space,m_def) ),pt,1)<<"\n";
+        // gsDebug<<evaluator.eval(var1(m_space,m_def) ,pt,1)<<"\n";
+
+
+        // gsDebug<<evaluator.eval(m_Em_der,pt,1)<<"\n";
+        // gsDebug<<evaluator.eval(m_Ef_der,pt,1)<<"\n";
+
+        // gsDebug<<evaluator.eval(m_N_der,pt,1)<<"\n";
+        // gsDebug<<evaluator.eval(m_M_der,pt,1)<<"\n";
+
         // assemble system
         m_assembler.assemble(
             (
@@ -469,11 +484,10 @@ void gsThinShellAssembler<T>::assembleMembrane()
         // gsVector<> pt(2);
         // pt.setConstant(0.25);
         // gsExprEvaluator<> evaluator(m_assembler);
-        // gsDebug<<evaluator.eval(jacG,pt)<<"\n";
-        // gsDebug<<evaluator.eval(jac(m_space),pt)<<"\n";
-        // gsDebug<<evaluator.eval(m_N_der * m_Em_der.tr(),pt)<<"\n";
-        // gsDebug<<evaluator.eval(m_space * m_force * meas(m_ori),pt)<<"\n";
-        // assemble system
+
+        // gsDebug<<evaluator.eval(m_Em_der,pt,1)<<"\n";
+        // gsDebug<<evaluator.eval(m_N_der,pt,1)<<"\n";
+
         m_assembler.assemble(
             (
                 m_N_der * m_Em_der.tr()

@@ -121,6 +121,10 @@ public:
         cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
         const Scalar measure =  _G.data().measures.at(k);
 
+        // gsDebugVar(cJac);
+        // gsDebugVar(normal);
+        // gsDebugVar(measure);
+
         // gsDebugVar(_G.data().values[0].col(k).transpose());
 
         for (index_t d = 0; d!= cols(); ++d) // for all basis function components
