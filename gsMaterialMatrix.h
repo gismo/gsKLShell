@@ -87,6 +87,7 @@ public:
 
     /// @brief Returns the list of default options for assembly
     gsOptionList & options() {return m_options;}
+    void setOptions(gsOptionList opt) { m_options = opt; } // gsOptionList opt
 
 
 
