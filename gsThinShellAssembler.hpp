@@ -21,27 +21,6 @@
 namespace gismo
 {
 
-// template<class T>
-// gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
-//                                         const gsMultiBasis<T> & basis,
-//                                         const gsBoundaryConditions<T> & bconditions,
-//                                         const gsFunction<T> & surface_force,
-//                                         const gsFunction<T> & thickness,
-//                                         T YoungsModulus,
-//                                         T PoissonsRatio
-//                                         )
-//                                         :
-//                                         m_patches(patches),
-//                                         m_basis(basis),
-//                                         m_bcs(bconditions),
-//                                         m_forceFun(&surface_force),
-//                                         m_thickFun(&thickness)
-// {
-//     m_YoungsModulus = memory::make_shared(new gsConstantFunction(YoungsModulus,3));
-//     m_PoissonsRatio = memory::make_shared(new gsConstantFunction(PoissonsRatio,3));
-//     this->initialize();
-// }
-
 template<class T>
 gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
                                         const gsMultiBasis<T> & basis,
@@ -101,18 +80,7 @@ void gsThinShellAssembler<T>::initialize()
     m_assembler.getMap(m_defpatches);
 
     // Set the discretization space
-    // space m_space = m_assembler.getSpace(m_basis, m_dim, 0); // last argument is the space ID
     space m_space = m_assembler.getSpace(m_basis, m_dim, 0); // last argument is the space ID
-    // m_space.setup(m_bcs, dirichlet::interpolation, 0);
-
-    // Define fields as variables:
-    // ... surface force
-    //m_force = &
-    // m_assembler.getCoeff(*m_forceFun,m_ori);
-    // // ... thickness
-    // m_assembler.getCoeff(*m_thickFun,m_ori);
-
-    // call a defineComponents() depending on model
 
     this->assembleDirichlet();
 
@@ -162,18 +130,6 @@ void gsThinShellAssembler<T>::applyLoads()
 
     space       m_space = m_assembler.trialSpace(0);
     m_mapper = m_space.mapper();
-
-    // /*
-    //     NOTE!!
-    //     This does not work yet. We need the dofMappers per degree of freedom!!
-    // */
-    // // -----------------------------------
-    // m_dofMappers.resize(3);
-    // m_dofMappers.at(0) = m_space.mapper();
-    // m_dofMappers.at(1) = m_space.mapper();
-    // m_dofMappers.at(2) = m_space.mapper();
-    // // -----------------------------------
-
 
     for (size_t i = 0; i< m_pLoads.numLoads(); ++i )
     {
@@ -226,11 +182,6 @@ void gsThinShellAssembler<T>::assembleMass()
 
     space       m_space = m_assembler.trialSpace(0);
     geometryMap m_ori   = m_assembler.exprData()->getMap();
-
-    // gsVector<> pt(2);
-    // pt.setConstant(0.5);
-    // gsExprEvaluator<T> evaluator(m_assembler);
-    // gsDebug<<evaluator.eval(mm0,pt)<<"\n";
 
     // assemble system
     m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
@@ -346,21 +297,6 @@ void gsThinShellAssembler<T>::assembleShell()
 
     else // no foundation, no pressure
     {
-        // gsVector<> pt(2);
-        // pt.setConstant(0.25);
-        // gsExprEvaluator<> evaluator(m_assembler);
-
-        // gsDebug<<evaluator.eval(deriv2(m_space,sn(m_def).normalized().tr()) ,pt,1)<<"\n";
-        // gsDebug<<evaluator.eval(deriv2(m_def,var1(m_space,m_def) ),pt,1)<<"\n";
-        // gsDebug<<evaluator.eval(var1(m_space,m_def) ,pt,1)<<"\n";
-
-
-        // gsDebug<<evaluator.eval(m_Em_der,pt,1)<<"\n";
-        // gsDebug<<evaluator.eval(m_Ef_der,pt,1)<<"\n";
-
-        // gsDebug<<evaluator.eval(m_N_der,pt,1)<<"\n";
-        // gsDebug<<evaluator.eval(m_M_der,pt,1)<<"\n";
-
         // assemble system
         m_assembler.assemble(
             (
@@ -374,23 +310,6 @@ void gsThinShellAssembler<T>::assembleShell()
 
         this->assembleNeumann();
     }
-    // else
-    // {
-    //     variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
-    //     // assemble system
-    //     m_assembler.assemble(
-    //         (
-    //             m_N_der * m_Em_der.tr()
-    //             +
-    //             m_M_der * m_Ef_der.tr()
-    //             +
-    //             m_found.val()*m_space*m_space.tr()
-    //         ) * meas(m_ori)
-    //         ,
-    //         m_space * m_force * meas(m_ori)
-    //         );
-    // }
-
 
     // Assemble the loads
     if ( m_pLoads.numLoads() != 0 )
@@ -398,21 +317,6 @@ void gsThinShellAssembler<T>::assembleShell()
         m_rhs = m_assembler.rhs();
         applyLoads();
     }
-    // Neumann
-
-    // gsVector<> pt(2);
-    // pt.setConstant(0.25);
-    // gsExprEvaluator<> evaluator(m_assembler);
-    // gsDebug<<evaluator.eval(reshape(mmA,3,3),pt)<<"\n";
-    // gsDebug<<evaluator.eval(reshape(mmB,3,3),pt)<<"\n";
-    // gsDebug<<evaluator.eval(reshape(mmC,3,3),pt)<<"\n";
-    // gsDebug<<evaluator.eval(reshape(mmD,3,3),pt)<<"\n";
-
-    // gsDebug<<evaluator.eval((m_N_der * m_Em_der.tr()
-    //             +
-    //             m_M_der * m_Ef_der.tr()
-    //         ) * meas(m_ori),pt)<<"\n";
-
 }
 
 template<class T>
@@ -459,14 +363,6 @@ void gsThinShellAssembler<T>::assembleMembrane()
     {
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
 
-        // gsVector<> pt(2);
-        // pt.setConstant(0.25);
-        // gsExprEvaluator<> evaluator(m_assembler);
-
-        // gsDebug<<evaluator.eval(m_pressure.val(),pt)<<"\n";
-        // gsDebug<<evaluator.eval(m_space,pt)<<"\n";
-        // gsDebug<<evaluator.eval(sn(m_def).normalized(),pt)<<"\n";
-
         // Assemble vector
         m_assembler.assemble(
             (
@@ -481,13 +377,6 @@ void gsThinShellAssembler<T>::assembleMembrane()
 
     else // no foundation, no pressure
     {
-        // gsVector<> pt(2);
-        // pt.setConstant(0.25);
-        // gsExprEvaluator<> evaluator(m_assembler);
-
-        // gsDebug<<evaluator.eval(m_Em_der,pt,1)<<"\n";
-        // gsDebug<<evaluator.eval(m_N_der,pt,1)<<"\n";
-
         m_assembler.assemble(
             (
                 m_N_der * m_Em_der.tr()
@@ -498,23 +387,6 @@ void gsThinShellAssembler<T>::assembleMembrane()
 
         this->assembleNeumann();
     }
-    // else
-    // {
-    //     variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
-    //     // assemble system
-    //     m_assembler.assemble(
-    //         (
-    //             m_N_der * m_Em_der.tr()
-    //             +
-    //             m_M_der * m_Ef_der.tr()
-    //             +
-    //             m_found.val()*m_space*m_space.tr()
-    //         ) * meas(m_ori)
-    //         ,
-    //         m_space * m_force * meas(m_ori)
-    //         );
-    // }
-
 
     // Assemble the loads
     if ( m_pLoads.numLoads() != 0 )
@@ -522,21 +394,6 @@ void gsThinShellAssembler<T>::assembleMembrane()
         m_rhs = m_assembler.rhs();
         applyLoads();
     }
-    // Neumann
-
-    // gsVector<> pt(2);
-    // pt.setConstant(0.25);
-    // gsExprEvaluator<> evaluator(m_assembler);
-    // gsDebug<<evaluator.eval(reshape(mmA,3,3),pt)<<"\n";
-    // gsDebug<<evaluator.eval(reshape(mmB,3,3),pt)<<"\n";
-    // gsDebug<<evaluator.eval(reshape(mmC,3,3),pt)<<"\n";
-    // gsDebug<<evaluator.eval(reshape(mmD,3,3),pt)<<"\n";
-
-    // gsDebug<<evaluator.eval((m_N_der * m_Em_der.tr()
-    //             +
-    //             m_M_der * m_Ef_der.tr()
-    //         ) * meas(m_ori),pt)<<"\n";
-
 }
 
 template <class T>
@@ -611,16 +468,6 @@ void gsThinShellAssembler<T>::assembleMatrixShell(const gsMultiPatch<T> & deform
     }
     else if (m_pressInd)
     {
-        // gsVector<> pt(2);
-        // pt.setConstant(0.25);
-        // gsExprEvaluator<> evaluator(m_assembler);
-        // gsDebug<<evaluator.eval(m_def,pt)<<"\n";
-
-        // gsDebug<<evaluator.eval(m_pressure.val(),pt)<<"\n";
-        // gsDebug<<evaluator.eval(m_space,pt)<<"\n";
-        // gsDebug<<evaluator.eval(sn(m_def).normalized(),pt)<<"\n";
-
-
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
         m_assembler.assemble(
                 (
@@ -651,34 +498,6 @@ void gsThinShellAssembler<T>::assembleMatrixShell(const gsMultiPatch<T> & deform
                 ) * meas(m_ori)
             );
     }
-    // else
-    // {
-    //     variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
-    //     // Assemble matrix
-    //     m_assembler.assemble(
-    //             (
-    //                  m_N_der * m_Em_der.tr()
-    //                  +
-    //                  m_Em_der2
-    //                  +
-    //                  m_M_der * m_Ef_der.tr()
-    //                  -
-    //                  m_Ef_der2
-    //                  +
-    //                 m_found.val()*m_space*m_space.tr()
-    //             ) * meas(m_ori)
-    //         );
-    // }
-    // gsVector<> pt(2);
-    // pt.setConstant(0.5);
-    // gsExprEvaluator<> evaluator(m_assembler);
-    // gsDebug<<"\n"<<evaluator.eval(reshape(mmA,3,3),pt)<<"\n";
-    // gsDebug<<"\n"<<evaluator.eval(reshape(mmB,3,3),pt)<<"\n";
-    // gsDebug<<"\n"<<evaluator.eval(reshape(mmC,3,3),pt)<<"\n";
-    // gsDebug<<"\n"<<evaluator.eval(reshape(mmD,3,3),pt)<<"\n";
-    // gsDebug<<"\n"<<evaluator.eval(S0,pt)<<"\n";
-    // gsDebug<<"\n"<<evaluator.eval(S2,pt)<<"\n";
-
 }
 
 template <class T>
@@ -721,16 +540,6 @@ void gsThinShellAssembler<T>::assembleMatrixMembrane(const gsMultiPatch<T> & def
     }
     else if (m_pressInd)
     {
-        // gsVector<> pt(2);
-        // pt.setConstant(0.25);
-        // gsExprEvaluator<> evaluator(m_assembler);
-        // gsDebug<<evaluator.eval(m_def,pt)<<"\n";
-
-        // gsDebug<<evaluator.eval(m_pressure.val(),pt)<<"\n";
-        // gsDebug<<evaluator.eval(m_space,pt)<<"\n";
-        // gsDebug<<evaluator.eval(sn(m_def).normalized(),pt)<<"\n";
-
-
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
         m_assembler.assemble(
                 (
@@ -753,34 +562,6 @@ void gsThinShellAssembler<T>::assembleMatrixMembrane(const gsMultiPatch<T> & def
                 ) * meas(m_ori)
             );
     }
-    // else
-    // {
-    //     variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
-    //     // Assemble matrix
-    //     m_assembler.assemble(
-    //             (
-    //                  m_N_der * m_Em_der.tr()
-    //                  +
-    //                  m_Em_der2
-    //                  +
-    //                  m_M_der * m_Ef_der.tr()
-    //                  -
-    //                  m_Ef_der2
-    //                  +
-    //                 m_found.val()*m_space*m_space.tr()
-    //             ) * meas(m_ori)
-    //         );
-    // }
-    // gsVector<> pt(2);
-    // pt.setConstant(0.5);
-    // gsExprEvaluator<> evaluator(m_assembler);
-    // gsDebug<<"\n"<<evaluator.eval(reshape(mmA,3,3),pt)<<"\n";
-    // gsDebug<<"\n"<<evaluator.eval(reshape(mmB,3,3),pt)<<"\n";
-    // gsDebug<<"\n"<<evaluator.eval(reshape(mmC,3,3),pt)<<"\n";
-    // gsDebug<<"\n"<<evaluator.eval(reshape(mmD,3,3),pt)<<"\n";
-    // gsDebug<<"\n"<<evaluator.eval(S0,pt)<<"\n";
-    // gsDebug<<"\n"<<evaluator.eval(S2,pt)<<"\n";
-
 }
 template<class T>
 void gsThinShellAssembler<T>::assembleMatrix(const gsMatrix<T> & solVector)
@@ -874,11 +655,6 @@ void gsThinShellAssembler<T>::assembleVectorShell(const gsMultiPatch<T> & deform
 
         this->assembleNeumann();
     }
-    // else
-    // {
-
-    // }
-
 
     // Assemble the loads
     if ( m_pLoads.numLoads() != 0 )
@@ -886,11 +662,6 @@ void gsThinShellAssembler<T>::assembleVectorShell(const gsMultiPatch<T> & deform
         m_rhs = m_assembler.rhs();
         applyLoads();
     }
-    // gsVector<> pt(2);
-    // pt.setConstant(0.5);
-    // gsExprEvaluator<> evaluator(m_assembler);
-    // gsDebug<<"\n"<<evaluator.eval(S0,pt)<<"\n";
-    // gsDebug<<"\n"<<evaluator.eval(S1,pt)<<"\n";
 }
 
 
@@ -929,7 +700,7 @@ void gsThinShellAssembler<T>::assembleVectorMembrane(const gsMultiPatch<T> & def
         //     m_assembler.assemble(
         //                 m_space * m_force * meas(m_ori)
         //                 -
-        //                 ( ( m_N * m_Em_der.tr() - m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+        //                 ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
         //                 +
 
         //                 );
@@ -957,11 +728,6 @@ void gsThinShellAssembler<T>::assembleVectorMembrane(const gsMultiPatch<T> & def
 
         this->assembleNeumann();
     }
-    // else
-    // {
-
-    // }
-
 
     // Assemble the loads
     if ( m_pLoads.numLoads() != 0 )
@@ -969,11 +735,6 @@ void gsThinShellAssembler<T>::assembleVectorMembrane(const gsMultiPatch<T> & def
         m_rhs = m_assembler.rhs();
         applyLoads();
     }
-    // gsVector<> pt(2);
-    // pt.setConstant(0.5);
-    // gsExprEvaluator<> evaluator(m_assembler);
-    // gsDebug<<"\n"<<evaluator.eval(S0,pt)<<"\n";
-    // gsDebug<<"\n"<<evaluator.eval(S1,pt)<<"\n";
 }
 
 template <class T>
@@ -1205,10 +966,6 @@ gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVectorMembrane(const gsMultiPa
 template<class T>
 void gsThinShellAssembler<T>::assembleVector(const gsMatrix<T> & solVector)
 {
-    // gsMultiPatch<T> deformed;
-    // constructSolution(solVector, deformed);
-    // assembleVector(deformed);
-
     constructSolution(solVector, m_defpatches);
     assembleVector(m_defpatches);
 }
@@ -1226,10 +983,6 @@ template<class T>
 void gsThinShellAssembler<T>::assemble(const gsMatrix<T> & solVector,
                                         bool Matrix)
 {
-    // gsMultiPatch<T> deformed;
-    // constructSolution(solVector, deformed);
-    // assemble(deformed,Matrix);
-
     constructSolution(solVector, m_defpatches);
     assemble(m_defpatches,Matrix);
 }
@@ -1268,11 +1021,6 @@ void gsThinShellAssembler<T>::constructSolution(const gsMatrix<T> & solVector, g
 template <class T>
 T gsThinShellAssembler<T>::getArea(const gsMultiPatch<T> & geometry)
 {
-    // if (deformed)
-    //     m_assembler.getMap(m_defpatches);           // this map is used for integrals
-    // else
-    //     m_assembler.getMap(m_patches);           // this map is used for integrals
-
     m_assembler.cleanUp();
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
@@ -1367,5 +1115,59 @@ void gsThinShellAssembler<T>::constructStress(const gsMultiPatch<T> & deformed,
 //     return stressField;
 
 // }
+
+template <class T>
+void gsThinShellAssembler<T>::projectL2_into(const gsFunction<T> & fun, gsMatrix<T>& result)
+{
+    this->getOptions();
+
+    m_assembler.cleanUp();
+
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+
+    // Initialize stystem
+    m_assembler.initSystem(false);
+
+    space       m_space = m_assembler.trialSpace(0);
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+    variable    function = m_assembler.getCoeff(fun);
+
+    // assemble system
+    m_assembler.assemble(m_space*m_space.tr()*meas(m_ori),m_space * function*meas(m_ori));
+    m_solver.compute(m_assembler.matrix());
+    result = m_solver.solve(m_assembler.rhs());
+}
+
+template <class T>
+void gsThinShellAssembler<T>::projectL2_into(const gsFunction<T> & fun, gsMultiPatch<T>& mp)
+{
+    gsMatrix<T> tmp = projectL2(fun);
+    mp = m_patches;
+
+    // Solution vector and solution variable
+    space m_space = m_assembler.trialSpace(0);
+    const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart() = m_ddofs;
+
+    solution m_solution = m_assembler.getSolution(m_space, tmp);
+
+    GISMO_ASSERT(m_defpatches.nPatches()==mp.nPatches(),"The number of patches of the result multipatch is not equal to that of the geometry!");
+
+    gsMatrix<T> cc;
+    for ( size_t k =0; k!=mp.nPatches(); ++k) // Deform the geometry
+    {
+        // // extract deformed geometry
+        m_solution.extract(cc, k);
+        mp.patch(k).coefs() = cc;  // defG points to mp_def, therefore updated
+    }
+}
+
+
+template <class T>
+gsMatrix<T> gsThinShellAssembler<T>::projectL2(const gsFunction<T> & fun)
+{
+    gsMatrix<T> result;
+    this->projectL2_into(fun,result);
+    return result;
+}
 
 }// namespace gismo
