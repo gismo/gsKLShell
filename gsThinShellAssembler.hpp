@@ -22,6 +22,7 @@ namespace gismo
 {
 
 template<class T>
+// template<short_t d, class T>
 gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
                                         const gsMultiBasis<T> & basis,
                                         const gsBoundaryConditions<T> & bconditions,
@@ -199,10 +200,12 @@ void gsThinShellAssembler<T>::assembleFoundation()
 
     // Initialize stystem
     m_assembler.initSystem(false);
-    variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
+    variable    m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
+    GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
+
     space       m_space = m_assembler.trialSpace(0);
 
-    m_assembler.assemble(m_found.val()*m_space*m_space.tr()*meas(m_ori));
+    m_assembler.assemble(m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori));
 }
 
 template<class T>
@@ -214,6 +217,13 @@ void gsThinShellAssembler<T>::assemble()
         assembleMembrane();
 }
 
+/**
+    @brief Assembles the Kirchhoff-Love shell equations including the bending terms.
+    Optionally, pressure is included via \a p * n * u
+    Optionally, foundation stiffness is included via k_x v_x v_x + k_y v_y v_y + k_z v_z v_z
+    Since the variational energy of the foundation force k_i u_i is equal to k_i u_i v_i where i denotes any direction, u_i are displacemets and v_i are spaces.
+
+*/
 template<class T>
 void gsThinShellAssembler<T>::assembleShell()
 {
@@ -250,38 +260,35 @@ void gsThinShellAssembler<T>::assembleShell()
     variable m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
     // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
 
-    auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
-    // auto m_Sm_der   = m_Em_der * reshape(m_materialMat,3,3);
-    // auto m_N_der    = m_thick.val() * m_Sm_der;
-    // auto m_N_der    = m_Em_der * reshape(mm0,3,3);
-
-    auto m_Ef_der   = -( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
-    // auto m_Sf_der   = m_Ef_der * reshape(m_materialMat,3,3);
-    // auto m_M_der    = m_thick.val() * m_thick.val() * m_thick.val() / 12.0 * m_Sf_der;
-    // auto m_M_der    = m_Ef_der * reshape(mm2,3,3);
-
-    // auto m_M_der    = pow(m_thick.val(),3) / 12.0 * m_Sf_der;
+    auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) );
+    auto m_Ef_der   = -( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3);
 
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
 
     if (m_foundInd) // no foundation
     {
-        GISMO_ERROR("Not implemented");
+        variable m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
+        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
+
+        m_assembler.assemble(
+            (
+                m_N_der * m_Em_der.tr()
+                +
+                m_M_der * m_Ef_der.tr()
+            ) * meas(m_ori)
+            + m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
+            ,
+            m_space * m_force * meas(m_ori)
+            );
+
+        this->assembleNeumann();
     }
     else if (m_pressInd)
     {
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
 
-        // gsVector<> pt(2);
-        // pt.setConstant(0.25);
-        // gsExprEvaluator<> evaluator(m_assembler);
-
-        // gsDebug<<evaluator.eval(m_pressure.val(),pt)<<"\n";
-        // gsDebug<<evaluator.eval(m_space,pt)<<"\n";
-        // gsDebug<<evaluator.eval(sn(m_def).normalized(),pt)<<"\n";
-
-        // Assemble vector
         m_assembler.assemble(
             (
                 m_N_der * m_Em_der.tr()
@@ -297,7 +304,6 @@ void gsThinShellAssembler<T>::assembleShell()
 
     else // no foundation, no pressure
     {
-        // assemble system
         m_assembler.assemble(
             (
                 m_N_der * m_Em_der.tr()
@@ -341,27 +347,32 @@ void gsThinShellAssembler<T>::assembleMembrane()
     geometryMap m_ori   = m_assembler.exprData()->getMap();
     geometryMap m_def   = m_assembler.exprData()->getMap2();
     variable m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
-    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
-
-    // gsFunctionExpr<> mult2t("1","0","0","0","1","0",2);
-    // variable m_m2 = m_assembler.getCoeff(mult2t);
 
     auto jacG       = jac(m_def);
-    // auto jacG       = reshape(m_m2,3,2).tr() * jac(m_def);
     auto m_Em_der   = flat( jacG.tr() * jac(m_space) ) ; //[checked]
-    // auto m_Sm_der   = m_Em_der * reshape(m_materialMat,3,3);
-    // auto m_N_der    = m_thick.val() * m_Sm_der;
-    // auto m_N_der    = m_Em_der * reshape(mm0,3,3);
-
     auto m_N_der    = m_Em_der * reshape(mmA,3,3);
 
     if (m_foundInd) // no foundation
     {
-        GISMO_ERROR("Not implemented");
+        variable m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
+        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
+
+        m_assembler.assemble(
+            (
+                m_N_der * m_Em_der.tr()
+            ) * meas(m_ori)
+            + m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
+            ,
+            m_space * m_force * meas(m_ori)
+            );
+
+        this->assembleNeumann();
+
     }
     else if (m_pressInd)
     {
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
 
         // Assemble vector
         m_assembler.assemble(
@@ -464,11 +475,28 @@ void gsThinShellAssembler<T>::assembleMatrixShell(const gsMultiPatch<T> & deform
 
     if (m_foundInd) // no foundation
     {
-        GISMO_ERROR("not implemented");
+        variable m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
+        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
+
+        m_assembler.assemble(
+                (
+                    m_N_der * m_Em_der.tr()
+                    +
+                    m_Em_der2
+                    +
+                    m_M_der * m_Ef_der.tr()
+                    +
+                    m_Ef_der2
+                ) * meas(m_ori)
+                +
+                m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
+            );
     }
     else if (m_pressInd)
     {
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
+
         m_assembler.assemble(
                 (
                     m_N_der * m_Em_der.tr()
@@ -536,11 +564,24 @@ void gsThinShellAssembler<T>::assembleMatrixMembrane(const gsMultiPatch<T> & def
 
     if (m_foundInd) // no foundation
     {
-        GISMO_ERROR("not implemented");
+        variable m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
+        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
+
+        m_assembler.assemble(
+                (
+                    m_N_der * m_Em_der.tr()
+                    +
+                    m_Em_der2
+                ) * meas(m_ori)
+                +
+                m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
+            );
     }
     else if (m_pressInd)
     {
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
+
         m_assembler.assemble(
                 (
                     m_N_der * m_Em_der.tr()
@@ -622,20 +663,22 @@ void gsThinShellAssembler<T>::assembleVectorShell(const gsMultiPatch<T> & deform
 
     if (m_foundInd) // no foundation
     {
-        //     variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
-        //     // Assemble vector
-        //     m_assembler.assemble(
-        //                 m_space * m_force * meas(m_ori)
-        //                 -
-        //                 ( ( m_N * m_Em_der.tr() - m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
-        //                 +
+        variable m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
+        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
 
-        //                 );
-        GISMO_ERROR("Not implemented");
+        // Assemble vector
+        m_assembler.assemble(
+                        m_space * m_force * meas(m_ori)
+                      + m_space * m_foundation.asDiag() * (m_def - m_ori) * meas(m_ori) // [v_x,v_y,v_z] diag([k_x,k_y,k_z]) [u_x; u_y; u_z]
+                      - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+                    );
+
+        this->assembleNeumann();
     }
     else if (m_pressInd)
     {
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
 
         // Assemble vector
         m_assembler.assemble(
@@ -695,20 +738,22 @@ void gsThinShellAssembler<T>::assembleVectorMembrane(const gsMultiPatch<T> & def
 
     if (m_foundInd) // no foundation
     {
-        //     variable    m_found = m_assembler.getCoeff(*m_foundFun, m_ori);
-        //     // Assemble vector
-        //     m_assembler.assemble(
-        //                 m_space * m_force * meas(m_ori)
-        //                 -
-        //                 ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
-        //                 +
+        variable m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
+        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
 
-        //                 );
-        GISMO_ERROR("Not implemented");
+        // Assemble vector
+        m_assembler.assemble(
+                        m_space * m_force * meas(m_ori)
+                      + m_space * m_foundation.asDiag() * (m_def - m_ori) * meas(m_ori) // [v_x,v_y,v_z] diag([k_x,k_y,k_z]) [u_x; u_y; u_z]
+                      - ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
+                    );
+
+        this->assembleNeumann();
     }
     else if (m_pressInd)
     {
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
 
         // Assemble vector
         m_assembler.assemble(
