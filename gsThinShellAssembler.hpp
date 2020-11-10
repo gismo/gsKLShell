@@ -266,56 +266,37 @@ void gsThinShellAssembler<T>::assembleShell()
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
 
-    if (m_foundInd) // no foundation
+    if (m_foundInd)
     {
         variable m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
         GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
 
         m_assembler.assemble(
-            (
-                m_N_der * m_Em_der.tr()
-                +
-                m_M_der * m_Ef_der.tr()
-            ) * meas(m_ori)
-            + m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
-            ,
-            m_space * m_force * meas(m_ori)
+            m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
             );
 
-        this->assembleNeumann();
     }
-    else if (m_pressInd)
+    if (m_pressInd)
     {
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
         GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
 
         m_assembler.assemble(
-            (
-                m_N_der * m_Em_der.tr()
-                +
-                m_M_der * m_Ef_der.tr()
-            ) * meas(m_ori)
-            ,
-            m_space * m_force * meas(m_ori) + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
+            m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
             );
-
-        this->assembleNeumann();
     }
 
-    else // no foundation, no pressure
-    {
-        m_assembler.assemble(
-            (
-                m_N_der * m_Em_der.tr()
-                +
-                m_M_der * m_Ef_der.tr()
-            ) * meas(m_ori)
-            ,
-            m_space * m_force * meas(m_ori)
-            );
+    m_assembler.assemble(
+        (
+            m_N_der * m_Em_der.tr()
+            +
+            m_M_der * m_Ef_der.tr()
+        ) * meas(m_ori)
+        ,
+        m_space * m_force * meas(m_ori)
+        );
 
-        this->assembleNeumann();
-    }
+    this->assembleNeumann();
 
     // Assemble the loads
     if ( m_pLoads.numLoads() != 0 )
@@ -352,52 +333,35 @@ void gsThinShellAssembler<T>::assembleMembrane()
     auto m_Em_der   = flat( jacG.tr() * jac(m_space) ) ; //[checked]
     auto m_N_der    = m_Em_der * reshape(mmA,3,3);
 
-    if (m_foundInd) // no foundation
+    if (m_foundInd)
     {
         variable m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
         GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
 
         m_assembler.assemble(
-            (
-                m_N_der * m_Em_der.tr()
-            ) * meas(m_ori)
-            + m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
-            ,
-            m_space * m_force * meas(m_ori)
+            m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
             );
-
-        this->assembleNeumann();
-
     }
-    else if (m_pressInd)
+    if (m_pressInd)
     {
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
         GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
 
         // Assemble vector
         m_assembler.assemble(
-            (
-                m_N_der * m_Em_der.tr()
-            ) * meas(m_ori)
-            ,
-            m_space * m_force * meas(m_ori) + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
+            m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
             );
-
-        this->assembleNeumann();
     }
 
-    else // no foundation, no pressure
-    {
-        m_assembler.assemble(
-            (
-                m_N_der * m_Em_der.tr()
-            ) * meas(m_ori)
-            ,
-            m_space * m_force * meas(m_ori)
-            );
+    m_assembler.assemble(
+        (
+            m_N_der * m_Em_der.tr()
+        ) * meas(m_ori)
+        ,
+        m_space * m_force * meas(m_ori)
+        );
 
-        this->assembleNeumann();
-    }
+    this->assembleNeumann();
 
     // Assemble the loads
     if ( m_pLoads.numLoads() != 0 )
@@ -473,46 +437,24 @@ void gsThinShellAssembler<T>::assembleMatrixShell(const gsMultiPatch<T> & deform
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
 
-    if (m_foundInd) // no foundation
+    if (m_foundInd)
     {
         variable m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
         GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
 
         m_assembler.assemble(
-                (
-                    m_N_der * m_Em_der.tr()
-                    +
-                    m_Em_der2
-                    +
-                    m_M_der * m_Ef_der.tr()
-                    +
-                    m_Ef_der2
-                ) * meas(m_ori)
-                +
                 m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
             );
     }
-    else if (m_pressInd)
+    if (m_pressInd)
     {
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
         GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
 
         m_assembler.assemble(
-                (
-                    m_N_der * m_Em_der.tr()
-                    +
-                    m_Em_der2
-                    +
-                    m_M_der * m_Ef_der.tr()
-                    +
-                    m_Ef_der2
-                ) * meas(m_ori)
-                -
-                m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
-            );
+                                -m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
+                            );
     }
-    else // no foundation, no pressure
-    {
         // Assemble matrix
         m_assembler.assemble(
                 (
@@ -525,7 +467,6 @@ void gsThinShellAssembler<T>::assembleMatrixShell(const gsMultiPatch<T> & deform
                     m_Ef_der2
                 ) * meas(m_ori)
             );
-    }
 }
 
 template <class T>
@@ -562,45 +503,31 @@ void gsThinShellAssembler<T>::assembleMatrixMembrane(const gsMultiPatch<T> & def
 
     auto m_N_der    = m_Em_der * reshape(mmA,3,3);
 
-    if (m_foundInd) // no foundation
+    // Assemble matrix
+    m_assembler.assemble(
+            (
+                m_N_der * m_Em_der.tr()
+                +
+                m_Em_der2
+            ) * meas(m_ori)
+        );
+
+    if (m_foundInd)
     {
         variable m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
         GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
 
         m_assembler.assemble(
-                (
-                    m_N_der * m_Em_der.tr()
-                    +
-                    m_Em_der2
-                ) * meas(m_ori)
-                +
                 m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
             );
     }
-    else if (m_pressInd)
+    if (m_pressInd)
     {
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
         GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
 
         m_assembler.assemble(
-                (
-                    m_N_der * m_Em_der.tr()
-                    +
-                    m_Em_der2
-                ) * meas(m_ori)
-                -
-                m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
-            );
-    }
-    else // no foundation, no pressure
-    {
-        // Assemble matrix
-        m_assembler.assemble(
-                (
-                    m_N_der * m_Em_der.tr()
-                    +
-                    m_Em_der2
-                ) * meas(m_ori)
+                -m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
             );
     }
 }
@@ -661,43 +588,33 @@ void gsThinShellAssembler<T>::assembleVectorShell(const gsMultiPatch<T> & deform
     auto m_M        = S1.tr(); // output is a column
     auto m_Ef_der   = -( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
 
-    if (m_foundInd) // no foundation
+    if (m_foundInd)
     {
         variable m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
         GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
 
         // Assemble vector
         m_assembler.assemble(
-                        m_space * m_force * meas(m_ori)
-                      + m_space * m_foundation.asDiag() * (m_def - m_ori) * meas(m_ori) // [v_x,v_y,v_z] diag([k_x,k_y,k_z]) [u_x; u_y; u_z]
-                      - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+                      m_space * m_foundation.asDiag() * (m_def - m_ori) * meas(m_ori) // [v_x,v_y,v_z] diag([k_x,k_y,k_z]) [u_x; u_y; u_z]
                     );
-
-        this->assembleNeumann();
     }
-    else if (m_pressInd)
+    if (m_pressInd)
     {
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
         GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
 
         // Assemble vector
         m_assembler.assemble(
-                        m_space * m_force * meas(m_ori)
-                      + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
-                      - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
-                    );
-
-        this->assembleNeumann();
+                      m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
+                      );
     }
-    else
-    {
+
         // Assemble vector
-        m_assembler.assemble(m_space * m_force * meas(m_ori) -
-                    ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
-                    );
+    m_assembler.assemble(m_space * m_force * meas(m_ori) -
+                            ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+                        );
 
-        this->assembleNeumann();
-    }
+    this->assembleNeumann();
 
     // Assemble the loads
     if ( m_pLoads.numLoads() != 0 )
@@ -736,43 +653,34 @@ void gsThinShellAssembler<T>::assembleVectorMembrane(const gsMultiPatch<T> & def
     auto m_N        = S0.tr();
     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ;
 
-    if (m_foundInd) // no foundation
+    if (m_foundInd)
     {
         variable m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
         GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
 
         // Assemble vector
         m_assembler.assemble(
-                        m_space * m_force * meas(m_ori)
-                      + m_space * m_foundation.asDiag() * (m_def - m_ori) * meas(m_ori) // [v_x,v_y,v_z] diag([k_x,k_y,k_z]) [u_x; u_y; u_z]
-                      - ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
+                      m_space * m_foundation.asDiag() * (m_def - m_ori) * meas(m_ori) // [v_x,v_y,v_z] diag([k_x,k_y,k_z]) [u_x; u_y; u_z]
                     );
-
-        this->assembleNeumann();
     }
-    else if (m_pressInd)
+    if (m_pressInd)
     {
         variable m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
         GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
 
         // Assemble vector
         m_assembler.assemble(
-                        m_space * m_force * meas(m_ori)
-                      + m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
-                      - ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
+                      m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
                     );
-
-        this->assembleNeumann();
     }
-    else
-    {
-        // Assemble vector
-        m_assembler.assemble(m_space * m_force * meas(m_ori) -
-                    ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
-                    );
 
-        this->assembleNeumann();
-    }
+    // Assemble vector
+    m_assembler.assemble(m_space * m_force * meas(m_ori) -
+                ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
+                );
+
+    this->assembleNeumann();
+
 
     // Assemble the loads
     if ( m_pLoads.numLoads() != 0 )
