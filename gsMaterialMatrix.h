@@ -24,6 +24,16 @@ namespace gismo
 
     \ingroup gsThinShell
 */
+
+/*
+Desired template parameters
+- compressible                      bool    COM
+- material model                    int     MAT
+- output type                       int     OUT / VEC
+- thickness integration method      int     INT
+- geometric dimension               int     DIM
+*/
+
 template <class T>
 class gsMaterialMatrix : public gismo::gsFunction<T>
 {
@@ -106,6 +116,7 @@ public:
 
     short_t domainDim() const;
 
+    // template OUT
     short_t targetDim() const;
 
     mutable gsMaterialMatrix<T> * m_piece; // todo: improve the way pieces are accessed
@@ -123,12 +134,16 @@ public:
 
     void setPatch(index_t p) {m_pIndex = p; }
 
+    // template OUT INT
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    // template MAT
     void eval_into_dens(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    // template COM
     void eval_into_stretch(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    // template COM
     void eval_into_stretchdir(const gsMatrix<T>& u, gsMatrix<T>& result) const;
-    void eval_into_DD(const gsMatrix<T>& u, gsMatrix<T>& result) const;
-    void eval_into_AP(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    // template OUT VEC INT
     void eval_into_NP(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
 public:
@@ -153,41 +168,58 @@ protected:
     void defaultOptions();
     void getOptions() const;
 
+    // template COM MAT
     gsMatrix<T> eval3D(const index_t i, const gsMatrix<T>& z) const;
+    // template COM MAT
     gsMatrix<T> eval3D(const index_t i) const;
+    // template OUT VEC
     gsMatrix<T> eval_Compressible(const index_t i, const gsMatrix<T>& z) const;
+    // template OUT VEC
     gsMatrix<T> eval_Incompressible(const index_t i, const gsMatrix<T>& z) const;
-    gsMatrix<T> eval3D_Incompressible(const gsMatrix<T>& u) const;
-    gsMatrix<T> eval3D_Compressible(const gsMatrix<T>& u) const;
-
+    // template OUT
     gsMatrix<T> eval_Composite(const gsMatrix<T>& u, const index_t moment) const;
 
+    // template MAT
     T Cijkl  (const index_t i, const index_t j, const index_t k, const index_t l) const;
+    // template MAT
     T Cijkl3D(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    // template MAT
     T Cijkl  (const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    // template MAT
     T Sij    (const index_t i, const index_t j) const;
+    // template MAT
     T Sij    (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-
+    // template MAT
     T Sii    (const index_t i) const;
+    // template MAT
     T Sii    (const index_t i, const gsMatrix<T> & c) const;
 
+    // template MAT
     T dPsi   (const index_t i, const index_t j) const;
+    // template MAT
     T dPsi   (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    // template MAT
     T d2Psi  (const index_t i, const index_t j, const index_t k, const index_t l) const;
+    // template MAT
     T d2Psi  (const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
 
     T dI_1   (const index_t i, const index_t j) const;
     T dI_2   (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
 
     // Stretch based formulation
+    // template MAT COM
     T dPsi_da   (const index_t a) const;
+    // template MAT COM
     T d2Psi_dab (const index_t a, const index_t b) const;
     T dJ_da     (const index_t a) const;
     T d2J_dab   (const index_t a, const index_t b) const;
     T p()                                          const;
     T dp_da     (const index_t a) const;
+    // template COM
     T Sa        (const index_t a) const;
+    // template COM
     T dSa_db    (const index_t a, const index_t b) const;
+    // template COM
     T Cabcd     (const index_t a, const index_t b, const index_t c, const index_t d) const;
 
     // T Sij  (const index_t i, const index_t j, gsMatrix<T> & cinv) const;
@@ -199,14 +231,22 @@ protected:
     gsMatrix<T> integrateZ(const gsMatrix<T>& u) const;
     gsMatrix<T> multiplyZ (const gsMatrix<T>& u) const;
 
+    // template MAT
     void computePoints(const gsMatrix<T> & u, bool deformed=true) const;
+    // template DIM
     void computeMetricDeformed() const;
+    // template DIM
     void computeMetricUndeformed() const;
+    // template DIM
     void getMetric(index_t k, T z) const;
+    // template DIM
     void getMetricDeformed(index_t k, T z) const;
+    // template DIM
     void getMetricUndeformed(index_t k, T z) const;
 
+    // template DIM
     void computeStretch(const gsMatrix<T> & C ) const;
+    // template DIM
     std::pair<gsVector<T>,gsMatrix<T>> evalStretch(const gsMatrix<T> & C ) const;
 
 protected:

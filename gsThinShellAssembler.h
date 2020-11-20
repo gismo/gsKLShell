@@ -28,8 +28,12 @@ namespace gismo
 
     \tparam T coefficient type
 
-    \ingroup gsThinShell
+    \ingroup gsKLShell
 */
+
+// Desired template parameters
+
+
 template <class T>
 class gsThinShellAssembler
 {
@@ -41,18 +45,22 @@ public:
 /** @brief Constructor of the assembler object.
 
     \param[in] patches is a gsMultiPatch object describing the geometry.
-    \param[in] thickness is half of the shell thickness
-    \param[in] E_modulus is the E-modulus of the chosen material
-    \param[in] poissons_ratio is the poisson ratio of the chosen material
+    \param[in] basis
     \param[in] bconditions is a gsBoundaryConditions object describing the boundary conditions
     \param[in] surface_force is a gsFunction object describing the 3D surface force
                 and/or 2*\em thickness *body_force
-    \param[in] clamped contains pairs of patchside objects and x,y or z direction aimed at getting
-                zero derivative for that direction
-    \param[in] pLoads is a gsPointLoads object describing the points and corresponding loads
 
-    \ingroup Assembler
+    \ingroup gsKLShell
 */
+
+    /*
+        Templates arguments:
+        - geometric dimension       int     DIM
+        - bending term              bool    BEN
+        - foundation                bool    FOU --> should be an option?
+        - follower pressure         bool    PRE --> should be an option?
+
+    */
     /// Default empty constructor
     gsThinShellAssembler() { }
 
@@ -103,8 +111,12 @@ public:
 
     /// @brief Assembles the stiffness matrix and the RHS for the LINEAR ELASTICITY
     /// set *assembleMatrix* to false to only assemble the RHS;
+
+    // template DIM BEN
     void assemble();
+    // template DIM BEN FOU PRE
     void assembleShell();
+    // template DIM BEN FOU PRE
     void assembleMembrane();
 
     void assembleMass();
@@ -117,20 +129,30 @@ public:
     void assemble(const gsMultiPatch<T> & deformed,     bool Matrix = true);
     void assemble(const gsMatrix<T>     & solVector,    bool Matrix = true);
 
-    void assemble(int i);
 
+    // template DIM BEN FOU PRE
     void assembleMatrix(const gsMultiPatch<T>   & deformed  );
+    // template DIM BEN FOU PRE
     void assembleMatrixShell(const gsMultiPatch<T>   & deformed  );
+    // template DIM BEN FOU PRE
     void assembleMatrixMembrane(const gsMultiPatch<T>   & deformed  );
+    // template DIM BEN FOU PRE
     void assembleMatrix(const gsMatrix<T>       & solVector );
 
+    // template DIM BEN FOU PRE
     void assembleVector(const gsMultiPatch<T>   & deformed  );
+    // template DIM BEN FOU PRE
     void assembleVectorShell(const gsMultiPatch<T>   & deformed  );
+    // template DIM BEN FOU PRE
     void assembleVectorMembrane(const gsMultiPatch<T>   & deformed  );
+    // template DIM BEN FOU PRE
     void assembleVector(const gsMatrix<T>       & solVector );
 
+    // template DIM BEN
     gsMatrix<T> boundaryForceVector(const gsMultiPatch<T>   & deformed , patchSide& ps, int com );
+    // template DIM BEN
     gsMatrix<T> boundaryForceVectorShell(const gsMultiPatch<T>   & deformed , patchSide& ps, int com );
+    // template DIM BEN
     gsMatrix<T> boundaryForceVectorMembrane(const gsMultiPatch<T>   & deformed , patchSide& ps, int com );
 
     //--------------------- GEOMETRY ACCESS --------------------------------//
@@ -176,18 +198,7 @@ public:
     void projectL2_into(const gsFunction<T> &fun, gsMultiPatch<T> & result);
     gsMatrix<T> projectL2(const gsFunction<T> &fun);
 
-    /// @brief Check whether the displacement field is valid, i.e. J = det(F) > 0;
-    /// return -1 if yes or a number of the first invalid patch
-    index_t checkSolution(const gsMultiPatch<T> & solution) const;
-
-    /// @brief Return minJ/maxJ
-    T solutionJacRatio(const gsMultiPatch<T> & solution) const;
-
-
 protected:
-    typedef typename std::vector< gsMatrix<unsigned> > gsStripIndices; // index_t instead of unsigned
-
-
     void initialize();
     void defaultOptions();
     void getOptions() const;
@@ -197,10 +208,6 @@ protected:
     void assembleNeumann();
     void assembleDirichlet();
     void assembleClamped();
-
-    void createBendingStrips(gsMultiPatch<T> & mp, gsMultiPatch<T> & strips, gsStripIndices & indices);
-    void assembleBendingStrips();
-
 
     void applyLoads();
 
@@ -218,10 +225,6 @@ protected:
 
     gsExprAssembler<> m_assembler;
     gsExprEvaluator<> m_evaluator;
-
-    gsStripIndices m_stripIndices, m_defstripIndices;
-    gsMultiPatch<T> m_strips, m_defstrips;
-    gsExprAssembler<T> m_stripAssembler;
 
     gsMultiPatch<T> m_patches;
     gsMultiPatch<T> m_defpatches;
