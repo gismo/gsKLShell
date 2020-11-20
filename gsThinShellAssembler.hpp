@@ -210,10 +210,7 @@ void gsThinShellAssembler<d, T, bending>::assembleFoundation()
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::assemble()
 {
-    if (m_type==0)
-        assembleShell();
-    else
-        assembleMembrane();
+    assemble_impl<d, bending>();
 }
 
 /**
@@ -223,8 +220,10 @@ void gsThinShellAssembler<d, T, bending>::assemble()
     Since the variational energy of the foundation force k_i u_i is equal to k_i u_i v_i where i denotes any direction, u_i are displacemets and v_i are spaces.
 
 */
-template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleShell()
+template<int d, typename T, bool bending>
+template<int _d, bool _bending> inline
+typename std::enable_if<_d==3 && _bending, void>::type
+gsThinShellAssembler<d, T, bending>::assemble_impl()
 {
     this->getOptions();
 
@@ -305,8 +304,10 @@ void gsThinShellAssembler<d, T, bending>::assembleShell()
     }
 }
 
-template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleMembrane()
+template<int d, typename T, bool bending>
+template<int _d, bool _bending> inline
+typename std::enable_if<!(_d==3 && _bending), void>::type
+gsThinShellAssembler<d, T, bending>::assemble_impl()
 {
     this->getOptions();
 
@@ -373,15 +374,13 @@ void gsThinShellAssembler<d, T, bending>::assembleMembrane()
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsMultiPatch<T> & deformed)
 {
-    if (m_type==0)
-        assembleMatrixShell(deformed);
-    else
-        assembleMatrixMembrane(deformed);
+    assembleMatrix_impl<d, bending>(deformed);
 }
 
-
-template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleMatrixShell(const gsMultiPatch<T> & deformed)
+template<int d, typename T, bool bending>
+template<int _d, bool _bending> inline
+typename std::enable_if<_d==3 && _bending, void>::type
+gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
     m_defpatches = deformed;
@@ -468,8 +467,10 @@ void gsThinShellAssembler<d, T, bending>::assembleMatrixShell(const gsMultiPatch
             );
 }
 
-template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleMatrixMembrane(const gsMultiPatch<T> & deformed)
+template<int d, typename T, bool bending>
+template<int _d, bool _bending> inline
+typename std::enable_if<!(_d==3 && _bending), void>::type
+gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
     m_defpatches = deformed;
@@ -530,6 +531,7 @@ void gsThinShellAssembler<d, T, bending>::assembleMatrixMembrane(const gsMultiPa
             );
     }
 }
+
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsMatrix<T> & solVector)
 {
@@ -544,14 +546,13 @@ void gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsMatrix<T> & sol
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::assembleVector(const gsMultiPatch<T> & deformed)
 {
-    if (m_type==0)
-        assembleVectorShell(deformed);
-    else
-        assembleVectorMembrane(deformed);
+  assembleVector_impl<d, bending>(deformed);
 }
 
-template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleVectorShell(const gsMultiPatch<T> & deformed)
+template<int d, typename T, bool bending>
+template<int _d, bool _bending> inline
+typename std::enable_if<_d==3 && _bending, void>::type
+gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
     m_defpatches = deformed;
@@ -623,9 +624,10 @@ void gsThinShellAssembler<d, T, bending>::assembleVectorShell(const gsMultiPatch
     }
 }
 
-
-template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleVectorMembrane(const gsMultiPatch<T> & deformed)
+template<int d, typename T, bool bending>
+template<int _d, bool _bending> inline
+typename std::enable_if<!(_d==3 && _bending), void>::type
+gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
     m_defpatches = deformed;
@@ -692,14 +694,13 @@ void gsThinShellAssembler<d, T, bending>::assembleVectorMembrane(const gsMultiPa
 template <short_t d, class T, bool bending>
 gsMatrix<T> gsThinShellAssembler<d, T, bending>::boundaryForceVector(const gsMultiPatch<T> & deformed, patchSide& ps, int com)
 {
-    if (m_type==0)
-        boundaryForceVectorShell(deformed,ps,com);
-    else
-        boundaryForceVectorMembrane(deformed,ps,com);
+    return boundaryForceVector_impl<d, bending>(deformed,ps,com);
 }
 
-template <short_t d, class T, bool bending>
-gsMatrix<T> gsThinShellAssembler<d, T, bending>::boundaryForceVectorShell(const gsMultiPatch<T> & deformed, patchSide& ps, int com)
+template<int d, typename T, bool bending>
+template<int _d, bool _bending> inline
+typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
+gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsMultiPatch<T> & deformed, patchSide& ps, int com)
 {
     gsExprAssembler<T> assembler;
     assembler.setIntegrationElements(m_basis);
@@ -811,8 +812,10 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::boundaryForceVectorShell(const 
     return result;
 }
 
-template <short_t d, class T, bool bending>
-gsMatrix<T> gsThinShellAssembler<d, T, bending>::boundaryForceVectorMembrane(const gsMultiPatch<T> & deformed, patchSide& ps, int com)
+template<int d, typename T, bool bending>
+template<int _d, bool _bending> inline
+typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
+gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsMultiPatch<T> & deformed, patchSide& ps, int com)
 {
     gsExprAssembler<T> assembler;
     assembler.setIntegrationElements(m_basis);
@@ -924,7 +927,7 @@ void gsThinShellAssembler<d, T, bending>::assembleVector(const gsMatrix<T> & sol
 
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::assemble(const gsMultiPatch<T> & deformed,
-                                        bool Matrix)
+                                                   bool Matrix)
 {
     if (Matrix)
         assembleMatrix(deformed);
@@ -933,7 +936,7 @@ void gsThinShellAssembler<d, T, bending>::assemble(const gsMultiPatch<T> & defor
 }
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::assemble(const gsMatrix<T> & solVector,
-                                        bool Matrix)
+                                                   bool Matrix)
 {
     constructSolution(solVector, m_defpatches);
     assemble(m_defpatches,Matrix);
