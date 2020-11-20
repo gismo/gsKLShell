@@ -19,9 +19,12 @@
 
 namespace gismo
 {
-	CLASS_TEMPLATE_INST gsMaterialMatrix<real_t>;
-	CLASS_TEMPLATE_INST gsShellStressFunction<real_t>;
-	CLASS_TEMPLATE_INST gsThinShellAssembler<real_t>;
-	// CLASS_TEMPLATE_INST gsThinPlateAssembler<real_t>;
-	// CLASS_TEMPLATE_INST gsMembraneAssembler<real_t>;
+  CLASS_TEMPLATE_INST gsMaterialMatrix<real_t>;
+  CLASS_TEMPLATE_INST gsShellStressFunction<real_t>;
+  CLASS_TEMPLATE_INST gsThinShellAssembler<2,real_t,true>;
+  CLASS_TEMPLATE_INST gsThinShellAssembler<2,real_t,false>;
+  CLASS_TEMPLATE_INST gsThinShellAssembler<3,real_t,true>;
+  CLASS_TEMPLATE_INST gsThinShellAssembler<3,real_t,false>;
+  // CLASS_TEMPLATE_INST gsThinPlateAssembler<real_t>;
+  // CLASS_TEMPLATE_INST gsMembraneAssembler<real_t>;
 }

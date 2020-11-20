@@ -34,7 +34,7 @@ namespace gismo
 // Desired template parameters
 
 
-template <class T>
+template <short_t d, class T, bool bending>
 class gsThinShellAssembler
 {
 public:
