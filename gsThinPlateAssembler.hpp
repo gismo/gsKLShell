@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include <gsThinShell2/gsThinPlateAssembler.h>
-#include <gsThinShell2/gsMaterialMatrix.h>
+#include <gsKLShell/gsThinPlateAssembler.h>
+#include <gsKLShell/gsMaterialMatrix.h>
 
 namespace gismo
 {

@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <gsThinShell2/gsMaterialMatrix.h>
+#include <gsKLShell/gsMaterialMatrix.h>
 
 namespace gismo
 {

@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include <gsThinShell2/gsMaterialMatrix.h>
-#include <gsThinShell2/gsThinShellFunctions.h>
+#include <gsKLShell/gsMaterialMatrix.h>
+#include <gsKLShell/gsThinShellFunctions.h>
 
 #include <gsPde/gsPointLoads.h>
 

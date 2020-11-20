@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include <gsThinShell2/gsMaterialMatrix.h>
+#include <gsKLShell/gsMaterialMatrix.h>
 
 namespace gismo
 {
@@ -230,7 +230,7 @@ void gsMaterialMatrix<T>::defaultOptions()
                     ,material_law::SvK_Isotropic);
 
     m_options.addInt("Compressibility","Specifies whether the material is modelled compressibile or incompressible",compressibility::incompressible);
-    
+
     m_options.addInt("IntegrationMethod","Specifies thicknessintegration method; 0: Drectly Decoupled (DD); 1: Analytically Projected (AP); 2: Numerically Projected (NP)",integration::NP);
 
     m_options.addInt("NumGauss","Number of Gaussian points through thickness",4);
@@ -376,7 +376,7 @@ void gsMaterialMatrix<T>::eval_into_AP(const gsMatrix<T>& u, gsMatrix<T>& result
             m_moment=1;
         else if (m_output==3) // D matrix
             m_moment=2;
-        else 
+        else
             GISMO_ERROR("Something went wrong, m_output = "<<m_output);
     else
         GISMO_ERROR("Something went wrong");

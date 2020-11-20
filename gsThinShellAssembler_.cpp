@@ -1,21 +1,21 @@
 
 #include <gsCore/gsTemplateTools.h>
-#include <gsThinShell2/gsThinShellUtils.h>
+#include <gsKLShell/gsThinShellUtils.h>
 
-#include <gsThinShell2/gsThinShellAssembler.h>
-#include <gsThinShell2/gsThinShellAssembler.hpp>
+#include <gsKLShell/gsThinShellAssembler.h>
+#include <gsKLShell/gsThinShellAssembler.hpp>
 
-// #include <gsThinShell2/gsThinPlateAssembler.h>
-// #include <gsThinShell2/gsThinPlateAssembler.hpp>
+// #include <gsKLShell/gsThinPlateAssembler.h>
+// #include <gsKLShell/gsThinPlateAssembler.hpp>
 
-// #include <gsThinShell2/gsMembraneAssembler.h>
-// #include <gsThinShell2/gsMembraneAssembler.hpp>
+// #include <gsKLShell/gsMembraneAssembler.h>
+// #include <gsKLShell/gsMembraneAssembler.hpp>
 
-#include <gsThinShell2/gsThinShellFunctions.h>
-#include <gsThinShell2/gsThinShellFunctions.hpp>
+#include <gsKLShell/gsThinShellFunctions.h>
+#include <gsKLShell/gsThinShellFunctions.hpp>
 
-#include <gsThinShell2/gsMaterialMatrix.h>
-#include <gsThinShell2/gsMaterialMatrix.hpp>
+#include <gsKLShell/gsMaterialMatrix.h>
+#include <gsKLShell/gsMaterialMatrix.hpp>
 
 namespace gismo
 {

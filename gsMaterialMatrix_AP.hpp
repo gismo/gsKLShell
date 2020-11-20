@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include <gsThinShell2/gsMaterialMatrix_AP.h>
+#include <gsKLShell/gsMaterialMatrix_AP.h>
 
 namespace gismo
 {

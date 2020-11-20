@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <gsThinShell2/gsThinShellFunctions.h>
+#include <gsKLShell/gsThinShellFunctions.h>
 
 namespace gismo
 {
