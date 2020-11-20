@@ -113,14 +113,14 @@ public:
     /// set *assembleMatrix* to false to only assemble the RHS;
 
     void assemble();
-  
+
 private:
-    template<int _d, bool _bending> inline static
+    template<int _d, bool _bending> inline
     typename std::enable_if<_d==3 && _bending, void>::type assemble_impl();
 
-    template<int _d, bool _bending> inline static
+    template<int _d, bool _bending> inline
     typename std::enable_if<!(_d==3 && _bending), void>::type assemble_impl();
-  
+
 public:
     void assembleMass();
     void assembleFoundation();
@@ -137,46 +137,44 @@ public:
     void assembleMatrix(const gsMatrix<T>       & solVector );
 
 private:
-    template<int _d, bool _bending> inline static
+    template<int _d, bool _bending> inline
     typename std::enable_if<_d==3 && _bending, void>::type
     assembleMatrix_impl(const gsMultiPatch<T>   & deformed  );
 
-    template<int _d, bool _bending> inline static
+    template<int _d, bool _bending> inline
     typename std::enable_if<!(_d==3 && _bending), void>::type
     assembleMatrix_impl(const gsMultiPatch<T>   & deformed  );
-  
+
 public:
     void assembleVector(const gsMultiPatch<T>   & deformed  );
     void assembleVector(const gsMatrix<T>       & solVector );
 
 private:
-    template<int _d, bool _bending> inline static
+    template<int _d, bool _bending> inline
     typename std::enable_if<_d==3 && _bending, void>::type
     assembleVector_impl(const gsMultiPatch<T>   & deformed  );
 
-    template<int _d, bool _bending> inline static
+    template<int _d, bool _bending> inline
     typename std::enable_if<!(_d==3 && _bending), void>::type
     assembleVector_impl(const gsMultiPatch<T>   & deformed  );
-  
+
 public:
     gsMatrix<T> boundaryForceVector(const gsMultiPatch<T>   & deformed , patchSide& ps, int com );
 
 private:
-    template<int _d, bool _bending> inline static
+    template<int _d, bool _bending> inline
     typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
     boundaryForceVector_impl(const gsMultiPatch<T>   & deformed , patchSide& ps, int com );
 
-    template<int _d, bool _bending> inline static
+    template<int _d, bool _bending> inline
     typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
     boundaryForceVector_impl(const gsMultiPatch<T>   & deformed , patchSide& ps, int com );
 
 public:
-  
+
     //--------------------- GEOMETRY ACCESS --------------------------------//
     const gsMultiPatch<T> & geometry()    const  {return m_patches;}
     const gsMultiPatch<T> & defGeometry() const  {return m_defpatches;}
-    const gsMultiPatch<T> & strips()      const  {return m_strips;}
-    const gsMultiPatch<T> & defStrips()   const  {return m_defstrips;}
 
     T getArea(const gsMultiPatch<T> & geometry);
 

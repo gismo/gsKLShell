@@ -119,7 +119,7 @@ void gsThinShellAssembler<d, T, bending>::homogenizeDirichlet()
     // space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // m_space.setup(m_bcs, dirichlet::homogeneous, 0);
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    const_cast<expr::gsFeSpace<d, T, bending> & >(m_space).fixedPart().setZero();
+    const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart().setZero();
 }
 
 template <short_t d, class T, bool bending>
