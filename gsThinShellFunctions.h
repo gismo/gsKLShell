@@ -56,14 +56,14 @@ public:
 
     gsShellStressFunction(const gsMultiPatch<T> & geometry,
                            const gsMultiPatch<T> & deformed,
-                           const gsMaterialMatrix<T> & mm,
+                           gsMaterialMatrixBase<T> & mm,
                            index_t patch,
                            stress_type::type type,
                            const gsExprAssembler<T> & assembler
                            )
         : m_patches(geometry),
           m_defpatches(deformed),
-          m_materialMat(mm),
+          m_materialMat(&mm),
           m_patchID(patch), ///WHAT DO WE DO WITH THIS?
           m_stress_type(type),
           m_assembler(assembler)
@@ -153,7 +153,7 @@ protected:
     const gsMultiPatch<T>& m_defpatches;
     index_t m_patchID;
     stress_type::type m_stress_type;
-    gsMaterialMatrix<T> m_materialMat;
+    mutable gsMaterialMatrixBase<T> * m_materialMat;
     mutable gsExprAssembler<> m_assembler;
 
 }; // class definition ends

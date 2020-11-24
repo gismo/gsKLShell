@@ -24,6 +24,8 @@
 namespace gismo
 {
 
+template<class T> class gsThinShellAssemblerBase;
+
 /** @brief Assembles system matrices for thin shell linear and nonlinear elasticity problems.
 
     \tparam T coefficient type
@@ -33,9 +35,8 @@ namespace gismo
 
 // Desired template parameters
 
-
 template <short_t d, class T, bool bending>
-class gsThinShellAssembler
+class gsThinShellAssembler : public gsThinShellAssemblerBase<T>
 {
 public:
     // typedef gsExprAssembler<T> Base;
@@ -68,7 +69,7 @@ public:
                         const gsMultiBasis<T> & basis,
                         const gsBoundaryConditions<T> & bconditions,
                         const gsFunction<T> & surface_force,
-                        const gsMaterialMatrix<T> & materialmatrix);
+                        gsMaterialMatrixBase<T> & materialmatrix);
 
     /// @brief Returns the list of default options for assembly
     gsOptionList & options() {return m_options;}
@@ -78,17 +79,17 @@ public:
     void setFoundation(const gsFunction<T> & foundation) { m_foundFun = &foundation; m_foundInd = true; }
     void setPressure(const gsFunction<T> & pressure) { m_pressFun = &pressure; m_pressInd = true; }
 
-    void setPlate()
-    {
-        m_type = 2;
-        m_dim = 2;
-        this->initialize();
-        // GISMO_ASSERT(m_patches.geoDim()==static_cast<index_t>(m_dim),"Domain dimension does not match element dimension? Domain dimension: "<<m_patches.geoDim()<<"; element dimension: "<<m_dim);
-    }
-    void setMembrane()
-    {
-        m_type = 1;
-    }
+    // void setPlate()
+    // {
+    //     m_type = 2;
+    //     m_dim = 2;
+    //     this->initialize();
+    //     // GISMO_ASSERT(m_patches.geoDim()==static_cast<index_t>(m_dim),"Domain dimension does not match element dimension? Domain dimension: "<<m_patches.geoDim()<<"; element dimension: "<<m_dim);
+    // }
+    // void setMembrane()
+    // {
+    //     m_type = 1;
+    // }
 
     void updateBCs(const gsBoundaryConditions<T> & bconditions)
     {
@@ -248,7 +249,7 @@ protected:
 
     mutable gsMatrix<T> m_ddofs;
 
-    gsMaterialMatrix<T> m_materialMat;
+    mutable gsMaterialMatrixBase<T> * m_materialMat;
 
     const gsFunction<T> * m_forceFun;
     const gsFunction<T> * m_thickFun;
@@ -283,6 +284,65 @@ protected:
             on  = true,
         };
     };
+};
+
+template <class T>
+class gsThinShellAssemblerBase
+{
+public:
+    virtual ~gsThinShellAssemblerBase() {};
+
+    inline virtual gsOptionList & options() = 0;
+    inline virtual void setPointLoads(const gsPointLoads<T> & pLoads) = 0;
+    inline virtual void setFoundation(const gsFunction<T> & foundation) = 0;
+    inline virtual void setPressure(const gsFunction<T> & pressure) = 0;
+    inline virtual void updateBCs(const gsBoundaryConditions<T> & bconditions) = 0;
+    inline virtual void homogenizeDirichlet() = 0;
+
+    inline virtual index_t numDofs() const  = 0;
+
+    inline virtual void assemble() = 0;
+    inline virtual void assembleMass() = 0;
+    inline virtual void assembleFoundation() = 0;
+
+    inline virtual void assemble(const gsMultiPatch<T> & deformed,     bool Matrix = true) = 0;
+    inline virtual void assemble(const gsMatrix<T>     & solVector,    bool Matrix = true) = 0;
+
+
+    inline virtual void assembleMatrix(const gsMultiPatch<T>   & deformed  ) = 0;
+    inline virtual void assembleMatrix(const gsMatrix<T>       & solVector ) = 0;
+
+    inline virtual void assembleVector(const gsMultiPatch<T>   & deformed  ) = 0;
+    inline virtual void assembleVector(const gsMatrix<T>       & solVector ) = 0;
+
+    inline virtual gsMatrix<T> boundaryForceVector(const gsMultiPatch<T>   & deformed , patchSide& ps, int com ) = 0;
+
+    inline virtual const gsMultiPatch<T> & geometry()    const = 0;
+    inline virtual const gsMultiPatch<T> & defGeometry() const = 0;
+
+    inline virtual T getArea(const gsMultiPatch<T> & geometry) = 0;
+
+
+    inline virtual const gsSparseMatrix<T> & matrix()  const  = 0;
+    inline virtual const gsMatrix<T>       & rhs()     const  = 0;
+
+    inline virtual gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const  = 0;
+    inline virtual void constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const = 0;
+    inline virtual gsMultiPatch<T> constructDisplacement(const gsMatrix<T> & solVector) const = 0;
+    inline virtual void constructDisplacement(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const = 0;
+
+    inline virtual void constructStress(const gsMultiPatch<T> & deformed,gsPiecewiseFunction<T> & result,stress_type::type type) = 0;
+    inline virtual gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed, const T z=0) = 0;
+
+    inline virtual void projectL2_into(const gsFunction<T> &fun, gsMatrix<T> & result) = 0;
+    inline virtual void projectL2_into(const gsFunction<T> &fun, gsMultiPatch<T> & result) = 0;
+    inline virtual gsMatrix<T> projectL2(const gsFunction<T> &fun) = 0;
+};
+
+template <short_t d, class T, bool bending>
+class gsThinShellAssemblerDWR : public gsThinShellAssembler<d,T,bending>
+{
+
 };
 
 
