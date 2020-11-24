@@ -177,27 +177,8 @@ int main(int argc, char *argv[])
         else
           PoissonRatio = 0.45;
 
-        E_modulus = 1;
-
-        // real_t bDim = thickness / 1.9e-3;
-        // real_t aDim = 2*bDim;
-
-        real_t bDim = 1;
-        real_t aDim = 1;
-
-
-        // Ratio = 2.5442834138486314;
-        // Ratio = 1e2;
-
-        mp = Rectangle(aDim, bDim);
-
-        // mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
-        // mp.addAutoBoundaries();
-        // mp.embed(3);
-        // E_modulus = 1e0;
-        // thickness = 1e0;
-        // // PoissonRatio = 0.0;
-        // PoissonRatio = 0.4999;
+        mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
+        mp.addAutoBoundaries();
 
     }
     else if (testCase == 17)
@@ -227,7 +208,6 @@ int main(int argc, char *argv[])
         mp_old.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
         mp = mp_old.uniformSplit();
         mp.computeTopology();
-        mp.embed(3);
         E_modulus = 1;
         thickness = 1;
         PoissonRatio = 0;
@@ -237,7 +217,6 @@ int main(int argc, char *argv[])
         // Unit square
         mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
         mp.addAutoBoundaries();
-        mp.embed(3);
         E_modulus = 1e0;
         thickness = 1e0;
         // PoissonRatio = 0.5;
@@ -792,19 +771,30 @@ int main(int argc, char *argv[])
         tvec.push_back( thickness/kmax );
         phivec.push_back( k / kmax * pi/2.0);
     }
-    gsMaterialMatrix materialMatrixComposite(mp,mp_def,tvec,Evec,Gvec,nuvec,phivec);
 
-    gsThinShellAssembler<3,real_t,true> assembler(mp,dbasis,bc,force,materialMatrixNonlinear);
-    assembler.setPointLoads(pLoads);
-    if (membrane)
-        assembler.setMembrane();
+    materialMatrixNonlinear.makeMatrix(0);
+    gsVector<> pt(2);
+    pt.setConstant(0.25);
+    gsMatrix<> result;
+    materialMatrixNonlinear.eval_into(pt,result);
+    gsDebugVar(result);
+    return 0;
+
+
+    gsThinShellAssemblerBase<real_t>* assembler;
+    if(membrane)
+        assembler = new gsThinShellAssembler<3, real_t, false>(mp,dbasis,bc,force,materialMatrixNonlinear);
+    else
+        assembler = new gsThinShellAssembler<3, real_t, true >(mp,dbasis,bc,force,materialMatrixNonlinear);
+
+    assembler->setPointLoads(pLoads);
     if (pressure!= 0.0)
-        assembler.setPressure(pressFun);
+        assembler->setPressure(pressFun);
 
     // gsVector<> found_vec(3);
     // found_vec<<0,0,2;
     // gsConstantFunction<> found(found_vec,3);
-    // assembler.setFoundation(found);
+    // assembler->setFoundation(found);
 
     gsStopwatch stopwatch,stopwatch2;
     real_t time = 0.0;
@@ -816,30 +806,30 @@ int main(int argc, char *argv[])
     Jacobian_t Jacobian = [&time,&stopwatch,&assembler,&mp_def](gsVector<real_t> const &x)
     {
       stopwatch.restart();
-      assembler.constructSolution(x,mp_def);
-      assembler.assembleMatrix(mp_def);
+      assembler->constructSolution(x,mp_def);
+      assembler->assembleMatrix(mp_def);
       time += stopwatch.stop();
-      gsSparseMatrix<real_t> m = assembler.matrix();
+      gsSparseMatrix<real_t> m = assembler->matrix();
       return m;
     };
     // Function for the Residual
     Residual_t Residual = [&time,&stopwatch,&assembler,&mp_def](gsVector<real_t> const &x)
     {
       stopwatch.restart();
-      assembler.constructSolution(x,mp_def);
-      assembler.assembleVector(mp_def);
+      assembler->constructSolution(x,mp_def);
+      assembler->assembleVector(mp_def);
       time += stopwatch.stop();
-      return assembler.rhs();
+      return assembler->rhs();
     };
 
     // Define Matrices
     stopwatch.restart();
     stopwatch2.restart();
-    assembler.assemble();
+    assembler->assemble();
     time += stopwatch.stop();
 
-    gsSparseMatrix<> matrix = assembler.matrix();
-    gsVector<> vector = assembler.rhs();
+    gsSparseMatrix<> matrix = assembler->matrix();
+    gsVector<> vector = assembler->rhs();
 
     // Solve linear problem
     gsVector<> solVector;
@@ -847,9 +837,43 @@ int main(int argc, char *argv[])
     solver.compute( matrix );
     solVector = solver.solve(vector);
 
+    real_t residual = vector.norm();
+    real_t residual0 = residual;
+    real_t residualOld = residual;
+    gsVector<real_t> updateVector = solVector;
+    gsVector<real_t> resVec = Residual(solVector);
+    gsSparseMatrix<real_t> jacMat;
+    for (index_t it = 0; it != 100; ++it)
+    {
+        jacMat = Jacobian(solVector);
+        solver.compute(jacMat);
+        updateVector = solver.solve(resVec); // this is the UPDATE
+        solVector += updateVector;
+
+        resVec = Residual(solVector);
+        residual = resVec.norm();
+
+        gsInfo<<"Iteration: "<< it
+           <<", residue: "<< residual
+           <<", update norm: "<<updateVector.norm()
+           <<", log(Ri/R0): "<< math::log10(residualOld/residual0)
+           <<", log(Ri+1/R0): "<< math::log10(residual/residual0)
+           <<"\n";
+
+        residualOld = residual;
+
+        if (updateVector.norm() < 1e-6)
+            break;
+        else if (it+1 == it)
+            gsWarn<<"Maximum iterations reached!\n";
+
+
+            // ADD DIRICHLET HOMOGENIZE
+    }
+
     totaltime += stopwatch2.stop();
 
-    mp_def = assembler.constructSolution(solVector);
+    mp_def = assembler->constructSolution(solVector);
 
     gsMultiPatch<> deformation = mp_def;
     for (size_t k = 0; k != mp_def.nPatches(); ++k)
@@ -859,7 +883,7 @@ int main(int argc, char *argv[])
     {
         gsVector<> pt(2);
         pt<<1,0;
-      gsMatrix<> lambdas = assembler.computePrincipalStretches(pt,mp_def,0);
+      gsMatrix<> lambdas = assembler->computePrincipalStretches(pt,mp_def,0);
       real_t S = 2625 / 1e-3 / lambdas(0) / lambdas(2);
       real_t San = mu * (math::pow(lambdas(1),2)-1/lambdas(1));
       gsInfo<<"S = \t"<<S<<"\t San = \t"<<San<<"\t |S-San| = \t"<<abs(S-San)<<"\n";
@@ -887,62 +911,54 @@ int main(int argc, char *argv[])
     {
 
         gsPiecewiseFunction<> membraneStresses;
-        assembler.constructStress(mp_def,membraneStresses,stress_type::membrane);
+        assembler->constructStress(mp_def,membraneStresses,stress_type::membrane);
         gsField<> membraneStress(mp_def,membraneStresses, true);
 
         gsPiecewiseFunction<> flexuralStresses;
-        assembler.constructStress(mp_def,flexuralStresses,stress_type::flexural);
+        assembler->constructStress(mp_def,flexuralStresses,stress_type::flexural);
         gsField<> flexuralStress(mp_def,flexuralStresses, true);
 
         gsPiecewiseFunction<> stretches;
-        assembler.constructStress(mp_def,stretches,stress_type::principal_stretch);
+        assembler->constructStress(mp_def,stretches,stress_type::principal_stretch);
         gsField<> Stretches(mp_def,stretches, true);
 
         // gsPiecewiseFunction<> membraneStresses_p;
-        // assembler.constructStress(mp_def,membraneStresses_p,stress_type::principal_stress_membrane);
+        // assembler->constructStress(mp_def,membraneStresses_p,stress_type::principal_stress_membrane);
         // gsField<> membraneStress_p(mp_def,membraneStresses_p, true);
 
         // gsPiecewiseFunction<> flexuralStresses_p;
-        // assembler.constructStress(mp_def,flexuralStresses_p,stress_type::principal_stress_flexural);
+        // assembler->constructStress(mp_def,flexuralStresses_p,stress_type::principal_stress_flexural);
         // gsField<> flexuralStress_p(mp_def,flexuralStresses_p, true);
 
         gsPiecewiseFunction<> stretch1;
-        assembler.constructStress(mp_def,stretch1,stress_type::principal_stretch_dir1);
+        assembler->constructStress(mp_def,stretch1,stress_type::principal_stretch_dir1);
         gsField<> stretchDir1(mp_def,stretch1, true);
 
         gsPiecewiseFunction<> stretch2;
-        assembler.constructStress(mp_def,stretch2,stress_type::principal_stretch_dir2);
+        assembler->constructStress(mp_def,stretch2,stress_type::principal_stretch_dir2);
         gsField<> stretchDir2(mp_def,stretch2, true);
 
         gsPiecewiseFunction<> stretch3;
-        assembler.constructStress(mp_def,stretch3,stress_type::principal_stretch_dir3);
+        assembler->constructStress(mp_def,stretch3,stress_type::principal_stretch_dir3);
         gsField<> stretchDir3(mp_def,stretch3, true);
 
 
         gsField<> solutionField(mp,deformation, true);
 
 
-        // gsField<> stressField = assembler.constructStress(mp_def,stress_type::membrane_strain);
+        // gsField<> stressField = assembler->constructStress(mp_def,stress_type::membrane_strain);
 
         gsWriteParaview(solutionField,"Deformation");
-        gsWriteParaview(solutionField,"Deformation");
-
-        std::map<std::string,const gsField<> *> fields;
-        fields["Deformation"] = &solutionField;
-        fields["Membrane Stress"] = &membraneStress;
-        fields["Flexural Stress"] = &flexuralStress;
-        fields["Principal Stretch"] = &Stretches;
-        // fields["Principal Membrane Stress"] = &membraneStress_p;
-        // fields["Principal Flexural Stress"] = &flexuralStress_p;
-        fields["Principal Direction 1"] = &stretchDir1;
-        fields["Principal Direction 2"] = &stretchDir2;
-        fields["Principal Direction 3"] = &stretchDir3;
-
-        // gsWriteParaviewMultiPhysics(fields,"stress",5000,true);
+        gsWriteParaview(membraneStress,"Membrane Stress");
+        gsWriteParaview(flexuralStress,"Flexural Stress");
+        gsWriteParaview(stretchDir1,"Principal Direction 1");
+        gsWriteParaview(stretchDir2,"Principal Direction 2");
+        gsWriteParaview(stretchDir3,"Principal Direction 3");
     }
     gsInfo<<"Total ellapsed assembly time: \t\t"<<time<<" s\n";
     gsInfo<<"Total ellapsed solution time (incl. assembly): \t"<<totaltime<<" s\n";
 
+    delete assembler;
     return EXIT_SUCCESS;
 
 }// end main
@@ -1014,7 +1030,7 @@ gsMultiPatch<T> Rectangle(T L, T B)
   // -------------------------------------------------------------------------
   // --------------------------Make beam geometry-----------------------------
   // -------------------------------------------------------------------------
-  int dim = 3; //physical dimension
+  int dim = 2; //physical dimension
   gsKnotVector<> kv0;
   kv0.initUniform(0,1,0,2,1);
   gsKnotVector<> kv1;
@@ -1033,9 +1049,6 @@ gsMultiPatch<T> Rectangle(T L, T B)
   coefvec0.setLinSpaced(len0,0.0,L);
   gsVector<> coefvec1(basis.component(1).size());
   coefvec1.setLinSpaced(len1,0.0,B);
-
-  // Z coordinate is zero
-  coefs.col(2).setZero();
 
   // Define a matrix with ones
   gsVector<> temp(len0);
