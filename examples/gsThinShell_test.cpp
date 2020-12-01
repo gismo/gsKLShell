@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
     index_t numRefine  = 1;
     index_t numElevate = 1;
     index_t testCase = 1;
-    index_t Compressibility = 0;
+    bool Compressibility = 0;
     index_t material = 0;
     bool verbose = false;
     std::string fn;
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
     cmd.addReal( "R", "Ratio", "Mooney Rivlin Ratio",  Ratio );
     cmd.addInt( "t", "testCase", "Test case to run: 1 = unit square; 2 = Scordelis Lo Roof",  testCase );
     cmd.addInt( "m", "Material", "Material law",  material );
-    cmd.addInt( "c", "Compressibility", "1: compressible, 0: incompressible",  Compressibility );
+    cmd.addSwitch( "c", "Compressibility", "1: compressible, 0: incompressible",  Compressibility );
     cmd.addString( "f", "file", "Input XML file", fn );
     cmd.addSwitch("verbose", "Full matrix and vector output", verbose);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
@@ -179,6 +179,7 @@ int main(int argc, char *argv[])
 
         mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
         mp.addAutoBoundaries();
+        mp.embed(3);
 
     }
     else if (testCase == 17)
@@ -731,7 +732,54 @@ int main(int argc, char *argv[])
     parameters[0] = &E;
     parameters[1] = &nu;
     parameters[2] = &ratio;
-    gsMaterialMatrix materialMatrixNonlinear(mp,mp_def,t,parameters,rho);
+    gsMaterialMatrixBase<real_t>* materialMatrixNonlinear;
+
+    if (material==0)
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,0,false>(mp,mp_def,t,parameters,rho);
+    else if ((material==2) && (!Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,2,false>(mp,mp_def,t,parameters,rho);
+    else if ((material==2) && (Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,2,true>(mp,mp_def,t,parameters,rho);
+    else if ((material==12) && (!Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,12,false>(mp,mp_def,t,parameters,rho);
+    else if ((material==12) && (Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,12,true>(mp,mp_def,t,parameters,rho);
+    else if ((material==22) && (!Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,22,false>(mp,mp_def,t,parameters,rho);
+    else if ((material==22) && (Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,22,true>(mp,mp_def,t,parameters,rho);
+
+    else if ((material==3) && (!Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,3,false>(mp,mp_def,t,parameters,rho);
+    else if ((material==3) && (Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,3,true>(mp,mp_def,t,parameters,rho);
+    else if ((material==13) && (!Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,13,false>(mp,mp_def,t,parameters,rho);
+    else if ((material==13) && (Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,13,true>(mp,mp_def,t,parameters,rho);
+    else if ((material==23) && (!Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,23,false>(mp,mp_def,t,parameters,rho);
+    else if ((material==23) && (Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,23,true>(mp,mp_def,t,parameters,rho);
+
+    else if ((material==14) && (!Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,14,false>(mp,mp_def,t,parameters,rho);
+    else if ((material==14) && (Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,14,true>(mp,mp_def,t,parameters,rho);
+
+    else if ((material==5) && (!Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,5,false>(mp,mp_def,t,parameters,rho);
+    else if ((material==5) && (Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,5,true>(mp,mp_def,t,parameters,rho);
+    else if ((material==15) && (!Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,15,false>(mp,mp_def,t,parameters,rho);
+    else if ((material==15) && (Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,15,true>(mp,mp_def,t,parameters,rho);
+    else if ((material==25) && (!Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,25,false>(mp,mp_def,t,parameters,rho);
+    else if ((material==25) && (Compressibility))
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,25,true>(mp,mp_def,t,parameters,rho);
+
 
     std::vector<gsFunction<>*> parameters2(6);
     if (material==14)
@@ -746,40 +794,8 @@ int main(int argc, char *argv[])
 
         // parameters[6] = ;
         // parameters[7] = ;
-        materialMatrixNonlinear.setParameters(parameters2);
+        materialMatrixNonlinear->setParameters(parameters2);
     }
-
-
-    materialMatrixNonlinear.options().setInt("MaterialLaw",material);
-    materialMatrixNonlinear.options().setInt("Compressibility",Compressibility);
-
-
-    // Linear anisotropic material model
-    real_t pi = math::atan(1)*4;
-    std::vector<std::pair<real_t,real_t>> Evec;
-    std::vector<std::pair<real_t,real_t>> nuvec;
-    std::vector<real_t> Gvec;
-    std::vector<real_t> tvec;
-    std::vector<real_t> phivec;
-
-    index_t kmax = 2;
-    for (index_t k=0; k != kmax; ++k)
-    {
-        Evec.push_back( std::make_pair(E_modulus,E_modulus) );
-        nuvec.push_back( std::make_pair(PoissonRatio,PoissonRatio) );
-        Gvec.push_back( 0.5 * E_modulus / (1+PoissonRatio) );
-        tvec.push_back( thickness/kmax );
-        phivec.push_back( k / kmax * pi/2.0);
-    }
-
-    materialMatrixNonlinear.makeMatrix(0);
-    gsVector<> pt(2);
-    pt.setConstant(0.25);
-    gsMatrix<> result;
-    materialMatrixNonlinear.eval_into(pt,result);
-    gsDebugVar(result);
-    return 0;
-
 
     gsThinShellAssemblerBase<real_t>* assembler;
     if(membrane)

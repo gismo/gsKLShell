@@ -291,8 +291,6 @@ short_t gsMaterialMatrix<dim,T,mat,comp>::targetDim() const
 template <short_t dim, class T, short_t mat, bool comp>
 void gsMaterialMatrix<dim,T,mat,comp>::getOptions() const
 {
-    m_material = m_options.getInt("MaterialLaw");
-    m_compressible = m_options.getInt("Compressibility");
     m_integration = m_options.getInt("IntegrationMethod");
 }
 
@@ -860,7 +858,7 @@ template <short_t dim, class T, short_t mat, bool comp>
 T gsMaterialMatrix<dim,T,mat,comp>::Cijkl(const index_t i, const index_t j, const index_t k, const index_t l) const
 {
     GISMO_ASSERT( ( (i < 2) && (j < 2) && (k < 2) && (l < 2) ) , "Index out of range. i="<<i<<", j="<<j<<", k="<<k<<", l="<<l);
-    GISMO_ASSERT(!m_compressible,"Material model is not incompressible?");
+    GISMO_ASSERT(!comp,"Material model is not incompressible?");
 
     return Cijkl_impl<mat>(i,j,k,l);
 }
@@ -1015,7 +1013,7 @@ T gsMaterialMatrix<dim,T,mat,comp>::Cijkl(const index_t i, const index_t j, cons
     GISMO_ASSERT(cinv.cols()==cinv.rows(),"Matrix cinv must be square");
     GISMO_ASSERT(cinv.cols()==3,"Matrix cinv must be 3x3");
     GISMO_ASSERT( ( (i <2) && (j <2) && (k <2) && (l <2) ) , "Index out of range. i="<<i<<", j="<<j<<", k="<<k<<", l="<<l);
-    GISMO_ASSERT(m_compressible,"Material model is not compressible?");
+    GISMO_ASSERT(comp,"Material model is not compressible?");
 
     return Cijkl_impl<mat>(i,j,k,l,c,cinv);
 }
@@ -1073,7 +1071,6 @@ gsMaterialMatrix<dim,T,mat,comp>::Cijkl3D_impl(const index_t i, const index_t j,
                 m_Gcov_def(1,0)*m_Gcon_ori(1,0) +
                 m_Gcov_def(1,1)*m_Gcon_ori(1,1);
     T I_1   = traceCt + c(2,2);
-    T I_2 = c(2,2) * traceCt + m_J0_sq;
     return 1.0 / 9.0 * mu * math::pow( m_J_sq , -1.0/3.0 ) * ( 2.0 * I_1 * ( cinv(i,j)*cinv(k,l) - 3.0 * dCinv )
                         - 6.0 *( m_Gcon_ori(i,j)*cinv(k,l) + cinv(i,j)*m_Gcon_ori(k,l) ) )
             + K * ( m_J_sq*cinv(i,j)*cinv(k,l) + (m_J_sq-1)*dCinv );
@@ -1126,7 +1123,6 @@ gsMaterialMatrix<dim,T,mat,comp>::Cijkl3D_impl(const index_t i, const index_t j,
     T lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1)));
     GISMO_ASSERT(3 - 6 * m_parvals.at(1) != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
 
-    T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
     T dCinv = - 1./2.*( cinv(i,k)*cinv(j,l) + cinv(i,l)*cinv(j,k) );
     return - 2.0 * mu * dCinv + lambda * ( m_J_sq*cinv(i,j)*cinv(k,l) + (m_J_sq-1)*dCinv );
 }
@@ -1191,6 +1187,8 @@ gsMaterialMatrix<dim,T,mat,comp>::Cijkl3D_impl(const index_t i, const index_t j,
             }
         }
     }
+
+    return tmp;
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
@@ -1327,59 +1325,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j) con
 template <short_t dim, class T, short_t mat, bool comp>
 T gsMaterialMatrix<dim,T,mat,comp>::Sij(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
-    GISMO_ASSERT(c.cols()==c.rows(),"C must be square");
-    GISMO_ASSERT(c.cols()==3,"C must be 3x3");
-    GISMO_ASSERT(cinv.cols()==cinv.rows(),"Cinv must be square");
-    GISMO_ASSERT(cinv.cols()==3,"Cinv must be 3x3");
-
-    T tmp = 0.0;
-    T mu = m_parvals.at(0) / (2 * (1 + m_parvals.at(1)));
-    GISMO_ASSERT(3 - 6 * m_parvals.at(1) != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
-
-    T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
-    T lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1)));
-
-    T traceCt = m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
-                m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
-                m_Gcov_def(1,0)*m_Gcon_ori(1,0) +
-                m_Gcov_def(1,1)*m_Gcon_ori(1,1);
-    T I_1   = traceCt + c(2,2);
-    T I_2   = c(2,2) * traceCt + m_J0_sq;
-
-    if (m_material==0 )
-        GISMO_ERROR("Incompressible material stress tensor requested, but not needed. How?");
-    else if (m_material==2)
-        tmp =  mu * math::pow( m_J_sq , -1.0/3.0 ) * ( m_Gcon_ori(i,j) - 1.0/3.0 * I_1 * cinv(i,j) )
-                + K * 0.5 * ( m_J_sq - 1.0 ) * cinv(i,j);
-    else if (m_material==3)
-    {
-        GISMO_ASSERT(m_numPars==3,"Mooney-Rivlin model needs to be a 3 parameter model");
-        T c2 = mu/(m_parvals.at(2)+1);
-        T c1 = m_parvals.at(2)*c2;
-
-        tmp =     c1 * math::pow( m_J_sq , -1.0/3.0 ) * ( m_Gcon_ori(i,j) - 1.0/3.0 * I_1 * cinv(i,j) )
-                + c2 * math::pow( m_J_sq , -2.0/3.0 ) * ( dI_2(i,j,c,cinv)- 2.0/3.0 * I_2 * cinv(i,j) )
-                + K * 0.5 * ( m_J_sq - 1.0 ) * cinv(i,j);
-    }
-    else if (m_material==5)
-        tmp = mu * m_Gcon_ori(i,j) - mu * cinv(i,j) + lambda / 2.0 * ( m_J_sq - 1 ) * cinv(i,j);
-
-    // --------------------------
-    // Stretch-based implementations
-    // --------------------------
-        else if ( (m_material>=10) && (m_material<20) )
-        {
-
-        }
-
-    // --------------------------
-    // General implementations
-    // --------------------------
-        else if ((m_material >= 20) && (m_material < 30))
-        {
-            tmp = 2.0 * dPsi(i,j,c,cinv);
-        }
-    return tmp;
+    return Sij_impl<mat>(i,j,c,cinv);
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
@@ -1593,7 +1539,7 @@ template <short_t dim, class T, short_t mat, bool comp>
 T gsMaterialMatrix<dim,T,mat,comp>::dPsi(const index_t i, const index_t j) const
 {
     GISMO_ASSERT( ( (i < 3) && (j < 3) ) , "Index out of range. i="<<i<<", j="<<j);
-    GISMO_ASSERT(!m_compressible,"Material model is not incompressible?");
+    GISMO_ASSERT(!comp,"Material model is not incompressible?");
     return dPsi_impl<mat>(i,j);
 }
 
@@ -1634,7 +1580,7 @@ template <short_t dim, class T, short_t mat, bool comp>
 T gsMaterialMatrix<dim,T,mat,comp>::d2Psi(const index_t i, const index_t j, const index_t k, const index_t l) const
 {
     GISMO_ASSERT( ( (i < 3) && (j < 3) && (k < 3) && (l < 3) ) , "Index out of range. i="<<i<<", j="<<j<<", k="<<k<<", l="<<l);
-    GISMO_ASSERT(!m_compressible,"Material model is not incompressible?");
+    GISMO_ASSERT(!comp,"Material model is not incompressible?");
     return d2Psi_impl<mat>(i,j,k,l);
 }
 
@@ -1643,7 +1589,6 @@ template<short_t _mat> inline
 typename std::enable_if<_mat==22, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
 {
-    T mu = m_parvals.at(0) / (2. * (1. + m_parvals.at(1)));
     return 0.0;
 }
 
@@ -1750,7 +1695,6 @@ gsMaterialMatrix<dim,T,mat,comp>::dPsi_impl(const index_t i, const index_t j, co
 {
     T mu = m_parvals.at(0) / (2. * (1. + m_parvals.at(1)));
     T lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1)));
-    T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
     return mu / 2.0 * dI_1(i,j) - mu / 2.0 * cinv(i,j) + lambda / 4.0 * ( m_J_sq - 1 ) * cinv(i,j);
 }
 
@@ -1760,7 +1704,7 @@ template <short_t dim, class T, short_t mat, bool comp>
 T gsMaterialMatrix<dim,T,mat,comp>::d2Psi(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
     GISMO_ASSERT( ( (i < 3) && (j < 3) && (k < 3) && (l < 3) ) , "Index out of range. i="<<i<<", j="<<j<<", k="<<k<<", l="<<l);
-    GISMO_ASSERT(m_compressible,"Material model is not compressible?");
+    GISMO_ASSERT(comp,"Material model is not compressible?");
     return d2Psi_impl<mat>(i,j,k,l,c,cinv);
 }
 
@@ -1825,7 +1769,6 @@ gsMaterialMatrix<dim,T,mat,comp>::d2Psi_impl(const index_t i, const index_t j, c
     T mu = m_parvals.at(0) / (2. * (1. + m_parvals.at(1)));
     T dCinv = - 1./2.*( cinv(i,k)*cinv(j,l) + cinv(i,l)*cinv(j,k) );
     T lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1)));
-    T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
     return - mu / 2.0 * dCinv + lambda / 4.0 * ( m_J_sq*cinv(i,j)*cinv(k,l) + (m_J_sq-1.0)*dCinv );
 }
 
@@ -1888,7 +1831,6 @@ gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
     //  choose compressibility function (and parameter)
     GISMO_ASSERT(3 - 6 * m_parvals.at(1) != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
     T beta  = -2.0;T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
-    T lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1)));
     T dpsi_vol = K / (m_stretches(a)*beta) * (1.0 - math::pow(m_J_sq,-beta/2.0));
 
     T c2= mu/(m_parvals.at(2)+1);
@@ -1920,7 +1862,6 @@ gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
 {
     GISMO_ASSERT(3 - 6 * m_parvals.at(1) != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
     T beta  = -2.0;T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
-    T lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1)));
     T dpsi_vol = K / (m_stretches(a)*beta) * (1.0 - math::pow(m_J_sq,-beta/2.0));
     T tmp = 0.0;
     int n = (m_numPars-2)/2;
@@ -1956,13 +1897,10 @@ template<short_t _mat, bool _comp> inline
 typename std::enable_if<_comp && (_mat==5 || _mat==15 || _mat==25), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
 {
-    T tmp = 0.0;
     T mu = m_parvals.at(0) / (2 * (1 + m_parvals.at(1)));
     T dI_1a = 2*m_stretches(a);
     GISMO_ASSERT(3 - 6 * m_parvals.at(1) != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
-    T beta  = -2.0;
     //  choose compressibility function (and parameter)
-    T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
     T lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1)));
 
     return mu/2.0 * dI_1a - mu / m_stretches(a) + lambda / (m_stretches(a)*2) * (m_J_sq-1.0);
@@ -2301,7 +2239,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Cabcd_impl(const index_t a, const index_t b, c
 //     T mu = m_parvals.at(0) / (2. * (1. + m_parvals.at(1)));
 
 //     GISMO_ASSERT( ( (a < 3) ) , "Index out of range. a="<<a);
-//     GISMO_ASSERT(!m_compressible,"Material model is not incompressible?");
+//     GISMO_ASSERT(!comp,"Material model is not incompressible?");
 
 //     if (m_material==9)
 //     {
@@ -2331,7 +2269,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Cabcd_impl(const index_t a, const index_t b, c
 //     T mu = m_parvals.at(0) / (2. * (1. + m_parvals.at(1)));
 
 //     GISMO_ASSERT( ( (a < 3) && (b < 3) ) , "Index out of range. a="<<a<<", b="<<b);
-//     GISMO_ASSERT(!m_compressible,"Material model is not incompressible?");
+//     GISMO_ASSERT(!comp,"Material model is not incompressible?");
 
 //     if (m_material==9)
 //     {
@@ -2567,7 +2505,7 @@ void gsMaterialMatrix<dim,T,mat,comp>::getMetric(index_t k, T z) const
 template <short_t dim, class T, short_t mat, bool comp>
 void gsMaterialMatrix<dim,T,mat,comp>::getMetricDeformed(index_t k, T z) const
 {
-    getMetricDeformed<dim>(k,z);
+    getMetricDeformed_impl<dim>(k,z);
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
@@ -2656,7 +2594,7 @@ gsMaterialMatrix<dim,T,mat,comp>::getMetricDeformed_impl(index_t k, T z) const
 template <short_t dim, class T, short_t mat, bool comp>
 void gsMaterialMatrix<dim,T,mat,comp>::getMetricUndeformed(index_t k, T z) const
 {
-    getMetricUndeformed<dim>(k,z);
+    getMetricUndeformed_impl<dim>(k,z);
 }
 
 template <short_t dim, class T, short_t mat, bool comp>

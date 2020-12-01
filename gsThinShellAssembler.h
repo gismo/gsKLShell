@@ -69,7 +69,7 @@ public:
                         const gsMultiBasis<T> & basis,
                         const gsBoundaryConditions<T> & bconditions,
                         const gsFunction<T> & surface_force,
-                        gsMaterialMatrixBase<T> & materialmatrix);
+                        gsMaterialMatrixBase<T> * materialmatrix);
 
     /// @brief Returns the list of default options for assembly
     gsOptionList & options() {return m_options;}
@@ -249,8 +249,6 @@ protected:
 
     mutable gsMatrix<T> m_ddofs;
 
-    mutable gsMaterialMatrixBase<T> * m_materialMat;
-
     const gsFunction<T> * m_forceFun;
     const gsFunction<T> * m_thickFun;
     const gsFunction<T> * m_foundFun;
@@ -258,12 +256,11 @@ protected:
     typename gsFunction<T>::Ptr m_YoungsModulus;
     typename gsFunction<T>::Ptr m_PoissonsRatio;
 
+    mutable gsMaterialMatrixBase<T> * m_materialMat;
+
     gsPointLoads<T>  m_pLoads;
 
     mutable gsMatrix<T> m_solvector;
-
-    mutable size_t m_dim;
-
 
     gsMatrix<T> m_rhs;
 

@@ -56,14 +56,14 @@ public:
 
     gsShellStressFunction(const gsMultiPatch<T> & geometry,
                            const gsMultiPatch<T> & deformed,
-                           gsMaterialMatrixBase<T> & mm,
+                           gsMaterialMatrixBase<T> * mm,
                            index_t patch,
                            stress_type::type type,
                            const gsExprAssembler<T> & assembler
                            )
         : m_patches(geometry),
           m_defpatches(deformed),
-          m_materialMat(&mm),
+          m_materialMat(mm),
           m_patchID(patch), ///WHAT DO WE DO WITH THIS?
           m_stress_type(type),
           m_assembler(assembler)
@@ -78,14 +78,6 @@ public:
     {
         switch (m_stress_type)
         {
-            case stress_type::membrane :
-                return 3;
-                break;
-
-            case stress_type::flexural :
-                return 3;
-                break;
-
             // TO BE IMPLEMENTED
             // -------------------------------------
             case stress_type::von_mises :
@@ -130,6 +122,20 @@ public:
             case stress_type::principal_stretch_dir3 :
                 return 3;
                 break;
+            /*
+                DEFAULT includes:
+                stress_type::membrane;
+                stress_type::flexural;
+                stress_type::membrane_strain;
+                stress_type::flexural_strain;
+                stress_type::principal_stretch;
+                stress_type::principal_stretch_dir1;
+                stress_type::principal_stretch_dir2;
+                stress_type::principal_stretch_dir3
+            */
+            default:
+                return 3;
+                break;
         }
     }
 
@@ -151,9 +157,9 @@ protected:
 
     const gsMultiPatch<T>& m_patches;
     const gsMultiPatch<T>& m_defpatches;
+    mutable gsMaterialMatrixBase<T> * m_materialMat;
     index_t m_patchID;
     stress_type::type m_stress_type;
-    mutable gsMaterialMatrixBase<T> * m_materialMat;
     mutable gsExprAssembler<> m_assembler;
 
 }; // class definition ends
