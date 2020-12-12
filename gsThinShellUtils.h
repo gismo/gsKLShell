@@ -24,61 +24,51 @@ namespace expr{
 template<class T>
 class otangent_expr : public _expr<otangent_expr<T> >
 {
+    typename gsGeometryMap<T>::Nested_t _G;
+
 public:
     typedef T Scalar;
 
 private:
-
-    typename gsGeometryMap<Scalar>::Nested_t _G;
-
-public:
-
-    otangent_expr(const gsGeometryMap<Scalar> & G) : _G(G) { }
-
     mutable gsVector<Scalar,3> onormal, normal;
 
-    const gsMatrix<Scalar> & eval(const index_t k) const
+public:
+    otangent_expr(const gsGeometryMap<T> & G) : _G(G) { }
+
+    MatExprType eval(const index_t k) const
     {
-        GISMO_ASSERT(_G.data().dim.second==3,"Domain dimension should be 3, is "<<_G.data().dim.second);
-
-        gsMatrix<Scalar> Jacobian = _G.data().jacobian(k);
-
-        onormal = _G.data().outNormal(k);
-        normal =  _G.data().normal(k);
-
+        onormal = _G.data().outNormals.col(k);
+        normal =  _G.data().normals.col(k);
         return normal.cross(onormal);
-
-        // gsMatrix<T> result(_G.data().dim.second,1);
-        // result.setZero();
-        // return result;
-        // if (_G.data().dim.second!=3)
-        //     return normal.head(_G.data().dim.second);
-        // else
-        //     return normal;
     }
 
     index_t rows() const { return _G.data().dim.second; }
     index_t cols() const { return 1; }
 
-    const gsFeSpace<Scalar> & rowVar() const {return gsNullExpr<Scalar>::get();}
-    const gsFeSpace<Scalar> & colVar() const {return gsNullExpr<Scalar>::get();}
+    const gsFeSpace<T> & rowVar() const {return gsNullExpr<T>::get();}
+    const gsFeSpace<T> & colVar() const {return gsNullExpr<T>::get();}
 
     enum{rowSpan = 0, colSpan = 0};
 
-    void setFlag() const { _G.data().flags |= NEED_OUTER_NORMAL | NEED_NORMAL | NEED_DERIV; }
+    void setFlag() const
+    {
+        _G.data().flags |= NEED_OUTER_NORMAL;
+        _G.data().flags |= NEED_NORMAL;
+    }
 
     void parse(gsSortedVector<const gsFunctionSet<Scalar>*> & evList) const
     {
         //GISMO_ASSERT(NULL!=m_fd, "FeVariable: FuncData member not registered");
         evList.push_sorted_unique(&_G.source());
-        _G.data().flags |= NEED_OUTER_NORMAL | NEED_NORMAL | NEED_DERIV;
+        _G.data().flags |= NEED_OUTER_NORMAL;
+        _G.data().flags |= NEED_NORMAL;
     }
 
     // Normalized to unit length
-    normalized_expr<otangent_expr<Scalar> > normalized()
-    { return normalized_expr<otangent_expr<Scalar> >(*this); }
+    normalized_expr<otangent_expr<T> > normalized()
+    { return normalized_expr<otangent_expr<T> >(*this); }
 
-    void print(std::ostream &os) const { os << "tv2("; _G.print(os); os <<")"; }
+    void print(std::ostream &os) const { os << "tv("; _G.print(os); os <<")"; }
 };
 
 // Comments for var1:

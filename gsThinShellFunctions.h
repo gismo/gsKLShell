@@ -78,6 +78,9 @@ public:
     {
         switch (m_stress_type)
         {
+            default:
+                return 0;
+                break;
             case stress_type::membrane :
                 return 3;
                 break;
