@@ -157,12 +157,57 @@ protected:
     typename std::enable_if<!_com, void>::type eval_into_stretchdir_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
 public:
-    void makeMatrix(int num=0)          { m_outputType=2; m_output = num;}
-    void makeVector(int num=0)          { m_outputType=1; m_output = num;}
-    void makeDensity()                  { m_outputType=0; }
-    void makeStretch()                  { m_outputType=9; }
-    void makePrincipleStress(int num=0) { m_outputType=10;m_output = num;}
-    void makeDirections()               { m_outputType=11;}
+    // template<short_t num=0>
+    // void makeMatrix()                   { m_outputType=2; m_output = num;}
+
+    template<short_t num=0>
+    gsMaterialMatrix * makeMatrix()
+    {
+        gsMaterialMatrix * tmp = new gsMaterialMatrix(*this);
+        tmp->m_outputType = 2;
+        tmp->m_output = num;
+        return tmp;
+    }
+
+
+    template<short_t num=0>
+    gsMaterialMatrix * makeVector()
+    {
+        gsMaterialMatrix * tmp = new gsMaterialMatrix(*this);
+        tmp->m_outputType = 1;
+        tmp->m_output = num;
+        return tmp;
+    }
+
+    template<short_t num=0>
+    gsMaterialMatrix * makePrincipleStress()
+    {
+        gsMaterialMatrix * tmp = new gsMaterialMatrix(*this);
+        tmp->m_outputType = 10;
+        tmp->m_output = num;
+        return tmp;
+    }
+
+    gsMaterialMatrix * makeDensity()
+    {
+        gsMaterialMatrix * tmp = new gsMaterialMatrix(*this);
+        tmp->m_outputType = 0;
+        return tmp;
+    }
+
+    gsMaterialMatrix * makeStretch()
+    {
+        gsMaterialMatrix * tmp = new gsMaterialMatrix(*this);
+        tmp->m_outputType = 9;
+        return tmp;
+    }
+
+    gsMaterialMatrix * makeDirections()
+    {
+        gsMaterialMatrix * tmp = new gsMaterialMatrix(*this);
+        tmp->m_outputType = 11;
+        return tmp;
+    }
 
     void setParameters(const std::vector<gsFunction<T>*> &pars)
     {
@@ -640,12 +685,16 @@ public:
     inline virtual void eval_into_stretchdir(const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
     inline virtual void eval_into_NP(const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
 
-    inline virtual void makeMatrix(int num=0) = 0;
-    inline virtual void makeVector(int num=0) = 0;
-    inline virtual void makeDensity() = 0;
-    inline virtual void makeStretch() = 0;
-    inline virtual void makePrincipleStress(int num=0) = 0;
-    inline virtual void makeDirections() = 0;
+    // template<short_t num=0>
+    inline virtual gsMaterialMatrixBase * makeMatrix() = 0;
+    // template<short_t num=0>
+    inline virtual gsMaterialMatrixBase * makeVector() = 0;
+    // template<short_t num=0>
+    inline virtual gsMaterialMatrixBase * makePrincipleStress() = 0;
+
+    inline virtual gsMaterialMatrixBase * makeDensity() = 0;
+    inline virtual gsMaterialMatrixBase * makeStretch() = 0;
+    inline virtual gsMaterialMatrixBase * makeDirections() = 0;
 
     inline virtual void setParameters(const std::vector<gsFunction<T>*> &pars) =0;
     inline virtual void info() const = 0;
