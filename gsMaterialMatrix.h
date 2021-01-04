@@ -160,8 +160,10 @@ public:
     // template<short_t num=0>
     // void makeMatrix()                   { m_outputType=2; m_output = num;}
 
-    template<short_t num=0>
-    gsMaterialMatrix * makeMatrix()
+
+    // --> gsMaterialmatrixUser (see eval_into_NP)
+    // template<short_t num=0>
+    gsMaterialMatrix * makeMatrix(short_t num)
     {
         gsMaterialMatrix * tmp = new gsMaterialMatrix(*this);
         tmp->m_outputType = 2;
@@ -169,9 +171,17 @@ public:
         return tmp;
     }
 
+    // template<short_t num=0>
+    // gsMaterialMatrix * makeMatrix(short_t num)
+    // {
+    //     // switch ....
+    //     gsMaterialMatrix * tmp = new gsMaterialMatrix<2,0>(*this);
+    //     return tmp;
+    // }
 
-    template<short_t num=0>
-    gsMaterialMatrix * makeVector()
+
+    // template<short_t num=0>
+    gsMaterialMatrix * makeVector(short_t num)
     {
         gsMaterialMatrix * tmp = new gsMaterialMatrix(*this);
         tmp->m_outputType = 1;
@@ -179,8 +189,8 @@ public:
         return tmp;
     }
 
-    template<short_t num=0>
-    gsMaterialMatrix * makePrincipleStress()
+    // template<short_t num=0>
+    gsMaterialMatrix * makePrincipleStress(short_t num)
     {
         gsMaterialMatrix * tmp = new gsMaterialMatrix(*this);
         tmp->m_outputType = 10;
@@ -686,11 +696,11 @@ public:
     inline virtual void eval_into_NP(const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
 
     // template<short_t num=0>
-    inline virtual gsMaterialMatrixBase * makeMatrix() = 0;
+    inline virtual gsMaterialMatrixBase * makeMatrix(short_t num) = 0;
     // template<short_t num=0>
-    inline virtual gsMaterialMatrixBase * makeVector() = 0;
+    inline virtual gsMaterialMatrixBase * makeVector(short_t num) = 0;
     // template<short_t num=0>
-    inline virtual gsMaterialMatrixBase * makePrincipleStress() = 0;
+    inline virtual gsMaterialMatrixBase * makePrincipleStress(short_t num) = 0;
 
     inline virtual gsMaterialMatrixBase * makeDensity() = 0;
     inline virtual gsMaterialMatrixBase * makeStretch() = 0;

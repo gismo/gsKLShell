@@ -1242,7 +1242,9 @@ gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j) con
     }
     else
     {
-        GISMO_ERROR("Warning: no material model known in simplification, m_moment="<<m_moment);
+        stress.resize(2,2);
+        stress.setZero();
+        // GISMO_ERROR("Warning: no material model known in simplification, m_moment="<<m_moment);
     }
 
     // ALTERNATIVE
