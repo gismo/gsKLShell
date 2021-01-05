@@ -60,3 +60,6 @@ The template parameters of the class are the dimension of the geometry (`dim`) w
 * Multipatch coupling
 * Laminates with ply angles and various thicknesses
 * Error estimation via DWR
+
+#### To do:
+* improve the way pieces are accessed. Removed the `piece(0)` in `gsMaterialMatrix.hpp`.
