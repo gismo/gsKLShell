@@ -195,6 +195,8 @@ protected:
     void defineComponents();
 
     void assembleNeumann();
+    void assembleWeakBCs();
+    void assembleWeakBCs(const gsMultiPatch<T> & deformed);
     void assembleDirichlet();
     void assembleClamped();
 
@@ -255,6 +257,9 @@ protected:
     mutable bool m_pressInd;
 
     mutable index_t m_type; // shell_type
+
+    mutable T m_alpha_d,m_alpha_r; // shell_type
+
 
     /// @brief Specifies the material law to use
     struct nl_loads

@@ -53,12 +53,16 @@ template <class T>
 void gsThinShellAssembler<T>::defaultOptions()
 {
     m_options.addInt("NonlinearLoads","Nonlinear Loads: 0: off, 1: on",nl_loads::off);
+    m_options.addReal("WeakDirichlet","Penalty parameter weak dirichlet conditions",1e3);
+    m_options.addReal("WeakClamped","Penalty parameter weak clamped conditions",1e3);
 }
 
 template <class T>
 void gsThinShellAssembler<T>::getOptions() const
 {
     m_nl_loads = m_options.getInt("NonlinearLoads");
+    m_alpha_d = m_options.getReal("WeakDirichlet");
+    m_alpha_r = m_options.getReal("WeakClamped");
 }
 
 /*
@@ -94,7 +98,6 @@ void gsThinShellAssembler<T>::initialize()
     m_pressInd = false;
 }
 
-
 template <class T>
 void gsThinShellAssembler<T>::assembleNeumann()
 {
@@ -104,6 +107,81 @@ void gsThinShellAssembler<T>::assembleNeumann()
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     variable g_N = m_assembler.getBdrFunction();
     m_assembler.assembleRhsBc(m_space * g_N * otangent(m_ori).norm(), m_bcs.neumannSides() );
+}
+
+template <class T>
+void gsThinShellAssembler<T>::assembleWeakBCs()
+{
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    variable g_N = m_assembler.getBdrFunction();
+
+    // Weak BCs
+    m_assembler.assembleLhsRhsBc
+    (
+        (m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        ,
+        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Dirichlet")
+    );
+
+    // for weak clamped
+    m_assembler.assembleLhsRhsBc
+    (
+        (
+            m_alpha_r * ( sn(m_ori).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_ori,nv(m_ori).tr()) )
+            +
+            m_alpha_r * ( ( var1(m_space,m_ori) * nv(m_ori) ) * ( var1(m_space,m_ori) * nv(m_ori) ).tr() )
+        ) * meas(m_ori)
+        ,
+        // THIS LINE SHOULD BE ZERO!
+        ( m_alpha_r * ( sn(m_ori).tr()*sn(m_ori) - sn(m_ori).tr()*sn(m_ori) ).val() * ( var1(m_space,m_ori) * sn(m_ori) ) ) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Clamped")
+    );
+}
+
+
+template <class T>
+void gsThinShellAssembler<T>::assembleWeakBCs(const gsMultiPatch<T> & deformed)
+{
+    m_defpatches = deformed;
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    m_assembler.getMap(m_defpatches);
+
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+    geometryMap m_def   = m_assembler.exprData()->getMap2();
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    variable g_N = m_assembler.getBdrFunction();
+
+    // Weak BCs
+    m_assembler.assembleLhsRhsBc
+    (
+        m_alpha_d * m_space * m_space.tr() * meas(m_ori)
+        ,
+        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Dirichlet")
+    );
+
+    // for weak clamped
+    m_assembler.assembleLhsRhsBc
+    (
+        (
+            m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_def,nv(m_ori).tr()) )
+            +
+            m_alpha_r * ( ( var1(m_space,m_def) * nv(m_ori) ) * ( var1(m_space,m_def) * nv(m_ori) ).tr() )
+        ) * meas(m_ori)
+        ,
+        ( m_alpha_r * ( sn(m_def).tr()*sn(m_ori) - sn(m_ori).tr()*sn(m_ori) ).val() * ( var1(m_space,m_def) * sn(m_ori) ) ) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Clamped")
+    );
 }
 
 template <class T>
@@ -296,6 +374,7 @@ void gsThinShellAssembler<T>::assembleShell()
         m_space * m_force * meas(m_ori)
         );
 
+    this->assembleWeakBCs();
     this->assembleNeumann();
 
     // Assemble the loads
@@ -361,6 +440,7 @@ void gsThinShellAssembler<T>::assembleMembrane()
         m_space * m_force * meas(m_ori)
         );
 
+    this->assembleWeakBCs();
     this->assembleNeumann();
 
     // Assemble the loads
@@ -614,6 +694,7 @@ void gsThinShellAssembler<T>::assembleVectorShell(const gsMultiPatch<T> & deform
                             ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
                         );
 
+    this->assembleWeakBCs(deformed);
     this->assembleNeumann();
 
     // Assemble the loads
@@ -679,6 +760,7 @@ void gsThinShellAssembler<T>::assembleVectorMembrane(const gsMultiPatch<T> & def
                 ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
                 );
 
+    this->assembleWeakBCs(deformed);
     this->assembleNeumann();
 
 
