@@ -198,6 +198,7 @@ void gsThinShellAssembler<d, T, bending>::assembleMass()
     this->getOptions();
 
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
 
@@ -220,6 +221,7 @@ void gsThinShellAssembler<d, T, bending>::assembleFoundation()
     this->getOptions();
 
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
     geometryMap m_ori   = m_assembler.exprData()->getMap();
@@ -255,6 +257,7 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     this->getOptions();
 
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
     m_assembler.getMap(m_defpatches);
@@ -270,6 +273,8 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     variable mmB = m_assembler.getCoeff(m_mmB);
     variable mmC = m_assembler.getCoeff(m_mmC);
     variable mmD = m_assembler.getCoeff(m_mmD);
+
+    gsInfo<<m_assembler.options();
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m_m2 = m_assembler.getCoeff(mult2t);
@@ -334,6 +339,7 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     this->getOptions();
 
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
     m_assembler.getMap(m_defpatches);
@@ -403,6 +409,7 @@ typename std::enable_if<_d==3 && _bending, void>::type
 gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
     m_defpatches = deformed;
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
@@ -487,6 +494,7 @@ typename std::enable_if<!(_d==3 && _bending), void>::type
 gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
     m_defpatches = deformed;
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
@@ -566,6 +574,7 @@ typename std::enable_if<_d==3 && _bending, void>::type
 gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
     m_defpatches = deformed;
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
@@ -638,6 +647,7 @@ typename std::enable_if<!(_d==3 && _bending), void>::type
 gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
     m_defpatches = deformed;
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
@@ -977,6 +987,7 @@ template <short_t d, class T, bool bending>
 T gsThinShellAssembler<d, T, bending>::getArea(const gsMultiPatch<T> & geometry)
 {
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
     m_assembler.getMap(geometry);           // this map is used for integrals
@@ -1025,6 +1036,7 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::computePrincipalStretches(const
     // this->getOptions();
 
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
     m_defpatches = deformed;
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
@@ -1076,6 +1088,7 @@ void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & f
     this->getOptions();
 
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
 
