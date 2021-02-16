@@ -344,8 +344,6 @@ void gsThinShellAssembler<T>::assembleShell()
     variable mmC = m_assembler.getCoeff(m_mmC);
     variable mmD = m_assembler.getCoeff(m_mmD);
 
-    gsInfo<<m_assembler.options();
-
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m_m2 = m_assembler.getCoeff(mult2t);
 
