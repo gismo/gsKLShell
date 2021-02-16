@@ -64,6 +64,7 @@ public:
 
     /// @brief Returns the list of default options for assembly
     gsOptionList & options() {return m_options;}
+    void setOptions(gsOptionList & options) {m_options.update(options,gsOptionList::addIfUnknown); }
 
     //--------------------- PROBLEM FORMULATION-------------------------------//
     void setPointLoads(const gsPointLoads<T> & pLoads){ m_pLoads = pLoads; }

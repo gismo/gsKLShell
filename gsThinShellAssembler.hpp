@@ -55,6 +55,17 @@ void gsThinShellAssembler<T>::defaultOptions()
     m_options.addInt("NonlinearLoads","Nonlinear Loads: 0: off, 1: on",nl_loads::off);
     m_options.addReal("WeakDirichlet","Penalty parameter weak dirichlet conditions",1e3);
     m_options.addReal("WeakClamped","Penalty parameter weak clamped conditions",1e3);
+
+    // Assembler options
+    m_options.addInt("DirichletStrategy","Method for enforcement of Dirichlet BCs [11..14]",11);
+    m_options.addInt("DirichletValues","Method for computation of Dirichlet DoF values [100..103]",101);
+    m_options.addInt("InterfaceStrategy","Method of treatment of patch interfaces [0..3]",1);
+    m_options.addReal("bdA","Estimated nonzeros per column of the matrix: bdA*deg + bdB",2);
+    m_options.addInt("bdB","Estimated nonzeros per column of the matrix: bdA*deg + bdB",1);
+    m_options.addReal("bdO","Overhead of sparse mem. allocation: (1+bdO)(bdA*deg + bdB) [0..1]",0.333);
+    m_options.addReal("quA","Number of quadrature points: quA*deg + quB",1);
+    m_options.addInt("quB","Number of quadrature points: quA*deg + quB",1);
+    m_options.addInt("quRule","Quadrature rule [1:GaussLegendre,2:GaussLobatto]",1);
 }
 
 template <class T>
@@ -79,6 +90,7 @@ void gsThinShellAssembler<T>::initialize()
 
     // Elements used for numerical integration
     m_assembler.setIntegrationElements(m_basis);
+    m_assembler.setOptions(m_options);
 
     // Initialize the geometry maps
     m_assembler.getMap(m_patches);           // this map is used for integrals
