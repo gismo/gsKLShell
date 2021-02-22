@@ -64,6 +64,7 @@ public:
 
     /// @brief Returns the list of default options for assembly
     gsOptionList & options() {return m_options;}
+    void setOptions(gsOptionList & options) {m_options.update(options,gsOptionList::addIfUnknown); }
 
     //--------------------- PROBLEM FORMULATION-------------------------------//
     void setPointLoads(const gsPointLoads<T> & pLoads){ m_pLoads = pLoads; }
@@ -195,6 +196,8 @@ protected:
     void defineComponents();
 
     void assembleNeumann();
+    void assembleWeakBCs();
+    void assembleWeakBCs(const gsMultiPatch<T> & deformed);
     void assembleDirichlet();
     void assembleClamped();
 
@@ -255,6 +258,9 @@ protected:
     mutable bool m_pressInd;
 
     mutable index_t m_type; // shell_type
+
+    mutable T m_alpha_d,m_alpha_r; // shell_type
+
 
     /// @brief Specifies the material law to use
     struct nl_loads

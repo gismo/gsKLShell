@@ -53,12 +53,27 @@ template <class T>
 void gsThinShellAssembler<T>::defaultOptions()
 {
     m_options.addInt("NonlinearLoads","Nonlinear Loads: 0: off, 1: on",nl_loads::off);
+    m_options.addReal("WeakDirichlet","Penalty parameter weak dirichlet conditions",1e3);
+    m_options.addReal("WeakClamped","Penalty parameter weak clamped conditions",1e3);
+
+    // Assembler options
+    m_options.addInt("DirichletStrategy","Method for enforcement of Dirichlet BCs [11..14]",11);
+    m_options.addInt("DirichletValues","Method for computation of Dirichlet DoF values [100..103]",101);
+    m_options.addInt("InterfaceStrategy","Method of treatment of patch interfaces [0..3]",1);
+    m_options.addReal("bdA","Estimated nonzeros per column of the matrix: bdA*deg + bdB",2);
+    m_options.addInt("bdB","Estimated nonzeros per column of the matrix: bdA*deg + bdB",1);
+    m_options.addReal("bdO","Overhead of sparse mem. allocation: (1+bdO)(bdA*deg + bdB) [0..1]",0.333);
+    m_options.addReal("quA","Number of quadrature points: quA*deg + quB",1);
+    m_options.addInt("quB","Number of quadrature points: quA*deg + quB",1);
+    m_options.addInt("quRule","Quadrature rule [1:GaussLegendre,2:GaussLobatto]",1);
 }
 
 template <class T>
 void gsThinShellAssembler<T>::getOptions() const
 {
     m_nl_loads = m_options.getInt("NonlinearLoads");
+    m_alpha_d = m_options.getReal("WeakDirichlet");
+    m_alpha_r = m_options.getReal("WeakClamped");
 }
 
 /*
@@ -75,6 +90,7 @@ void gsThinShellAssembler<T>::initialize()
 
     // Elements used for numerical integration
     m_assembler.setIntegrationElements(m_basis);
+    m_assembler.setOptions(m_options);
 
     // Initialize the geometry maps
     m_assembler.getMap(m_patches);           // this map is used for integrals
@@ -94,7 +110,6 @@ void gsThinShellAssembler<T>::initialize()
     m_pressInd = false;
 }
 
-
 template <class T>
 void gsThinShellAssembler<T>::assembleNeumann()
 {
@@ -104,6 +119,81 @@ void gsThinShellAssembler<T>::assembleNeumann()
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     variable g_N = m_assembler.getBdrFunction();
     m_assembler.assembleRhsBc(m_space * g_N * otangent(m_ori).norm(), m_bcs.neumannSides() );
+}
+
+template <class T>
+void gsThinShellAssembler<T>::assembleWeakBCs()
+{
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    variable g_N = m_assembler.getBdrFunction();
+
+    // Weak BCs
+    m_assembler.assembleLhsRhsBc
+    (
+        (m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        ,
+        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Dirichlet")
+    );
+
+    // for weak clamped
+    m_assembler.assembleLhsRhsBc
+    (
+        (
+            m_alpha_r * ( sn(m_ori).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_ori,nv(m_ori).tr()) )
+            +
+            m_alpha_r * ( ( var1(m_space,m_ori) * nv(m_ori) ) * ( var1(m_space,m_ori) * nv(m_ori) ).tr() )
+        ) * meas(m_ori)
+        ,
+        // THIS LINE SHOULD BE ZERO!
+        ( m_alpha_r * ( sn(m_ori).tr()*sn(m_ori) - sn(m_ori).tr()*sn(m_ori) ).val() * ( var1(m_space,m_ori) * sn(m_ori) ) ) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Clamped")
+    );
+}
+
+
+template <class T>
+void gsThinShellAssembler<T>::assembleWeakBCs(const gsMultiPatch<T> & deformed)
+{
+    m_defpatches = deformed;
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    m_assembler.getMap(m_defpatches);
+
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+    geometryMap m_def   = m_assembler.exprData()->getMap2();
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    variable g_N = m_assembler.getBdrFunction();
+
+    // Weak BCs
+    m_assembler.assembleLhsRhsBc
+    (
+        m_alpha_d * m_space * m_space.tr() * meas(m_ori)
+        ,
+        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Dirichlet")
+    );
+
+    // for weak clamped
+    m_assembler.assembleLhsRhsBc
+    (
+        (
+            m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_def,nv(m_ori).tr()) )
+            +
+            m_alpha_r * ( ( var1(m_space,m_def) * nv(m_ori) ) * ( var1(m_space,m_def) * nv(m_ori) ).tr() )
+        ) * meas(m_ori)
+        ,
+        ( m_alpha_r * ( sn(m_def).tr()*sn(m_ori) - sn(m_ori).tr()*sn(m_ori) ).val() * ( var1(m_space,m_def) * sn(m_ori) ) ) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Clamped")
+    );
 }
 
 template <class T>
@@ -172,6 +262,7 @@ void gsThinShellAssembler<T>::assembleMass()
     this->getOptions();
 
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
 
@@ -194,6 +285,7 @@ void gsThinShellAssembler<T>::assembleFoundation()
     this->getOptions();
 
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
     geometryMap m_ori   = m_assembler.exprData()->getMap();
@@ -230,6 +322,7 @@ void gsThinShellAssembler<T>::assembleShell()
     this->getOptions();
 
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
     m_assembler.getMap(m_defpatches);
@@ -296,6 +389,7 @@ void gsThinShellAssembler<T>::assembleShell()
         m_space * m_force * meas(m_ori)
         );
 
+    this->assembleWeakBCs();
     this->assembleNeumann();
 
     // Assemble the loads
@@ -312,6 +406,7 @@ void gsThinShellAssembler<T>::assembleMembrane()
     this->getOptions();
 
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
     m_assembler.getMap(m_defpatches);
@@ -361,6 +456,7 @@ void gsThinShellAssembler<T>::assembleMembrane()
         m_space * m_force * meas(m_ori)
         );
 
+    this->assembleWeakBCs();
     this->assembleNeumann();
 
     // Assemble the loads
@@ -385,6 +481,7 @@ template <class T>
 void gsThinShellAssembler<T>::assembleMatrixShell(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
     m_defpatches = deformed;
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
@@ -473,6 +570,7 @@ template <class T>
 void gsThinShellAssembler<T>::assembleMatrixMembrane(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
     m_defpatches = deformed;
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
@@ -555,6 +653,7 @@ template <class T>
 void gsThinShellAssembler<T>::assembleVectorShell(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
     m_defpatches = deformed;
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
@@ -614,6 +713,7 @@ void gsThinShellAssembler<T>::assembleVectorShell(const gsMultiPatch<T> & deform
                             ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
                         );
 
+    this->assembleWeakBCs(deformed);
     this->assembleNeumann();
 
     // Assemble the loads
@@ -629,6 +729,7 @@ template <class T>
 void gsThinShellAssembler<T>::assembleVectorMembrane(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
     m_defpatches = deformed;
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
@@ -679,6 +780,7 @@ void gsThinShellAssembler<T>::assembleVectorMembrane(const gsMultiPatch<T> & def
                 ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
                 );
 
+    this->assembleWeakBCs(deformed);
     this->assembleNeumann();
 
 
@@ -975,6 +1077,7 @@ template <class T>
 T gsThinShellAssembler<T>::getArea(const gsMultiPatch<T> & geometry)
 {
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
     m_assembler.getMap(geometry);           // this map is used for integrals
@@ -1023,6 +1126,7 @@ gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T>
     // this->getOptions();
 
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
     m_defpatches = deformed;
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
@@ -1075,6 +1179,7 @@ void gsThinShellAssembler<T>::projectL2_into(const gsFunction<T> & fun, gsMatrix
     this->getOptions();
 
     m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
 
