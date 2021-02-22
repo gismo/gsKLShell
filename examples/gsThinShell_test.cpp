@@ -217,6 +217,7 @@ int main(int argc, char *argv[])
     {
         // Unit square
         mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
+        mp.embed(3);
         mp.addAutoBoundaries();
         E_modulus = 1e0;
         thickness = 1e0;
