@@ -177,7 +177,7 @@ void gsThinShellAssembler<T>::assembleMass()
 
     // Initialize stystem
     m_assembler.initSystem(false);
-    gsMaterialMatrix m_mm = m_materialMat;
+    gsMaterialMatrix<T> m_mm = m_materialMat;
     m_mm.makeDensity();
     variable mm0 = m_assembler.getCoeff(m_mm);
 
@@ -237,13 +237,13 @@ void gsThinShellAssembler<T>::assembleShell()
     // Initialize stystem
     m_assembler.initSystem(false);
 
-    gsMaterialMatrix m_mmA = m_materialMat;
+    gsMaterialMatrix<T> m_mmA = m_materialMat;
     m_mmA.makeMatrix(0);
-    gsMaterialMatrix m_mmB = m_materialMat;
+    gsMaterialMatrix<T> m_mmB = m_materialMat;
     m_mmB.makeMatrix(1);
-    gsMaterialMatrix m_mmC = m_materialMat;
+    gsMaterialMatrix<T> m_mmC = m_materialMat;
     m_mmC.makeMatrix(2);
-    gsMaterialMatrix m_mmD = m_materialMat;
+    gsMaterialMatrix<T> m_mmD = m_materialMat;
     m_mmD.makeMatrix(3);
 
     variable mmA = m_assembler.getCoeff(m_mmA);
@@ -319,7 +319,7 @@ void gsThinShellAssembler<T>::assembleMembrane()
     // Initialize stystem
     m_assembler.initSystem(false);
 
-    gsMaterialMatrix m_mmA = m_materialMat;
+    gsMaterialMatrix<T> m_mmA = m_materialMat;
     m_mmA.makeMatrix(0);
 
     variable mmA = m_assembler.getCoeff(m_mmA);
@@ -394,17 +394,17 @@ void gsThinShellAssembler<T>::assembleMatrixShell(const gsMultiPatch<T> & deform
     m_assembler.initMatrix(false);
     // m_assembler.initSystem(false);
 
-    gsMaterialMatrix m_mmA = m_materialMat;
+    gsMaterialMatrix<T> m_mmA = m_materialMat;
     m_mmA.makeMatrix(0);
-    gsMaterialMatrix m_mmB = m_materialMat;
+    gsMaterialMatrix<T> m_mmB = m_materialMat;
     m_mmB.makeMatrix(1);
-    gsMaterialMatrix m_mmC = m_materialMat;
+    gsMaterialMatrix<T> m_mmC = m_materialMat;
     m_mmC.makeMatrix(2);
-    gsMaterialMatrix m_mmD = m_materialMat;
+    gsMaterialMatrix<T> m_mmD = m_materialMat;
     m_mmD.makeMatrix(3);
-    gsMaterialMatrix m_S0 = m_materialMat;
+    gsMaterialMatrix<T> m_S0 = m_materialMat;
     m_S0.makeVector(0);
-    gsMaterialMatrix m_S1 = m_materialMat;
+    gsMaterialMatrix<T> m_S1 = m_materialMat;
     m_S1.makeVector(1);
 
     variable mmA = m_assembler.getCoeff(m_mmA);
@@ -482,9 +482,9 @@ void gsThinShellAssembler<T>::assembleMatrixMembrane(const gsMultiPatch<T> & def
     m_assembler.initMatrix(false);
     // m_assembler.initSystem(false);
 
-    gsMaterialMatrix m_mmA = m_materialMat;
+    gsMaterialMatrix<T> m_mmA = m_materialMat;
     m_mmA.makeMatrix(0);
-    gsMaterialMatrix m_S0 = m_materialMat;
+    gsMaterialMatrix<T> m_S0 = m_materialMat;
     m_S0.makeVector(0);
 
     variable mmA = m_assembler.getCoeff(m_mmA);
@@ -563,9 +563,9 @@ void gsThinShellAssembler<T>::assembleVectorShell(const gsMultiPatch<T> & deform
     // Initialize vector
     m_assembler.initVector(1,false);
 
-    gsMaterialMatrix m_S0 = m_materialMat;
+    gsMaterialMatrix<T> m_S0 = m_materialMat;
     m_S0.makeVector(0);
-    gsMaterialMatrix m_S1 = m_materialMat;
+    gsMaterialMatrix<T> m_S1 = m_materialMat;
     m_S1.makeVector(1);
 
     variable S0 = m_assembler.getCoeff(m_S0);
@@ -637,7 +637,7 @@ void gsThinShellAssembler<T>::assembleVectorMembrane(const gsMultiPatch<T> & def
     // Initialize vector
     m_assembler.initVector(1,false);
 
-    gsMaterialMatrix m_S0 = m_materialMat;
+    gsMaterialMatrix<T> m_S0 = m_materialMat;
     m_S0.makeVector(0);
 
     variable S0 = m_assembler.getCoeff(m_S0);
@@ -716,9 +716,9 @@ gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVectorShell(const gsMultiPatch
     // Initialize vector
     // m_assembler.initVector(1,false);
 
-    gsMaterialMatrix m_S0 = m_materialMat;
+    gsMaterialMatrix<T> m_S0 = m_materialMat;
     m_S0.makeVector(0);
-    gsMaterialMatrix m_S1 = m_materialMat;
+    gsMaterialMatrix<T> m_S1 = m_materialMat;
     m_S1.makeVector(1);
 
     variable S0 = assembler.getCoeff(m_S0);
@@ -829,7 +829,7 @@ gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVectorMembrane(const gsMultiPa
     // Initialize vector
     // m_assembler.initVector(1,false);
 
-    gsMaterialMatrix m_S0 = m_materialMat;
+    gsMaterialMatrix<T> m_S0 = m_materialMat;
     m_S0.makeVector(0);
 
     variable S0 = assembler.getCoeff(m_S0);
@@ -1029,7 +1029,7 @@ gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T>
     m_assembler.getMap(m_defpatches);
     // m_assembler.initSystem(false);
 
-    gsMaterialMatrix m_mm = m_materialMat;
+    gsMaterialMatrix<T> m_mm = m_materialMat;
     m_mm.makeStretch();
     variable mm0 = m_assembler.getCoeff(m_mm);
 
