@@ -28,7 +28,7 @@
 namespace gismo
 {
 
-// inline?
+// ?
 int delta(const int a, const int b)
 {
     return (a==b) ? 1 : 0;
@@ -345,7 +345,7 @@ void gsMaterialMatrix<dim,T,mat,comp>::computePoints(const gsMatrix<T> & u, bool
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==14, void>::type
 gsMaterialMatrix<dim,T,mat,comp>::computePoints_impl(const gsMatrix<T>& u, bool deformed) const
 {
@@ -370,7 +370,7 @@ gsMaterialMatrix<dim,T,mat,comp>::computePoints_impl(const gsMatrix<T>& u, bool 
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat!=14, void>::type
 gsMaterialMatrix<dim,T,mat,comp>::computePoints_impl(const gsMatrix<T>& u, bool deformed) const
 {
@@ -435,7 +435,7 @@ void gsMaterialMatrix<dim,T,mat,comp>::eval_into_stretch(const gsMatrix<T>& u, g
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<bool _comp> inline
+template<bool _comp>
 typename std::enable_if<!_comp, void>::type
 gsMaterialMatrix<dim,T,mat,comp>::eval_into_stretch_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
@@ -456,7 +456,7 @@ gsMaterialMatrix<dim,T,mat,comp>::eval_into_stretch_impl(const gsMatrix<T>& u, g
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<bool _comp> inline
+template<bool _comp>
 typename std::enable_if<_comp, void>::type
 gsMaterialMatrix<dim,T,mat,comp>::eval_into_stretch_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
@@ -531,7 +531,7 @@ void gsMaterialMatrix<dim,T,mat,comp>::eval_into_stretchdir(const gsMatrix<T>& u
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<bool _comp> inline
+template<bool _comp>
 typename std::enable_if<!_comp, void>::type
 gsMaterialMatrix<dim,T,mat,comp>::eval_into_stretchdir_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
@@ -553,7 +553,7 @@ gsMaterialMatrix<dim,T,mat,comp>::eval_into_stretchdir_impl(const gsMatrix<T>& u
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<bool _comp> inline
+template<bool _comp>
 typename std::enable_if<_comp, void>::type
 gsMaterialMatrix<dim,T,mat,comp>::eval_into_stretchdir_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
@@ -654,7 +654,7 @@ void gsMaterialMatrix<dim,T,mat,comp>::eval_into_NP(const gsMatrix<T>& u, gsMatr
     //     result = multiplyZ(u);
     // }
     // else
-        result = integrateZ(u);
+    result = integrateZ(u);
 }
 
 
@@ -665,7 +665,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,mat,comp>::eval3D(const index_t i, const gsMa
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<_mat==0, gsMatrix<T>>::type
 gsMaterialMatrix<dim,T,mat,comp>::eval3D_impl(const index_t i, const gsMatrix<T>& z) const
 {
@@ -674,7 +674,7 @@ gsMaterialMatrix<dim,T,mat,comp>::eval3D_impl(const index_t i, const gsMatrix<T>
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<!_comp && !(_mat==0), gsMatrix<T>>::type
 gsMaterialMatrix<dim,T,mat,comp>::eval3D_impl(const index_t i, const gsMatrix<T>& z) const
 {
@@ -683,7 +683,7 @@ gsMaterialMatrix<dim,T,mat,comp>::eval3D_impl(const index_t i, const gsMatrix<T>
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<_comp && !(_mat==0), gsMatrix<T>>::type
 gsMaterialMatrix<dim,T,mat,comp>::eval3D_impl(const index_t i, const gsMatrix<T>& z) const
 {
@@ -744,6 +744,9 @@ gsMatrix<T> gsMaterialMatrix<dim,T,mat,comp>::integrateZ(const gsMatrix<T>& u) c
 {
     // Input: points in R2
     // Ouput: results in targetDim
+
+    if ((m_output==1) && (m_outputType==1))
+        m_moment = 2; // NEEDED SINCE m_moment=2 IS FOR THE OUTPUT OF THE M TENSOR, WHICH IN FACT HAS MOMENT 2. THIS IS BY CHOICE OF THE COMPUTATION OF THE STRAINS IN THE Sij() FUNCTION
 
     // Perform integration
     m_numGauss = m_options.getInt("NumGauss");
@@ -864,7 +867,7 @@ T gsMaterialMatrix<dim,T,mat,comp>::Cijkl(const index_t i, const index_t j, cons
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==0, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
 {
@@ -882,7 +885,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Cijkl_impl(const index_t i, const index_t j, c
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==2, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
 {
@@ -894,7 +897,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Cijkl_impl(const index_t i, const index_t j, c
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==3, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
 {
@@ -920,7 +923,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Cijkl_impl(const index_t i, const index_t j, c
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<(_mat >= 10) && (_mat < 20), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
 {
@@ -977,7 +980,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Cijkl_impl(const index_t i, const index_t j, c
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<(_mat >= 20) && (_mat < 30), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
 {
@@ -990,7 +993,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Cijkl_impl(const index_t i, const index_t j, c
 }
 
 // template <short_t dim, class T, short_t mat, bool comp>
-// template<short_t _mat> inline
+// template<short_t _mat>
 // // OTHER CASES!
 // typename std::enable_if<(_mat >= 30) && !(_mat==0) && !(_mat==2) && !(_mat==3), T>::type
 // gsMaterialMatrix<dim,T,mat,comp>::Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
@@ -1019,7 +1022,7 @@ T gsMaterialMatrix<dim,T,mat,comp>::Cijkl(const index_t i, const index_t j, cons
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<(_mat >= 10) && (_mat < 20), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1029,7 +1032,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Cijkl_impl(const index_t i, const index_t j, c
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<!((_mat >= 10) && (_mat < 20)), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1045,7 +1048,7 @@ T gsMaterialMatrix<dim,T,mat,comp>::Cijkl3D(const index_t i, const index_t j, co
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==0, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1053,7 +1056,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Cijkl3D_impl(const index_t i, const index_t j,
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==2, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1077,7 +1080,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Cijkl3D_impl(const index_t i, const index_t j,
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==3, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1112,7 +1115,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Cijkl3D_impl(const index_t i, const index_t j,
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==5, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1128,7 +1131,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Cijkl3D_impl(const index_t i, const index_t j,
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<(_mat >= 10) && (_mat < 20), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1192,7 +1195,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Cijkl3D_impl(const index_t i, const index_t j,
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<(_mat >= 20) && (_mat < 30), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1222,7 +1225,7 @@ T gsMaterialMatrix<dim,T,mat,comp>::Sij(const index_t i, const index_t j) const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==0, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j) const
 {
@@ -1255,7 +1258,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j) con
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==2, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j) const
 {
@@ -1267,7 +1270,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j) con
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==3, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j) const
 {
@@ -1290,7 +1293,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j) con
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<(_mat >= 10) && (_mat < 20), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j) const
 {
@@ -1312,7 +1315,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j) con
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<(_mat >= 20) && (_mat < 30), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j) const
 {
@@ -1331,7 +1334,7 @@ T gsMaterialMatrix<dim,T,mat,comp>::Sij(const index_t i, const index_t j, const 
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==2, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1351,7 +1354,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j, con
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==3, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1378,7 +1381,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j, con
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==5, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1391,7 +1394,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j, con
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<(_mat >= 10) && (_mat < 20), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1407,7 +1410,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j, con
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<(_mat >= 20) && (_mat < 30), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1546,7 +1549,7 @@ T gsMaterialMatrix<dim,T,mat,comp>::dPsi(const index_t i, const index_t j) const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==22, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::dPsi_impl(const index_t i, const index_t j) const
 {
@@ -1555,7 +1558,7 @@ gsMaterialMatrix<dim,T,mat,comp>::dPsi_impl(const index_t i, const index_t j) co
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==23, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::dPsi_impl(const index_t i, const index_t j) const
 {
@@ -1587,7 +1590,7 @@ T gsMaterialMatrix<dim,T,mat,comp>::d2Psi(const index_t i, const index_t j, cons
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==22, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
 {
@@ -1595,7 +1598,7 @@ gsMaterialMatrix<dim,T,mat,comp>::d2Psi_impl(const index_t i, const index_t j, c
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==23, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
 {
@@ -1652,7 +1655,7 @@ T gsMaterialMatrix<dim,T,mat,comp>::dPsi(const index_t i, const index_t j, const
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==22, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::dPsi_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1669,7 +1672,7 @@ gsMaterialMatrix<dim,T,mat,comp>::dPsi_impl(const index_t i, const index_t j, co
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==23, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::dPsi_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1691,7 +1694,7 @@ gsMaterialMatrix<dim,T,mat,comp>::dPsi_impl(const index_t i, const index_t j, co
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==25, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::dPsi_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1711,7 +1714,7 @@ T gsMaterialMatrix<dim,T,mat,comp>::d2Psi(const index_t i, const index_t j, cons
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==22, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1732,7 +1735,7 @@ gsMaterialMatrix<dim,T,mat,comp>::d2Psi_impl(const index_t i, const index_t j, c
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==23, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1764,7 +1767,7 @@ gsMaterialMatrix<dim,T,mat,comp>::d2Psi_impl(const index_t i, const index_t j, c
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat> inline
+template<short_t _mat>
 typename std::enable_if<_mat==25, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {
@@ -1788,7 +1791,7 @@ T gsMaterialMatrix<dim,T,mat,comp>::dPsi_da(const index_t a) const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<_comp && (_mat==2 || _mat==12 || _mat==22), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
 {
@@ -1808,7 +1811,7 @@ gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<!_comp && (_mat==2 || _mat==12 || _mat==22), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
 {
@@ -1818,7 +1821,7 @@ gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<_comp && (_mat==3 || _mat==13 || _mat==23), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
 {
@@ -1843,7 +1846,7 @@ gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<!_comp && (_mat==3 || _mat==13 || _mat==23), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
 {
@@ -1858,7 +1861,7 @@ gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<_comp && _mat==14, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
 {
@@ -1878,7 +1881,7 @@ gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
     return tmp + dpsi_vol;
 }
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<!_comp && _mat==14, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
 {
@@ -1895,7 +1898,7 @@ gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<_comp && (_mat==5 || _mat==15 || _mat==25), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::dPsi_da_impl(const index_t a) const
 {
@@ -1918,7 +1921,7 @@ T gsMaterialMatrix<dim,T,mat,comp>::d2Psi_dab(const index_t a, const index_t b) 
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<_comp && (_mat==2 || _mat==12 || _mat==22), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::d2Psi_dab_impl(const index_t a, const index_t b) const
 {
@@ -1945,7 +1948,7 @@ gsMaterialMatrix<dim,T,mat,comp>::d2Psi_dab_impl(const index_t a, const index_t 
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<!_comp && (_mat==2 || _mat==12 || _mat==22), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::d2Psi_dab_impl(const index_t a, const index_t b) const
 {
@@ -1955,7 +1958,7 @@ gsMaterialMatrix<dim,T,mat,comp>::d2Psi_dab_impl(const index_t a, const index_t 
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<_comp && (_mat==3 || _mat==13 || _mat==23), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::d2Psi_dab_impl(const index_t a, const index_t b) const
 {
@@ -1999,7 +2002,7 @@ gsMaterialMatrix<dim,T,mat,comp>::d2Psi_dab_impl(const index_t a, const index_t 
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<!_comp && (_mat==3 || _mat==13 || _mat==23), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::d2Psi_dab_impl(const index_t a, const index_t b) const
 {
@@ -2018,7 +2021,7 @@ gsMaterialMatrix<dim,T,mat,comp>::d2Psi_dab_impl(const index_t a, const index_t 
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<_comp && _mat==14, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::d2Psi_dab_impl(const index_t a, const index_t b) const
 {
@@ -2047,7 +2050,7 @@ gsMaterialMatrix<dim,T,mat,comp>::d2Psi_dab_impl(const index_t a, const index_t 
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<!_comp && _mat==14, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::d2Psi_dab_impl(const index_t a, const index_t b) const
 {
@@ -2064,7 +2067,7 @@ gsMaterialMatrix<dim,T,mat,comp>::d2Psi_dab_impl(const index_t a, const index_t 
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<short_t _mat, bool _comp> inline
+template<short_t _mat, bool _comp>
 typename std::enable_if<_comp && (_mat==5 || _mat==15 || _mat==25), T>::type
 gsMaterialMatrix<dim,T,mat,comp>::d2Psi_dab_impl(const index_t a, const index_t b) const
 {
@@ -2125,7 +2128,7 @@ T gsMaterialMatrix<dim,T,mat,comp>::Sa(const index_t a) const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<bool _comp> inline
+template<bool _comp>
 typename std::enable_if<_comp, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Sa_impl(const index_t a) const
 {
@@ -2133,7 +2136,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Sa_impl(const index_t a) const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<bool _comp> inline
+template<bool _comp>
 typename std::enable_if<!_comp, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Sa_impl(const index_t a) const
 {
@@ -2149,7 +2152,7 @@ T gsMaterialMatrix<dim,T,mat,comp>::dSa_db(const index_t a, const index_t b) con
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<bool _comp> inline
+template<bool _comp>
 typename std::enable_if<_comp, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::dSa_db_impl(const index_t a, const index_t b) const
 {
@@ -2160,7 +2163,7 @@ gsMaterialMatrix<dim,T,mat,comp>::dSa_db_impl(const index_t a, const index_t b) 
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<bool _comp> inline
+template<bool _comp>
 typename std::enable_if<!_comp, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::dSa_db_impl(const index_t a, const index_t b) const
 {
@@ -2179,7 +2182,7 @@ T gsMaterialMatrix<dim,T,mat,comp>::Cabcd(const index_t a, const index_t b, cons
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<bool _comp> inline
+template<bool _comp>
 typename std::enable_if<_comp, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Cabcd_impl(const index_t a, const index_t b, const index_t c, const index_t d) const
 {
@@ -2206,7 +2209,7 @@ gsMaterialMatrix<dim,T,mat,comp>::Cabcd_impl(const index_t a, const index_t b, c
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template<bool _comp> inline
+template<bool _comp>
 typename std::enable_if<!_comp, T>::type
 gsMaterialMatrix<dim,T,mat,comp>::Cabcd_impl(const index_t a, const index_t b, const index_t c, const index_t d) const
 {
@@ -2306,7 +2309,7 @@ void gsMaterialMatrix<dim,T,mat,comp>::computeMetricDeformed() const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template <short_t _dim> inline
+template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
 gsMaterialMatrix<dim,T,mat,comp>::computeMetricDeformed_impl() const
 {
@@ -2363,7 +2366,7 @@ gsMaterialMatrix<dim,T,mat,comp>::computeMetricDeformed_impl() const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template <short_t _dim> inline
+template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
 gsMaterialMatrix<dim,T,mat,comp>::computeMetricDeformed_impl() const
 {
@@ -2402,7 +2405,7 @@ void gsMaterialMatrix<dim,T,mat,comp>::computeMetricUndeformed() const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template <short_t _dim> inline
+template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
 gsMaterialMatrix<dim,T,mat,comp>::computeMetricUndeformed_impl() const
 {
@@ -2459,7 +2462,7 @@ gsMaterialMatrix<dim,T,mat,comp>::computeMetricUndeformed_impl() const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template <short_t _dim> inline
+template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
 gsMaterialMatrix<dim,T,mat,comp>::computeMetricUndeformed_impl() const
 {
@@ -2511,7 +2514,7 @@ void gsMaterialMatrix<dim,T,mat,comp>::getMetricDeformed(index_t k, T z) const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template <short_t _dim> inline
+template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
 gsMaterialMatrix<dim,T,mat,comp>::getMetricDeformed_impl(index_t k, T z) const
 {
@@ -2553,7 +2556,7 @@ gsMaterialMatrix<dim,T,mat,comp>::getMetricDeformed_impl(index_t k, T z) const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template <short_t _dim> inline
+template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
 gsMaterialMatrix<dim,T,mat,comp>::getMetricDeformed_impl(index_t k, T z) const
 {
@@ -2600,7 +2603,7 @@ void gsMaterialMatrix<dim,T,mat,comp>::getMetricUndeformed(index_t k, T z) const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template <short_t _dim> inline
+template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
 gsMaterialMatrix<dim,T,mat,comp>::getMetricUndeformed_impl(index_t k, T z) const
 {
@@ -2641,7 +2644,7 @@ gsMaterialMatrix<dim,T,mat,comp>::getMetricUndeformed_impl(index_t k, T z) const
 }
 
 template <short_t dim, class T, short_t mat, bool comp>
-template <short_t _dim> inline
+template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
 gsMaterialMatrix<dim,T,mat,comp>::getMetricUndeformed_impl(index_t k, T z) const
 {

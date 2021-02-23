@@ -116,10 +116,10 @@ public:
     void assemble();
 
 private:
-    template<int _d, bool _bending> inline
+    template<int _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, void>::type assemble_impl();
 
-    template<int _d, bool _bending> inline
+    template<int _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type assemble_impl();
 
 public:
@@ -138,11 +138,11 @@ public:
     void assembleMatrix(const gsMatrix<T>       & solVector );
 
 private:
-    template<int _d, bool _bending> inline
+    template<int _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, void>::type
     assembleMatrix_impl(const gsMultiPatch<T>   & deformed  );
 
-    template<int _d, bool _bending> inline
+    template<int _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
     assembleMatrix_impl(const gsMultiPatch<T>   & deformed  );
 
@@ -151,11 +151,11 @@ public:
     void assembleVector(const gsMatrix<T>       & solVector );
 
 private:
-    template<int _d, bool _bending> inline
+    template<int _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, void>::type
     assembleVector_impl(const gsMultiPatch<T>   & deformed  );
 
-    template<int _d, bool _bending> inline
+    template<int _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
     assembleVector_impl(const gsMultiPatch<T>   & deformed  );
 
@@ -163,11 +163,11 @@ public:
     gsMatrix<T> boundaryForceVector(const gsMultiPatch<T>   & deformed , patchSide& ps, int com );
 
 private:
-    template<int _d, bool _bending> inline
+    template<int _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
     boundaryForceVector_impl(const gsMultiPatch<T>   & deformed , patchSide& ps, int com );
 
-    template<int _d, bool _bending> inline
+    template<int _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
     boundaryForceVector_impl(const gsMultiPatch<T>   & deformed , patchSide& ps, int com );
 
@@ -289,51 +289,51 @@ class gsThinShellAssemblerBase
 public:
     virtual ~gsThinShellAssemblerBase() {};
 
-    inline virtual gsOptionList & options() = 0;
-    inline virtual void setPointLoads(const gsPointLoads<T> & pLoads) = 0;
-    inline virtual void setFoundation(const gsFunction<T> & foundation) = 0;
-    inline virtual void setPressure(const gsFunction<T> & pressure) = 0;
-    inline virtual void updateBCs(const gsBoundaryConditions<T> & bconditions) = 0;
-    inline virtual void homogenizeDirichlet() = 0;
+     virtual gsOptionList & options() = 0;
+     virtual void setPointLoads(const gsPointLoads<T> & pLoads) = 0;
+     virtual void setFoundation(const gsFunction<T> & foundation) = 0;
+     virtual void setPressure(const gsFunction<T> & pressure) = 0;
+     virtual void updateBCs(const gsBoundaryConditions<T> & bconditions) = 0;
+     virtual void homogenizeDirichlet() = 0;
 
-    inline virtual index_t numDofs() const  = 0;
+     virtual index_t numDofs() const  = 0;
 
-    inline virtual void assemble() = 0;
-    inline virtual void assembleMass() = 0;
-    inline virtual void assembleFoundation() = 0;
+     virtual void assemble() = 0;
+     virtual void assembleMass() = 0;
+     virtual void assembleFoundation() = 0;
 
-    inline virtual void assemble(const gsMultiPatch<T> & deformed,     bool Matrix = true) = 0;
-    inline virtual void assemble(const gsMatrix<T>     & solVector,    bool Matrix = true) = 0;
-
-
-    inline virtual void assembleMatrix(const gsMultiPatch<T>   & deformed  ) = 0;
-    inline virtual void assembleMatrix(const gsMatrix<T>       & solVector ) = 0;
-
-    inline virtual void assembleVector(const gsMultiPatch<T>   & deformed  ) = 0;
-    inline virtual void assembleVector(const gsMatrix<T>       & solVector ) = 0;
-
-    inline virtual gsMatrix<T> boundaryForceVector(const gsMultiPatch<T>   & deformed , patchSide& ps, int com ) = 0;
-
-    inline virtual const gsMultiPatch<T> & geometry()    const = 0;
-    inline virtual const gsMultiPatch<T> & defGeometry() const = 0;
-
-    inline virtual T getArea(const gsMultiPatch<T> & geometry) = 0;
+     virtual void assemble(const gsMultiPatch<T> & deformed,     bool Matrix = true) = 0;
+     virtual void assemble(const gsMatrix<T>     & solVector,    bool Matrix = true) = 0;
 
 
-    inline virtual const gsSparseMatrix<T> & matrix()  const  = 0;
-    inline virtual const gsMatrix<T>       & rhs()     const  = 0;
+     virtual void assembleMatrix(const gsMultiPatch<T>   & deformed  ) = 0;
+     virtual void assembleMatrix(const gsMatrix<T>       & solVector ) = 0;
 
-    inline virtual gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const  = 0;
-    inline virtual void constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const = 0;
-    inline virtual gsMultiPatch<T> constructDisplacement(const gsMatrix<T> & solVector) const = 0;
-    inline virtual void constructDisplacement(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const = 0;
+     virtual void assembleVector(const gsMultiPatch<T>   & deformed  ) = 0;
+     virtual void assembleVector(const gsMatrix<T>       & solVector ) = 0;
 
-    inline virtual void constructStress(const gsMultiPatch<T> & deformed,gsPiecewiseFunction<T> & result,stress_type::type type) = 0;
-    inline virtual gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed, const T z=0) = 0;
+     virtual gsMatrix<T> boundaryForceVector(const gsMultiPatch<T>   & deformed , patchSide& ps, int com ) = 0;
 
-    inline virtual void projectL2_into(const gsFunction<T> &fun, gsMatrix<T> & result) = 0;
-    inline virtual void projectL2_into(const gsFunction<T> &fun, gsMultiPatch<T> & result) = 0;
-    inline virtual gsMatrix<T> projectL2(const gsFunction<T> &fun) = 0;
+     virtual const gsMultiPatch<T> & geometry()    const = 0;
+     virtual const gsMultiPatch<T> & defGeometry() const = 0;
+
+     virtual T getArea(const gsMultiPatch<T> & geometry) = 0;
+
+
+     virtual const gsSparseMatrix<T> & matrix()  const  = 0;
+     virtual const gsMatrix<T>       & rhs()     const  = 0;
+
+     virtual gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const  = 0;
+     virtual void constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const = 0;
+     virtual gsMultiPatch<T> constructDisplacement(const gsMatrix<T> & solVector) const = 0;
+     virtual void constructDisplacement(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const = 0;
+
+     virtual void constructStress(const gsMultiPatch<T> & deformed,gsPiecewiseFunction<T> & result,stress_type::type type) = 0;
+     virtual gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed, const T z=0) = 0;
+
+     virtual void projectL2_into(const gsFunction<T> &fun, gsMatrix<T> & result) = 0;
+     virtual void projectL2_into(const gsFunction<T> &fun, gsMultiPatch<T> & result) = 0;
+     virtual gsMatrix<T> projectL2(const gsFunction<T> &fun) = 0;
 };
 
 template <short_t d, class T, bool bending>
