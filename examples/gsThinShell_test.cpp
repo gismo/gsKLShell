@@ -848,11 +848,15 @@ int main(int argc, char *argv[])
     gsSparseMatrix<> matrix = assembler->matrix();
     gsVector<> vector = assembler->rhs();
 
+    gsDebugVar(assembler->matrix().toDense());
+    gsDebugVar(assembler->rhs().transpose());
+
     // Solve linear problem
     gsVector<> solVector;
     gsSparseSolver<>::CGDiagonal solver;
     solver.compute( matrix );
     solVector = solver.solve(vector);
+    gsDebugVar(solVector.transpose());
 
     real_t residual = vector.norm();
     real_t residual0 = residual;
@@ -860,12 +864,16 @@ int main(int argc, char *argv[])
     gsVector<real_t> updateVector = solVector;
     gsVector<real_t> resVec = Residual(solVector);
     gsSparseMatrix<real_t> jacMat;
-    for (index_t it = 0; it != 100; ++it)
+    for (index_t it = 0; it != 1; ++it)
     {
         jacMat = Jacobian(solVector);
         solver.compute(jacMat);
         updateVector = solver.solve(resVec); // this is the UPDATE
         solVector += updateVector;
+
+        gsDebugVar(assembler->matrix().toDense());
+        gsDebugVar(assembler->rhs().transpose());
+        gsDebugVar(updateVector.transpose());
 
         resVec = Residual(solVector);
         residual = resVec.norm();
