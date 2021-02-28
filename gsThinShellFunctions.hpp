@@ -82,7 +82,11 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     {
         case stress_type::membrane :
             for (index_t k = 0; k != u.cols(); ++k)
+            {
+                gsDebugVar((ev.eval(S0,u.col(k))));
+                gsDebugVar((ev.eval(Ttilde,u.col(k))));
                 result.col(k) = (ev.eval(S_m,u.col(k))).transpose();
+            }
             break;
 
         case stress_type::flexural :

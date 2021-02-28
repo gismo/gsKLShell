@@ -736,50 +736,113 @@ int main(int argc, char *argv[])
     gsMaterialMatrixBase<real_t>* materialMatrixNonlinear;
 
     if (material==0)
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,0,false>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::SvK, Implementation::Analytical>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==2) && (!Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,2,false>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==2) && (Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,2,true>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==12) && (!Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,12,false>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::NH, Implementation::Spectral>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==12) && (Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,12,true>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::NH, Implementation::Spectral>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==22) && (!Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,22,false>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::NH, Implementation::Generalized>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==22) && (Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,22,true>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::NH, Implementation::Generalized>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
+    }
 
     else if ((material==3) && (!Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,3,false>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::MR, Implementation::Analytical>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==3) && (Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,3,true>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::MR, Implementation::Analytical>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==13) && (!Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,13,false>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::MR, Implementation::Spectral>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==13) && (Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,13,true>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::MR, Implementation::Spectral>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==23) && (!Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,23,false>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::MR, Implementation::Generalized>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==23) && (Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,23,true>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::MR, Implementation::Generalized>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
+    }
 
     else if ((material==14) && (!Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,14,false>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::OG, Implementation::Spectral>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==14) && (Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,14,true>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::OG, Implementation::Spectral>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
+    }
 
     else if ((material==5) && (!Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,5,false>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::NH_ext, Implementation::Analytical>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==5) && (Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,5,true>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::NH_ext, Implementation::Analytical>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==15) && (!Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,15,false>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::NH_ext, Implementation::Spectral>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==15) && (Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,15,true>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::NH_ext, Implementation::Spectral>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==25) && (!Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,25,false>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::NH_ext, Implementation::Generalized>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+    }
     else if ((material==25) && (Compressibility))
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,25,true>(mp,mp_def,t,parameters,rho);
+    {
+        constexpr int id = encodeMat_id<Material::NH_ext, Implementation::Generalized>::id;
+        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
+    }
 
 
     std::vector<gsFunction<>*> parameters2(6);
@@ -864,7 +927,7 @@ int main(int argc, char *argv[])
     gsVector<real_t> updateVector = solVector;
     gsVector<real_t> resVec = Residual(solVector);
     gsSparseMatrix<real_t> jacMat;
-    for (index_t it = 0; it != 1; ++it)
+    for (index_t it = 0; it != 100; ++it)
     {
         jacMat = Jacobian(solVector);
         solver.compute(jacMat);

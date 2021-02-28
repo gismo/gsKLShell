@@ -36,6 +36,7 @@ public:
     otangent_expr(const gsGeometryMap<Scalar> & G) : _G(G) { }
 
     mutable gsVector<Scalar,3> onormal, normal;
+    mutable gsMatrix<Scalar> res;
 
     const gsMatrix<Scalar> & eval(const index_t k) const
     {
@@ -45,8 +46,8 @@ public:
 
         onormal = _G.data().outNormal(k);
         normal =  _G.data().normal(k);
-
-        return normal.cross(onormal);
+        res = normal.cross(onormal);
+        return res;
 
         // gsMatrix<T> result(_G.data().dim.second,1);
         // result.setZero();
