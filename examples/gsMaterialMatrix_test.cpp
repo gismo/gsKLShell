@@ -15,6 +15,7 @@
 
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/gsMaterialMatrix.h>
+#include <gsKLShell/gsMaterialMatrixBase.h>
 #include <gsKLShell/gsMaterialMatrixEval.h>
 
 //#include <gsThinShell/gsNewtonIterator.h>
@@ -877,37 +878,7 @@ int main(int argc, char *argv[])
     // gsConstantFunction<> found(found_vec,3);
     // assembler->setFoundation(found);
 
-    gsStopwatch stopwatch,stopwatch2;
-    real_t time = 0.0;
-    real_t totaltime = 0.0;
-
-    // Function for the Jacobian
-    typedef std::function<gsSparseMatrix<real_t> (gsVector<real_t> const &)>    Jacobian_t;
-    typedef std::function<gsVector<real_t> (gsVector<real_t> const &) >         Residual_t;
-    Jacobian_t Jacobian = [&time,&stopwatch,&assembler,&mp_def](gsVector<real_t> const &x)
-    {
-      stopwatch.restart();
-      assembler->constructSolution(x,mp_def);
-      assembler->assembleMatrix(mp_def);
-      time += stopwatch.stop();
-      gsSparseMatrix<real_t> m = assembler->matrix();
-      return m;
-    };
-    // Function for the Residual
-    Residual_t Residual = [&time,&stopwatch,&assembler,&mp_def](gsVector<real_t> const &x)
-    {
-      stopwatch.restart();
-      assembler->constructSolution(x,mp_def);
-      assembler->assembleVector(mp_def);
-      time += stopwatch.stop();
-      return assembler->rhs();
-    };
-
-    // Define Matrices
-    stopwatch.restart();
-    stopwatch2.restart();
     assembler->assemble();
-    time += stopwatch.stop();
 
     gsSparseMatrix<> matrix = assembler->matrix();
     gsVector<> vector = assembler->rhs();
@@ -921,11 +892,8 @@ int main(int argc, char *argv[])
     solver.compute( matrix );
     solVector = solver.solve(vector);
     gsDebugVar(solVector.transpose());
-/*
 
- */
-
-    assembler->constructSolution(solVector,mp_def);
+    mp_def = assembler->constructSolution(solVector);
 
     gsVector<> pts(2);
     pts.setConstant(0.25);
@@ -950,6 +918,20 @@ int main(int argc, char *argv[])
     materialMatrixBaseB->eval_into(pts,result);
     gsDebugVar(result);
 
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC> materialMatrixEvalC(materialMatrixNonlinear);
+    materialMatrixEvalC.eval_into(pts,result);
+    gsDebugVar(result);
+    gsMaterialMatrixBase<real_t> * materialMatrixBaseC = materialMatrixNonlinear->makeMatrix(2);
+    materialMatrixBaseC->eval_into(pts,result);
+    gsDebugVar(result);
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD> materialMatrixEvalD(materialMatrixNonlinear);
+    materialMatrixEvalD.eval_into(pts,result);
+    gsDebugVar(result);
+    gsMaterialMatrixBase<real_t> * materialMatrixBaseD = materialMatrixNonlinear->makeMatrix(3);
+    materialMatrixBaseD->eval_into(pts,result);
+    gsDebugVar(result);
+
     gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> materialVectorEvalN(materialMatrixNonlinear);
     materialVectorEvalN.eval_into(pts,result);
     gsDebugVar(result);
@@ -964,137 +946,13 @@ int main(int argc, char *argv[])
     materialVectorBaseM->eval_into(pts,result);
     gsDebugVar(result);
 
-/*
 
- */
-
-    real_t residual = vector.norm();
-    real_t residual0 = residual;
-    real_t residualOld = residual;
-    gsVector<real_t> updateVector = solVector;
-    gsVector<real_t> resVec = Residual(solVector);
-    gsSparseMatrix<real_t> jacMat;
-    for (index_t it = 0; it != 100; ++it)
-    {
-        jacMat = Jacobian(solVector);
-        solver.compute(jacMat);
-        updateVector = solver.solve(resVec); // this is the UPDATE
-        solVector += updateVector;
-
-        gsDebugVar(assembler->matrix().toDense());
-        gsDebugVar(assembler->rhs().transpose());
-        gsDebugVar(updateVector.transpose());
-
-        resVec = Residual(solVector);
-        residual = resVec.norm();
-
-        gsInfo<<"Iteration: "<< it
-           <<", residue: "<< residual
-           <<", update norm: "<<updateVector.norm()
-           <<", log(Ri/R0): "<< math::log10(residualOld/residual0)
-           <<", log(Ri+1/R0): "<< math::log10(residual/residual0)
-           <<"\n";
-
-        residualOld = residual;
-
-        if (updateVector.norm() < 1e-6)
-            break;
-        else if (it+1 == it)
-            gsWarn<<"Maximum iterations reached!\n";
+    // gsDebugVar(materialMatrixNonlinear->eval3D(pts,z));
 
 
-            // ADD DIRICHLET HOMOGENIZE
-    }
 
-    totaltime += stopwatch2.stop();
-
-    mp_def = assembler->constructSolution(solVector);
-
-    gsMultiPatch<> deformation = mp_def;
-    for (size_t k = 0; k != mp_def.nPatches(); ++k)
-        deformation.patch(k).coefs() -= mp.patch(k).coefs();
-
-    if (testCase==4)
-    {
-        gsVector<> pt(2);
-        pt<<1,0;
-      gsMatrix<> lambdas = assembler->computePrincipalStretches(pt,mp_def,0);
-      real_t S = 2625 / 1e-3 / lambdas(0) / lambdas(2);
-      real_t San = mu * (math::pow(lambdas(1),2)-1/lambdas(1));
-      gsInfo<<"S = \t"<<S<<"\t San = \t"<<San<<"\t |S-San| = \t"<<abs(S-San)<<"\n";
-      gsInfo<<"lambda = \t"<<lambdas(1)<<"\t 1/lambda = \t"<<1/lambdas(1)<<"\t lambda_0 = \t"<<lambdas(0)<<"\t lambda_2 = \t"<<lambdas(2)<<"\n";
-    }
-
-
-    // ! [Export visualization in ParaView]
-    if (plot)
-    {
-        gsField<> solField(mp_def, deformation);
-        gsInfo<<"Plotting in Paraview...\n";
-        gsWriteParaview<>( solField, "solution", 1000, true);
-        // ev.options().setSwitch("plot.elements", true);
-        // ev.writeParaview( u_sol   , G, "solution");
-
-        // gsFileManager::open("solution.pvd");
-
-        gsInfo <<"Maximum deformation coef: "
-               << deformation.patch(0).coefs().colwise().maxCoeff() <<".\n";
-        gsInfo <<"Minimum deformation coef: "
-               << deformation.patch(0).coefs().colwise().minCoeff() <<".\n";
-    }
-    if (stress)
-    {
-
-        gsPiecewiseFunction<> membraneStresses;
-        assembler->constructStress(mp_def,membraneStresses,stress_type::membrane);
-        gsField<> membraneStress(mp_def,membraneStresses, true);
-
-        gsPiecewiseFunction<> flexuralStresses;
-        assembler->constructStress(mp_def,flexuralStresses,stress_type::flexural);
-        gsField<> flexuralStress(mp_def,flexuralStresses, true);
-
-        gsPiecewiseFunction<> stretches;
-        assembler->constructStress(mp_def,stretches,stress_type::principal_stretch);
-        gsField<> Stretches(mp_def,stretches, true);
-
-        // gsPiecewiseFunction<> membraneStresses_p;
-        // assembler->constructStress(mp_def,membraneStresses_p,stress_type::principal_stress_membrane);
-        // gsField<> membraneStress_p(mp_def,membraneStresses_p, true);
-
-        // gsPiecewiseFunction<> flexuralStresses_p;
-        // assembler->constructStress(mp_def,flexuralStresses_p,stress_type::principal_stress_flexural);
-        // gsField<> flexuralStress_p(mp_def,flexuralStresses_p, true);
-
-        gsPiecewiseFunction<> stretch1;
-        assembler->constructStress(mp_def,stretch1,stress_type::principal_stretch_dir1);
-        gsField<> stretchDir1(mp_def,stretch1, true);
-
-        gsPiecewiseFunction<> stretch2;
-        assembler->constructStress(mp_def,stretch2,stress_type::principal_stretch_dir2);
-        gsField<> stretchDir2(mp_def,stretch2, true);
-
-        gsPiecewiseFunction<> stretch3;
-        assembler->constructStress(mp_def,stretch3,stress_type::principal_stretch_dir3);
-        gsField<> stretchDir3(mp_def,stretch3, true);
-
-
-        gsField<> solutionField(mp,deformation, true);
-
-
-        // gsField<> stressField = assembler->constructStress(mp_def,stress_type::membrane_strain);
-
-        gsWriteParaview(solutionField,"Deformation");
-        gsWriteParaview(membraneStress,"Membrane Stress");
-        gsWriteParaview(flexuralStress,"Flexural Stress");
-        gsWriteParaview(stretchDir1,"Principal Direction 1");
-        gsWriteParaview(stretchDir2,"Principal Direction 2");
-        gsWriteParaview(stretchDir3,"Principal Direction 3");
-    }
-    gsInfo<<"Total ellapsed assembly time: \t\t"<<time<<" s\n";
-    gsInfo<<"Total ellapsed solution time (incl. assembly): \t"<<totaltime<<" s\n";
-
-    delete assembler;
-    return EXIT_SUCCESS;
+delete assembler;
+    return 0;
 
 }// end main
 
@@ -1391,51 +1249,3 @@ gsMultiPatch<T> FrustrumDomain(int n, int p, T R1, T R2, T h)
 
   return mp;
 }
-
-
-/*
-    to do:
-    =  make function for construction of the solution given the space and the mp
-*/
-
-
-
-/*
-template<class T>
-void gsShellAssembler<T>::applyLoads()
-{
-    gsMatrix<T>        bVals;
-    gsMatrix<unsigned> acts,globalActs;
-
-    for (size_t i = 0; i< m_pLoads.numLoads(); ++i )
-    {
-        if ( m_pLoads[i].parametric )
-        {
-            m_bases.front().basis(m_pLoads[i].patch).active_into( m_pLoads[i].point, acts );
-            m_bases.front().basis(m_pLoads[i].patch).eval_into  ( m_pLoads[i].point, bVals);
-        }
-        else
-        {
-            gsMatrix<> forcePoint;
-            m_patches.patch(m_pLoads[i].patch).invertPoints(m_pLoads[i].point,forcePoint);
-            u.source().piece(m_pLoads[i].patch).active_into( forcePoint, acts );
-            u.source().piece(m_pLoads[i].patch).active_into( forcePoint, bVals);
-        }
-
-        // translate patch-local indices to global dof indices
-        for (size_t j = 0; j< 3; ++j)
-        {
-            if (m_pLoads[i].value[j] != 0.0)
-            {
-                u.dofMappers[j].localToGlobal(acts, m_pLoads[i].patch, globalActs);
-
-                for (index_t k=0; k < globalActs.rows(); ++k)
-                {
-                    if (int(globalActs(k,0)) < m_dofs)
-                        m_rhs(globalActs(k,0), 0) += bVals(k,0) * m_pLoads[i].value[j];
-                }
-            }
-        }
-    }
-}
-*/

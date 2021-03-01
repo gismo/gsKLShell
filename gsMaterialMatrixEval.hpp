@@ -24,6 +24,7 @@
 #pragma once
 
 #include <gsKLShell/gsMaterialMatrixEval.h>
+#include <gsAssembler/gsGaussRule.h>
 
 namespace gismo
 {
@@ -139,11 +140,10 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::VectorN || _out==MaterialOutput::VectorM, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    this->integrateZ_into(u,getMoment(),result);
-    // m_materialMat->setOutputType(1);
-    // m_materialMat->setOutput(getMoment());
-    // m_materialMat->eval_into_NP(u,result);
-    // m_materialMat->eval_into_vector(u,result);
+    // this->integrateZ_into(u,getMoment(),result);
+    m_materialMat->setOutputType(1);
+    m_materialMat->setOutput(getMoment());
+    m_materialMat->eval_into_NP(u,result);
 }
 
 template <class T, enum MaterialOutput out>
@@ -152,11 +152,10 @@ typename std::enable_if<   _out==MaterialOutput::MatrixA || _out==MaterialOutput
                         || _out==MaterialOutput::MatrixC || _out==MaterialOutput::MatrixD, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    this->integrateZ_into(u,getMoment(),result);
-    // m_materialMat->setOutputType(2);
-    // m_materialMat->setOutput(getMoment());
-    // m_materialMat->eval_into_NP(u,result);
-    // m_materialMat->eval_into_matrix(u,result);
+    // this->integrateZ_into(u,getMoment(),result);
+    m_materialMat->setOutputType(2);
+    m_materialMat->setOutput(getMoment());
+    m_materialMat->eval_into_NP(u,result);
 }
 
 template <class T, enum MaterialOutput out>
@@ -164,11 +163,10 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::PStressN || _out==MaterialOutput::PStressM, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    this->integrateZ_into(u,getMoment(),result);
-    // m_materialMat->setOutputType(10);
-    // m_materialMat->setOutput(getMoment());
-    // m_materialMat->eval_into_NP(u,result);
-    // m_materialMat->eval_into_pstress(u,result);
+    // this->integrateZ_into(u,getMoment(),result);
+    m_materialMat->setOutputType(10);
+    m_materialMat->setOutput(getMoment());
+    m_materialMat->eval_into_NP(u,result);
 }
 
 template <class T, enum MaterialOutput out>

@@ -17,6 +17,7 @@
 
 #include <gsCore/gsFunction.h>
 #include <gsKLShell/gsMaterialMatrixUtils.h>
+#include <gsIO/gsOptionList.h>
 
 namespace gismo
 {
@@ -125,7 +126,7 @@ protected:
 // private:
 
 
-protected:
+public:
 
     gsMatrix<T> eval3D(const gsMatrix<T>& u, const gsMatrix<T>& Z) const;
 
