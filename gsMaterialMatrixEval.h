@@ -31,29 +31,29 @@ public:
 
     gsMaterialMatrixEval( gsMaterialMatrixBase<T> * materialMatrix);
 
-    short_t domainDim() const;
+    short_t domainDim() const;// { return 2; }
 
     // template OUT
-    short_t targetDim() const;
+    short_t targetDim() const;// { return getMoment_impl<out>(); }
 
 private:
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::Density   , short_t>::type targetDim_impl() const;
+    typename std::enable_if<_out==MaterialOutput::Density   , short_t>::type targetDim_impl() const;// { return 1; };
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorN ||
-                            _out==MaterialOutput::VectorM   , short_t>::type targetDim_impl() const;
+                            _out==MaterialOutput::VectorM   , short_t>::type targetDim_impl() const;// { return 3; };
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::MatrixA ||
                             _out==MaterialOutput::MatrixB ||
                             _out==MaterialOutput::MatrixC ||
-                            _out==MaterialOutput::MatrixD   , short_t>::type targetDim_impl() const;
+                            _out==MaterialOutput::MatrixD   , short_t>::type targetDim_impl() const;// { return 9; };
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::PStressN ||
-                            _out==MaterialOutput::PStressM  , short_t>::type targetDim_impl() const;
+                            _out==MaterialOutput::PStressM  , short_t>::type targetDim_impl() const;// { return 2; };
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::Stretch   , short_t>::type targetDim_impl() const;
+    typename std::enable_if<_out==MaterialOutput::Stretch   , short_t>::type targetDim_impl() const;// { return 3; };
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::StretchDir, short_t>::type targetDim_impl() const;
+    typename std::enable_if<_out==MaterialOutput::StretchDir, short_t>::type targetDim_impl() const;// { return 9; };
 
 public:
     const gsFunction<T> & piece(const index_t p) const
@@ -76,9 +76,11 @@ public:
 private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Density   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorN ||
                             _out==MaterialOutput::VectorM   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::MatrixA ||
                             _out==MaterialOutput::MatrixB ||
@@ -94,21 +96,28 @@ private:
 
 public:
 
-    index_t getMoment() const { return getMoment_impl<out>(); }
+    T getMoment() const { return getMoment_impl<out>(); }
 
 private:
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::VectorN, index_t>::type getMoment_impl() const { return 0; };
+    typename std::enable_if<_out==MaterialOutput::VectorN, T>::type getMoment_impl() const { return 0; };
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::VectorM, index_t>::type getMoment_impl() const { return 1; };
+    typename std::enable_if<_out==MaterialOutput::VectorM, T>::type getMoment_impl() const
+    {
+        if (m_materialMat->material()==Material::SvK)
+            return 2;
+        else
+            return 1;
+
+    };
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::MatrixA, index_t>::type getMoment_impl() const { return 0; };
+    typename std::enable_if<_out==MaterialOutput::MatrixA, T>::type getMoment_impl() const { return 0; };
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::MatrixB, index_t>::type getMoment_impl() const { return 1; };
+    typename std::enable_if<_out==MaterialOutput::MatrixB, T>::type getMoment_impl() const { return 1; };
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::MatrixC, index_t>::type getMoment_impl() const { return 2; }; // must be 1
+    typename std::enable_if<_out==MaterialOutput::MatrixC, T>::type getMoment_impl() const { return 1; }; // must be 1
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::MatrixD, index_t>::type getMoment_impl() const { return 3; }; // must be 2
+    typename std::enable_if<_out==MaterialOutput::MatrixD, T>::type getMoment_impl() const { return 2; }; // must be 2
     template<enum MaterialOutput _out>
     typename std::enable_if<!(_out==MaterialOutput::VectorN || _out==MaterialOutput::VectorM ||
                               _out==MaterialOutput::MatrixA || _out==MaterialOutput::MatrixB ||
@@ -116,12 +125,13 @@ private:
                               _out==MaterialOutput::PStressN|| _out==MaterialOutput::PStressM  )
                                                  , index_t>::type getMoment_impl() const { GISMO_NO_IMPLEMENTATION};
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::PStressN, index_t>::type getMoment_impl() const { return 0; };
+    typename std::enable_if<_out==MaterialOutput::PStressN, T>::type getMoment_impl() const { return 0; };
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::PStressM, index_t>::type getMoment_impl() const { return 1; };
+    typename std::enable_if<_out==MaterialOutput::PStressM, T>::type getMoment_impl() const { return 1; };
 
 protected:
     void integrateZ_into(const gsMatrix<T> & u, const index_t moment, gsMatrix<T> & result) const;
+    void multiplyZ_into(const gsMatrix<T> & u, index_t moment, gsMatrix<T> & result) const;
 
 // private:
 
@@ -129,6 +139,7 @@ protected:
 public:
 
     gsMatrix<T> eval3D(const gsMatrix<T>& u, const gsMatrix<T>& Z) const;
+    gsMatrix<T> eval3D(const gsMatrix<T>& u) const;
 
 private:
     template<enum MaterialOutput _out>

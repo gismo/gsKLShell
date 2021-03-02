@@ -5,6 +5,10 @@
 #include <gsKLShell/gsMaterialMatrix.h>
 #include <gsKLShell/gsMaterialMatrix.hpp>
 
+// #include <gsKLShell/gsMaterialMatrixLinear.h>CLASS_TEMPLATE_INST gsMaterialMatrix<3,real_t,10,true>;
+// #include <gsKLShell/gsMaterialMatrixLinear.hpp>
+
+
 namespace gismo
 {
   // Material matrix <dimension, real_t, material model, compressibility>
@@ -33,6 +37,7 @@ namespace gismo
   // CLASS_TEMPLATE_INST gsMaterialMatrix<2,real_t,33,false>;
   // CLASS_TEMPLATE_INST gsMaterialMatrix<2,real_t,34,false>;
 
+  // CLASS_TEMPLATE_INST gsMaterialMatrixLinear<3,real_t>;
   CLASS_TEMPLATE_INST gsMaterialMatrix<3,real_t,10,true>;
   CLASS_TEMPLATE_INST gsMaterialMatrix<3,real_t,11,true>;
   CLASS_TEMPLATE_INST gsMaterialMatrix<3,real_t,21,true>;
@@ -45,6 +50,7 @@ namespace gismo
   // CLASS_TEMPLATE_INST gsMaterialMatrix<3,real_t,33,true>;
   // CLASS_TEMPLATE_INST gsMaterialMatrix<3,real_t,34,true>;
 
+  // CLASS_TEMPLATE_INST gsMaterialMatrixLinear<3,real_t>;
   CLASS_TEMPLATE_INST gsMaterialMatrix<3,real_t,10,false>;
   CLASS_TEMPLATE_INST gsMaterialMatrix<3,real_t,11,false>;
   CLASS_TEMPLATE_INST gsMaterialMatrix<3,real_t,21,false>;

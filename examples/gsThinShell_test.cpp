@@ -921,52 +921,6 @@ int main(int argc, char *argv[])
     solver.compute( matrix );
     solVector = solver.solve(vector);
     gsDebugVar(solVector.transpose());
-/*
-
- */
-
-    assembler->constructSolution(solVector,mp_def);
-
-    gsVector<> pts(2);
-    pts.setConstant(0.25);
-
-    gsVector<> z(1);
-    z<<0.0;
-
-    gsMatrix<> result;
-
-
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> materialMatrixEvalA(materialMatrixNonlinear);
-    materialMatrixEvalA.eval_into(pts,result);
-    gsDebugVar(result);
-    gsMaterialMatrixBase<real_t> * materialMatrixBaseA = materialMatrixNonlinear->makeMatrix(0);
-    materialMatrixBaseA->eval_into(pts,result);
-    gsDebugVar(result);
-
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB> materialMatrixEvalB(materialMatrixNonlinear);
-    materialMatrixEvalB.eval_into(pts,result);
-    gsDebugVar(result);
-    gsMaterialMatrixBase<real_t> * materialMatrixBaseB = materialMatrixNonlinear->makeMatrix(1);
-    materialMatrixBaseB->eval_into(pts,result);
-    gsDebugVar(result);
-
-    gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> materialVectorEvalN(materialMatrixNonlinear);
-    materialVectorEvalN.eval_into(pts,result);
-    gsDebugVar(result);
-    gsMaterialMatrixBase<real_t> * materialVectorBaseN = materialMatrixNonlinear->makeVector(0);
-    materialVectorBaseN->eval_into(pts,result);
-    gsDebugVar(result);
-
-    gsMaterialMatrixEval<real_t,MaterialOutput::VectorM> materialVectorEvalM(materialMatrixNonlinear);
-    materialVectorEvalM.eval_into(pts,result);
-    gsDebugVar(result);
-    gsMaterialMatrixBase<real_t> * materialVectorBaseM = materialMatrixNonlinear->makeVector(1);
-    materialVectorBaseM->eval_into(pts,result);
-    gsDebugVar(result);
-
-/*
-
- */
 
     real_t residual = vector.norm();
     real_t residual0 = residual;

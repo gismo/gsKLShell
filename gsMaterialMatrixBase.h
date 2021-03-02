@@ -22,13 +22,15 @@ namespace gismo
 {
 
 template <class T>
-class gsMaterialMatrixBase : public gsFunction<T>
+class gsMaterialMatrixBase
 {
 public:
     virtual ~gsMaterialMatrixBase() {};
 
     // GISMO_CLONE_FUNCTION(gsMaterialMatrixBase)
 
+    inline virtual enum Material material() const = 0;
+    inline virtual void setMoment(const index_t moment) const = 0;
 
     inline virtual gsOptionList & options() = 0;
     inline virtual void setOptions(gsOptionList opt) = 0;
@@ -38,39 +40,18 @@ public:
     // template OUT
     inline virtual short_t targetDim() const = 0;
 
-    inline virtual const gsFunction<T> & piece(const index_t p) const = 0;
+    inline virtual void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual void thickness_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
 
-    inline virtual void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
-    inline virtual void density_into(const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
-    // inline virtual void eval_into_vector(const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
-    // inline virtual void eval_into_matrix(const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
-    // inline virtual void eval_into_pstress(const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
-    inline virtual void stretch_into(const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
-    inline virtual void stretchDir_into(const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
-    inline virtual void eval_into_NP(const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
-    inline virtual void thickness_into(const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z) const = 0;
+    inline virtual gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z) const = 0;
+    inline virtual gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z) const = 0;
 
-    inline virtual gsMatrix<T> eval3D_matrix(const gsMatrix<T>& u, const gsMatrix<T>& z) const = 0;
-    inline virtual gsMatrix<T> eval3D_vector(const gsMatrix<T>& u, const gsMatrix<T>& z) const = 0;
-    inline virtual gsMatrix<T> eval3D_pstress(const gsMatrix<T>& u, const gsMatrix<T>& z) const = 0;
-
-
-    // template<short_t num=0>
-    inline virtual gsMaterialMatrixBase * makeMatrix(short_t num) = 0;
-    // template<short_t num=0>
-    inline virtual gsMaterialMatrixBase * makeVector(short_t num) = 0;
-    // template<short_t num=0>
-    inline virtual gsMaterialMatrixBase * makePrincipleStress(short_t num) = 0;
-
-    inline virtual gsMaterialMatrixBase * makeDensity() = 0;
-    inline virtual gsMaterialMatrixBase * makeStretch() = 0;
-    inline virtual gsMaterialMatrixBase * makeDirections() = 0;
 
     inline virtual void setParameters(const std::vector<gsFunction<T>*> &pars) =0;
     inline virtual void info() const = 0;
-
-    inline virtual void setOutputType(index_t num) = 0;
-    inline virtual void setOutput(index_t num) = 0;
 };
 
 } // namespace
