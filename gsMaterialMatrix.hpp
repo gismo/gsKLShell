@@ -29,17 +29,6 @@
 namespace gismo
 {
 
-// ?
-int delta(const int a, const int b)
-{
-    return (a==b) ? 1 : 0;
-}
-
-int idelta(const int a, const int b)
-{
-    return (a!=b) ? 1 : 0;
-}
-
 // Linear material models
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(

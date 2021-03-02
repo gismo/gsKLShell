@@ -16,6 +16,7 @@
 #pragma once
 
 #include <gsCore/gsFunction.h>
+#include <gsKLShell/gsMaterialMatrixLinear.h>
 #include <gsKLShell/gsMaterialMatrixUtils.h>
 #include <gsIO/gsOptionList.h>
 

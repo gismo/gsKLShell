@@ -159,11 +159,11 @@ typename std::enable_if<   _out==MaterialOutput::MatrixA || _out==MaterialOutput
                         || _out==MaterialOutput::MatrixC || _out==MaterialOutput::MatrixD, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    // if (util::is_same<typeid(m_materialMat),gsMaterialMatrixLinear<2,T> > || util::is_same<typeid(m_materialMat),gsMaterialMatrixLinear<3,T> >)
-    //     this->multiplyZ_into(u,getMoment(),result);
-    // else
-    if (m_materialMat->material()==Material::SvK)
+    if (typeid(*m_materialMat) == typeid(gsMaterialMatrixLinear<2,T>) || typeid(*m_materialMat) == typeid(gsMaterialMatrixLinear<3,T>))
         this->multiplyZ_into(u,getMoment(),result);
+    // else
+    // if (m_materialMat->material()==Material::SvK)
+    //     this->multiplyZ_into(u,getMoment(),result);
     else
         this->integrateZ_into(u,getMoment(),result);
 }

@@ -24,6 +24,7 @@
 namespace gismo
 {
 
+
 /** @brief Assembles system matrices for thin shell linear and nonlinear elasticity problems.
 
     \tparam T coefficient type
@@ -632,7 +633,16 @@ protected:
     mutable int m_compFun;
     mutable int m_outputType, m_output;
 
+private:
+    static int delta(const int a, const int b)
+    {
+        return (a==b) ? 1 : 0;
+    }
 
+    static int idelta(const int a, const int b)
+    {
+        return (a!=b) ? 1 : 0;
+    }
 };
 
 } // namespace
