@@ -15,6 +15,7 @@
 
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/gsMaterialMatrix.h>
+#include <gsKLShell/gsMaterialMatrixLinear.h>
 #include <gsKLShell/gsMaterialMatrixBase.h>
 #include <gsKLShell/gsMaterialMatrixEval.h>
 
@@ -736,6 +737,9 @@ int main(int argc, char *argv[])
     parameters[1] = &nu;
     parameters[2] = &ratio;
     gsMaterialMatrixBase<real_t>* materialMatrixNonlinear;
+    gsMaterialMatrixBase<real_t>* materialMatrixLinear;
+
+    materialMatrixLinear = new gsMaterialMatrixLinear<3,real_t>(mp,mp_def,t,parameters,rho);
 
     if (material==0)
     {
@@ -904,51 +908,97 @@ int main(int argc, char *argv[])
     gsMatrix<> result;
 
 
+    // gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> materialMatrixEvalA(materialMatrixNonlinear);
+    // materialMatrixEvalA.eval_into(pts,result);
+    // gsDebugVar(result);
+    // gsMaterialMatrixBase<real_t> * materialMatrixBaseA = materialMatrixNonlinear->makeMatrix(0);
+    // materialMatrixBaseA->eval_into(pts,result);
+    // gsDebugVar(result);
+
+    // gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB> materialMatrixEvalB(materialMatrixNonlinear);
+    // materialMatrixEvalB.eval_into(pts,result);
+    // gsDebugVar(result);
+    // gsMaterialMatrixBase<real_t> * materialMatrixBaseB = materialMatrixNonlinear->makeMatrix(1);
+    // materialMatrixBaseB->eval_into(pts,result);
+    // gsDebugVar(result);
+
+    // gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC> materialMatrixEvalC(materialMatrixNonlinear);
+    // materialMatrixEvalC.eval_into(pts,result);
+    // gsDebugVar(result);
+    // gsMaterialMatrixBase<real_t> * materialMatrixBaseC = materialMatrixNonlinear->makeMatrix(2);
+    // materialMatrixBaseC->eval_into(pts,result);
+    // gsDebugVar(result);
+
+    // gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD> materialMatrixEvalD(materialMatrixNonlinear);
+    // materialMatrixEvalD.eval_into(pts,result);
+    // gsDebugVar(result);
+    // gsMaterialMatrixBase<real_t> * materialMatrixBaseD = materialMatrixNonlinear->makeMatrix(3);
+    // materialMatrixBaseD->eval_into(pts,result);
+    // gsDebugVar(result);
+
+    // gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> materialVectorEvalN(materialMatrixNonlinear);
+    // materialVectorEvalN.eval_into(pts,result);
+    // gsDebugVar(result);
+    // gsMaterialMatrixBase<real_t> * materialVectorBaseN = materialMatrixNonlinear->makeVector(0);
+    // materialVectorBaseN->eval_into(pts,result);
+    // gsDebugVar(result);
+
+    // gsMaterialMatrixEval<real_t,MaterialOutput::VectorM> materialVectorEvalM(materialMatrixNonlinear);
+    // materialVectorEvalM.eval_into(pts,result);
+    // gsDebugVar(result);
+    // gsMaterialMatrixBase<real_t> * materialVectorBaseM = materialMatrixNonlinear->makeVector(1);
+    // materialVectorBaseM->eval_into(pts,result);
+    // gsDebugVar(result);
+
     gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> materialMatrixEvalA(materialMatrixNonlinear);
     materialMatrixEvalA.eval_into(pts,result);
-    gsDebugVar(result);
-    gsMaterialMatrixBase<real_t> * materialMatrixBaseA = materialMatrixNonlinear->makeMatrix(0);
-    materialMatrixBaseA->eval_into(pts,result);
     gsDebugVar(result);
 
     gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB> materialMatrixEvalB(materialMatrixNonlinear);
     materialMatrixEvalB.eval_into(pts,result);
     gsDebugVar(result);
-    gsMaterialMatrixBase<real_t> * materialMatrixBaseB = materialMatrixNonlinear->makeMatrix(1);
-    materialMatrixBaseB->eval_into(pts,result);
-    gsDebugVar(result);
 
     gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC> materialMatrixEvalC(materialMatrixNonlinear);
     materialMatrixEvalC.eval_into(pts,result);
-    gsDebugVar(result);
-    gsMaterialMatrixBase<real_t> * materialMatrixBaseC = materialMatrixNonlinear->makeMatrix(2);
-    materialMatrixBaseC->eval_into(pts,result);
     gsDebugVar(result);
 
     gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD> materialMatrixEvalD(materialMatrixNonlinear);
     materialMatrixEvalD.eval_into(pts,result);
     gsDebugVar(result);
-    gsMaterialMatrixBase<real_t> * materialMatrixBaseD = materialMatrixNonlinear->makeMatrix(3);
-    materialMatrixBaseD->eval_into(pts,result);
-    gsDebugVar(result);
 
     gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> materialVectorEvalN(materialMatrixNonlinear);
     materialVectorEvalN.eval_into(pts,result);
-    gsDebugVar(result);
-    gsMaterialMatrixBase<real_t> * materialVectorBaseN = materialMatrixNonlinear->makeVector(0);
-    materialVectorBaseN->eval_into(pts,result);
     gsDebugVar(result);
 
     gsMaterialMatrixEval<real_t,MaterialOutput::VectorM> materialVectorEvalM(materialMatrixNonlinear);
     materialVectorEvalM.eval_into(pts,result);
     gsDebugVar(result);
-    gsMaterialMatrixBase<real_t> * materialVectorBaseM = materialMatrixNonlinear->makeVector(1);
-    materialVectorBaseM->eval_into(pts,result);
+
+    gsDebug<<"======================================================\n";
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> materialMatrixEvalA_lin(materialMatrixLinear);
+    materialMatrixEvalA_lin.eval_into(pts,result);
     gsDebugVar(result);
 
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB> materialMatrixEvalB_lin(materialMatrixLinear);
+    materialMatrixEvalB_lin.eval_into(pts,result);
+    gsDebugVar(result);
 
-    // gsDebugVar(materialMatrixNonlinear->eval3D(pts,z));
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC> materialMatrixEvalC_lin(materialMatrixLinear);
+    materialMatrixEvalC_lin.eval_into(pts,result);
+    gsDebugVar(result);
 
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD> materialMatrixEvalD_lin(materialMatrixLinear);
+    materialMatrixEvalD_lin.eval_into(pts,result);
+    gsDebugVar(result);
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> materialVectorEvalN_lin(materialMatrixLinear);
+    materialVectorEvalN_lin.eval_into(pts,result);
+    gsDebugVar(result);
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::VectorM> materialVectorEvalM_lin(materialMatrixLinear);
+    materialVectorEvalM_lin.eval_into(pts,result);
+    gsDebugVar(result);
 
 
 delete assembler;

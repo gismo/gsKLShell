@@ -140,15 +140,18 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::VectorN || _out==MaterialOutput::VectorM, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    if (m_materialMat->material()==Material::SvK)
-    {
-        if (_out==MaterialOutput::VectorN)
-            m_materialMat->setMoment(0);
-        else if (_out==MaterialOutput::VectorM)
-            m_materialMat->setMoment(2);
+    if (typeid(*m_materialMat) == typeid(gsMaterialMatrixLinear<2,T>) || typeid(*m_materialMat) == typeid(gsMaterialMatrixLinear<3,T>))
+        this->multiplyLinZ_into(u,getMoment(),result);
 
-        this->multiplyZ_into(u,getMoment(),result);
-    }
+    // if (m_materialMat->material()==Material::SvK)
+    // {
+    //     if (_out==MaterialOutput::VectorN)
+    //         m_materialMat->setMoment(0);
+    //     else if (_out==MaterialOutput::VectorM)
+    //         m_materialMat->setMoment(2);
+
+    //     this->multiplyZ_into(u,getMoment(),result);
+    // }
     else
         this->integrateZ_into(u,getMoment(),result);
 }
@@ -160,12 +163,12 @@ typename std::enable_if<   _out==MaterialOutput::MatrixA || _out==MaterialOutput
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     if (typeid(*m_materialMat) == typeid(gsMaterialMatrixLinear<2,T>) || typeid(*m_materialMat) == typeid(gsMaterialMatrixLinear<3,T>))
-        this->multiplyZ_into(u,getMoment(),result);
+        this->multiplyLinZ_into(u,getMoment(),result);
+    else
+        this->integrateZ_into(u,getMoment(),result);
     // else
     // if (m_materialMat->material()==Material::SvK)
     //     this->multiplyZ_into(u,getMoment(),result);
-    else
-        this->integrateZ_into(u,getMoment(),result);
 }
 
 template <class T, enum MaterialOutput out>
@@ -198,11 +201,6 @@ void gsMaterialMatrixEval<T,out>::integrateZ_into(const gsMatrix<T>& u, const in
     // Input: points in R2
     // Ouput: results in targetDim
 
-/*
-    !!!!!!!!!!!!!!!!!!!
-    if ((m_output==1) && (m_outputType==1) && mat==Material::SvK)
-        m_moment = 2; // NEEDED SINCE m_moment=2 IS FOR THE OUTPUT OF THE M TENSOR, WHICH IN FACT HAS MOMENT 2. THIS IS BY CHOICE OF THE COMPUTATION OF THE STRAINS IN THE Sij() FUNCTION
-*/
     // Perform integration
     index_t numGauss = m_materialMat->options().askInt("NumGauss",4);
 
@@ -246,11 +244,46 @@ void gsMaterialMatrixEval<T,out>::integrateZ_into(const gsMatrix<T>& u, const in
     }
 }
 
+
+/*
+ * WARNING: This function assumes the function to be integrated: f(z,...) = g(,...) + z h(...)
+ */
+template <class T, enum MaterialOutput out>
+void gsMaterialMatrixEval<T,out>::multiplyLinZ_into(const gsMatrix<T>& u, const index_t moment, gsMatrix<T>& result) const
+{
+    // Input: points in R2
+    // Ouput: results in targetDim
+    result.resize(this->targetDim(),u.cols());
+
+    gsMatrix<T> z(2,u.cols());
+    gsMatrix<T> Tmat;
+    m_materialMat->thickness_into(m_pIndex,u,Tmat);
+
+    T Thalf;
+    // pre-compute Z
+    for (index_t k = 0; k != u.cols(); ++k) // for all points
+    {
+        Thalf = Tmat(0,k)/2.0;
+        z.col(k)<<Thalf,-Thalf;
+    }
+
+    T fac = (moment % 2 == 0) ? 0. : 1.;
+
+    gsMatrix<T> vals = this->eval3D(u,z);
+    for (index_t k = 0; k != u.cols(); ++k) // for all points
+    {
+            // 1/(alpha+1) * [ (t/2)^(alpha+1) * g(...)  - (-t/2)^(alpha+1) * g(...) ]
+            // 1/(alpha+2) * [ (t/2)^(alpha+1) * h(...)  - (-t/2)^(alpha+1) * h(...) ]
+            result.col(k) = 1.0/(moment+fac+1) *
+                            ( math::pow( z(0,k), moment + 1) * vals.col(0*u.cols() + k)
+                                - math::pow( z(1,k), moment + 1) * vals.col(1*u.cols() + k) );
+    }
+
+}
+
 template <class T, enum MaterialOutput out>
 void gsMaterialMatrixEval<T,out>::multiplyZ_into(const gsMatrix<T>& u, index_t moment, gsMatrix<T>& result) const
 {
-    if (out==MaterialOutput::VectorM)
-        moment = 2; // NEEDED SINCE m_moment=2 IS FOR THE OUTPUT OF THE M TENSOR, WHICH IN FACT HAS MOMENT 2. THIS IS BY CHOICE OF THE COMPUTATION OF THE STRAINS IN THE Sij() FUNCTION
     // Input: points in R2
     // Ouput: results in targetDim
     result.resize(this->targetDim(),u.cols());

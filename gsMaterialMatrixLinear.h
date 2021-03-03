@@ -19,7 +19,6 @@
 #include <gsKLShell/gsMaterialMatrixUtils.h>
 #include <gsIO/gsOptionList.h>
 #include <gsCore/gsFuncData.h>
-#include <gsAssembler/gsGaussRule.h>
 
 namespace gismo
 {
@@ -144,7 +143,7 @@ protected:
     // template MAT
     T Cijkl  (const index_t i, const index_t j, const index_t k, const index_t l) const;
     // template MAT
-    T Sij    (const index_t i, const index_t j) const;
+    T Sij    (const index_t i, const index_t j, const T z) const;
 
     // template MAT
     void computePoints(const index_t patch, const gsMatrix<T> & u, bool deformed=true) const;

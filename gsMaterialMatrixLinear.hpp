@@ -137,7 +137,7 @@ void gsMaterialMatrixLinear<dim,T>::initialize()
     m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
 
     // Initialize some parameters
-    m_moment = 0;
+    m_moment = -1;
     m_outputType = 2;
     m_output = 0; // initialize output type
     m_numPars = m_pars.size();
@@ -268,9 +268,9 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, co
                 // this->computeMetric(i,z.at(j),true,true);
                 this->getMetric(k,z(j,k)); // on point i, on height z(0,j)
 
-                result(0,j*u.cols()+k) = Sij(0,0);
-                result(1,j*u.cols()+k) = Sij(1,1);
-                result(2,j*u.cols()+k) = Sij(0,1);
+                result(0,j*u.cols()+k) = Sij(0,0,z(j,k));
+                result(1,j*u.cols()+k) = Sij(1,1,z(j,k));
+                result(2,j*u.cols()+k) = Sij(0,1,z(j,k));
         }
     }
 
@@ -322,31 +322,27 @@ T gsMaterialMatrixLinear<dim,T>::Cijkl(const index_t i, const index_t j, const i
 }
 
 template <short_t dim, class T >
-T gsMaterialMatrixLinear<dim,T>::Sij(const index_t i, const index_t j) const
+T gsMaterialMatrixLinear<dim,T>::Sij(const index_t i, const index_t j, const T z) const
 {
     gsMatrix<T> stress;
     // --------------------------
     // Saint Venant Kirchhoff
     // --------------------------
-    if (m_moment==0)
-    {
-        GISMO_ENSURE( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
-        stress = 0.5*(m_Acov_def - m_Acov_ori);
-    }
-    else if (m_moment==2)
-    {
-        GISMO_ENSURE( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
-        stress = (m_Bcov_ori - m_Bcov_def);
-    }
-    else
-    {
-        stress.resize(2,2);
-        stress.setZero();
+    // if (m_moment==0)
+    // {
+    //     GISMO_ENSURE( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
+    //     stress = 0.5*(m_Acov_def - m_Acov_ori);
+    // }
+    // else if (m_moment==2)
+    // {
+    //     GISMO_ENSURE( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
+    //     stress = (m_Bcov_ori - m_Bcov_def);
+    // }
+    // else
+    // {
+        stress = 0.5*(m_Acov_def - m_Acov_ori) + z*(m_Bcov_ori - m_Bcov_def);
         // GISMO_ERROR("Warning: no material model known in simplification, m_moment="<<m_moment);
-    }
-
-    // ALTERNATIVE
-    // stress = 0.5 * (m_Gcov_def_L - m_Gcov_ori_L);
+    // }
 
     T result =  Cijkl(i,j,0,0) * stress(0,0) + Cijkl(i,j,0,1) * stress(0,1)
                 + Cijkl(i,j,1,0) * stress(1,0) + Cijkl(i,j,1,1) * stress(1,1);

@@ -105,9 +105,9 @@ private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorM, T>::type getMoment_impl() const
     {
-        if (m_materialMat->material()==Material::SvK)
-            return 2;
-        else
+        // if (m_materialMat->material()==Material::SvK)
+        //     return 2;
+        // else
             return 1;
 
     };
@@ -132,6 +132,47 @@ private:
 
 protected:
     void integrateZ_into(const gsMatrix<T> & u, const index_t moment, gsMatrix<T> & result) const;
+
+
+    /**
+     * @brief      Uses the top and bottom parts of the thickness to compute the integral exactly
+     *
+     * This function assumes that the function \f$ h(z,...) \f$ to be integrated is of the form \f$ h(z,...) = f(...) + z g(...)\f$ (no higher-order terms!). This implies that \f$f(...)\f$ is the even part and \f$z g(...)\f$ is the odd part of h. Writing out the thickness integral for a moment \f$\alpha\f$ gives:
+      \f{eqnarray*}{
+            \int_{-t/2}^{t/2} z^\alpha h(z,...)\:\text{d}\z &= \int_{-t/2}^{t/2} z^\alpha f(...) + z^{\alpha+1} g(...)\:\text{d}\z \\
+             & = \frac{z^{\alpha+1}}{\alpha+1} f(...) + \frac{z^{\alpha+2}}{\alpha+2} g(...) \bigg\vert_{t/2}^{t/2} \\
+             & = \frac{z^{\alpha+1}}{\alpha+1} f(...) + \frac{z^{\alpha+1}}{\alpha+2} zg(...) \bigg\vert_{t/2}^{t/2} \\
+             & = \frac{1}{\alpha+1} \left[ \left(\frac{t}{2}\right)^{\alpha+1} - \left(-\frac{t}{2}\right)^{\alpha+1} \right]f(...) + \frac{1}{\alpha+2}\left[ \left(\frac{t}{2}\right)^{\alpha+2} - \left(-\frac{t}{2}\right)^{\alpha+2} \right] g(...) \bigg\vert_{t/2}^{t/2} \\
+      \f}
+      From this we observe that for \f$\alpha\f$ odd, the part of \f$f\f$ contributes, whereas for \f$\alpha\f$ even, the \f$g\f$ part contributes. Remember our assumption on the form of \f$h(z,...)\f$, then we can integrate this function by evaluating the following:
+      \f{eqnarray*}{
+            \int_{-t/2}^{t/2} z^\alpha h(z,...)\:\text{d}\z =
+            \begin{dcases}
+                \frac{1}{\alpha+1} \left[ \left(\frac{t}{2}\right)^{\alpha+1} - \left(-\frac{t}{2}\right)^{\alpha+1} \right]h(...) & \text{} if $\alpha$ is odd} \\
+                \frac{1}{\alpha+2}\left[ \left(\frac{t}{2}\right)^{\alpha+1} - \left(-\frac{t}{2}\right)^{\alpha+1} \right] h(...) & \text{} if $\alpha$ is even}
+            \end{dcases}
+      \f}
+     *
+     * @param[in]  u       evaluation points (in plane)
+     * @param[in]  moment  moment to be taken
+     * @param      result  the result
+     */
+    void multiplyLinZ_into(const gsMatrix<T> & u, const index_t moment, gsMatrix<T> & result) const;
+
+    /**
+     * @brief      Multiplies the evaluation at z=0 with  2.0/(moment+1) * Thalf^(moment + 1)
+     *
+     * WARNING: Recommended use only for constant functions over thickness.
+     *
+     * The function assumes that moments are handled inside the evaluation. For example, when we want to integrate \f$f(z,...) = g(...) + zh(...)\f$ with different moments, then for moment 0, the function assumes that \f$g(...)\f$ is evaluated, for moment 1, the function assumes that nothing is returned and for moment 2, it assumes that \f$h\f$ is returned.
+     *
+     * The function is equivalent to \ref multiplyLinZ_into when moment = 2 here and moment = 1 in \ref multiplyLinZ_into (given that the correct function is returned).
+     *
+     *
+     * @param[in]  u       evaluation points (in plane)
+     * @param[in]  moment  moment to be taken
+     * @param      result  the result
+     */
     void multiplyZ_into(const gsMatrix<T> & u, index_t moment, gsMatrix<T> & result) const;
 
 // private:
