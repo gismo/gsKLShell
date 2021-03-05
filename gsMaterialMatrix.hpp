@@ -440,7 +440,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::stretchDir_into_impl(const gsMatrix<
             {
                 res = evalStretch(c);
                 result.col(i) = res.second.reshape(9,1);
-                gsDebugVar(res.second.reshape(9,1));
+                // gsDebugVar(res.second.reshape(9,1));
                 break;
             }
             GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, abs(dc33) = "<<abs(dc33)<<" and tolerance = "<<tol<<"\n");
@@ -1684,6 +1684,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval_Compressible_matrix
             c.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
             c(2,2) = math::pow(m_J0_sq,-1.0); // c33
             // c(2,2) = 1.0; // c33
+            cinv.setZero();
             cinv.block(0,0,2,2) = m_Gcon_def.block(0,0,2,2);
             cinv(2,2) = 1.0/c(2,2);
 
@@ -1769,6 +1770,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval_Compressible_vector
             c.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
             c(2,2) = math::pow(m_J0_sq,-1.0); // c33
             // c(2,2) = 1.0; // c33
+            cinv.setZero();
             cinv.block(0,0,2,2) = m_Gcon_def.block(0,0,2,2);
             cinv(2,2) = 1.0/c(2,2);
 
@@ -1846,6 +1848,8 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval_Compressible_pstres
             c.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
             c(2,2) = math::pow(m_J0_sq,-1.0); // c33
             // c(2,2) = 1.0; // c33
+
+            cinv.setZero();
             cinv.block(0,0,2,2) = m_Gcon_def.block(0,0,2,2);
             cinv(2,2) = 1.0/c(2,2);
 
