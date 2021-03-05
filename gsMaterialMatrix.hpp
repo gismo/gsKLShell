@@ -586,7 +586,6 @@ void gsMaterialMatrix<T>::eval_into_stretchdir(const gsMatrix<T>& u, gsMatrix<T>
                 {
                     res = evalStretch(c);
                     result.col(i) = res.second.reshape(9,1);
-                    gsDebugVar(res.second.reshape(9,1));
                     break;
                 }
                 GISMO_ASSERT(it != itmax-1,"Error: Method did not converge, abs(dc33) = "<<abs(dc33)<<" and tolerance = "<<tol<<"\n");
@@ -1532,6 +1531,7 @@ gsMatrix<T> gsMaterialMatrix<T>::eval_Compressible(const index_t i, const gsMatr
         c.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
         c(2,2) = math::pow(m_J0_sq,-1.0); // c33
         // c(2,2) = 1.0; // c33
+        cinv.setZero();
         cinv.block(0,0,2,2) = m_Gcon_def.block(0,0,2,2);
         cinv(2,2) = 1.0/c(2,2);
 
