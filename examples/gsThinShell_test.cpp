@@ -739,6 +739,7 @@ int main(int argc, char *argv[])
     gsMaterialMatrixBase<real_t>* materialMatrix;
 
     // Linear anisotropic material model
+    std::vector<gsFunction<>*> compParameters(6);
     real_t pi = math::atan(1)*4;
     index_t kmax = 1;
     gsVector<> E11(kmax), E22(kmax), G12(kmax), nu12(kmax), nu21(kmax), thick(kmax), phi(kmax);
@@ -760,6 +761,13 @@ int main(int argc, char *argv[])
     gsConstantFunction<> thickfun(thick,3);
     gsConstantFunction<> phifun(phi,3);
 
+    compParameters[0] = &E11fun;
+    compParameters[1] = &E22fun;
+    compParameters[2] = &G12fun;
+    compParameters[3] = &nu12fun;
+    compParameters[4] = &nu21fun;
+    compParameters[5] = &phifun;
+
     if (material==0)
     {
         materialMatrix = new gsMaterialMatrixLinear<3,real_t>(mp,mp_def,t,parameters,rho);
@@ -767,7 +775,7 @@ int main(int argc, char *argv[])
     if (material==1)
     {
         // materialMatrix = new gsMaterialMatrixLinear<3,real_t>(mp,mp_def,t,parameters,rho);
-        materialMatrix = new gsMaterialMatrixComposite<3,real_t>(mp,mp_def,E11fun,E22fun,G12fun,nu12fun,nu21fun,thickfun,phifun);
+        materialMatrix = new gsMaterialMatrixComposite<3,real_t>(mp,mp_def,thickfun,compParameters);
     }
     else if ((material==2) && (!Compressibility))
     {

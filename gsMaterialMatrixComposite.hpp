@@ -34,21 +34,21 @@ namespace gismo
 template <short_t dim, class T>
 gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                             const gsFunctionSet<T>                              & mp,
+                            const gsFunction<T>                                 & thickness,
                             const gsFunction<T>                                 & E11,
                             const gsFunction<T>                                 & E22,
                             const gsFunction<T>                                 & G12,
                             const gsFunction<T>                                 & nu12,
                             const gsFunction<T>                                 & nu21,
-                            const gsFunction<T>                                 & thickness,
                             const gsFunction<T>                                 & phi           )
                             :
                             m_patches(&mp),
+                            m_thickness(&thickness),
                             m_E11(&E11),
                             m_E22(&E22),
                             m_G12(&G12),
                             m_nu12(&nu12),
                             m_nu21(&nu21),
-                            m_thickness(&thickness),
                             m_phi(&phi)
 {
     initialize();
@@ -57,22 +57,22 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
 template <short_t dim, class T>
 gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                             const gsFunctionSet<T>                              & mp,
+                            const gsFunction<T>                                 & thickness,
                             const gsFunction<T>                                 & E11,
                             const gsFunction<T>                                 & E22,
                             const gsFunction<T>                                 & G12,
                             const gsFunction<T>                                 & nu12,
                             const gsFunction<T>                                 & nu21,
-                            const gsFunction<T>                                 & thickness,
                             const gsFunction<T>                                 & phi,
                             const gsFunction<T>                                 & rho           )
                             :
                             m_patches(&mp),
+                            m_thickness(&thickness),
                             m_E11(&E11),
                             m_E22(&E22),
                             m_G12(&G12),
                             m_nu12(&nu12),
                             m_nu21(&nu21),
-                            m_thickness(&thickness),
                             m_phi(&phi),
                             m_rho(&rho)
 {
@@ -82,22 +82,22 @@ template <short_t dim, class T>
 gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                             const gsFunctionSet<T>                              & mp,
                             const gsFunctionSet<T>                              & mp_def,
+                            const gsFunction<T>                                 & thickness,
                             const gsFunction<T>                                 & E11,
                             const gsFunction<T>                                 & E22,
                             const gsFunction<T>                                 & G12,
                             const gsFunction<T>                                 & nu12,
                             const gsFunction<T>                                 & nu21,
-                            const gsFunction<T>                                 & thickness,
                             const gsFunction<T>                                 & phi           )
                             :
                             m_patches(&mp),
                             m_defpatches(&mp_def),
+                            m_thickness(&thickness),
                             m_E11(&E11),
                             m_E22(&E22),
                             m_G12(&G12),
                             m_nu12(&nu12),
                             m_nu21(&nu21),
-                            m_thickness(&thickness),
                             m_phi(&phi)
 {
     initialize();
@@ -107,26 +107,76 @@ template <short_t dim, class T>
 gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                             const gsFunctionSet<T>                              & mp,
                             const gsFunctionSet<T>                              & mp_def,
+                            const gsFunction<T>                                 & thickness,
                             const gsFunction<T>                                 & E11,
                             const gsFunction<T>                                 & E22,
                             const gsFunction<T>                                 & G12,
                             const gsFunction<T>                                 & nu12,
                             const gsFunction<T>                                 & nu21,
-                            const gsFunction<T>                                 & thickness,
                             const gsFunction<T>                                 & phi,
                             const gsFunction<T>                                 & rho           )
                             :
                             m_patches(&mp),
                             m_defpatches(&mp_def),
+                            m_thickness(&thickness),
                             m_E11(&E11),
                             m_E22(&E22),
                             m_G12(&G12),
                             m_nu12(&nu12),
                             m_nu21(&nu21),
-                            m_thickness(&thickness),
                             m_phi(&phi),
                             m_rho(&rho)
 {
+    initialize();
+}
+
+template <short_t dim, class T>
+gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
+                            const gsFunctionSet<T>                              & mp,
+                            const gsFunction<T>                                 & thickness,
+                            const std::vector<gsFunction<T>*>                   & pars          )
+                            :
+                            m_patches(&mp),
+                            m_thickness(&thickness),
+                            m_pars(pars),
+                            m_rho(nullptr)
+{
+    initializeParameters();
+    initialize();
+}
+
+template <short_t dim, class T>
+gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
+                            const gsFunctionSet<T>                              & mp,
+                            const gsFunctionSet<T>                              & mp_def,
+                            const gsFunction<T>                                 & thickness,
+                            const std::vector<gsFunction<T>*>                   & pars          )
+                            :
+                            m_patches(&mp),
+                            m_defpatches(&mp_def),
+                            m_thickness(&thickness),
+                            m_pars(pars),
+                            m_rho(nullptr)
+{
+    initializeParameters();
+    initialize();
+}
+
+template <short_t dim, class T>
+gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
+                            const gsFunctionSet<T>                              & mp,
+                            const gsFunctionSet<T>                              & mp_def,
+                            const gsFunction<T>                                 & thickness,
+                            const std::vector<gsFunction<T>*>                   & pars,
+                            const gsFunction<T>                                 & rho           )
+                            :
+                            m_patches(&mp),
+                            m_defpatches(&mp_def),
+                            m_thickness(&thickness),
+                            m_pars(pars),
+                            m_rho(&rho)
+{
+    initializeParameters();
     initialize();
 }
 
@@ -250,6 +300,18 @@ void gsMaterialMatrixComposite<dim,T>::info() const
 
     gsInfo  <<"---------------------------------------------------------------------\n\n";
 
+}
+
+template <short_t dim, class T >
+void gsMaterialMatrixComposite<dim,T>::initializeParameters()
+{
+    GISMO_ASSERT(m_pars.size()==6,"parameters should contain 6 functions!");
+    m_E11   = m_pars[0];
+    m_E22   = m_pars[1];
+    m_G12   = m_pars[2];
+    m_nu12  = m_pars[3];
+    m_nu21  = m_pars[4];
+    m_phi   = m_pars[5];
 }
 
 template <short_t dim, class T >

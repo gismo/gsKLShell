@@ -765,7 +765,7 @@ int main(int argc, char *argv[])
     gsConstantFunction<> nu21fun(nu21,3);
     gsConstantFunction<> thickfun(thick,3);
     gsConstantFunction<> phifun(phi,3);
-    materialMatrixComposite = new gsMaterialMatrixComposite<3,real_t>(mp,mp_def,E11fun,E22fun,G12fun,nu12fun,nu21fun,thickfun,phifun);
+    materialMatrixComposite = new gsMaterialMatrixComposite<3,real_t>(mp,mp_def,thickfun,E11fun,E22fun,G12fun,nu12fun,nu21fun,phifun);
 
     if (material==0)
     {

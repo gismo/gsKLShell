@@ -56,46 +56,64 @@ public:
 
         gsMaterialMatrixComposite(
                                 const gsFunctionSet<T>                              & mp,
+                                const gsFunction<T>                                 & thickness,
                                 const gsFunction<T>                                 & E11,
                                 const gsFunction<T>                                 & E22,
                                 const gsFunction<T>                                 & G12,
                                 const gsFunction<T>                                 & nu12,
                                 const gsFunction<T>                                 & nu21,
-                                const gsFunction<T>                                 & thickness,
                                 const gsFunction<T>                                 & phi           );
 
         gsMaterialMatrixComposite(
                                 const gsFunctionSet<T>                              & mp,
                                 const gsFunctionSet<T>                              & mp_def,
+                                const gsFunction<T>                                 & thickness,
                                 const gsFunction<T>                                 & E11,
                                 const gsFunction<T>                                 & E22,
                                 const gsFunction<T>                                 & G12,
                                 const gsFunction<T>                                 & nu12,
                                 const gsFunction<T>                                 & nu21,
-                                const gsFunction<T>                                 & thickness,
                                 const gsFunction<T>                                 & phi           );
 
         gsMaterialMatrixComposite(
                                 const gsFunctionSet<T>                              & mp,
+                                const gsFunction<T>                                 & thickness,
                                 const gsFunction<T>                                 & E11,
                                 const gsFunction<T>                                 & E22,
                                 const gsFunction<T>                                 & G12,
                                 const gsFunction<T>                                 & nu12,
                                 const gsFunction<T>                                 & nu21,
-                                const gsFunction<T>                                 & thickness,
                                 const gsFunction<T>                                 & phi,
                                 const gsFunction<T>                                 & rho           );
 
         gsMaterialMatrixComposite(
                                 const gsFunctionSet<T>                              & mp,
                                 const gsFunctionSet<T>                              & mp_def,
+                                const gsFunction<T>                                 & thickness,
                                 const gsFunction<T>                                 & E11,
                                 const gsFunction<T>                                 & E22,
                                 const gsFunction<T>                                 & G12,
                                 const gsFunction<T>                                 & nu12,
                                 const gsFunction<T>                                 & nu21,
-                                const gsFunction<T>                                 & thickness,
                                 const gsFunction<T>                                 & phi,
+                                const gsFunction<T>                                 & rho           );
+
+        gsMaterialMatrixComposite(
+                                const gsFunctionSet<T>                              & mp,
+                                const gsFunction<T>                                 & thickness,
+                                const std::vector<gsFunction<T>*>                   & pars          );
+
+        gsMaterialMatrixComposite(
+                                const gsFunctionSet<T>                              & mp,
+                                const gsFunctionSet<T>                              & mp_def,
+                                const gsFunction<T>                                 & thickness,
+                                const std::vector<gsFunction<T>*>                   & pars          );
+
+        gsMaterialMatrixComposite(
+                                const gsFunctionSet<T>                              & mp,
+                                const gsFunctionSet<T>                              & mp_def,
+                                const gsFunction<T>                                 & thickness,
+                                const std::vector<gsFunction<T>*>                   & pars,
                                 const gsFunction<T>                                 & rho           );
 
         // // ---------------------------------------------------------------------------------------------
@@ -179,6 +197,7 @@ public:
 
 protected:
     void initialize();
+    void initializeParameters();
     void defaultOptions();
 
     gsMatrix<T> computeMatrix(const T E11, const T E22, const T G12, const T nu12, const T nu21, const T phi) const;
@@ -251,14 +270,16 @@ protected:
     // constructor
     const gsFunctionSet<T> * m_patches;
     const gsFunctionSet<T> * m_defpatches;
+    const gsFunction<T> * m_thickness;
     const gsFunction<T> * m_E11;
     const gsFunction<T> * m_E22;
     const gsFunction<T> * m_G12;
     const gsFunction<T> * m_nu12;
     const gsFunction<T> * m_nu21;
-    const gsFunction<T> * m_thickness;
     const gsFunction<T> * m_phi;
     const gsFunction<T> * m_rho;
+    mutable std::vector<gsFunction<T>* > m_pars;
+
 
     // Linear material matrix
     mutable gsMapData<T> m_map, m_map_def;
