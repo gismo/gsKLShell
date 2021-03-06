@@ -29,26 +29,20 @@ public:
 
     // GISMO_CLONE_FUNCTION(gsMaterialMatrixBase)
 
-    inline virtual enum Material material() const = 0;
-    inline virtual void setMoment(const index_t moment) const = 0;
+    inline virtual enum MatIntegration isMatIntegrated() const {return MatIntegration::NotIntegrated; }
+    inline virtual enum MatIntegration isVecIntegrated() const {return MatIntegration::NotIntegrated; }
 
     inline virtual gsOptionList & options() = 0;
     inline virtual void setOptions(gsOptionList opt) = 0;
 
-    inline virtual short_t domainDim() const = 0;
-
-    // template OUT
-    inline virtual short_t targetDim() const = 0;
-
-    inline virtual void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
-    inline virtual void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual void    density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual void    stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
     inline virtual void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
-    inline virtual void thickness_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual void  thickness_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
 
-    inline virtual gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z) const = 0;
-    inline virtual gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z) const = 0;
-    inline virtual gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z) const = 0;
-
+    inline virtual gsMatrix<T>  eval3D_matrix(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
+    inline virtual gsMatrix<T>  eval3D_vector(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
+    inline virtual gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
 
     inline virtual void setParameters(const std::vector<gsFunction<T>*> &pars) =0;
     inline virtual void info() const = 0;

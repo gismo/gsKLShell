@@ -75,46 +75,42 @@ public:
                         const std::vector<gsFunction<T> *> &pars,
                         const gsFunction<T> & Density);
 
+    inline enum MatIntegration isMatIntegrated() const {return MatIntegration::NotIntegrated; }
+    inline enum MatIntegration isVecIntegrated() const {return MatIntegration::NotIntegrated; }
+
     /// @brief Returns the list of default options for assembly
     gsOptionList & options() {return m_options;}
     void setOptions(gsOptionList opt) { m_options = opt; } // gsOptionList opt
 
+    void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
+    gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
+    void setParameters(const std::vector<gsFunction<T>*> &pars)
+    {
+        m_pars = pars;
+        m_numPars = m_pars.size();
+    }
+
+    void info() const;
+
+public:
     /// Shared pointer for gsMaterialMatrix
     typedef memory::shared_ptr< gsMaterialMatrix > Ptr;
 
     /// Unique pointer for gsMaterialMatrix
     typedef memory::unique_ptr< gsMaterialMatrix > uPtr;
 
-    // EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    short_t domainDim() const;
-
-    // template OUT
-    short_t targetDim() const;
-
-    // template COM
-    void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
-    // template COM
-    // void eval_into_vector(const gsMatrix<T>& u, gsMatrix<T>& result) const;
-    // // template COM
-    // void eval_into_matrix(const gsMatrix<T>& u, gsMatrix<T>& result) const;
-    // // template COM
-    // void eval_into_pstress(const gsMatrix<T>& u, gsMatrix<T>& result) const;
-    // // template COM
-    void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
-    // template COM
-    void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
-
-    void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
-
-    enum Material material() const {return mat;};
-
-    void setMoment(const index_t moment) const {m_moment = moment;};
-
-
 protected:
+    void initialize();
+    void defaultOptions();
+
+private:
     template<bool _com>
     typename std::enable_if<_com, void>::type stretch_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     template<bool _com>
@@ -125,43 +121,7 @@ protected:
     template<bool _com>
     typename std::enable_if<!_com, void>::type stretchDir_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
-public:
-    // template<short_t num=0>
-    // void makeMatrix()                   { m_outputType=2; m_output = num;}
-
-    void setParameters(const std::vector<gsFunction<T>*> &pars)
-    {
-        m_pars = pars;
-        m_numPars = m_pars.size();
-    }
-
-    void info() const;
-
-    gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-    gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u) const;
-
-    gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-    gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u) const;
-
-    gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-    gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u) const;
-
 protected:
-    void initialize();
-    void defaultOptions();
-
-    // template COM MAT
-    gsMatrix<T> eval3D(const index_t i, const gsMatrix<T>& z) const;
-    gsMatrix<T> eval3D(const index_t i) const;
-
-    // template OUT VEC
-    gsMatrix<T> eval_Compressible(const index_t i, const gsMatrix<T>& z) const;
-    gsMatrix<T> eval_Compressible(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-    // template OUT VEC
-    gsMatrix<T> eval_Incompressible(const index_t i, const gsMatrix<T>& z) const;
-    gsMatrix<T> eval_Incompressible(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-
-
     gsMatrix<T> eval_Incompressible_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     gsMatrix<T> eval_Incompressible_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     gsMatrix<T> eval_Incompressible_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
@@ -625,13 +585,7 @@ protected:
     mutable index_t m_numGauss;
     mutable T m_tHalf;
 
-
     mutable gsOptionList m_options;
-
-    mutable index_t m_material;
-    mutable bool m_compressible;
-    mutable int m_compFun;
-    mutable int m_outputType, m_output;
 
 private:
     static int delta(const int a, const int b)

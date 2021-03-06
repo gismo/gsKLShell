@@ -79,8 +79,9 @@ private:
     typename std::enable_if<_out==MaterialOutput::Density   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::VectorN ||
-                            _out==MaterialOutput::VectorM   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    typename std::enable_if<_out==MaterialOutput::VectorM   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::VectorN   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::MatrixA ||
@@ -181,7 +182,7 @@ protected:
 public:
 
     gsMatrix<T> eval3D(const gsMatrix<T>& u, const gsMatrix<T>& Z) const;
-    gsMatrix<T> eval3D(const gsMatrix<T>& u) const;
+    gsMatrix<T> eval  (const gsMatrix<T>& u) const;
 
 private:
     template<enum MaterialOutput _out>

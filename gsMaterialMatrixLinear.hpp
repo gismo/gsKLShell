@@ -103,31 +103,6 @@ void gsMaterialMatrixLinear<dim,T>::defaultOptions()
 }
 
 template <short_t dim, class T >
-short_t gsMaterialMatrixLinear<dim,T>::domainDim() const { return 2; }
-
-template <short_t dim, class T >
-short_t gsMaterialMatrixLinear<dim,T>::targetDim() const
-{
-    if (m_outputType==2)
-        return 9;
-    else if (m_outputType==1)
-        return 3;
-    else if (m_outputType==0)
-        return 1;
-    else if (m_outputType==9)
-        return 3;
-    else if (m_outputType==10)
-        return 2;
-    else if (m_outputType==11)
-        return 9;
-    else
-    {
-        GISMO_ERROR("This option is unknown");
-        return 1;
-    }
-}
-
-template <short_t dim, class T >
 void gsMaterialMatrixLinear<dim,T>::initialize()
 {
     // Set default options
@@ -137,9 +112,6 @@ void gsMaterialMatrixLinear<dim,T>::initialize()
     m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
 
     // Initialize some parameters
-    m_moment = -1;
-    m_outputType = 2;
-    m_output = 0; // initialize output type
     m_numPars = m_pars.size();
 }
 
@@ -203,7 +175,7 @@ void gsMaterialMatrixLinear<dim,T>::thickness_into(const index_t patch, const gs
 }
 
 template <short_t dim, class T >
-gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     // gsInfo<<"TO DO: evaluate moments using thickness";
     // Input: u in-plane points
@@ -245,7 +217,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
 }
 
 template <short_t dim, class T >
-gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     // gsInfo<<"TO DO: evaluate moments using thickness";
     // Input: u in-plane points
@@ -268,39 +240,20 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, co
                 // this->computeMetric(i,z.at(j),true,true);
                 this->getMetric(k,z(j,k)); // on point i, on height z(0,j)
 
-                result(0,j*u.cols()+k) = Sij(0,0,z(j,k));
-                result(1,j*u.cols()+k) = Sij(1,1,z(j,k));
-                result(2,j*u.cols()+k) = Sij(0,1,z(j,k));
+                result(0,j*u.cols()+k) = Sij(0,0,z(j,k),out);
+                result(1,j*u.cols()+k) = Sij(1,1,z(j,k),out);
+                result(2,j*u.cols()+k) = Sij(0,1,z(j,k),out);
         }
     }
 
     return result;
 }
 
-template <short_t dim, class T >
-gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u) const
-{
-    gsMatrix<T> z(1,1);
-    z.setZero();
-    return eval3D_matrix(patch,u,z);
-}
-
-template <short_t dim, class T >
-gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, const gsMatrix<T> & u) const
-{
-    gsMatrix<T> z(1,1);
-    z.setZero();
-    return eval3D_vector(patch,u,z);
-}
-
-
 /*
     Available class members:
         - m_parvals
         - m_metric
         - m_metric_def
-        - m_J0
-        - m_J
 */
 template <short_t dim, class T >
 T gsMaterialMatrixLinear<dim,T>::Cijkl(const index_t i, const index_t j, const index_t k, const index_t l) const
@@ -322,47 +275,33 @@ T gsMaterialMatrixLinear<dim,T>::Cijkl(const index_t i, const index_t j, const i
 }
 
 template <short_t dim, class T >
-T gsMaterialMatrixLinear<dim,T>::Sij(const index_t i, const index_t j, const T z) const
+T gsMaterialMatrixLinear<dim,T>::Sij(const index_t i, const index_t j, const T z, enum MaterialOutput out) const
 {
-    gsMatrix<T> stress;
-    // --------------------------
-    // Saint Venant Kirchhoff
-    // --------------------------
-    // if (m_moment==0)
-    // {
-    //     GISMO_ENSURE( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
-    //     stress = 0.5*(m_Acov_def - m_Acov_ori);
-    // }
-    // else if (m_moment==2)
-    // {
-    //     GISMO_ENSURE( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
-    //     stress = (m_Bcov_ori - m_Bcov_def);
-    // }
-    // else
-    // {
-        stress = 0.5*(m_Acov_def - m_Acov_ori) + z*(m_Bcov_ori - m_Bcov_def);
-        // GISMO_ERROR("Warning: no material model known in simplification, m_moment="<<m_moment);
-    // }
+    gsMatrix<T> strain;
+    GISMO_ENSURE( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
+    if      (out == MaterialOutput::VectorN) // To be used with multiplyZ_into
+        strain = 0.5*(m_Acov_def - m_Acov_ori);
+    else if (out == MaterialOutput::VectorM) // To be used with multiplyZ_into
+        strain = (m_Bcov_ori - m_Bcov_def);
+    else if (out == MaterialOutput::Generic) // To be used with multiplyLinZ_into or integrateZ_into
+        strain = 0.5*(m_Acov_def - m_Acov_ori) + z*(m_Bcov_ori - m_Bcov_def);
+    else
+        GISMO_ERROR("Output type is not VectorN, VectorM or Generic!");
 
-    T result =  Cijkl(i,j,0,0) * stress(0,0) + Cijkl(i,j,0,1) * stress(0,1)
-                + Cijkl(i,j,1,0) * stress(1,0) + Cijkl(i,j,1,1) * stress(1,1);
+    T result =  Cijkl(i,j,0,0) * strain(0,0) + Cijkl(i,j,0,1) * strain(0,1)
+                + Cijkl(i,j,1,0) * strain(1,0) + Cijkl(i,j,1,1) * strain(1,1);
 
     return result;
 }
 
-// ---------------------------------------------------------------------------------------------------------------------------------
-//                                          Metric Computations
-// ---------------------------------------------------------------------------------------------------------------------------------
 
-//--------------------------------------------------------------------------------------------------------------------------------------
-
-template <short_t dim, class T >
+template <short_t dim, class T>
 void gsMaterialMatrixLinear<dim,T>::computeMetricDeformed() const
 {
     computeMetricDeformed_impl<dim>();
 }
 
-template <short_t dim, class T >
+template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
 gsMaterialMatrixLinear<dim,T>::computeMetricDeformed_impl() const
@@ -419,7 +358,7 @@ gsMaterialMatrixLinear<dim,T>::computeMetricDeformed_impl() const
     }
 }
 
-template <short_t dim, class T >
+template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
 gsMaterialMatrixLinear<dim,T>::computeMetricDeformed_impl() const
@@ -452,13 +391,13 @@ gsMaterialMatrixLinear<dim,T>::computeMetricDeformed_impl() const
 
 //--------------------------------------------------------------------------------------------------------------------------------------
 
-template <short_t dim, class T >
+template <short_t dim, class T>
 void gsMaterialMatrixLinear<dim,T>::computeMetricUndeformed() const
 {
     computeMetricUndeformed_impl<dim>();
 }
 
-template <short_t dim, class T >
+template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
 gsMaterialMatrixLinear<dim,T>::computeMetricUndeformed_impl() const
@@ -515,7 +454,7 @@ gsMaterialMatrixLinear<dim,T>::computeMetricUndeformed_impl() const
     }
 }
 
-template <short_t dim, class T >
+template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
 gsMaterialMatrixLinear<dim,T>::computeMetricUndeformed_impl() const
@@ -548,7 +487,7 @@ gsMaterialMatrixLinear<dim,T>::computeMetricUndeformed_impl() const
 
 //--------------------------------------------------------------------------------------------------------------------------------------
 
-template <short_t dim, class T >
+template <short_t dim, class T>
 void gsMaterialMatrixLinear<dim,T>::getMetric(index_t k, T z) const
 {
     this->getMetricDeformed(k,z);
@@ -561,13 +500,13 @@ void gsMaterialMatrixLinear<dim,T>::getMetric(index_t k, T z) const
 
 //--------------------------------------------------------------------------------------------------------------------------------------
 
-template <short_t dim, class T >
+template <short_t dim, class T>
 void gsMaterialMatrixLinear<dim,T>::getMetricDeformed(index_t k, T z) const
 {
     getMetricDeformed_impl<dim>(k,z);
 }
 
-template <short_t dim, class T >
+template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
 gsMaterialMatrixLinear<dim,T>::getMetricDeformed_impl(index_t k, T z) const
@@ -609,7 +548,7 @@ gsMaterialMatrixLinear<dim,T>::getMetricDeformed_impl(index_t k, T z) const
     // m_Gcov_def.block(0,0,2,2) -= z*z * m_ncov_def.transpose()*m_ncov_def;
 }
 
-template <short_t dim, class T >
+template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
 gsMaterialMatrixLinear<dim,T>::getMetricDeformed_impl(index_t k, T z) const
@@ -650,13 +589,13 @@ gsMaterialMatrixLinear<dim,T>::getMetricDeformed_impl(index_t k, T z) const
 
 //--------------------------------------------------------------------------------------------------------------------------------------
 
-template <short_t dim, class T >
+template <short_t dim, class T>
 void gsMaterialMatrixLinear<dim,T>::getMetricUndeformed(index_t k, T z) const
 {
     getMetricUndeformed_impl<dim>(k,z);
 }
 
-template <short_t dim, class T >
+template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
 gsMaterialMatrixLinear<dim,T>::getMetricUndeformed_impl(index_t k, T z) const
@@ -697,7 +636,7 @@ gsMaterialMatrixLinear<dim,T>::getMetricUndeformed_impl(index_t k, T z) const
     // m_Gcov_ori.block(0,0,2,2) -= z*z * m_ncov_ori.transpose()*m_ncov_ori;
 }
 
-template <short_t dim, class T >
+template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
 gsMaterialMatrixLinear<dim,T>::getMetricUndeformed_impl(index_t k, T z) const
@@ -735,59 +674,5 @@ gsMaterialMatrixLinear<dim,T>::getMetricUndeformed_impl(index_t k, T z) const
     // m_Gcov_ori_L = m_Gcov_ori;
     // m_Gcov_ori.block(0,0,2,2) -= z*z * m_ncov_ori.transpose()*m_ncov_ori;
 }
-
-//--------------------------------------------------------------------------------------------------------------------------------------
-
-template <short_t dim, class T >
-std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::evalStretch(const gsMatrix<T> & C) const
-{
-    gsVector<T> stretches;
-    gsMatrix<T> stretchvec;
-    std::pair<gsVector<T>,gsMatrix<T>> result;
-    stretches.resize(3,1);    stretches.setZero();
-    stretchvec.resize(3,3);   stretchvec.setZero();
-
-    Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
-
-    gsMatrix<T> B(3,3);
-    B.setZero();
-    for (index_t k = 0; k != 2; k++)
-        for (index_t l = 0; l != 2; l++)
-            B += C(k,l) * m_gcon_ori.col(k) * m_gcon_ori.col(l).transpose();
-
-    eigSolver.compute(B);
-
-    stretchvec.leftCols(2) = eigSolver.eigenvectors().rightCols(2);
-    stretchvec.col(2) = m_gcon_ori.col(2);
-    stretches.block(0,0,2,1) = eigSolver.eigenvalues().block(1,0,2,1); // the eigenvalues are a 3x1 matrix, so we need to use matrix block-operations
-
-    // m_stretches.at(2) = 1/m_J0_sq;
-    stretches.at(2) = C(2,2);
-
-    for (index_t k=0; k!=3; k++)
-        stretches.at(k) = math::sqrt(stretches.at(k));
-
-    result.first = stretches;
-    result.second = stretchvec;
-
-    // // DEBUGGING ONLY!
-    // gsMatrix<T> ones(3,1);
-    // ones.setOnes();
-    // gsDebugVar(m_stretchvec);
-    // gsDebugVar(result.first);
-
-    return result;
-}
-
-//--------------------------------------------------------------------------------------------------------------------------------------
-
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::computeStretch(const gsMatrix<T> & C) const
-{
-    std::pair<gsVector<T>,gsMatrix<T>> result = evalStretch(C);
-    m_stretches = result.first;
-    m_stretchvec = result.second;
-}
-
 
 } // end namespace

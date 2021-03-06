@@ -16,6 +16,7 @@
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/gsMaterialMatrix.h>
 #include <gsKLShell/gsMaterialMatrixLinear.h>
+#include <gsKLShell/gsMaterialMatrixComposite.h>
 #include <gsKLShell/gsMaterialMatrixBase.h>
 #include <gsKLShell/gsMaterialMatrixEval.h>
 
@@ -738,13 +739,37 @@ int main(int argc, char *argv[])
     parameters[2] = &ratio;
     gsMaterialMatrixBase<real_t>* materialMatrixNonlinear;
     gsMaterialMatrixBase<real_t>* materialMatrixLinear;
+    gsMaterialMatrixBase<real_t>* materialMatrixComposite;
 
     materialMatrixLinear = new gsMaterialMatrixLinear<3,real_t>(mp,mp_def,t,parameters,rho);
 
+    // Linear anisotropic material model
+    real_t pi = math::atan(1)*4;
+
+    index_t kmax = 2;
+    gsVector<> E11(kmax), E22(kmax), G12(kmax), nu12(kmax), nu21(kmax), thick(kmax), phi(kmax);
+    E11.setZero(); E22.setZero(); G12.setZero(); nu12.setZero(); nu21.setZero(); thick.setZero(); phi.setZero();
+    for (index_t k=0; k != kmax; ++k)
+    {
+        E11.at(k) = E22.at(k) = E_modulus;
+        nu12.at(k) = nu21.at(k) = PoissonRatio;
+        G12.at(k) = 0.5 * E_modulus / (1+PoissonRatio);
+        thick.at(k) = thickness/kmax;
+        phi.at(kmax) = 0.* k / kmax * pi/2.0;
+    }
+
+    gsConstantFunction<> E11fun(E11,3);
+    gsConstantFunction<> E22fun(E22,3);
+    gsConstantFunction<> G12fun(G12,3);
+    gsConstantFunction<> nu12fun(nu12,3);
+    gsConstantFunction<> nu21fun(nu21,3);
+    gsConstantFunction<> thickfun(thick,3);
+    gsConstantFunction<> phifun(phi,3);
+    materialMatrixComposite = new gsMaterialMatrixComposite<3,real_t>(mp,mp_def,E11fun,E22fun,G12fun,nu12fun,nu21fun,thickfun,phifun);
+
     if (material==0)
     {
-        constexpr int id = encodeMat_id<Material::SvK, Implementation::Analytical>::id;
-        materialMatrixNonlinear = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+        materialMatrixNonlinear = new gsMaterialMatrixLinear<3,real_t>(mp,mp_def,t,parameters,rho);
     }
     else if ((material==2) && (!Compressibility))
     {
@@ -899,11 +924,10 @@ int main(int argc, char *argv[])
 
     mp_def = assembler->constructSolution(solVector);
 
-    gsVector<> pts(2);
-    pts.setConstant(0.25);
-
-    gsVector<> z(1);
-    z<<0.0;
+    gsMatrix<> pts(2,3);
+    pts.col(0).setConstant(0.25);
+    pts.col(1).setConstant(0.50);
+    pts.col(2).setConstant(0.75);
 
     gsMatrix<> result;
 
@@ -1000,6 +1024,31 @@ int main(int argc, char *argv[])
     materialVectorEvalM_lin.eval_into(pts,result);
     gsDebugVar(result);
 
+    gsDebug<<"======================================================\n";
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> materialMatrixEvalA_com(materialMatrixComposite);
+    materialMatrixEvalA_com.eval_into(pts,result);
+    gsDebugVar(result);
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB> materialMatrixEvalB_com(materialMatrixComposite);
+    materialMatrixEvalB_com.eval_into(pts,result);
+    gsDebugVar(result);
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC> materialMatrixEvalC_com(materialMatrixComposite);
+    materialMatrixEvalC_com.eval_into(pts,result);
+    gsDebugVar(result);
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD> materialMatrixEvalD_com(materialMatrixComposite);
+    materialMatrixEvalD_com.eval_into(pts,result);
+    gsDebugVar(result);
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> materialVectorEvalN_com(materialMatrixComposite);
+    materialVectorEvalN_com.eval_into(pts,result);
+    gsDebugVar(result);
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::VectorM> materialVectorEvalM_com(materialMatrixComposite);
+    materialVectorEvalM_com.eval_into(pts,result);
+    gsDebugVar(result);
 
 delete assembler;
     return 0;

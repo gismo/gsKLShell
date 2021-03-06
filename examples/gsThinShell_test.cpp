@@ -16,7 +16,8 @@
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/gsMaterialMatrix.h>
 #include <gsKLShell/gsMaterialMatrixLinear.h>
-#include <gsKLShell/gsMaterialMatrixEval.h>
+#include <gsKLShell/gsMaterialMatrixComposite.h>
+#include <gsKLShell/gsMaterialMatrixBase.h>
 
 //#include <gsThinShell/gsNewtonIterator.h>
 
@@ -737,9 +738,36 @@ int main(int argc, char *argv[])
     parameters[2] = &ratio;
     gsMaterialMatrixBase<real_t>* materialMatrix;
 
+    // Linear anisotropic material model
+    real_t pi = math::atan(1)*4;
+    index_t kmax = 1;
+    gsVector<> E11(kmax), E22(kmax), G12(kmax), nu12(kmax), nu21(kmax), thick(kmax), phi(kmax);
+    E11.setZero(); E22.setZero(); G12.setZero(); nu12.setZero(); nu21.setZero(); thick.setZero(); phi.setZero();
+    for (index_t k=0; k != kmax; ++k)
+    {
+        E11.at(k) = E22.at(k) = E_modulus;
+        nu12.at(k) = nu21.at(k) = PoissonRatio;
+        G12.at(k) = 0.5 * E_modulus / (1+PoissonRatio);
+        thick.at(k) = thickness/kmax;
+        phi.at(kmax) = k / kmax * pi/2.0;
+    }
+
+    gsConstantFunction<> E11fun(E11,3);
+    gsConstantFunction<> E22fun(E22,3);
+    gsConstantFunction<> G12fun(G12,3);
+    gsConstantFunction<> nu12fun(nu12,3);
+    gsConstantFunction<> nu21fun(nu21,3);
+    gsConstantFunction<> thickfun(thick,3);
+    gsConstantFunction<> phifun(phi,3);
+
     if (material==0)
     {
         materialMatrix = new gsMaterialMatrixLinear<3,real_t>(mp,mp_def,t,parameters,rho);
+    }
+    if (material==1)
+    {
+        // materialMatrix = new gsMaterialMatrixLinear<3,real_t>(mp,mp_def,t,parameters,rho);
+        materialMatrix = new gsMaterialMatrixComposite<3,real_t>(mp,mp_def,E11fun,E22fun,G12fun,nu12fun,nu21fun,thickfun,phifun);
     }
     else if ((material==2) && (!Compressibility))
     {

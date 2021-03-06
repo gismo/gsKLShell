@@ -18,6 +18,14 @@
 namespace gismo
 {
 
+enum class MatIntegration : short_t
+{
+    NotIntegrated   = 0,
+    Integrated      = 1,
+    Constant        = 2,
+    Linear          = 3,
+};
+
 enum class Material : short_t
 {
     SvK = 0,
@@ -34,19 +42,20 @@ enum class Implementation : short_t
     Spectral    = 3
 };
 
-enum class MaterialOutput : index_t
+enum class MaterialOutput : short_t
 {
-    Density = 0,
-    VectorN = 1,
-    VectorM = 2,
-    MatrixA  = 3,
-    MatrixB  = 4,
-    MatrixC  = 5,
-    MatrixD  = 6,
-    PStressN = 7,
-    PStressM = 8,
-    Stretch = 9,
-    StretchDir = 10,
+    Generic = 0,
+    Density = 1,
+    VectorN = 2,
+    VectorM = 3,
+    MatrixA  = 4,
+    MatrixB  = 5,
+    MatrixC  = 6,
+    MatrixD  = 7,
+    PStressN = 8,
+    PStressM = 9,
+    Stretch = 10,
+    StretchDir = 11,
 };
 
 template<enum Material material, enum Implementation implementation>

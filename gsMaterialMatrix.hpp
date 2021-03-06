@@ -129,31 +129,6 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::defaultOptions()
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-short_t gsMaterialMatrix<dim,T,matId,comp,mat,imp>::domainDim() const { return 2; }
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-short_t gsMaterialMatrix<dim,T,matId,comp,mat,imp>::targetDim() const
-{
-    if (m_outputType==2)
-        return 9;
-    else if (m_outputType==1)
-        return 3;
-    else if (m_outputType==0)
-        return 1;
-    else if (m_outputType==9)
-        return 3;
-    else if (m_outputType==10)
-        return 2;
-    else if (m_outputType==11)
-        return 9;
-    else
-    {
-        GISMO_ERROR("This option is unknown");
-        return 1;
-    }
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::initialize()
 {
     // Set default options
@@ -163,9 +138,6 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::initialize()
     m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
 
     // Initialize some parameters
-    m_moment = 0;
-    m_outputType = 2;
-    m_output = 0; // initialize output type
     m_numPars = m_pars.size();
 }
 
@@ -458,40 +430,7 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::thickness_into(const index_t pa
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D(const index_t i, const gsMatrix<T> & z) const
-{
-    return eval3D_impl<mat,comp>(i,z);
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-template <enum Material _mat, bool _comp>
-typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_impl(const index_t i, const gsMatrix<T>& z) const
-{
-    gsMatrix<T> result = eval_Incompressible(i, z);
-    return result;
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-template <enum Material _mat, bool _comp>
-typename std::enable_if<!_comp && !(_mat==Material::SvK), gsMatrix<T>>::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_impl(const index_t i, const gsMatrix<T>& z) const
-{
-    gsMatrix<T> result = eval_Incompressible(i, z);
-    return result;
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-template <enum Material _mat, bool _comp>
-typename std::enable_if<_comp && !(_mat==Material::SvK), gsMatrix<T>>::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_impl(const index_t i, const gsMatrix<T>& z) const
-{
-    gsMatrix<T> result = eval_Compressible(i, z);
-    return result;
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     return eval3D_matrix_impl<mat,comp>(patch,u,z);
 }
@@ -524,7 +463,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_matrix_impl(const index_t pat
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     return eval3D_vector_impl<mat,comp>(patch,u,z);
 }
@@ -557,7 +496,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_vector_impl(const index_t pat
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     return eval3D_pstress_impl<mat,comp>(patch,u,z);
 }
@@ -586,263 +525,6 @@ typename std::enable_if<_comp && !(_mat==Material::SvK), gsMatrix<T>>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_pstress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
 {
     gsMatrix<T> result = eval_Compressible_pstress(patch, u, z);
-    return result;
-}
-
-// else if (m_material==-1) // test for integration
-// {
-//     result.resize(this->targetDim(), z.cols());
-//     result.setZero();
-//     for (index_t k=0; k!=z.cols(); k++)
-//         for (index_t r = 0; r!=this->targetDim(); r++)
-//         {
-//             result(r,k) = math::pow(z(0,k),r);
-//         }
-
-// }
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D(const index_t i) const
-{
-    gsMatrix<T> z(1,1);
-    z.setZero();
-    return eval3D(i,z);
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u) const
-{
-    gsMatrix<T> z(1,1);
-    z.setZero();
-    return eval3D_matrix(patch,u,z);
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_vector(const index_t patch, const gsMatrix<T> & u) const
-{
-    gsMatrix<T> z(1,1);
-    z.setZero();
-    return eval3D_vector(patch,u,z);
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_pstress(const index_t patch, const gsMatrix<T> & u) const
-{
-    gsMatrix<T> z(1,1);
-    z.setZero();
-    return eval3D_pstress(patch,u,z);
-}
-
-// multiplies the material matrix by the thickness on all points
-// NOTE: this function is a little outdated but it works in its current configuration (note also the implementation of the SvK stress in the Sij function).
-// This function needs to be implemented in analytically projected integrals (see Roohbakashan & Sauer)
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::multiplyZ(const index_t patch, const gsMatrix<T>& u) const
-{
-    this->computePoints(patch,u);
-
-    if ((m_output==1) && (m_outputType==1))
-        m_moment = 2; // NEEDED SINCE m_moment=2 IS FOR THE OUTPUT OF THE M TENSOR, WHICH IN FACT HAS MOMENT 2. THIS IS BY CHOICE OF THE COMPUTATION OF THE STRAINS IN THE Sij() FUNCTION
-    // Input: points in R2
-    // Ouput: results in targetDim
-    gsMatrix<T> result(this->targetDim(),u.cols());
-
-    if (m_moment % 2 != 0)  //then the moment is odd
-        result.setZero();
-    else                    // then the moment is even
-    {
-        T fac;
-        for (index_t i = 0; i != u.cols(); ++i) // points
-        {
-            m_evalPoints = this->eval3D(i);
-            fac = 2.0/(m_moment+1) * math::pow( m_Tmat(0,i) / 2.0 , m_moment + 1);
-            result.col(i) = m_evalPoints * fac;
-        }
-
-    }
-    return result;
-}
-
-//
-// integrates the material matrix over its last coordinate (thickness)
-// template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-// gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::integrateZ(const index_t patch, const gsMatrix<T>& u) const
-// {
-//     // Input: points in R2
-//     // Ouput: results in targetDim
-
-//     this->computePoints(patch,u);
-
-//     if ((m_output==1) && (m_outputType==1))
-//         m_moment = 2; // NEEDED SINCE m_moment=2 IS FOR THE OUTPUT OF THE M TENSOR, WHICH IN FACT HAS MOMENT 2. THIS IS BY CHOICE OF THE COMPUTATION OF THE STRAINS IN THE Sij() FUNCTION
-
-//     // Perform integration
-//     m_numGauss = m_options.getInt("NumGauss");
-
-//     gsMatrix<T> result(9,1);
-//     result.resize(this->targetDim(),u.cols());
-//     result.setZero();
-
-//     m_gauss = gsGaussRule<T>(m_numGauss);
-//     gsMatrix<T> z(m_numGauss,u.cols());
-//     gsMatrix<T> w(m_numGauss,u.cols());
-//     gsMatrix<T> vals;
-//     // m_points3D.resize(1,m_numGauss);
-
-//     // pre-compute Z
-//     for (index_t k = 0; k != u.cols(); ++k) // for all points
-//     {
-//         gsMatrix<T> quNodes(1,m_numGauss);
-//         gsVector<T> quWeights(m_numGauss);
-//         // set new integration point
-//         m_tHalf = m_Tmat(0,k)/2.0;
-//         m_gauss.mapTo(-m_tHalf,m_tHalf,quNodes,quWeights);
-//         w.col(k)=quWeights;
-//         z.col(k)=quNodes.transpose();
-//     }
-
-//     vals = this->eval3D(u,z);
-
-//     T res;
-//     for (index_t k = 0; k != u.cols(); ++k) // for all points
-//     {
-//         for (index_t i=0; i!=this->targetDim(); ++i) // components
-//         {
-//             res = 0.0;
-//             for (index_t j = 0; j != m_numGauss; ++j) // compute integral
-//                 res += w(j,k) * math::pow(z(j,k),m_moment) * vals(i,j*u.cols() + k);
-//             result(i,k) = res;
-//         }
-
-//     }
-//     return result;
-// }
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval_Incompressible(const index_t i, const gsMatrix<T>& z) const
-{
-    // gsInfo<<"TO DO: evaluate moments using thickness";
-    // Input: j index in-plane point
-    //        z out-of-plane coordinate (through thickness) in R1 (z)
-    gsMatrix<T> result(this->targetDim(), z.cols());
-    result.setZero();
-
-    for( index_t j=0; j < z.cols(); ++j ) // through-thickness points
-    {
-        // Evaluate material properties on the quadrature point
-        for (index_t v=0; v!=m_parmat.rows(); v++)
-            m_parvals.at(v) = m_parmat(v,i);
-
-        if (m_outputType==2)
-        {
-            // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
-            this->getMetric(i,z.at(j)); // on point i, on height z(0,j)
-
-            gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j,3,3);
-            /*
-                C = C1111,  C1122,  C1112
-                    symm,   C2222,  C2212
-                    symm,   symm,   C1212
-            */
-            C(0,0)          = Cijkl(0,0,0,0); // C1111
-            C(1,1)          = Cijkl(1,1,1,1); // C2222
-            C(2,2)          = Cijkl(0,1,0,1); // C1212
-            C(1,0) = C(0,1) = Cijkl(0,0,1,1); // C1122
-            C(2,0) = C(0,2) = Cijkl(0,0,0,1); // C1112
-            C(2,1) = C(1,2) = Cijkl(1,1,0,1); // C2212
-        }
-        else if (m_outputType==1)
-        {
-            // this->computeMetric(i,z.at(j),true,true);
-            this->getMetric(i,z.at(j)); // on point i, on height z(0,j)
-
-            result(0,j) = Sij(0,0);
-            result(1,j) = Sij(1,1);
-            result(2,j) = Sij(0,1);
-        }
-        else if (m_outputType==10)
-        {
-
-            // GISMO_ENSURE(m_material >= 10 && m_material < 20, "Only available for stretch-based materials.");
-
-            // this->computeMetric(i,z.at(j),true,true);
-            this->getMetric(i,z.at(j)); // on point i, on height z(0,j)
-
-            result(0,j) = Sii(0);
-            result(1,j) = Sii(1);
-        }
-        else
-            GISMO_ERROR("no vector or matrix produced");
-    }
-
-    return result;
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval_Incompressible(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
-{
-    // gsInfo<<"TO DO: evaluate moments using thickness";
-    // Input: u in-plane points
-    //        z matrix with, per point, a column with z integration points
-    // Output: (n=u.cols(), m=z.cols())
-    //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
-
-
-    this->computePoints(patch,u);
-    gsMatrix<T> result(this->targetDim(), u.cols() * z.rows());
-    result.setZero();
-
-    for (index_t k=0; k!=u.cols(); k++)
-    {
-        // Evaluate material properties on the quadrature point
-        for (index_t v=0; v!=m_parmat.rows(); v++)
-            m_parvals.at(v) = m_parmat(v,k);
-
-        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
-        {
-            if (m_outputType==2)
-            {
-                // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
-                this->getMetric(k,z(j,k)); // on point i, on height z(0,j)
-
-                gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
-                /*
-                    C = C1111,  C1122,  C1112
-                        symm,   C2222,  C2212
-                        symm,   symm,   C1212
-                */
-                C(0,0)          = Cijkl(0,0,0,0); // C1111
-                C(1,1)          = Cijkl(1,1,1,1); // C2222
-                C(2,2)          = Cijkl(0,1,0,1); // C1212
-                C(1,0) = C(0,1) = Cijkl(0,0,1,1); // C1122
-                C(2,0) = C(0,2) = Cijkl(0,0,0,1); // C1112
-                C(2,1) = C(1,2) = Cijkl(1,1,0,1); // C2212
-            }
-            else if (m_outputType==1)
-            {
-                // this->computeMetric(i,z.at(j),true,true);
-                this->getMetric(k,z(j,k)); // on point i, on height z(0,j)
-
-                result(0,j*u.cols()+k) = Sij(0,0);
-                result(1,j*u.cols()+k) = Sij(1,1);
-                result(2,j*u.cols()+k) = Sij(0,1);
-            }
-            else if (m_outputType==10)
-            {
-
-                // GISMO_ENSURE(m_material >= 10 && m_material < 20, "Only available for stretch-based materials.");
-
-                // this->computeMetric(i,z.at(j),true,true);
-                this->getMetric(k,z(j,k)); // on point i, on height z(0,j)
-
-                result(0,j*u.cols()+k) = Sii(0);
-                result(1,j*u.cols()+k) = Sii(1);
-            }
-            else
-                GISMO_ERROR("no vector or matrix produced");
-        }
-    }
-
     return result;
 }
 
@@ -1332,38 +1014,7 @@ template <enum Material _mat, enum Implementation _imp>
 typename std::enable_if<_mat==Material::SvK && _imp == Implementation::Analytical, T>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::Sij_impl(const index_t i, const index_t j) const
 {
-    gsMatrix<T> stress;
-    // --------------------------
-    // Saint Venant Kirchhoff
-    // --------------------------
-    if (m_moment==0)
-    {
-        GISMO_ENSURE( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
-        stress = 0.5*(m_Acov_def - m_Acov_ori);
-    }
-    else if (m_moment==2)
-    {
-        GISMO_ENSURE( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
-        stress = (m_Bcov_ori - m_Bcov_def);
-    }
-    else
-    {
-        // stress = 0.5*(m_Acov_def - m_Acov_ori) + (m_Bcov_ori - m_Bcov_def);
-
-        // stress = (m_Bcov_ori - m_Bcov_def);
-        // stress = 0.5*(m_Acov_def - m_Acov_ori);
-        // stress.resize(2,2);
-        // stress.setZero();
-        // GISMO_ERROR("Warning: no material model known in simplification, m_moment="<<m_moment);
-    }
-
-    // ALTERNATIVE
-    // stress = 0.5 * (m_Gcov_def_L - m_Gcov_ori_L);
-
-    T result =  Cijkl(i,j,0,0) * stress(0,0) + Cijkl(i,j,0,1) * stress(0,1)
-                + Cijkl(i,j,1,0) * stress(1,0) + Cijkl(i,j,1,1) * stress(1,1);
-
-    return result;
+    GISMO_ERROR("Not implemented");
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
@@ -1546,104 +1197,6 @@ T gsMaterialMatrix<dim,T,matId,comp,mat,imp>::Sii(const index_t i, const gsMatri
 {
     computeStretch(c);
     return Sa(i);
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval_Compressible(const index_t i, const gsMatrix<T>& z) const
-{
-    // Input: j index in-plane point
-    //        z out-of-plane coordinate (through thickness) in R1 (z)
-    gsMatrix<T> result(this->targetDim(), z.cols());
-    result.setZero();
-
-    for( index_t j=0; j < z.cols(); ++j ) // through thickness
-    {
-        // Evaluate material properties on the quadrature point
-        for (index_t v=0; v!=m_parmat.rows(); v++)
-            m_parvals.at(v) = m_parmat(v,i);
-
-        // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
-        this->getMetric(i,z.at(j)); // on point i, on height z(0,j)
-
-        // Define objects
-        gsMatrix<T,3,3> c, cinv;
-        T S33, C3333, dc33;
-        // T S33_old;
-        S33 = 0.0;
-        dc33 = 0.0;
-        C3333 = 1.0;
-
-        index_t itmax = 100;
-        T tol = 1e-10;
-
-        // Initialize c
-        c.setZero();
-        c.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
-        c(2,2) = math::pow(m_J0_sq,-1.0); // c33
-        // c(2,2) = 1.0; // c33
-        cinv.block(0,0,2,2) = m_Gcon_def.block(0,0,2,2);
-        cinv(2,2) = 1.0/c(2,2);
-
-        m_J_sq = m_J0_sq * c(2,2);
-        S33 = Sij(2,2,c,cinv);
-        // S33_old = (S33 == 0.0) ? 1.0 : S33;
-        C3333   = Cijkl3D(2,2,2,2,c,cinv);
-
-        dc33 = -2. * S33 / C3333;
-        for (index_t it = 0; it < itmax; it++)
-        {
-            c(2,2) += dc33;
-
-            GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
-            cinv(2,2) = 1.0/c(2,2);
-
-            m_J_sq = m_J0_sq * c(2,2) ;
-
-            S33     = Sij(2,2,c,cinv);
-            C3333   = Cijkl3D(2,2,2,2,c,cinv); //  or Cijkl???
-
-            dc33 = -2. * S33 / C3333;
-            // if (abs(S33/S33_old) < tol)
-            if (abs(dc33) < tol)
-            {
-                // gsInfo<<"Converged in "<<it<<" iterations, abs(S33) = "<<abs(dc33)<<" and tolerance = "<<tol<<"\n";
-                if (m_outputType==2)
-                    {
-                        gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j,3,3);
-                        /*
-                            C = C1111,  C1122,  C1112
-                                symm,   C2222,  C2212
-                                symm,   symm,   C1212
-                        */
-                        C(0,0)          = Cijkl(0,0,0,0,c,cinv); // C1111
-                        C(1,1)          = Cijkl(1,1,1,1,c,cinv); // C2222
-                        C(2,2)          = Cijkl(0,1,0,1,c,cinv); // C1212
-                        C(1,0) = C(0,1) = Cijkl(0,0,1,1,c,cinv); // C1122
-                        C(2,0) = C(0,2) = Cijkl(0,0,0,1,c,cinv); // C1112
-                        C(2,1) = C(1,2) = Cijkl(1,1,0,1,c,cinv); // C2212
-                    }
-                    else if (m_outputType==1)
-                    {
-                        result(0,j) = Sij(0,0,c,cinv); // S11
-                        result(1,j) = Sij(1,1,c,cinv); // S22
-                        result(2,j) = Sij(0,1,c,cinv); // S12
-                    }
-                    else if (m_outputType==10)
-                    {
-                        GISMO_ENSURE(imp==Implementation::Spectral, "Only available for stretch-based materials.");
-
-                        result(0,j) = Sii(0,c); // S11
-                        result(1,j) = Sii(1,c); // S22
-                    }
-                else
-                    GISMO_ERROR("no vector or matrix produced");
-
-                    break;
-            }
-            GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, S33 = "<<S33<<" and tolerance = "<<tol<<"\n");
-        }
-    }
-    return result;
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
