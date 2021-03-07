@@ -23,23 +23,6 @@
 namespace gismo
 {
 
-
-/** @brief Assembles system matrices for thin shell linear and nonlinear elasticity problems.
-
-    \tparam T coefficient type
-
-    \ingroup gsThinShell
-*/
-
-/*
-Desired template parameters
-- compressible                      bool    COM
-- material model                    int     MAT
-- output type                       int     OUT / VEC
-- thickness integration method      int     INT
-- geometric dimension               int     DIM
-*/
-
 template <  short_t dim,
             class T,
             short_t matId,
@@ -106,482 +89,415 @@ public:
     typedef memory::unique_ptr< gsMaterialMatrix > uPtr;
 
 protected:
-    void initialize();
-    void defaultOptions();
+    void _initialize();
+    void _defaultOptions();
 
 private:
     template<bool _com>
-    typename std::enable_if<_com, void>::type stretch_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    typename std::enable_if<_com, void>::type _stretch_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     template<bool _com>
-    typename std::enable_if<!_com, void>::type stretch_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    typename std::enable_if<!_com, void>::type _stretch_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     template<bool _com>
-    typename std::enable_if<_com, void>::type stretchDir_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    typename std::enable_if<_com, void>::type _stretchDir_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
     template<bool _com>
-    typename std::enable_if<!_com, void>::type stretchDir_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    typename std::enable_if<!_com, void>::type _stretchDir_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
 protected:
-    gsMatrix<T> eval_Incompressible_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-    gsMatrix<T> eval_Incompressible_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-    gsMatrix<T> eval_Incompressible_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    gsMatrix<T> _eval_Incompressible_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    gsMatrix<T> _eval_Incompressible_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    gsMatrix<T> _eval_Incompressible_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
-    gsMatrix<T> eval_Compressible_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-    gsMatrix<T> eval_Compressible_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-    gsMatrix<T> eval_Compressible_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    gsMatrix<T> _eval_Compressible_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    gsMatrix<T> _eval_Compressible_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    gsMatrix<T> _eval_Compressible_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
 private:
 
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type eval3D_impl(const index_t i, const gsMatrix<T>& z) const;
+    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type eval3D_impl(const index_t i, const gsMatrix<T>& z) const;
+    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type eval3D_impl(const index_t i, const gsMatrix<T>& z) const;
+    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_vector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_vector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_vector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type eval3D_vector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_pstress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type eval3D_vector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_pstress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type eval3D_vector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-
-    template<enum Material _mat, bool _com>
-    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type eval3D_pstress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-    template<enum Material _mat, bool _com>
-    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type eval3D_pstress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-    template<enum Material _mat, bool _com>
-    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type eval3D_pstress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_pstress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
 
 protected:
 
-    // template MAT
-    T Cijkl  (const index_t i, const index_t j, const index_t k, const index_t l) const;
-    // template MAT
-    T Cijkl3D(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-    // template MAT
-    T Cijkl  (const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-    // template MAT
-    T Sij    (const index_t i, const index_t j) const;
-    // template MAT
-    T Sij    (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    T _Cijkl  (const index_t i, const index_t j, const index_t k, const index_t l) const;
+    T _Cijkl3D(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    T _Cijkl  (const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    T _Sij    (const index_t i, const index_t j) const;
+    T _Sij    (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    T _Sii    (const index_t i) const;
+    T _Sii    (const index_t i, const gsMatrix<T> & c) const;
 
-    T Sii    (const index_t i) const;
-    T Sii    (const index_t i, const gsMatrix<T> & c) const;
+private:
 
-    private:
+    // Incompressible
+    // template<enum Material _mat>
+    // typename std::enable_if<_mat==0, T>::type _Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::SvK && _imp==Implementation::Analytical, T>::type
+    _Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::NH  && _imp==Implementation::Analytical, T>::type
+    _Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::MR  && _imp==Implementation::Analytical, T>::type
+    _Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::OG && _imp==Implementation::Analytical, T>::type
+    _Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
+    {GISMO_NO_IMPLEMENTATION};
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::NH_ext && _imp==Implementation::Analytical, T>::type
+    _Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
+    {GISMO_NO_IMPLEMENTATION};
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_imp==Implementation::Spectral , T>::type
+    _Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_imp==Implementation::Generalized , T>::type
+    _Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
 
-        // Incompressible
-        // template<enum Material _mat>
-        // typename std::enable_if<_mat==0, T>::type Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::SvK && _imp==Implementation::Analytical, T>::type
-        Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::NH  && _imp==Implementation::Analytical, T>::type
-        Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::MR  && _imp==Implementation::Analytical, T>::type
-        Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::OG && _imp==Implementation::Analytical, T>::type
-        Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
-        {GISMO_NO_IMPLEMENTATION};
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::NH_ext && _imp==Implementation::Analytical, T>::type
-        Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
-        {GISMO_NO_IMPLEMENTATION};
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_imp==Implementation::Spectral , T>::type
-        Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_imp==Implementation::Generalized , T>::type
-        Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
+    // Compressible
+    template<enum Implementation _imp>
+    typename std::enable_if<_imp==Implementation::Spectral,   T>::type
+    _Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Implementation _imp>
+    typename std::enable_if<!(_imp==Implementation::Spectral),T>::type
+    _Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
 
-        // Compressible
-        template<enum Implementation _imp>
-        typename std::enable_if<_imp==Implementation::Spectral,   T>::type
-        Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        template<enum Implementation _imp>
-        typename std::enable_if<!(_imp==Implementation::Spectral),T>::type
-        Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::SvK && _imp==Implementation::Analytical, T>::type
+    _Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::NH && _imp==Implementation::Analytical, T>::type
+    _Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::MR && _imp==Implementation::Analytical, T>::type
+    _Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::OG && _imp==Implementation::Analytical, T>::type
+    _Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
+    {GISMO_NO_IMPLEMENTATION};
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::NH_ext && _imp==Implementation::Analytical, T>::type
+    _Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_imp==Implementation::Spectral , T>::type
+    _Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_imp==Implementation::Generalized , T>::type
+    _Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
 
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::SvK && _imp==Implementation::Analytical, T>::type
-        Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::NH && _imp==Implementation::Analytical, T>::type
-        Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::MR && _imp==Implementation::Analytical, T>::type
-        Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::OG && _imp==Implementation::Analytical, T>::type
-        Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
-        {GISMO_NO_IMPLEMENTATION};
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::NH_ext && _imp==Implementation::Analytical, T>::type
-        Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_imp==Implementation::Spectral , T>::type
-        Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_imp==Implementation::Generalized , T>::type
-        Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::SvK && _imp==Implementation::Analytical, T>::type
+    _Sij_impl(const index_t i, const index_t j) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::NH && _imp==Implementation::Analytical, T>::type
+    _Sij_impl(const index_t i, const index_t j) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::MR && _imp==Implementation::Analytical, T>::type
+    _Sij_impl(const index_t i, const index_t j) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::OG && _imp==Implementation::Analytical, T>::type
+    _Sij_impl(const index_t i, const index_t j) const
+    {GISMO_NO_IMPLEMENTATION};
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::NH_ext && _imp==Implementation::Analytical, T>::type
+    _Sij_impl(const index_t i, const index_t j) const
+    {GISMO_NO_IMPLEMENTATION};
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_imp==Implementation::Spectral , T>::type
+    _Sij_impl(const index_t i, const index_t j) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_imp==Implementation::Generalized , T>::type
+    _Sij_impl(const index_t i, const index_t j) const;
 
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::SvK && _imp==Implementation::Analytical, T>::type
-        Sij_impl(const index_t i, const index_t j) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::NH && _imp==Implementation::Analytical, T>::type
-        Sij_impl(const index_t i, const index_t j) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::MR && _imp==Implementation::Analytical, T>::type
-        Sij_impl(const index_t i, const index_t j) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::OG && _imp==Implementation::Analytical, T>::type
-        Sij_impl(const index_t i, const index_t j) const
-        {GISMO_NO_IMPLEMENTATION};
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::NH_ext && _imp==Implementation::Analytical, T>::type
-        Sij_impl(const index_t i, const index_t j) const
-        {GISMO_NO_IMPLEMENTATION};
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_imp==Implementation::Spectral , T>::type
-        Sij_impl(const index_t i, const index_t j) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_imp==Implementation::Generalized , T>::type
-        Sij_impl(const index_t i, const index_t j) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::SvK && _imp==Implementation::Analytical, T>::type
+    _Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
+    {GISMO_NO_IMPLEMENTATION};
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::NH && _imp==Implementation::Analytical, T>::type
+    _Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::MR && _imp==Implementation::Analytical, T>::type
+    _Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::OG && _imp==Implementation::Analytical, T>::type
+    _Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
+    {GISMO_NO_IMPLEMENTATION};
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_mat==Material::NH_ext && _imp==Implementation::Analytical, T>::type
+    _Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_imp==Implementation::Spectral , T>::type
+    _Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat, enum Implementation _imp>
+    typename std::enable_if<_imp==Implementation::Generalized , T>::type
+    _Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
 
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::SvK && _imp==Implementation::Analytical, T>::type
-        Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
-        {GISMO_NO_IMPLEMENTATION};
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::NH && _imp==Implementation::Analytical, T>::type
-        Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::MR && _imp==Implementation::Analytical, T>::type
-        Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::OG && _imp==Implementation::Analytical, T>::type
-        Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
-        {GISMO_NO_IMPLEMENTATION};
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_mat==Material::NH_ext && _imp==Implementation::Analytical, T>::type
-        Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_imp==Implementation::Spectral , T>::type
-        Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        template<enum Material _mat, enum Implementation _imp>
-        typename std::enable_if<_imp==Implementation::Generalized , T>::type
-        Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+protected:
 
-    protected:
+    T _dPsi   (const index_t i, const index_t j) const;
+    T _dPsi   (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    T _dPsi_vol(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    T _d2Psi  (const index_t i, const index_t j, const index_t k, const index_t l) const;
+    T _d2Psi  (const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    T _d2Psi_vol(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    T _dI_1   (const index_t i, const index_t j) const;
+    T _dI_2   (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
 
-    // template MAT
-    T dPsi   (const index_t i, const index_t j) const;
-    // template MAT
-    T dPsi   (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-    // template MAT
-    T dPsi_vol(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-    // template MAT
-    T d2Psi  (const index_t i, const index_t j, const index_t k, const index_t l) const;
-    // template MAT
-    T d2Psi  (const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-    // template MAT
-    T d2Psi_vol(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+private:
+    /*
+        Note: when adding a new implementation, make sure to add the condition in the 'other' implementation : !(_mat==xx || ...)
+    */
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::NH, T>::type _dPsi_impl(const index_t i, const index_t j) const;
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::MR, T>::type _dPsi_impl(const index_t i, const index_t j) const;
+    // other
+    template<enum Material _mat>
+    typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR), T>::type _dPsi_impl(const index_t i, const index_t j) const
+    {GISMO_NO_IMPLEMENTATION};
+    // add other
 
-    T dI_1   (const index_t i, const index_t j) const;
-    T dI_2   (const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::NH, T>::type _dPsi_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::MR, T>::type _dPsi_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::NH_ext, T>::type _dPsi_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    // other
+    template<enum Material _mat>
+    typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR || _mat==Material::NH_ext), T>::type _dPsi_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
+    {GISMO_NO_IMPLEMENTATION};
 
-    private:
-        /*
-            Note: when adding a new implementation, make sure to add the condition in the 'other' implementation : !(_mat==xx || ...)
-        */
-        template<enum Material _mat>
-        typename std::enable_if<_mat==Material::NH, T>::type dPsi_impl(const index_t i, const index_t j) const;
-        template<enum Material _mat>
-        typename std::enable_if<_mat==Material::MR, T>::type dPsi_impl(const index_t i, const index_t j) const;
-        // other
-        template<enum Material _mat>
-        typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR), T>::type dPsi_impl(const index_t i, const index_t j) const
-        {GISMO_NO_IMPLEMENTATION};
-        // add other
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::NH, T>::type _d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::MR, T>::type _d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
+    // other
+    template<enum Material _mat>
+    typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR), T>::type _d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
+    {GISMO_NO_IMPLEMENTATION};
 
-        template<enum Material _mat>
-        typename std::enable_if<_mat==Material::NH, T>::type dPsi_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        template<enum Material _mat>
-        typename std::enable_if<_mat==Material::MR, T>::type dPsi_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        template<enum Material _mat>
-        typename std::enable_if<_mat==Material::NH_ext, T>::type dPsi_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        // other
-        template<enum Material _mat>
-        typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR || _mat==Material::NH_ext), T>::type dPsi_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
-        {GISMO_NO_IMPLEMENTATION};
-
-        template<enum Material _mat>
-        typename std::enable_if<_mat==Material::NH, T>::type d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
-        template<enum Material _mat>
-        typename std::enable_if<_mat==Material::MR, T>::type d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
-        // other
-        template<enum Material _mat>
-        typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR), T>::type d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
-        {GISMO_NO_IMPLEMENTATION};
-
-        template<enum Material _mat>
-        typename std::enable_if<_mat==Material::NH, T>::type d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        template<enum Material _mat>
-        typename std::enable_if<_mat==Material::MR, T>::type d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        template<enum Material _mat>
-        typename std::enable_if<_mat==Material::NH_ext, T>::type d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-        // other
-        template<enum Material _mat>
-        typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR || _mat==Material::NH_ext), T>::type d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
-        {GISMO_NO_IMPLEMENTATION};
-    protected:
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::NH, T>::type _d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::MR, T>::type _d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::NH_ext, T>::type _d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
+    // other
+    template<enum Material _mat>
+    typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR || _mat==Material::NH_ext), T>::type _d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
+    {GISMO_NO_IMPLEMENTATION};
+protected:
 
     // Stretch based formulation
-    // template MAT COM
-    T dPsi_da   (const index_t a) const;
-    // template MAT COM
-    T d2Psi_dab (const index_t a, const index_t b) const;
-    // template MAT COM
-    T dPsi_da_vol(const index_t a) const;
-    // template MAT COM
-    T d2Psi_dab_vol(const index_t a, const index_t b) const;
+    T _dPsi_da   (const index_t a) const;
+    T _d2Psi_dab (const index_t a, const index_t b) const;
+    T _dPsi_da_vol(const index_t a) const;
+    T _d2Psi_dab_vol(const index_t a, const index_t b) const;
+    T _dJ_da     (const index_t a) const;
+    T _d2J_dab   (const index_t a, const index_t b) const;
+    T _p()                                          const;
+    T _dp_da     (const index_t a) const;
+    T _Sa        (const index_t a) const;
+    T _dSa_db    (const index_t a, const index_t b) const;
+    T _Cabcd     (const index_t a, const index_t b, const index_t c, const index_t d) const;
 
-    T dJ_da     (const index_t a) const;
-    T d2J_dab   (const index_t a, const index_t b) const;
-    T p()                                          const;
-    T dp_da     (const index_t a) const;
-    // template COM
-    T Sa        (const index_t a) const;
-    // template COM
-    T dSa_db    (const index_t a, const index_t b) const;
-    // template COM
-    T Cabcd     (const index_t a, const index_t b, const index_t c, const index_t d) const;
+private:
+    // ----------------------------------------------------------------------------------
 
-    private:
-        // ----------------------------------------------------------------------------------
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_com && (_mat==Material::NH), T>::type _dPsi_da_impl(const index_t a) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<!_com && (_mat==Material::NH), T>::type _dPsi_da_impl(const index_t a) const;
 
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<_com && (_mat==Material::NH), T>::type dPsi_da_impl(const index_t a) const;
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<!_com && (_mat==Material::NH), T>::type dPsi_da_impl(const index_t a) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_com && (_mat==Material::MR), T>::type _dPsi_da_impl(const index_t a) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<!_com && (_mat==Material::MR), T>::type _dPsi_da_impl(const index_t a) const;
 
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<_com && (_mat==Material::MR), T>::type dPsi_da_impl(const index_t a) const;
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<!_com && (_mat==Material::MR), T>::type dPsi_da_impl(const index_t a) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_com && (_mat==Material::OG), T>::type _dPsi_da_impl(const index_t a) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<!_com && (_mat==Material::OG), T>::type _dPsi_da_impl(const index_t a) const;
 
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<_com && (_mat==Material::OG), T>::type dPsi_da_impl(const index_t a) const;
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<!_com && (_mat==Material::OG), T>::type dPsi_da_impl(const index_t a) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_com && (_mat==Material::NH_ext), T>::type _dPsi_da_impl(const index_t a) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<!_com && (_mat==Material::NH_ext), T>::type _dPsi_da_impl(const index_t a) const
+    {GISMO_NO_IMPLEMENTATION};
 
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<_com && (_mat==Material::NH_ext), T>::type dPsi_da_impl(const index_t a) const;
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<!_com && (_mat==Material::NH_ext), T>::type dPsi_da_impl(const index_t a) const
-        {GISMO_NO_IMPLEMENTATION};
+    // other
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<
+                            !(     _mat==Material::NH
+                                || _mat==Material::MR
+                                || _mat==Material::OG
+                                || _mat==Material::NH_ext
+                              )
+                                                                , T>::type _dPsi_da_impl(const index_t a) const
+    {GISMO_NO_IMPLEMENTATION}
 
-        // other
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<
-                                !(     _mat==Material::NH
-                                    || _mat==Material::MR
-                                    || _mat==Material::OG
-                                    || _mat==Material::NH_ext
-                                  )
-                                                                    , T>::type dPsi_da_impl(const index_t a) const
-        {GISMO_NO_IMPLEMENTATION}
+    // ----------------------------------------------------------------------------------
 
-        // ----------------------------------------------------------------------------------
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_com && (_mat==Material::NH), T>::type _d2Psi_dab_impl(const index_t a, const index_t b) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<!_com && (_mat==Material::NH), T>::type _d2Psi_dab_impl(const index_t a, const index_t b) const;
 
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<_com && (_mat==Material::NH), T>::type d2Psi_dab_impl(const index_t a, const index_t b) const;
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<!_com && (_mat==Material::NH), T>::type d2Psi_dab_impl(const index_t a, const index_t b) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_com && (_mat==Material::MR), T>::type _d2Psi_dab_impl(const index_t a, const index_t b) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<!_com && (_mat==Material::MR), T>::type _d2Psi_dab_impl(const index_t a, const index_t b) const;
 
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<_com && (_mat==Material::MR), T>::type d2Psi_dab_impl(const index_t a, const index_t b) const;
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<!_com && (_mat==Material::MR), T>::type d2Psi_dab_impl(const index_t a, const index_t b) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_com && (_mat==Material::OG), T>::type _d2Psi_dab_impl(const index_t a, const index_t b) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<!_com && (_mat==Material::OG), T>::type _d2Psi_dab_impl(const index_t a, const index_t b) const;
 
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<_com && (_mat==Material::OG), T>::type d2Psi_dab_impl(const index_t a, const index_t b) const;
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<!_com && (_mat==Material::OG), T>::type d2Psi_dab_impl(const index_t a, const index_t b) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_com && (_mat==Material::NH_ext), T>::type _d2Psi_dab_impl(const index_t a, const index_t b) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<!_com && (_mat==Material::NH_ext), T>::type _d2Psi_dab_impl(const index_t a, const index_t b) const
+    {GISMO_NO_IMPLEMENTATION};
 
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<_com && (_mat==Material::NH_ext), T>::type d2Psi_dab_impl(const index_t a, const index_t b) const;
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<!_com && (_mat==Material::NH_ext), T>::type d2Psi_dab_impl(const index_t a, const index_t b) const
-        {GISMO_NO_IMPLEMENTATION};
+    // other
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<
+                            !(     _mat==Material::NH
+                                || _mat==Material::MR
+                                || _mat==Material::OG
+                                || _mat==Material::NH_ext
+                              )
+                                                                , T>::type _d2Psi_dab_impl(const index_t a, const index_t b) const
+    {GISMO_NO_IMPLEMENTATION}
 
-        // other
-        template<enum Material _mat, bool _com>
-        typename std::enable_if<
-                                !(     _mat==Material::NH
-                                    || _mat==Material::MR
-                                    || _mat==Material::OG
-                                    || _mat==Material::NH_ext
-                                  )
-                                                                    , T>::type d2Psi_dab_impl(const index_t a, const index_t b) const
-        {GISMO_NO_IMPLEMENTATION}
+    // ----------------------------------------------------------------------------------
 
-        // ----------------------------------------------------------------------------------
+    template<bool _com>
+    typename std::enable_if<_com , T>::type _Sa_impl(const index_t a) const;
+    template<bool _com>
+    typename std::enable_if<!_com, T>::type _Sa_impl(const index_t a) const;
 
-        template<bool _com>
-        typename std::enable_if<_com , T>::type Sa_impl(const index_t a) const;
-        template<bool _com>
-        typename std::enable_if<!_com, T>::type Sa_impl(const index_t a) const;
+    // ----------------------------------------------------------------------------------
 
-        // ----------------------------------------------------------------------------------
+    template<bool _com>
+    typename std::enable_if<_com , T>::type _dSa_db_impl(const index_t a, const index_t b) const;
+    template<bool _com>
+    typename std::enable_if<!_com, T>::type _dSa_db_impl(const index_t a, const index_t b) const;
 
-        template<bool _com>
-        typename std::enable_if<_com , T>::type dSa_db_impl(const index_t a, const index_t b) const;
-        template<bool _com>
-        typename std::enable_if<!_com, T>::type dSa_db_impl(const index_t a, const index_t b) const;
+    // ----------------------------------------------------------------------------------
 
-        // ----------------------------------------------------------------------------------
+    template<bool _com>
+    typename std::enable_if<_com , T>::type _Cabcd_impl(const index_t a, const index_t b, const index_t c, const index_t d) const;
+    template<bool _com>
+    typename std::enable_if<!_com, T>::type _Cabcd_impl(const index_t a, const index_t b, const index_t c, const index_t d) const;
 
-        template<bool _com>
-        typename std::enable_if<_com , T>::type Cabcd_impl(const index_t a, const index_t b, const index_t c, const index_t d) const;
-        template<bool _com>
-        typename std::enable_if<!_com, T>::type Cabcd_impl(const index_t a, const index_t b, const index_t c, const index_t d) const;
+    // ----------------------------------------------------------------------------------
 
-        // ----------------------------------------------------------------------------------
+protected:
 
-    protected:
+    void _computePoints(const index_t patch, const gsMatrix<T> & u) const;
+    void _computeMetricDeformed() const;
+    void _computeMetricUndeformed() const;
+    void _getMetric(index_t k, T z) const;
+    void _getMetricDeformed(index_t k, T z) const;
+    void _getMetricUndeformed(index_t k, T z) const;
+    void _computeStretch(const gsMatrix<T> & C ) const;
+    std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C ) const;
 
-    // T Sij  (const index_t i, const index_t j, gsMatrix<T> & cinv) const;
+private:
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::OG, void>::type _computePoints_impl(const gsMatrix<T> & u) const;
+    template<enum Material _mat>
+    typename std::enable_if<_mat!=Material::OG, void>::type _computePoints_impl(const gsMatrix<T> & u) const;
 
-    // void eval_Linear(const gsMatrix<T>& u, gsMatrix<T>& result) const;
-    // void eval_Incompressible(const gsMatrix<T>& u, gsMatrix<T>& result) const;
-    // void eval_Compressible(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, void>::type _computeMetricDeformed_impl() const;
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, void>::type _computeMetricDeformed_impl() const;
 
-    gsMatrix<T> multiplyZ (const index_t patch, const gsMatrix<T>& u) const;
-    gsMatrix<T> integrateZ(const index_t patch, const gsMatrix<T>& u) const;
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, void>::type _computeMetricUndeformed_impl() const;
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, void>::type _computeMetricUndeformed_impl() const;
 
-    // template MAT
-    void computePoints(const index_t patch, const gsMatrix<T> & u, bool deformed=true) const;
-    // template DIM
-    void computeMetricDeformed() const;
-    // template DIM
-    void computeMetricUndeformed() const;
-    // template DIM
-    void getMetric(index_t k, T z) const;
-    // template DIM
-    void getMetricDeformed(index_t k, T z) const;
-    // template DIM
-    void getMetricUndeformed(index_t k, T z) const;
-    // template DIM
-    void computeStretch(const gsMatrix<T> & C ) const;
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, void>::type _getMetric_impl(index_t k, T z) const;
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, void>::type _getMetric_impl(index_t k, T z) const;
 
-    // template DIM
-    std::pair<gsVector<T>,gsMatrix<T>> evalStretch(const gsMatrix<T> & C ) const;
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, void>::type _getMetricDeformed_impl(index_t k, T z) const;
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, void>::type _getMetricDeformed_impl(index_t k, T z) const;
 
-    private:
-        template<enum Material _mat>
-        typename std::enable_if<_mat==Material::OG, void>::type computePoints_impl(const gsMatrix<T> & u, bool deformed) const;
-        template<enum Material _mat>
-        typename std::enable_if<_mat!=Material::OG, void>::type computePoints_impl(const gsMatrix<T> & u, bool deformed) const;
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, void>::type _getMetricUndeformed_impl(index_t k, T z) const;
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, void>::type _getMetricUndeformed_impl(index_t k, T z) const;
 
-        template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type computeMetricDeformed_impl() const;
-        template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type computeMetricDeformed_impl() const;
+    // template<short_t _dim>
+    // typename std::enable_if<_dim==2, void>::type _computeStretch_impl(const gsMatrix<T> & C ) const;
+    // template<short_t _dim>
+    // typename std::enable_if<_dim==3, void>::type _computeStretch_impl(const gsMatrix<T> & C ) const;
 
-        template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type computeMetricUndeformed_impl() const;
-        template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type computeMetricUndeformed_impl() const;
-
-        template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type getMetric_impl(index_t k, T z) const;
-        template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type getMetric_impl(index_t k, T z) const;
-
-        template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type getMetricDeformed_impl(index_t k, T z) const;
-        template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type getMetricDeformed_impl(index_t k, T z) const;
-
-        template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type getMetricUndeformed_impl(index_t k, T z) const;
-        template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type getMetricUndeformed_impl(index_t k, T z) const;
-
-        template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type computeStretch_impl(const gsMatrix<T> & C ) const;
-        template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type computeStretch_impl(const gsMatrix<T> & C ) const;
-
-        template<short_t _dim>
-        typename std::enable_if<_dim==2, std::pair<gsVector<T>,gsMatrix<T>>>::type evalStretch_impl(const gsMatrix<T> & C ) const;
-        template<short_t _dim>
-        typename std::enable_if<_dim==3, std::pair<gsVector<T>,gsMatrix<T>>>::type evalStretch_impl(const gsMatrix<T> & C ) const;
+    // template<short_t _dim>
+    // typename std::enable_if<_dim==2, std::pair<gsVector<T>,gsMatrix<T>>>::type _evalStretch_impl(const gsMatrix<T> & C ) const;
+    // template<short_t _dim>
+    // typename std::enable_if<_dim==3, std::pair<gsVector<T>,gsMatrix<T>>>::type _evalStretch_impl(const gsMatrix<T> & C ) const;
 
 
 protected:
     // general
     index_t m_numPars; // how many parameters for the material model?
-    mutable index_t m_moment;
-    mutable gsMatrix<T> m_result;
 
     // constructor
     const gsFunctionSet<T> * m_patches;
     const gsFunctionSet<T> * m_defpatches;
     const gsFunction<T> * m_thickness;
-    mutable std::vector<gsFunction<T>* > m_pars;
+    std::vector<gsFunction<T>* > m_pars;
     const gsFunction<T> * m_density;
 
-    // Linear material matrix
+    // Geometric data point
     mutable gsMapData<T> m_map, m_map_def;
     mutable gsMatrix<T,2,2> m_Acov_ori, m_Acon_ori, m_Acov_def, m_Acon_def, m_Bcov_ori, m_Bcon_ori, m_Bcov_def, m_Bcon_def;
     mutable gsMatrix<T,3,2> m_acov_ori, m_acon_ori, m_acov_def, m_acon_def, m_ncov_ori, m_ncov_def;
+    mutable gsMatrix<T,3,3> m_Gcov_ori, m_Gcon_ori, m_Gcov_def, m_Gcon_def, m_Gcov_ori_L, m_Gcov_def_L;
+    mutable gsMatrix<T,3,3> m_gcov_ori, m_gcov_def,m_gcon_ori, m_gcon_def;
     mutable gsMatrix<T> m_Acov_ori_mat, m_Acon_ori_mat, m_Acov_def_mat, m_Acon_def_mat, m_Bcov_ori_mat, m_Bcov_def_mat;
     mutable gsMatrix<T> m_acov_ori_mat, m_acon_ori_mat, m_acov_def_mat, m_acon_def_mat, m_ncov_ori_mat, m_ncov_def_mat;
-    mutable gsMatrix<T> m_Emat,m_Nmat,m_Tmat,m_rhomat;
-    mutable real_t m_lambda, m_mu, m_Cconstant;
 
 
-    // Composite material matrix
-    const std::vector<std::pair<T,T>>   m_YoungsModuli;
-    const std::vector<T>                m_ShearModuli;
-    const std::vector<std::pair<T,T>>   m_PoissonRatios;
-    const std::vector<T>                m_thickValues;
-    const std::vector<T>                m_phis;
-    const std::vector<T>                m_densities;
-    mutable gsVector<T>                 m_e1, m_e2, m_ac1, m_ac2, m_a1, m_a2;
-    mutable gsMatrix<T>                 m_covBasis, m_covMetric, m_conBasis, m_conMetric;
-    mutable gsMatrix<T>                 m_stretches, m_stretchvec;
-    mutable T                           m_E1, m_E2, m_G12, m_nu12, m_nu21, m_t, m_t_tot,
-                                        m_t_temp, m_z, m_z_mid, m_phi, m_rho;
-    mutable gsMatrix<T>                 m_Dmat, m_Transform;
+    // Material parameters and kinematics
+    mutable gsMatrix<T> m_parmat;
+    mutable gsVector<T> m_parvals;
+    mutable gsMatrix<T> m_Tmat,m_rhomat;
+    mutable T           m_J0, m_J0_sq, m_J, m_J_sq;
+    mutable gsMatrix<T> m_stretches, m_stretchvec;
 
-    // Compressible material matrix
-    mutable gsMatrix<T>                 m_deriv2_def, m_deriv2_ori;
-    mutable gsMatrix<T,3,3>             m_Gcov_ori, m_Gcon_ori, m_Gcov_def, m_Gcon_def, m_Gcov_ori_L, m_Gcov_def_L;
-    mutable gsMatrix<T,3,3>             m_gcov_ori, m_gcov_def,m_gcon_ori, m_gcon_def;
-    mutable gsMatrix<T>                 m_parmat;
-    mutable gsVector<T>                 m_parvals;
-    mutable T                           m_J0, m_J0_sq, m_J, m_J_sq, m_Tval;
-    // integrateZ
-    mutable gsMatrix<T> m_points2D, m_points3D, m_evalPoints;
-    mutable index_t m_numGauss;
-    mutable T m_tHalf;
-
-    mutable gsOptionList m_options;
+    gsOptionList m_options;
 
 private:
     static int delta(const int a, const int b)

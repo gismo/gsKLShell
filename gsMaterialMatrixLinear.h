@@ -23,21 +23,6 @@
 namespace gismo
 {
 
-/** @brief Assembles system matrices for thin shell linear and nonlinear elasticity problems.
-
-    \tparam T coefficient type
-
-    \ingroup gsThinShell
-*/
-
-/*
-Desired template parameters
-- compressible                      bool    COM
-- material model                    int     MAT
-- output type                       int     OUT / VEC
-- thickness integration method      int     INT
-- geometric dimension               int     DIM
-*/
 
 template <  short_t dim,
             class T
@@ -97,9 +82,6 @@ public:
     void info() const;
 
 public:
-    // template<short_t num=0>
-    // void makeMatrix()                   { m_outputType=2; m_output = num;}
-
     /// Shared pointer for gsMaterialMatrixLinear
     typedef memory::shared_ptr< gsMaterialMatrixLinear > Ptr;
 
@@ -107,59 +89,51 @@ public:
     typedef memory::unique_ptr< gsMaterialMatrixLinear > uPtr;
 
 protected:
-    void initialize();
-    void defaultOptions();
+    void _initialize();
+    void _defaultOptions();
 
 protected:
 
-    // template MAT
-    T Cijkl  (const index_t i, const index_t j, const index_t k, const index_t l) const;
-    // template MAT
-    T Sij    (const index_t i, const index_t j, const T z, enum MaterialOutput out) const;
+    T _Cijkl  (const index_t i, const index_t j, const index_t k, const index_t l) const;
+    T _Sij    (const index_t i, const index_t j, const T z, enum MaterialOutput out) const;
 
-    // template MAT
-    void computePoints(const index_t patch, const gsMatrix<T> & u, bool deformed=true) const;
-    // template DIM
-    void computeMetricDeformed() const;
-    // template DIM
-    void computeMetricUndeformed() const;
-    // template DIM
-    void getMetric(index_t k, T z) const;
-    // template DIM
-    void getMetricDeformed(index_t k, T z) const;
-    // template DIM
-    void getMetricUndeformed(index_t k, T z) const;
+    void _computePoints(const index_t patch, const gsMatrix<T> & u, bool deformed=true) const;
+    void _computeMetricDeformed() const;
+    void _computeMetricUndeformed() const;
+    void _getMetric(index_t k, T z) const;
+    void _getMetricDeformed(index_t k, T z) const;
+    void _getMetricUndeformed(index_t k, T z) const;
 
     private:
         template<enum Material _mat>
-        typename std::enable_if<_mat==Material::OG, void>::type computePoints_impl(const gsMatrix<T> & u, bool deformed) const;
+        typename std::enable_if<_mat==Material::OG, void>::type _computePoints_impl(const gsMatrix<T> & u, bool deformed) const;
         template<enum Material _mat>
-        typename std::enable_if<_mat!=Material::OG, void>::type computePoints_impl(const gsMatrix<T> & u, bool deformed) const;
+        typename std::enable_if<_mat!=Material::OG, void>::type _computePoints_impl(const gsMatrix<T> & u, bool deformed) const;
 
         template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type computeMetricDeformed_impl() const;
+        typename std::enable_if<_dim==2, void>::type _computeMetricDeformed_impl() const;
         template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type computeMetricDeformed_impl() const;
+        typename std::enable_if<_dim==3, void>::type _computeMetricDeformed_impl() const;
 
         template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type computeMetricUndeformed_impl() const;
+        typename std::enable_if<_dim==2, void>::type _computeMetricUndeformed_impl() const;
         template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type computeMetricUndeformed_impl() const;
+        typename std::enable_if<_dim==3, void>::type _computeMetricUndeformed_impl() const;
 
         template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type getMetric_impl(index_t k, T z) const;
+        typename std::enable_if<_dim==2, void>::type _getMetric_impl(index_t k, T z) const;
         template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type getMetric_impl(index_t k, T z) const;
+        typename std::enable_if<_dim==3, void>::type _getMetric_impl(index_t k, T z) const;
 
         template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type getMetricDeformed_impl(index_t k, T z) const;
+        typename std::enable_if<_dim==2, void>::type _getMetricDeformed_impl(index_t k, T z) const;
         template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type getMetricDeformed_impl(index_t k, T z) const;
+        typename std::enable_if<_dim==3, void>::type _getMetricDeformed_impl(index_t k, T z) const;
 
         template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type getMetricUndeformed_impl(index_t k, T z) const;
+        typename std::enable_if<_dim==2, void>::type _getMetricUndeformed_impl(index_t k, T z) const;
         template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type getMetricUndeformed_impl(index_t k, T z) const;
+        typename std::enable_if<_dim==3, void>::type _getMetricUndeformed_impl(index_t k, T z) const;
 
         template<short_t _dim>
         typename std::enable_if<_dim==2, void>::type computeStretch_impl(const gsMatrix<T> & C ) const;
@@ -174,13 +148,12 @@ protected:
 protected:
     // general
     index_t m_numPars; // how many parameters for the material model?
-    mutable gsMatrix<T> m_result;
 
     // constructor
     const gsFunctionSet<T> * m_patches;
     const gsFunctionSet<T> * m_defpatches;
     const gsFunction<T> * m_thickness;
-    mutable std::vector<gsFunction<T>* > m_pars;
+    std::vector<gsFunction<T>* > m_pars;
     const gsFunction<T> * m_density;
 
     // Linear material matrix
@@ -202,7 +175,7 @@ protected:
     mutable gsVector<T>                 m_parvals;
     mutable T                           m_J0, m_J0_sq, m_J, m_J_sq, m_Tval;
 
-    mutable gsOptionList m_options;
+    gsOptionList m_options;
 
 };
 

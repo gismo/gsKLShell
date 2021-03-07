@@ -23,22 +23,6 @@
 namespace gismo
 {
 
-/** @brief Assembles system matrices for thin shell linear and nonlinear elasticity problems.
-
-    \tparam T coefficient type
-
-    \ingroup gsThinShell
-*/
-
-/*
-Desired template parameters
-- compressible                      bool    COM
-- material model                    int     MAT
-- output type                       int     OUT / VEC
-- thickness integration method      int     INT
-- geometric dimension               int     DIM
-*/
-
 template <  short_t dim,
             class T
          >
@@ -196,77 +180,57 @@ public:
     typedef memory::unique_ptr< gsMaterialMatrixComposite > uPtr;
 
 protected:
-    void initialize();
-    void initializeParameters();
-    void defaultOptions();
+    void _initialize();
+    void _initializeParameters();
+    void _defaultOptions();
 
-    gsMatrix<T> computeMatrix(const T E11, const T E22, const T G12, const T nu12, const T nu21, const T phi) const;
-    gsMatrix<T> cart2cov(const gsVector<T> a1, const gsVector<T> a2, const gsVector<T> e1, const gsVector<T> e2) const;
-    gsMatrix<T> con2cart(const gsVector<T> ac1, const gsVector<T> ac2, const gsVector<T> e1, const gsVector<T> e2) const;
+    gsMatrix<T> _computeMatrix(const T E11, const T E22, const T G12, const T nu12, const T nu21, const T phi) const;
+    gsMatrix<T> _cart2cov(const gsVector<T> a1, const gsVector<T> a2, const gsVector<T> e1, const gsVector<T> e2) const;
+    gsMatrix<T> _con2cart(const gsVector<T> ac1, const gsVector<T> ac2, const gsVector<T> e1, const gsVector<T> e2) const;
 
 
 protected:
 
     // template MAT
-    void computePoints(const index_t patch, const gsMatrix<T> & u, bool deformed=true) const;
+    void _computePoints(const index_t patch, const gsMatrix<T> & u) const;
     // template DIM
-    void computeMetricDeformed() const;
+    void _computeMetricDeformed() const;
     // template DIM
-    void computeMetricUndeformed() const;
+    void _computeMetricUndeformed() const;
     // template DIM
-    void getMetric(index_t k, T z) const;
+    void _getMetric(index_t k, T z) const;
     // template DIM
-    void getMetricDeformed(index_t k, T z) const;
+    void _getMetricDeformed(index_t k, T z) const;
     // template DIM
-    void getMetricUndeformed(index_t k, T z) const;
+    void _getMetricUndeformed(index_t k, T z) const;
 
     private:
-        template<enum Material _mat>
-        typename std::enable_if<_mat==Material::OG, void>::type computePoints_impl(const gsMatrix<T> & u, bool deformed) const;
-        template<enum Material _mat>
-        typename std::enable_if<_mat!=Material::OG, void>::type computePoints_impl(const gsMatrix<T> & u, bool deformed) const;
+        template<short_t _dim>
+        typename std::enable_if<_dim==2, void>::type _computeMetricDeformed_impl() const;
+        template<short_t _dim>
+        typename std::enable_if<_dim==3, void>::type _computeMetricDeformed_impl() const;
 
         template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type computeMetricDeformed_impl() const;
+        typename std::enable_if<_dim==2, void>::type _computeMetricUndeformed_impl() const;
         template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type computeMetricDeformed_impl() const;
+        typename std::enable_if<_dim==3, void>::type _computeMetricUndeformed_impl() const;
 
         template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type computeMetricUndeformed_impl() const;
+        typename std::enable_if<_dim==2, void>::type _getMetric_impl(index_t k, T z) const;
         template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type computeMetricUndeformed_impl() const;
+        typename std::enable_if<_dim==3, void>::type _getMetric_impl(index_t k, T z) const;
 
         template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type getMetric_impl(index_t k, T z) const;
+        typename std::enable_if<_dim==2, void>::type _getMetricDeformed_impl(index_t k, T z) const;
         template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type getMetric_impl(index_t k, T z) const;
+        typename std::enable_if<_dim==3, void>::type _getMetricDeformed_impl(index_t k, T z) const;
 
         template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type getMetricDeformed_impl(index_t k, T z) const;
+        typename std::enable_if<_dim==2, void>::type _getMetricUndeformed_impl(index_t k, T z) const;
         template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type getMetricDeformed_impl(index_t k, T z) const;
-
-        template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type getMetricUndeformed_impl(index_t k, T z) const;
-        template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type getMetricUndeformed_impl(index_t k, T z) const;
-
-        template<short_t _dim>
-        typename std::enable_if<_dim==2, void>::type computeStretch_impl(const gsMatrix<T> & C ) const;
-        template<short_t _dim>
-        typename std::enable_if<_dim==3, void>::type computeStretch_impl(const gsMatrix<T> & C ) const;
-
-        template<short_t _dim>
-        typename std::enable_if<_dim==2, std::pair<gsVector<T>,gsMatrix<T>>>::type evalStretch_impl(const gsMatrix<T> & C ) const;
-        template<short_t _dim>
-        typename std::enable_if<_dim==3, std::pair<gsVector<T>,gsMatrix<T>>>::type evalStretch_impl(const gsMatrix<T> & C ) const;
+        typename std::enable_if<_dim==3, void>::type _getMetricUndeformed_impl(index_t k, T z) const;
 
 protected:
-    // general
-    index_t m_numPars; // how many parameters for the material model?
-    mutable index_t m_moment;
-    mutable gsMatrix<T> m_result;
-
     // constructor
     const gsFunctionSet<T> * m_patches;
     const gsFunctionSet<T> * m_defpatches;
@@ -277,37 +241,28 @@ protected:
     const gsFunction<T> * m_nu12;
     const gsFunction<T> * m_nu21;
     const gsFunction<T> * m_phi;
+    std::vector<gsFunction<T>* > m_pars;
     const gsFunction<T> * m_rho;
-    mutable std::vector<gsFunction<T>* > m_pars;
 
 
     // Linear material matrix
     mutable gsMapData<T> m_map, m_map_def;
 
     // Compute points
-    mutable gsMatrix<T,2,2> m_Acov_ori, m_Acon_ori, m_Acov_def, m_Acon_def, m_Bcov_ori, m_Bcon_ori, m_Bcov_def, m_Bcon_def;
+    mutable gsMatrix<T,2,2> m_Acov_ori, m_Acon_ori, m_Acov_def, m_Acon_def, m_Bcov_ori, m_Bcov_def;
     mutable gsMatrix<T,3,2> m_acov_ori, m_acon_ori, m_acov_def, m_acon_def, m_ncov_ori, m_ncov_def;
     mutable gsMatrix<T> m_Acov_ori_mat, m_Acon_ori_mat, m_Acov_def_mat, m_Acon_def_mat, m_Bcov_ori_mat, m_Bcov_def_mat;
     mutable gsMatrix<T> m_acov_ori_mat, m_acon_ori_mat, m_acov_def_mat, m_acon_def_mat, m_ncov_ori_mat, m_ncov_def_mat;
 
     // Composite
     index_t m_nLayers;
-    mutable gsVector<T>                 m_e1, m_e2, m_ac1, m_ac2, m_a1, m_a2;
-    mutable gsMatrix<T>                 m_covBasis, m_covMetric, m_conBasis, m_conMetric;
-    mutable gsMatrix<T>                 m_stretches, m_stretchvec;
-    mutable T                           m_t, m_t_tot,m_t_temp, m_z, m_z_mid;
-    mutable gsMatrix<T>                 m_Dmat, m_Transform;
     mutable gsMatrix<T>                 m_Tmat, m_E1mat, m_E2mat, m_G12mat, m_nu12mat, m_nu21mat, m_phiMat, m_rhoMat;
-
-
 
     mutable gsMatrix<T>                 m_deriv2_def, m_deriv2_ori;
     mutable gsMatrix<T,3,3>             m_Gcov_ori, m_Gcon_ori, m_Gcov_def, m_Gcon_def, m_Gcov_ori_L, m_Gcov_def_L;
     mutable gsMatrix<T,3,3>             m_gcov_ori, m_gcov_def,m_gcon_ori, m_gcon_def;
 
-    mutable T                           m_J0, m_J0_sq, m_J, m_J_sq, m_Tval;
-
-    mutable gsOptionList m_options;
+    gsOptionList m_options;
 
 };
 

@@ -51,7 +51,7 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                             m_nu21(&nu21),
                             m_phi(&phi)
 {
-    initialize();
+    _initialize();
 }
 
 template <short_t dim, class T>
@@ -76,7 +76,7 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                             m_phi(&phi),
                             m_rho(&rho)
 {
-    initialize();
+    _initialize();
 }
 template <short_t dim, class T>
 gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
@@ -100,7 +100,7 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                             m_nu21(&nu21),
                             m_phi(&phi)
 {
-    initialize();
+    _initialize();
 }
 
 template <short_t dim, class T>
@@ -127,7 +127,7 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                             m_phi(&phi),
                             m_rho(&rho)
 {
-    initialize();
+    _initialize();
 }
 
 template <short_t dim, class T>
@@ -141,8 +141,8 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                             m_pars(pars),
                             m_rho(nullptr)
 {
-    initializeParameters();
-    initialize();
+    _initializeParameters();
+    _initialize();
 }
 
 template <short_t dim, class T>
@@ -158,8 +158,8 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                             m_pars(pars),
                             m_rho(nullptr)
 {
-    initializeParameters();
-    initialize();
+    _initializeParameters();
+    _initialize();
 }
 
 template <short_t dim, class T>
@@ -176,8 +176,8 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                             m_pars(pars),
                             m_rho(&rho)
 {
-    initializeParameters();
-    initialize();
+    _initializeParameters();
+    _initialize();
 }
 
 // // ---------------------------------------------------------------------------------------------------
@@ -201,7 +201,7 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
 //     m_nu21      = new gsConstantFunction<T>(nu21,3);
 //     m_thickness = new gsConstantFunction<T>(thickness,3);
 //     m_phi       = new gsConstantFunction<T>(phi,3);
-//     initialize();
+//     _initialize();
 // }
 
 // template <short_t dim, class T>
@@ -226,7 +226,7 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
 //     m_thickness = new gsConstantFunction<T>(thickness,3);
 //     m_phi       = new gsConstantFunction<T>(phi,3);
 //     m_rho       = new gsConstantFunction<T>(rho,3);
-//     initialize();
+//     _initialize();
 // }
 // template <short_t dim, class T>
 // gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
@@ -250,7 +250,7 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
 //     m_nu21      = new gsConstantFunction<T>(nu21,3);
 //     m_thickness = new gsConstantFunction<T>(thickness,3);
 //     m_phi       = new gsConstantFunction<T>(phi,3);
-//     initialize();
+//     _initialize();
 // }
 
 // template <short_t dim, class T>
@@ -277,12 +277,12 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
 //     m_thickness = new gsConstantFunction<T>(thickness,3);
 //     m_phi       = new gsConstantFunction<T>(phi,3);
 //     m_rho       = new gsConstantFunction<T>(rho,3);
-//     initialize();
+//     _initialize();
 // }
 // ---------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T >
-void gsMaterialMatrixComposite<dim,T>::defaultOptions()
+void gsMaterialMatrixComposite<dim,T>::_defaultOptions()
 {
     m_options.addInt("NumGauss","Number of Gaussian points through thickness",4);
 }
@@ -303,7 +303,7 @@ void gsMaterialMatrixComposite<dim,T>::info() const
 }
 
 template <short_t dim, class T >
-void gsMaterialMatrixComposite<dim,T>::initializeParameters()
+void gsMaterialMatrixComposite<dim,T>::_initializeParameters()
 {
     GISMO_ASSERT(m_pars.size()==6,"parameters should contain 6 functions!");
     m_E11   = m_pars[0];
@@ -315,10 +315,10 @@ void gsMaterialMatrixComposite<dim,T>::initializeParameters()
 }
 
 template <short_t dim, class T >
-void gsMaterialMatrixComposite<dim,T>::initialize()
+void gsMaterialMatrixComposite<dim,T>::_initialize()
 {
     // Set default options
-    this->defaultOptions();
+    this->_defaultOptions();
 
     // set flags
     m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
@@ -328,26 +328,28 @@ void gsMaterialMatrixComposite<dim,T>::initialize()
 
 
 template <short_t dim, class T >
-void gsMaterialMatrixComposite<dim,T>::computePoints(const index_t patch, const gsMatrix<T> & u, bool deformed) const
+void gsMaterialMatrixComposite<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u) const
 {
     m_map.points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
-    this->computeMetricUndeformed();
+    this->_computeMetricUndeformed();
 
     if (m_defpatches->nPieces()!=0)
     {
         m_map_def.flags = m_map.flags;
         m_map_def.points = u;
         static_cast<const gsFunction<T>&>(m_defpatches->piece(patch)).computeMap(m_map_def); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
-        this->computeMetricDeformed();
+        this->_computeMetricDeformed();
     }
 
     // REDEFINE CHECKS!!!
-    // GISMO_ASSERT(m_YoungsModuli.size()==m_PoissonRatios.size(),"Size of vectors of Youngs Moduli and Poisson Ratios is not equal: " << m_YoungsModuli.size()<<" & "<<m_PoissonRatios.size());
-    // GISMO_ASSERT(m_YoungsModuli.size()==m_ShearModuli.size(),"Size of vectors of Youngs Moduli and Shear Moduli is not equal: " << m_YoungsModuli.size()<<" & "<<m_ShearModuli.size());
-    // GISMO_ASSERT(m_thickValues.size()==m_phis.size(),"Size of vectors of thickness and angles is not equal: " << m_thickValues.size()<<" & "<<m_phis.size());
-    // GISMO_ASSERT(m_YoungsModuli.size()==m_thickValues.size(),"Size of vectors of material properties and laminate properties is not equal: " << m_YoungsModuli.size()<<" & "<<m_thickValues.size());
-    // GISMO_ASSERT(m_YoungsModuli.size()!=0,"No laminates defined");
+    GISMO_ASSERT(m_E11->size()==m_E22->size(),"Size of vectors of Youngs Moduli not equal: " << m_E11->size()<<" & "<<m_E22->size());
+    GISMO_ASSERT(m_nu12->size()==m_nu21->size(),"Size of vectors of Poisson Ratios is not equal: " << m_nu12->size()<<" & "<<m_nu21->size());
+    GISMO_ASSERT(m_E11->size()==m_nu12->size(),"Size of vectors of Youngs Moduli and Poisson Ratios is not equal: " << m_E11->size()<<" & "<<m_nu12->size());
+    GISMO_ASSERT(m_E11->size()==m_G12->size(),"Size of vectors of Youngs Moduli and Shear Moduli is not equal: " << m_E11->size()<<" & "<<m_G12->size());
+    GISMO_ASSERT(m_thickness->size()==m_phi->size(),"Size of vectors of thickness and angles is not equal: " << m_thickness->size()<<" & "<<m_phi->size());
+    GISMO_ASSERT(m_E11->size()==m_thickness->size(),"Size of vectors of material properties and laminate properties is not equal: " << m_E11->size()<<" & "<<m_thickness->size());
+    GISMO_ASSERT(m_E11->size()!=0,"No laminates defined");
     // Compute properties per ply
     m_Tmat.resize(m_nLayers,u.cols());
     m_E1mat.resize(m_nLayers,u.cols());
@@ -370,12 +372,13 @@ void gsMaterialMatrixComposite<dim,T>::computePoints(const index_t patch, const 
 template <short_t dim, class T >
 void gsMaterialMatrixComposite<dim,T>::density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
+    GISMO_ASSERT(m_thickness->size()==m_rho->size(),"Size of vectors of thickness and densities is not equal: " << m_thickness->size()<<" & "<<m_rho->size());
+
     m_map.flags = NEED_VALUE;
     m_map.points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(0)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
 
     result.resize(1, u.cols());
-    // GISMO_ASSERT(m_thickValues.size()==m_densities.size(),"Size of vectors of thickness and densities is not equal: " << m_thickValues.size()<<" & "<<m_phis.size());
     m_thickness->eval_into(m_map.values[0], m_Tmat);
     m_rho->eval_into(m_map.values[0], m_rhoMat);
 
@@ -391,7 +394,6 @@ void gsMaterialMatrixComposite<dim,T>::thickness_into(const index_t patch, const
     m_map.points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(0)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
 
-    // GISMO_ASSERT(m_thickValues.size()==m_densities.size(),"Size of vectors of thickness and densities is not equal: " << m_thickValues.size()<<" & "<<m_phis.size());
     m_thickness->eval_into(m_map.values[0], result);
 }
 
@@ -403,7 +405,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
     // Output: (n=u.cols(), m=z.cols())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    this->computePoints(patch,u);
+    this->_computePoints(patch,u);
     // Initialize and result
     gsMatrix<T> result(9, u.cols());
     gsMatrix<T,3,3> Dmat, Cmat;
@@ -415,7 +417,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
     {
         Cmat.setZero();
         Dmat.setZero();
-        this->getMetric(k,0.0); // on point i, with height 0.0
+        this->_getMetric(k,0.0); // on point i, with height 0.0
 
         // Compute total thickness (sum of entries)
         t_tot = m_Tmat.col(k).sum();
@@ -438,7 +440,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
             t = m_Tmat(i,k);
             phi = m_phiMat(i,k);
 
-            Dmat = computeMatrix(E1,E2,G12,nu12,nu21,phi);
+            Dmat = _computeMatrix(E1,E2,G12,nu12,nu21,phi);
 
             // distance from mid of the ply to mid of the plate
             // dz = math::abs(z_mid - (t/2.0 + t_temp) ); // distance from mid-plane of plate
@@ -457,12 +459,13 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
 
         GISMO_ASSERT(std::abs(t_tot-t_temp)/t_tot < 1e-12,"Total thickness after loop is wrong. t_temp = "<<t_temp<<", sum(thickness) = "<<t_tot<<", difference = "<<t_tot-t_temp);
 
-        m_a1 = m_gcov_ori.col(0);               m_a2 = m_gcov_ori.col(1);
-        m_ac1 = m_gcon_ori.col(0);              m_ac2 = m_gcon_ori.col(1);
-        m_e1 = m_gcov_ori.col(0).normalized();  m_e2 = m_gcon_ori.col(1).normalized();
+        gsVector<T,3> a1,ac1,e1,a2,ac2,e2;
+        a1 = m_gcov_ori.col(0);               a2 = m_gcov_ori.col(1);
+        ac1 = m_gcon_ori.col(0);              ac2 = m_gcon_ori.col(1);
+        e1 = m_gcov_ori.col(0).normalized();  e2 = m_gcon_ori.col(1).normalized();
 
-        Cmat = cart2cov(m_a1,m_a2,m_e1,m_e2) * Cmat;
-        Cmat = Cmat * con2cart(m_ac1,m_ac2,m_e1,m_e2);
+        Cmat = _cart2cov(a1,a2,e1,e2) * Cmat;
+        Cmat = Cmat * _con2cart(ac1,ac2,e1,e2);
 
         result.reshapeCol(k,3,3) = Cmat;
 
@@ -479,7 +482,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_vector(const index_t patch,
     // Output: (n=u.cols(), m=z.cols())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    this->computePoints(patch,u);
+    this->_computePoints(patch,u);
     gsMatrix<T> result(3, u.cols());
     enum MaterialOutput _out;
     if      (out==MaterialOutput::VectorN)
@@ -494,7 +497,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_vector(const index_t patch,
 
     for (index_t k = 0; k != u.cols(); ++k)
     {
-        this->getMetric(k,0.0); // on point i, with height 0.0
+        this->_getMetric(k,0.0); // on point i, with height 0.0
 
         if      (out == MaterialOutput::VectorN) // To be used with multiplyZ_into
             Eij = 0.5*(m_Acov_def - m_Acov_ori);
@@ -516,7 +519,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_vector(const index_t patch,
 
 //-----------------------------------------------------------------------------------------------------------------------
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixComposite<dim,T>::computeMatrix(const T E11, const T E22, const T G12, const T nu12, const T nu21, const T phi) const
+gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_computeMatrix(const T E11, const T E22, const T G12, const T nu12, const T nu21, const T phi) const
 {
     GISMO_ASSERT(nu21*E11 == nu12*E22, "No symmetry in material properties for ply! (nu12*E2!=nu21*E1):\n"<<
             "\tnu12 = "<<nu12<<"\t E22 = "<<E22<<"\t nu12*E22 = "<<nu12*E22<<"\n"
@@ -544,14 +547,14 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::computeMatrix(const T E11, const T
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixComposite<dim,T>::cart2cov(const gsVector<T> a1, const gsVector<T> a2, const gsVector<T> e1, const gsVector<T> e2) const
+gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_cart2cov(const gsVector<T> a1, const gsVector<T> a2, const gsVector<T> e1, const gsVector<T> e2) const
 {
     gsMatrix<T,3,3> Tmat;
     Tmat.setZero();
     // Covariant to local cartesian
     Tmat(0,0) = (e1.dot(a1))*(a1.dot(e1));
     Tmat(0,1) = (e1.dot(a2))*(a2.dot(e2));
-    Tmat(0,2) = 2*(m_e1.dot(a1))*(m_a2.dot(e1));
+    Tmat(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));
     // Row 1
     Tmat(1,0) = (e2.dot(a1))*(a1.dot(e2));
     Tmat(1,1) = (e2.dot(a2))*(a2.dot(e2));
@@ -566,7 +569,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::cart2cov(const gsVector<T> a1, con
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixComposite<dim,T>::con2cart(const gsVector<T> ac1, const gsVector<T> ac2, const gsVector<T> e1, const gsVector<T> e2) const
+gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_con2cart(const gsVector<T> ac1, const gsVector<T> ac2, const gsVector<T> e1, const gsVector<T> e2) const
 {
     gsMatrix<T,3,3> Tmat;
     Tmat.setZero();
@@ -587,15 +590,15 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::con2cart(const gsVector<T> ac1, co
 //-----------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
-void gsMaterialMatrixComposite<dim,T>::computeMetricDeformed() const
+void gsMaterialMatrixComposite<dim,T>::_computeMetricDeformed() const
 {
-    computeMetricDeformed_impl<dim>();
+    _computeMetricDeformed_impl<dim>();
 }
 
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
-gsMaterialMatrixComposite<dim,T>::computeMetricDeformed_impl() const
+gsMaterialMatrixComposite<dim,T>::_computeMetricDeformed_impl() const
 {
     gsMatrix<T> deriv2;
     gsMatrix<T,3,1> normal;
@@ -652,7 +655,7 @@ gsMaterialMatrixComposite<dim,T>::computeMetricDeformed_impl() const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixComposite<dim,T>::computeMetricDeformed_impl() const
+gsMaterialMatrixComposite<dim,T>::_computeMetricDeformed_impl() const
 {
     gsMatrix<T,2,2> tmp;
 
@@ -683,15 +686,15 @@ gsMaterialMatrixComposite<dim,T>::computeMetricDeformed_impl() const
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
-void gsMaterialMatrixComposite<dim,T>::computeMetricUndeformed() const
+void gsMaterialMatrixComposite<dim,T>::_computeMetricUndeformed() const
 {
-    computeMetricUndeformed_impl<dim>();
+    _computeMetricUndeformed_impl<dim>();
 }
 
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
-gsMaterialMatrixComposite<dim,T>::computeMetricUndeformed_impl() const
+gsMaterialMatrixComposite<dim,T>::_computeMetricUndeformed_impl() const
 {
     gsMatrix<T> deriv2;
     gsMatrix<T,3,1> normal;
@@ -748,7 +751,7 @@ gsMaterialMatrixComposite<dim,T>::computeMetricUndeformed_impl() const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixComposite<dim,T>::computeMetricUndeformed_impl() const
+gsMaterialMatrixComposite<dim,T>::_computeMetricUndeformed_impl() const
 {
     gsMatrix<T,2,2> tmp;
 
@@ -779,28 +782,27 @@ gsMaterialMatrixComposite<dim,T>::computeMetricUndeformed_impl() const
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
-void gsMaterialMatrixComposite<dim,T>::getMetric(index_t k, T z) const
+void gsMaterialMatrixComposite<dim,T>::_getMetric(index_t k, T z) const
 {
-    this->getMetricDeformed(k,z);
-    this->getMetricUndeformed(k,z);
+    this->_getMetricDeformed(k,z);
+    this->_getMetricUndeformed(k,z);
 
     T ratio = m_Gcov_def.determinant() / m_Gcov_ori.determinant();
     GISMO_ENSURE(ratio > 0, "Jacobian determinant is negative! det(Gcov_def) = "<<m_Gcov_def.determinant()<<"; det(Gcov_ori) = "<<m_Gcov_ori.determinant());
-    m_J0_sq = ratio;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
-void gsMaterialMatrixComposite<dim,T>::getMetricDeformed(index_t k, T z) const
+void gsMaterialMatrixComposite<dim,T>::_getMetricDeformed(index_t k, T z) const
 {
-    getMetricDeformed_impl<dim>(k,z);
+    _getMetricDeformed_impl<dim>(k,z);
 }
 
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
-gsMaterialMatrixComposite<dim,T>::getMetricDeformed_impl(index_t k, T z) const
+gsMaterialMatrixComposite<dim,T>::_getMetricDeformed_impl(index_t k, T z) const
 {
     GISMO_ENSURE(m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_def_mat.cols()!=0,"Is the metric initialized?");
@@ -842,7 +844,7 @@ gsMaterialMatrixComposite<dim,T>::getMetricDeformed_impl(index_t k, T z) const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixComposite<dim,T>::getMetricDeformed_impl(index_t k, T z) const
+gsMaterialMatrixComposite<dim,T>::_getMetricDeformed_impl(index_t k, T z) const
 {
     GISMO_ENSURE(m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_def_mat.cols()!=0,"Is the metric initialized?");
@@ -881,15 +883,15 @@ gsMaterialMatrixComposite<dim,T>::getMetricDeformed_impl(index_t k, T z) const
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
-void gsMaterialMatrixComposite<dim,T>::getMetricUndeformed(index_t k, T z) const
+void gsMaterialMatrixComposite<dim,T>::_getMetricUndeformed(index_t k, T z) const
 {
-    getMetricUndeformed_impl<dim>(k,z);
+    _getMetricUndeformed_impl<dim>(k,z);
 }
 
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
-gsMaterialMatrixComposite<dim,T>::getMetricUndeformed_impl(index_t k, T z) const
+gsMaterialMatrixComposite<dim,T>::_getMetricUndeformed_impl(index_t k, T z) const
 {
     GISMO_ENSURE(m_Acov_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_ori_mat.cols()!=0,"Is the metric initialized?");
@@ -930,7 +932,7 @@ gsMaterialMatrixComposite<dim,T>::getMetricUndeformed_impl(index_t k, T z) const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixComposite<dim,T>::getMetricUndeformed_impl(index_t k, T z) const
+gsMaterialMatrixComposite<dim,T>::_getMetricUndeformed_impl(index_t k, T z) const
 {
     GISMO_ENSURE(m_Acov_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_ori_mat.cols()!=0,"Is the metric initialized?");

@@ -28,13 +28,10 @@ class gsMaterialMatrixEval : public gsFunction<T>
 {
 public:
 
-    // GISMO_CLONE_FUNCTION(gsMaterialMatrixBase)
-
     gsMaterialMatrixEval( gsMaterialMatrixBase<T> * materialMatrix);
 
     short_t domainDim() const;// { return 2; }
 
-    // template OUT
     short_t targetDim() const;// { return getMoment_impl<out>(); }
 
 private:
@@ -104,14 +101,7 @@ private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorN, T>::type getMoment_impl() const { return 0; };
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::VectorM, T>::type getMoment_impl() const
-    {
-        // if (m_materialMat->material()==Material::SvK)
-        //     return 2;
-        // else
-            return 1;
-
-    };
+    typename std::enable_if<_out==MaterialOutput::VectorM, T>::type getMoment_impl() const { return 1; };
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::MatrixA, T>::type getMoment_impl() const { return 0; };
     template<enum MaterialOutput _out>
@@ -176,9 +166,6 @@ protected:
      */
     void multiplyZ_into(const gsMatrix<T> & u, index_t moment, gsMatrix<T> & result) const;
 
-// private:
-
-
 public:
 
     gsMatrix<T> eval3D(const gsMatrix<T>& u, const gsMatrix<T>& Z) const;
@@ -205,17 +192,6 @@ private:
                                                             , gsMatrix<T>>::type eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
     { GISMO_NO_IMPLEMENTATION};
 
-    // // template<short_t num=0>
-    //  virtual gsMaterialMatrixBase * makeMatrix(short_t num) = 0;
-    // // template<short_t num=0>
-    //  virtual gsMaterialMatrixBase * makeVector(short_t num) = 0;
-    // // template<short_t num=0>
-    //  virtual gsMaterialMatrixBase * makePrincipleStress(short_t num) = 0;
-
-    //  virtual gsMaterialMatrixBase * makeDensity() = 0;
-    //  virtual gsMaterialMatrixBase * makeStretch() = 0;
-    //  virtual gsMaterialMatrixBase * makeDirections() = 0;
-    //
 protected:
     gsMaterialMatrixBase<T> * m_materialMat;
     mutable gsMaterialMatrixEval<T,out> * m_piece;

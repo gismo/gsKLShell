@@ -42,7 +42,7 @@ gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                         m_thickness(&thickness),
                                         m_pars(pars)
 {
-    initialize();
+    _initialize();
 }
 
 // Linear material models
@@ -59,7 +59,7 @@ gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                         m_thickness(&thickness),
                                         m_pars(pars)
 {
-    initialize();
+    _initialize();
 }
 
 // Linear material models
@@ -78,7 +78,7 @@ gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                     m_pars(pars),
                                     m_density(&density)
 {
-    initialize();
+    _initialize();
 }
 
 template <short_t dim, class T >
@@ -97,16 +97,16 @@ void gsMaterialMatrixLinear<dim,T>::info() const
 }
 
 template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::defaultOptions()
+void gsMaterialMatrixLinear<dim,T>::_defaultOptions()
 {
     m_options.addInt("NumGauss","Number of Gaussian points through thickness",4);
 }
 
 template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::initialize()
+void gsMaterialMatrixLinear<dim,T>::_initialize()
 {
     // Set default options
-    this->defaultOptions();
+    this->_defaultOptions();
 
     // set flags
     m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
@@ -117,21 +117,21 @@ void gsMaterialMatrixLinear<dim,T>::initialize()
 
 
 template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::computePoints(const index_t patch, const gsMatrix<T> & u, bool deformed) const
+void gsMaterialMatrixLinear<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool deformed) const
 {
     gsMatrix<T> tmp;
 
     m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
     m_map.points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
-    this->computeMetricUndeformed();
+    this->_computeMetricUndeformed();
 
     if (m_defpatches->nPieces()!=0)
     {
         m_map_def.flags = m_map.flags;
         m_map_def.points = u;
         static_cast<const gsFunction<T>&>(m_defpatches->piece(patch)).computeMap(m_map_def); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
-        this->computeMetricDeformed();
+        this->_computeMetricDeformed();
     }
 
     m_thickness->eval_into(m_map.values[0], m_Tmat);
@@ -183,7 +183,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
     // Output: (n=u.cols(), m=z.cols())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    this->computePoints(patch,u);
+    this->_computePoints(patch,u);
     gsMatrix<T> result(9, u.cols() * z.rows());
     result.setZero();
 
@@ -196,7 +196,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
                 // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
-                this->getMetric(k,z(j,k)); // on point i, on height z(0,j)
+                this->_getMetric(k,z(j,k)); // on point i, on height z(0,j)
 
                 gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
                 /*
@@ -204,12 +204,12 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
                         symm,   C2222,  C2212
                         symm,   symm,   C1212
                 */
-                C(0,0)          = Cijkl(0,0,0,0); // C1111
-                C(1,1)          = Cijkl(1,1,1,1); // C2222
-                C(2,2)          = Cijkl(0,1,0,1); // C1212
-                C(1,0) = C(0,1) = Cijkl(0,0,1,1); // C1122
-                C(2,0) = C(0,2) = Cijkl(0,0,0,1); // C1112
-                C(2,1) = C(1,2) = Cijkl(1,1,0,1); // C2212
+                C(0,0)          = _Cijkl(0,0,0,0); // C1111
+                C(1,1)          = _Cijkl(1,1,1,1); // C2222
+                C(2,2)          = _Cijkl(0,1,0,1); // C1212
+                C(1,0) = C(0,1) = _Cijkl(0,0,1,1); // C1122
+                C(2,0) = C(0,2) = _Cijkl(0,0,0,1); // C1112
+                C(2,1) = C(1,2) = _Cijkl(1,1,0,1); // C2212
         }
     }
 
@@ -225,7 +225,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, co
     // Output: (n=u.cols(), m=z.cols())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    this->computePoints(patch,u);
+    this->_computePoints(patch,u);
     gsMatrix<T> result(3, u.cols() * z.rows());
     result.setZero();
 
@@ -238,11 +238,11 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, co
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
                 // this->computeMetric(i,z.at(j),true,true);
-                this->getMetric(k,z(j,k)); // on point i, on height z(0,j)
+                this->_getMetric(k,z(j,k)); // on point i, on height z(0,j)
 
-                result(0,j*u.cols()+k) = Sij(0,0,z(j,k),out);
-                result(1,j*u.cols()+k) = Sij(1,1,z(j,k),out);
-                result(2,j*u.cols()+k) = Sij(0,1,z(j,k),out);
+                result(0,j*u.cols()+k) = _Sij(0,0,z(j,k),out);
+                result(1,j*u.cols()+k) = _Sij(1,1,z(j,k),out);
+                result(2,j*u.cols()+k) = _Sij(0,1,z(j,k),out);
         }
     }
 
@@ -256,7 +256,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, co
         - m_metric_def
 */
 template <short_t dim, class T >
-T gsMaterialMatrixLinear<dim,T>::Cijkl(const index_t i, const index_t j, const index_t k, const index_t l) const
+T gsMaterialMatrixLinear<dim,T>::_Cijkl(const index_t i, const index_t j, const index_t k, const index_t l) const
 {
     GISMO_ENSURE( ( (i < 2) && (j < 2) && (k < 2) && (l < 2) ) , "Index out of range. i="<<i<<", j="<<j<<", k="<<k<<", l="<<l);
 
@@ -275,7 +275,7 @@ T gsMaterialMatrixLinear<dim,T>::Cijkl(const index_t i, const index_t j, const i
 }
 
 template <short_t dim, class T >
-T gsMaterialMatrixLinear<dim,T>::Sij(const index_t i, const index_t j, const T z, enum MaterialOutput out) const
+T gsMaterialMatrixLinear<dim,T>::_Sij(const index_t i, const index_t j, const T z, enum MaterialOutput out) const
 {
     gsMatrix<T> strain;
     GISMO_ENSURE( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
@@ -288,23 +288,23 @@ T gsMaterialMatrixLinear<dim,T>::Sij(const index_t i, const index_t j, const T z
     else
         GISMO_ERROR("Output type is not VectorN, VectorM or Generic!");
 
-    T result =  Cijkl(i,j,0,0) * strain(0,0) + Cijkl(i,j,0,1) * strain(0,1)
-                + Cijkl(i,j,1,0) * strain(1,0) + Cijkl(i,j,1,1) * strain(1,1);
+    T result =  _Cijkl(i,j,0,0) * strain(0,0) + _Cijkl(i,j,0,1) * strain(0,1)
+                + _Cijkl(i,j,1,0) * strain(1,0) + _Cijkl(i,j,1,1) * strain(1,1);
 
     return result;
 }
 
 
 template <short_t dim, class T>
-void gsMaterialMatrixLinear<dim,T>::computeMetricDeformed() const
+void gsMaterialMatrixLinear<dim,T>::_computeMetricDeformed() const
 {
-    computeMetricDeformed_impl<dim>();
+    _computeMetricDeformed_impl<dim>();
 }
 
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
-gsMaterialMatrixLinear<dim,T>::computeMetricDeformed_impl() const
+gsMaterialMatrixLinear<dim,T>::_computeMetricDeformed_impl() const
 {
     gsMatrix<T> deriv2;
     gsMatrix<T,3,1> normal;
@@ -361,7 +361,7 @@ gsMaterialMatrixLinear<dim,T>::computeMetricDeformed_impl() const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixLinear<dim,T>::computeMetricDeformed_impl() const
+gsMaterialMatrixLinear<dim,T>::_computeMetricDeformed_impl() const
 {
     gsMatrix<T,2,2> tmp;
 
@@ -392,15 +392,15 @@ gsMaterialMatrixLinear<dim,T>::computeMetricDeformed_impl() const
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
-void gsMaterialMatrixLinear<dim,T>::computeMetricUndeformed() const
+void gsMaterialMatrixLinear<dim,T>::_computeMetricUndeformed() const
 {
-    computeMetricUndeformed_impl<dim>();
+    _computeMetricUndeformed_impl<dim>();
 }
 
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
-gsMaterialMatrixLinear<dim,T>::computeMetricUndeformed_impl() const
+gsMaterialMatrixLinear<dim,T>::_computeMetricUndeformed_impl() const
 {
     gsMatrix<T> deriv2;
     gsMatrix<T,3,1> normal;
@@ -457,7 +457,7 @@ gsMaterialMatrixLinear<dim,T>::computeMetricUndeformed_impl() const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixLinear<dim,T>::computeMetricUndeformed_impl() const
+gsMaterialMatrixLinear<dim,T>::_computeMetricUndeformed_impl() const
 {
     gsMatrix<T,2,2> tmp;
 
@@ -488,10 +488,10 @@ gsMaterialMatrixLinear<dim,T>::computeMetricUndeformed_impl() const
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
-void gsMaterialMatrixLinear<dim,T>::getMetric(index_t k, T z) const
+void gsMaterialMatrixLinear<dim,T>::_getMetric(index_t k, T z) const
 {
-    this->getMetricDeformed(k,z);
-    this->getMetricUndeformed(k,z);
+    this->_getMetricDeformed(k,z);
+    this->_getMetricUndeformed(k,z);
 
     T ratio = m_Gcov_def.determinant() / m_Gcov_ori.determinant();
     GISMO_ENSURE(ratio > 0, "Jacobian determinant is negative! det(Gcov_def) = "<<m_Gcov_def.determinant()<<"; det(Gcov_ori) = "<<m_Gcov_ori.determinant());
@@ -501,15 +501,15 @@ void gsMaterialMatrixLinear<dim,T>::getMetric(index_t k, T z) const
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
-void gsMaterialMatrixLinear<dim,T>::getMetricDeformed(index_t k, T z) const
+void gsMaterialMatrixLinear<dim,T>::_getMetricDeformed(index_t k, T z) const
 {
-    getMetricDeformed_impl<dim>(k,z);
+    _getMetricDeformed_impl<dim>(k,z);
 }
 
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
-gsMaterialMatrixLinear<dim,T>::getMetricDeformed_impl(index_t k, T z) const
+gsMaterialMatrixLinear<dim,T>::_getMetricDeformed_impl(index_t k, T z) const
 {
     GISMO_ENSURE(m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_def_mat.cols()!=0,"Is the metric initialized?");
@@ -551,7 +551,7 @@ gsMaterialMatrixLinear<dim,T>::getMetricDeformed_impl(index_t k, T z) const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixLinear<dim,T>::getMetricDeformed_impl(index_t k, T z) const
+gsMaterialMatrixLinear<dim,T>::_getMetricDeformed_impl(index_t k, T z) const
 {
     GISMO_ENSURE(m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_def_mat.cols()!=0,"Is the metric initialized?");
@@ -590,15 +590,15 @@ gsMaterialMatrixLinear<dim,T>::getMetricDeformed_impl(index_t k, T z) const
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
-void gsMaterialMatrixLinear<dim,T>::getMetricUndeformed(index_t k, T z) const
+void gsMaterialMatrixLinear<dim,T>::_getMetricUndeformed(index_t k, T z) const
 {
-    getMetricUndeformed_impl<dim>(k,z);
+    _getMetricUndeformed_impl<dim>(k,z);
 }
 
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
-gsMaterialMatrixLinear<dim,T>::getMetricUndeformed_impl(index_t k, T z) const
+gsMaterialMatrixLinear<dim,T>::_getMetricUndeformed_impl(index_t k, T z) const
 {
     GISMO_ENSURE(m_Acov_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_ori_mat.cols()!=0,"Is the metric initialized?");
@@ -639,7 +639,7 @@ gsMaterialMatrixLinear<dim,T>::getMetricUndeformed_impl(index_t k, T z) const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixLinear<dim,T>::getMetricUndeformed_impl(index_t k, T z) const
+gsMaterialMatrixLinear<dim,T>::_getMetricUndeformed_impl(index_t k, T z) const
 {
     GISMO_ENSURE(m_Acov_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_ori_mat.cols()!=0,"Is the metric initialized?");
