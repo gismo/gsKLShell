@@ -19,6 +19,7 @@
 #include <gsKLShell/gsMaterialMatrixComposite.h>
 #include <gsKLShell/gsMaterialMatrixBase.h>
 #include <gsKLShell/gsMaterialMatrixEval.h>
+#include <gsKLShell/getMaterialMatrix.h>
 
 //#include <gsThinShell/gsNewtonIterator.h>
 
@@ -757,6 +758,7 @@ int main(int argc, char *argv[])
         thick.at(k) = thickness/kmax;
         phi.at(kmax) = 0.* k / kmax * pi/2.0;
     }
+    std::vector<gsFunction<>*> compParameters(6);
 
     gsConstantFunction<> E11fun(E11,3);
     gsConstantFunction<> E22fun(E22,3);
@@ -765,7 +767,29 @@ int main(int argc, char *argv[])
     gsConstantFunction<> nu21fun(nu21,3);
     gsConstantFunction<> thickfun(thick,3);
     gsConstantFunction<> phifun(phi,3);
-    materialMatrixComposite = new gsMaterialMatrixComposite<3,real_t>(mp,mp_def,thickfun,E11fun,E22fun,G12fun,nu12fun,nu21fun,phifun);
+    compParameters[0] = &E11fun;
+    compParameters[1] = &E22fun;
+    compParameters[2] = &G12fun;
+    compParameters[3] = &nu12fun;
+    compParameters[4] = &nu21fun;
+    compParameters[5] = &phifun;
+    materialMatrixComposite = new gsMaterialMatrixComposite<3,real_t>(mp,mp_def,thickfun,compParameters);
+
+    gsOptionList optionsNL;
+    optionsNL.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",material);
+    optionsNL.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",Compressibility);
+    optionsNL.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",3);
+    materialMatrixNonlinear = getMaterialMatrix<3,real_t>(mp,mp_def,t,parameters,rho,optionsNL);
+
+
+    gsOptionList optionsL;
+    optionsL.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
+    materialMatrixLinear = getMaterialMatrix<3,real_t>(mp,mp_def,t,parameters,rho,optionsL);
+
+    gsOptionList optionsC;
+    optionsC.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
+    optionsC.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",0);
+    materialMatrixComposite = getMaterialMatrix<3,real_t>(mp,mp_def,t,compParameters,rho,optionsC);
 
     if (material==0)
     {
@@ -877,7 +901,7 @@ int main(int argc, char *argv[])
 
 
     std::vector<gsFunction<>*> parameters2(6);
-    if (material==14)
+    if (material==4)
     {
         parameters2[0] = &E;
         parameters2[1] = &nu;

@@ -19,7 +19,6 @@
 #include <gsKLShell/gsMaterialMatrixUtils.h>
 #include <gsIO/gsOptionList.h>
 #include <gsCore/gsFuncData.h>
-#include <gsAssembler/gsGaussRule.h>
 
 namespace gismo
 {
@@ -579,9 +578,6 @@ protected:
     mutable T                           m_J0, m_J0_sq, m_J, m_J_sq, m_Tval;
     // integrateZ
     mutable gsMatrix<T> m_points2D, m_points3D, m_evalPoints;
-    // mutable gsMatrix<T> m_quNodes;
-    // mutable gsVector<T> m_quWeights;
-    mutable gsGaussRule<T> m_gauss;
     mutable index_t m_numGauss;
     mutable T m_tHalf;
 

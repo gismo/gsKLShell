@@ -14,6 +14,7 @@
 #include <gismo.h>
 
 #include <gsKLShell/gsThinShellAssembler.h>
+#include <gsKLShell/getMaterialMatrix.h>
 #include <gsKLShell/gsMaterialMatrix.h>
 #include <gsKLShell/gsMaterialMatrixLinear.h>
 #include <gsKLShell/gsMaterialMatrixComposite.h>
@@ -59,6 +60,8 @@ int main(int argc, char *argv[])
     std::string fn;
     bool membrane = false;
 
+    bool composite = false;
+    index_t impl = 1; // 1= analytical, 2= generalized, 3= spectral
 
     real_t E_modulus = 1.0;
     real_t PoissonRatio = 0.0;
@@ -73,12 +76,14 @@ int main(int argc, char *argv[])
     cmd.addReal( "R", "Ratio", "Mooney Rivlin Ratio",  Ratio );
     cmd.addInt( "t", "testCase", "Test case to run: 1 = unit square; 2 = Scordelis Lo Roof",  testCase );
     cmd.addInt( "m", "Material", "Material law",  material );
+    cmd.addInt( "I", "Implementation", "Implementation: 1= analytical, 2= generalized, 3= spectral",  impl );
     cmd.addSwitch( "c", "Compressibility", "1: compressible, 0: incompressible",  Compressibility );
     cmd.addString( "f", "file", "Input XML file", fn );
     cmd.addSwitch("verbose", "Full matrix and vector output", verbose);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
     cmd.addSwitch("stress", "Create a ParaView visualization file with the stresses", stress);
     cmd.addSwitch("membrane", "Use membrane model (no bending)", membrane);
+    cmd.addSwitch("composite", "Composite material", composite);
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
@@ -768,45 +773,101 @@ int main(int argc, char *argv[])
     compParameters[4] = &nu21fun;
     compParameters[5] = &phifun;
 
-    if (material==0)
+    if (material==4)
     {
-        materialMatrix = new gsMaterialMatrixLinear<3,real_t>(mp,mp_def,t,parameters,rho);
+        parameters.resize(6);
+        parameters[0] = &E;
+        parameters[1] = &nu;
+        parameters[2] = &mu1;
+        parameters[3] = &alpha1;
+
+        parameters[4] = &mu2;
+        parameters[5] = &alpha2;
+
+        // parameters[6] = ;
+        // parameters[7] = ;
     }
-    if (material==1)
+
+    gsOptionList options;
+    if      (material==0)
     {
-        // materialMatrix = new gsMaterialMatrixLinear<3,real_t>(mp,mp_def,t,parameters,rho);
-        materialMatrix = new gsMaterialMatrixComposite<3,real_t>(mp,mp_def,thickfun,compParameters);
+        if (composite)
+        {
+            options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
+            options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",0);
+            materialMatrix = getMaterialMatrix<3,real_t>(mp,mp_def,t,compParameters,rho,options);
+        }
+        else
+        {
+            parameters.resize(2);
+            options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
+            options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+            materialMatrix = getMaterialMatrix<3,real_t>(mp,mp_def,t,parameters,rho,options);
+        }
     }
-    else if ((material==2) && (!Compressibility))
+    else if (impl==1)
     {
-        constexpr int id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
-        materialMatrix = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+        options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",material);
+        options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",Compressibility);
+        options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+        materialMatrix = getMaterialMatrix<3,real_t>(mp,mp_def,t,parameters,rho,options);
     }
-    else if ((material==2) && (Compressibility))
+    else if (impl==2)
     {
-        constexpr int id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
-        materialMatrix = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
+        options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",material);
+        options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",Compressibility);
+        options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",2);
+        materialMatrix = getMaterialMatrix<3,real_t>(mp,mp_def,t,parameters,rho,options);
     }
-    else if ((material==12) && (!Compressibility))
+    else if (impl==3)
     {
-        constexpr int id = encodeMat_id<Material::NH, Implementation::Spectral>::id;
-        materialMatrix = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+        options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",material);
+        options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",Compressibility);
+        options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",3);
+        materialMatrix = getMaterialMatrix<3,real_t>(mp,mp_def,t,parameters,rho,options);
     }
-    else if ((material==12) && (Compressibility))
-    {
-        constexpr int id = encodeMat_id<Material::NH, Implementation::Spectral>::id;
-        materialMatrix = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
-    }
-    else if ((material==22) && (!Compressibility))
-    {
-        constexpr int id = encodeMat_id<Material::NH, Implementation::Generalized>::id;
-        materialMatrix = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
-    }
-    else if ((material==22) && (Compressibility))
-    {
-        constexpr int id = encodeMat_id<Material::NH, Implementation::Generalized>::id;
-        materialMatrix = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
-    }
+    else
+        GISMO_ERROR("Material unknown");
+
+    // if (material==0)
+    // {
+    //     materialMatrix = new gsMaterialMatrixLinear<3,real_t>(mp,mp_def,t,parameters,rho);
+    // }
+    // if (material==1)
+    // {
+    //     // materialMatrix = new gsMaterialMatrixLinear<3,real_t>(mp,mp_def,t,parameters,rho);
+    //     materialMatrix = new gsMaterialMatrixComposite<3,real_t>(mp,mp_def,thickfun,compParameters);
+    // }
+    // else if ((material==2) && (!Compressibility))
+    // {
+    //     constexpr int id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
+    //     materialMatrix = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+    // }
+    // else if ((material==2) && (Compressibility))
+    // {
+    //     constexpr int id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
+    //     materialMatrix = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
+    // }
+    // else if ((material==12) && (!Compressibility))
+    // {
+    //     constexpr int id = encodeMat_id<Material::NH, Implementation::Spectral>::id;
+    //     materialMatrix = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+    // }
+    // else if ((material==12) && (Compressibility))
+    // {
+    //     constexpr int id = encodeMat_id<Material::NH, Implementation::Spectral>::id;
+    //     materialMatrix = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
+    // }
+    // else if ((material==22) && (!Compressibility))
+    // {
+    //     constexpr int id = encodeMat_id<Material::NH, Implementation::Generalized>::id;
+    //     materialMatrix = new gsMaterialMatrix<3,real_t,id,false>(mp,mp_def,t,parameters,rho);
+    // }
+    // else if ((material==22) && (Compressibility))
+    // {
+    //     constexpr int id = encodeMat_id<Material::NH, Implementation::Generalized>::id;
+    //     materialMatrix = new gsMaterialMatrix<3,real_t,id,true>(mp,mp_def,t,parameters,rho);
+    // }
 
     // else if ((material==3) && (!Compressibility))
     // {
@@ -882,21 +943,6 @@ int main(int argc, char *argv[])
     // }
 
 
-    std::vector<gsFunction<>*> parameters2(6);
-    if (material==14)
-    {
-        parameters2[0] = &E;
-        parameters2[1] = &nu;
-        parameters2[2] = &mu1;
-        parameters2[3] = &alpha1;
-
-        parameters2[4] = &mu2;
-        parameters2[5] = &alpha2;
-
-        // parameters[6] = ;
-        // parameters[7] = ;
-        materialMatrix->setParameters(parameters2);
-    }
 
     gsThinShellAssemblerBase<real_t>* assembler;
     if(membrane)

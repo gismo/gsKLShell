@@ -15,6 +15,9 @@
 
 #pragma once
 
+#include <gsKLShell/gsMaterialMatrixBase.h>
+#include <gsIO/gsOptionList.h>
+
 namespace gismo
 {
 
@@ -37,6 +40,7 @@ enum class Material : short_t
 
 enum class Implementation : short_t
 {
+    Composite   = 0,
     Analytical  = 1,
     Generalized = 2,
     Spectral    = 3
