@@ -38,12 +38,6 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
                                         m_materialMat(materialmatrix)
 {
     this->defaultOptions();
-    if (d==2)
-    {
-        gsWarn<<"Plate model assumed because the multipatch is planar, but the multipatch is embedded to 3D \n"; // because of the material matrix class
-        m_patches.embed(3);
-    }
-    else
     this->initialize();
 }
 
@@ -92,9 +86,16 @@ void gsThinShellAssembler<d, T, bending>::initialize()
     m_pressInd = false;
 }
 
-
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::assembleNeumann()
+{
+    assembleNeumann_impl<d,bending>();
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<_d==3 && _bending, void>::type
+gsThinShellAssembler<d, T, bending>::assembleNeumann_impl()
 {
     m_assembler.getMap(m_patches);           // this map is used for integrals
     geometryMap m_ori   = m_assembler.exprData()->getMap();
@@ -102,6 +103,19 @@ void gsThinShellAssembler<d, T, bending>::assembleNeumann()
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     variable g_N = m_assembler.getBdrFunction();
     m_assembler.assembleRhsBc(m_space * g_N * otangent(m_ori).norm(), m_bcs.neumannSides() );
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<!(_d==3 && _bending), void>::type
+gsThinShellAssembler<d, T, bending>::assembleNeumann_impl()
+{
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    variable g_N = m_assembler.getBdrFunction();
+    m_assembler.assembleRhsBc(m_space * g_N * tv(m_ori).norm(), m_bcs.neumannSides() );
 }
 
 template <short_t d, class T, bool bending>

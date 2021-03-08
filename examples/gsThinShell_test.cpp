@@ -15,10 +15,6 @@
 
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/getMaterialMatrix.h>
-#include <gsKLShell/gsMaterialMatrix.h>
-#include <gsKLShell/gsMaterialMatrixLinear.h>
-#include <gsKLShell/gsMaterialMatrixComposite.h>
-#include <gsKLShell/gsMaterialMatrixBase.h>
 
 //#include <gsThinShell/gsNewtonIterator.h>
 
@@ -126,6 +122,7 @@ int main(int argc, char *argv[])
         E_modulus = 2*mu*(1+PoissonRatio);
         // PoissonRatio = 0;
         mp = Rectangle(L, B);
+        mp.embed(3);
 
         gsInfo<<"mu = "<<E_modulus / (2 * (1 + PoissonRatio))<<"\n";
     }
@@ -382,12 +379,6 @@ int main(int argc, char *argv[])
         bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1 ); // unknown 1 - y
         bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 2 ); // unknown 1 - y
         bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 2 ); // unknown 1 - y
-
-        gsVector<> point(2);
-        gsVector<> load (3);
-        point<< 1.0, 0.5 ;
-        load << 1.0,0.0, 0.0;
-        pLoads.addLoad(point, load, 0 );
     }
     else if (testCase == 5)
     {

@@ -227,6 +227,14 @@ protected:
 
     void applyLoads();
 
+private:
+    template<int _d, bool _bending>
+    typename std::enable_if<_d==3 && _bending, void>::type
+    assembleNeumann_impl();
+
+    template<int _d, bool _bending>
+    typename std::enable_if<!(_d==3 && _bending), void>::type
+    assembleNeumann_impl();
 
 protected:
     typedef gsExprAssembler<>::geometryMap geometryMap;

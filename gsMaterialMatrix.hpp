@@ -2281,7 +2281,6 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_computeMetricDeformed_impl() const
 
     for (index_t k=0; k!= m_map_def.points.cols(); k++)
     {
-        m_acov_def_mat.reshapeCol(k,2,2)   = m_map_def.jacobian(k);
         gsAsMatrix<T,Dynamic,Dynamic> acov = m_acov_def_mat.reshapeCol(k,2,2);
         acov = m_map_def.jacobian(k);
 
@@ -2377,8 +2376,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_computeMetricUndeformed_impl() cons
 
     for (index_t k=0; k!= m_map.points.cols(); k++)
     {
-        m_acov_ori_mat.reshapeCol(k,3,2)   = m_map.jacobian(k);
-        gsAsMatrix<T,Dynamic,Dynamic> acov = m_acov_ori_mat.reshapeCol(k,3,2);
+        gsAsMatrix<T,Dynamic,Dynamic> acov = m_acov_ori_mat.reshapeCol(k,2,2);
         acov = m_map.jacobian(k);
 
         tmp = acov.transpose() * acov;
@@ -2387,7 +2385,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_computeMetricUndeformed_impl() cons
 
         gsAsMatrix<T,Dynamic,Dynamic> metricAcon = m_Acon_ori_mat.reshapeCol(k,2,2);
 
-        gsAsMatrix<T,Dynamic,Dynamic> acon = m_acon_ori_mat.reshapeCol(k,3,2);
+        gsAsMatrix<T,Dynamic,Dynamic> acon = m_acon_ori_mat.reshapeCol(k,2,2);
         for (index_t i=0; i < 2; i++)
             acon.col(i)     = metricAcon(i,0)*acov.col(0) + metricAcon(i,1)*acov.col(1);
     }
@@ -2470,8 +2468,8 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getMetricDeformed_impl(index_t k, T
     m_Acov_def = m_Acov_def_mat.reshapeCol(k,2,2);
     m_Acon_def = m_Acon_def_mat.reshapeCol(k,2,2);
     // basis vectors
-    m_acov_def = m_acov_def_mat.reshapeCol(k,3,2);
-    m_acon_def = m_acon_def_mat.reshapeCol(k,3,2);
+    m_acov_def = m_acov_def_mat.reshapeCol(k,2,2);
+    m_acon_def = m_acon_def_mat.reshapeCol(k,2,2);
     // Compute full metric
     m_Gcov_def.setZero();
     m_Gcov_def.block(0,0,2,2)= m_Acov_def;
@@ -2480,7 +2478,8 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getMetricDeformed_impl(index_t k, T
     // Compute full basis
     gsMatrix<T,3,1> normal;
     normal << 0,0,1;
-    m_gcov_def.leftCols(2) = m_acov_def;
+    m_gcov_def.setZero();
+    m_gcov_def.block(0,0,2,2) = m_acov_def;
     m_gcov_def.col(2) = normal;
 
     for (index_t c = 0; c!=3; c++)
@@ -2558,8 +2557,8 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getMetricUndeformed_impl(index_t k,
     m_Acov_ori = m_Acov_ori_mat.reshapeCol(k,2,2);
     m_Acon_ori = m_Acon_ori_mat.reshapeCol(k,2,2);
     // basis vectors
-    m_acov_ori = m_acov_ori_mat.reshapeCol(k,3,2);
-    m_acon_ori = m_acon_ori_mat.reshapeCol(k,3,2);
+    m_acov_ori = m_acov_ori_mat.reshapeCol(k,2,2);
+    m_acon_ori = m_acon_ori_mat.reshapeCol(k,2,2);
     // Compute full metric
     m_Gcov_ori.setZero();
     m_Gcov_ori.block(0,0,2,2)= m_Acov_ori;
@@ -2568,7 +2567,8 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getMetricUndeformed_impl(index_t k,
     // Compute full basis
     gsMatrix<T,3,1> normal;
     normal << 0,0,1;
-    m_gcov_ori.leftCols(2) = m_acov_ori;
+    m_gcov_ori.setZero();
+    m_gcov_ori.block(0,0,2,2) = m_acov_ori;
     m_gcov_ori.col(2) = normal;
 
     for (index_t c = 0; c!=3; c++)

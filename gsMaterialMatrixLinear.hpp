@@ -448,6 +448,7 @@ gsMaterialMatrixLinear<dim,T>::_computeMetricUndeformed_impl() const
             for (index_t j=0; j < 2; j++)
                 mixedB(i,j) = metricAcon(i,0)*metricBcov(0,j) + metricAcon(i,1)*metricBcov(1,j);
 
+        // n_{,\alpha}
         gsAsMatrix<T,Dynamic,Dynamic> ncov = m_ncov_ori_mat.reshapeCol(k,3,2);
         for (index_t i=0; i < 2; i++)
             ncov.col(i)     = -mixedB(0,i)*acov.col(0) -mixedB(1,i)*acov.col(1);
@@ -469,8 +470,8 @@ gsMaterialMatrixLinear<dim,T>::_computeMetricUndeformed_impl() const
 
     for (index_t k=0; k!= m_map.points.cols(); k++)
     {
-        m_acov_ori_mat.reshapeCol(k,3,2)   = m_map.jacobian(k);
-        gsAsMatrix<T,Dynamic,Dynamic> acov = m_acov_ori_mat.reshapeCol(k,3,2);
+        m_acov_ori_mat.reshapeCol(k,2,2)   = m_map.jacobian(k);
+        gsAsMatrix<T,Dynamic,Dynamic> acov = m_acov_ori_mat.reshapeCol(k,2,2);
         acov = m_map.jacobian(k);
 
         tmp = acov.transpose() * acov;
@@ -479,7 +480,7 @@ gsMaterialMatrixLinear<dim,T>::_computeMetricUndeformed_impl() const
 
         gsAsMatrix<T,Dynamic,Dynamic> metricAcon = m_Acon_ori_mat.reshapeCol(k,2,2);
 
-        gsAsMatrix<T,Dynamic,Dynamic> acon = m_acon_ori_mat.reshapeCol(k,3,2);
+        gsAsMatrix<T,Dynamic,Dynamic> acon = m_acon_ori_mat.reshapeCol(k,2,2);
         for (index_t i=0; i < 2; i++)
             acon.col(i)     = metricAcon(i,0)*acov.col(0) + metricAcon(i,1)*acov.col(1);
     }
@@ -514,38 +515,18 @@ gsMaterialMatrixLinear<dim,T>::_getMetricDeformed_impl(index_t k, T z) const
     GISMO_ENSURE(m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Bcov_def_mat.cols()!=0,"Is the metric initialized?");
-    GISMO_ENSURE(m_acov_def_mat.cols()!=0,"Is the basis initialized?");
-    GISMO_ENSURE(m_acon_def_mat.cols()!=0,"Is the basis initialized?");
-    GISMO_ENSURE(m_ncov_def_mat.cols()!=0,"Is the basis initialized?");
 
     // metrics
     m_Acov_def = m_Acov_def_mat.reshapeCol(k,2,2);
     m_Acon_def = m_Acon_def_mat.reshapeCol(k,2,2);
     m_Bcov_def = m_Bcov_def_mat.reshapeCol(k,2,2);
     // basis vectors
-    m_acov_def = m_acov_def_mat.reshapeCol(k,3,2);
-    m_acon_def = m_acon_def_mat.reshapeCol(k,3,2);
     m_ncov_def = m_ncov_def_mat.reshapeCol(k,3,2);
     // Compute full metric
     m_Gcov_def.setZero();
     m_Gcov_def.block(0,0,2,2)= m_Acov_def - 2.0 * z * m_Bcov_def + z*z * m_ncov_def.transpose()*m_ncov_def;
     m_Gcov_def(2,2) = 1.0;
     m_Gcon_def = m_Gcov_def.inverse();
-    // Compute full basis
-    gsMatrix<T,3,1> normal = m_map_def.normal(k).normalized();
-    m_gcov_def.leftCols(2) = m_acov_def + z * m_ncov_def;
-    m_gcov_def.col(2) = normal;
-
-    for (index_t c = 0; c!=3; c++)
-    {
-        m_gcon_def.col(c) = m_Gcon_def(c,0) * m_gcov_def.col(0)
-                            + m_Gcon_def(c,1) * m_gcov_def.col(1)
-                            + m_Gcon_def(c,2) * m_gcov_def.col(2);
-    }
-
-    // // create a Linearised covariant tensor for SvK models
-    // m_Gcov_def_L = m_Gcov_def;
-    // m_Gcov_def.block(0,0,2,2) -= z*z * m_ncov_def.transpose()*m_ncov_def;
 }
 
 template <short_t dim, class T>
@@ -555,36 +536,15 @@ gsMaterialMatrixLinear<dim,T>::_getMetricDeformed_impl(index_t k, T z) const
 {
     GISMO_ENSURE(m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_def_mat.cols()!=0,"Is the metric initialized?");
-    GISMO_ENSURE(m_acov_def_mat.cols()!=0,"Is the basis initialized?");
-    GISMO_ENSURE(m_acon_def_mat.cols()!=0,"Is the basis initialized?");
 
     // metrics
     m_Acov_def = m_Acov_def_mat.reshapeCol(k,2,2);
     m_Acon_def = m_Acon_def_mat.reshapeCol(k,2,2);
-    // basis vectors
-    m_acov_def = m_acov_def_mat.reshapeCol(k,3,2);
-    m_acon_def = m_acon_def_mat.reshapeCol(k,3,2);
     // Compute full metric
     m_Gcov_def.setZero();
     m_Gcov_def.block(0,0,2,2)= m_Acov_def;
     m_Gcov_def(2,2) = 1.0;
     m_Gcon_def = m_Gcov_def.inverse();
-    // Compute full basis
-    gsMatrix<T,3,1> normal;
-    normal << 0,0,1;
-    m_gcov_def.leftCols(2) = m_acov_def;
-    m_gcov_def.col(2) = normal;
-
-    for (index_t c = 0; c!=3; c++)
-    {
-        m_gcon_def.col(c) = m_Gcon_def(c,0) * m_gcov_def.col(0)
-                            + m_Gcon_def(c,1) * m_gcov_def.col(1)
-                            + m_Gcon_def(c,2) * m_gcov_def.col(2);
-    }
-
-    // // create a Linearised covariant tensor for SvK models
-    // m_Gcov_def_L = m_Gcov_def;
-    // m_Gcov_def.block(0,0,2,2) -= z*z * m_ncov_def.transpose()*m_ncov_def;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------
@@ -603,8 +563,6 @@ gsMaterialMatrixLinear<dim,T>::_getMetricUndeformed_impl(index_t k, T z) const
     GISMO_ENSURE(m_Acov_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Bcov_ori_mat.cols()!=0,"Is the metric initialized?");
-    GISMO_ENSURE(m_acov_ori_mat.cols()!=0,"Is the basis initialized?");
-    GISMO_ENSURE(m_acon_ori_mat.cols()!=0,"Is the basis initialized?");
     GISMO_ENSURE(m_ncov_ori_mat.cols()!=0,"Is the basis initialized?");
 
     // metrics
@@ -612,28 +570,12 @@ gsMaterialMatrixLinear<dim,T>::_getMetricUndeformed_impl(index_t k, T z) const
     m_Acon_ori = m_Acon_ori_mat.reshapeCol(k,2,2);
     m_Bcov_ori = m_Bcov_ori_mat.reshapeCol(k,2,2);
     // basis vectors
-    m_acov_ori = m_acov_ori_mat.reshapeCol(k,3,2);
-    m_acon_ori = m_acon_ori_mat.reshapeCol(k,3,2);
     m_ncov_ori = m_ncov_ori_mat.reshapeCol(k,3,2);
     // Compute full metric
     m_Gcov_ori.setZero();
     m_Gcov_ori.block(0,0,2,2)= m_Acov_ori - 2.0 * z * m_Bcov_ori + z*z * m_ncov_ori.transpose()*m_ncov_ori;
     m_Gcov_ori(2,2) = 1.0;
     m_Gcon_ori = m_Gcov_ori.inverse();
-    // Compute full basis
-    gsMatrix<T,3,1> normal = m_map.normal(k).normalized();
-    m_gcov_ori.block(0,0,3,2) = m_acov_ori + z * m_ncov_ori;
-    m_gcov_ori.col(2) = normal;
-    for (index_t c = 0; c!=3; c++)
-    {
-        m_gcon_ori.col(c) = m_Gcon_ori(c,0) * m_gcov_ori.col(0)
-                            + m_Gcon_ori(c,1) * m_gcov_ori.col(1)
-                            + m_Gcon_ori(c,2) * m_gcov_ori.col(2);
-    }
-
-    // // create a Linearised covariant tensor for SvK models
-    // m_Gcov_ori_L = m_Gcov_ori;
-    // m_Gcov_ori.block(0,0,2,2) -= z*z * m_ncov_ori.transpose()*m_ncov_ori;
 }
 
 template <short_t dim, class T>
@@ -643,36 +585,15 @@ gsMaterialMatrixLinear<dim,T>::_getMetricUndeformed_impl(index_t k, T z) const
 {
     GISMO_ENSURE(m_Acov_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_ori_mat.cols()!=0,"Is the metric initialized?");
-    GISMO_ENSURE(m_acov_ori_mat.cols()!=0,"Is the basis initialized?");
-    GISMO_ENSURE(m_acon_ori_mat.cols()!=0,"Is the basis initialized?");
 
     // metrics
     m_Acov_ori = m_Acov_ori_mat.reshapeCol(k,2,2);
     m_Acon_ori = m_Acon_ori_mat.reshapeCol(k,2,2);
-    // basis vectors
-    m_acov_ori = m_acov_ori_mat.reshapeCol(k,3,2);
-    m_acon_ori = m_acon_ori_mat.reshapeCol(k,3,2);
     // Compute full metric
     m_Gcov_ori.setZero();
     m_Gcov_ori.block(0,0,2,2)= m_Acov_ori;
     m_Gcov_ori(2,2) = 1.0;
     m_Gcon_ori = m_Gcov_ori.inverse();
-    // Compute full basis
-    gsMatrix<T,3,1> normal;
-    normal << 0,0,1;
-    m_gcov_ori.leftCols(2) = m_acov_ori;
-    m_gcov_ori.col(2) = normal;
-
-    for (index_t c = 0; c!=3; c++)
-    {
-        m_gcon_ori.col(c) = m_Gcon_ori(c,0) * m_gcov_ori.col(0)
-                            + m_Gcon_ori(c,1) * m_gcov_ori.col(1)
-                            + m_Gcon_ori(c,2) * m_gcov_ori.col(2);
-    }
-
-    // // create a Linearised covariant tensor for SvK models
-    // m_Gcov_ori_L = m_Gcov_ori;
-    // m_Gcov_ori.block(0,0,2,2) -= z*z * m_ncov_ori.transpose()*m_ncov_ori;
 }
 
 } // end namespace
