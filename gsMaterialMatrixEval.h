@@ -28,32 +28,54 @@ class gsMaterialMatrixEval : public gsFunction<T>
 {
 public:
 
+    /// Constructor
     gsMaterialMatrixEval( gsMaterialMatrixBase<T> * materialMatrix);
 
-    short_t domainDim() const;// { return 2; }
+    /// Domain dimension, always 2 for shells
+    short_t domainDim() const {return 2;}
 
-    short_t targetDim() const;// { return getMoment_impl<out>(); }
+    /**
+     * @brief      Target dimension
+     *
+     * For a scalar (e.g. density) the target dimension is 1, for a vector (e.g. stress tensor in Voight notation) the target dimension is 3 and for a matrix (e.g. the material matrix) the target dimension is 9, which can be reshaped to a 3x3 matrix.
+     *
+     * @return     Returns the target dimension depending on the specified type (scalar, vector, matrix etc.)
+     */
+    short_t targetDim() const { return targetDim_impl<out>(); }
+
 
 private:
+    /// Implementation of \ref targetDim for densities
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::Density   , short_t>::type targetDim_impl() const;// { return 1; };
+    typename std::enable_if<_out==MaterialOutput::Density   , short_t>::type targetDim_impl() const { return 1; };
+
+    /// Implementation of \ref targetDim for stress tensors
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorN ||
-                            _out==MaterialOutput::VectorM   , short_t>::type targetDim_impl() const;// { return 3; };
+                            _out==MaterialOutput::VectorM   , short_t>::type targetDim_impl() const { return 3; };
+
+    /// Implementation of \ref targetDim for material tensors
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::MatrixA ||
                             _out==MaterialOutput::MatrixB ||
                             _out==MaterialOutput::MatrixC ||
-                            _out==MaterialOutput::MatrixD   , short_t>::type targetDim_impl() const;// { return 9; };
+                            _out==MaterialOutput::MatrixD   , short_t>::type targetDim_impl() const { return 9; };
+
+    /// Implementation of \ref targetDim for principal stress fields
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::PStressN ||
-                            _out==MaterialOutput::PStressM  , short_t>::type targetDim_impl() const;// { return 2; };
+                            _out==MaterialOutput::PStressM  , short_t>::type targetDim_impl() const { return 2; };
+
+    /// Implementation of \ref targetDim for principal stretch fields
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::Stretch   , short_t>::type targetDim_impl() const;// { return 3; };
+    typename std::enable_if<_out==MaterialOutput::Stretch   , short_t>::type targetDim_impl() const { return 3; };
+
+    /// Implementation of \ref targetDim for principal stress directions
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::StretchDir, short_t>::type targetDim_impl() const;// { return 9; };
+    typename std::enable_if<_out==MaterialOutput::StretchDir, short_t>::type targetDim_impl() const { return 9; };
 
 public:
+    /// Implementation of piece, see \ref gsFunction
     const gsFunction<T> & piece(const index_t p) const
     {
         m_piece = new gsMaterialMatrixEval(*this);
@@ -62,68 +84,119 @@ public:
     }
 
 protected:
+    /// Sets the patch index
     void setPatch(index_t p) {m_pIndex = p; }
 
 public:
-
+    /// Destructor
     ~gsMaterialMatrixEval() { delete m_piece; }
 
-
+    /// Implementation of eval_into, see \ref gsFunction
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
 private:
+    /// Specialisation of \ref eval_into for densities
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Density   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
-    template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::VectorM   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    /// Specialisation of \ref eval_into for the membrane stress tensor N
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorN   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
+    /// Specialisation of \ref eval_into for the flexural stress tensor M
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::VectorM   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the moments of the material matrices
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::MatrixA ||
                             _out==MaterialOutput::MatrixB ||
                             _out==MaterialOutput::MatrixC ||
                             _out==MaterialOutput::MatrixD   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the membrane and flexural principle stresses
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::PStressN ||
                             _out==MaterialOutput::PStressM  , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the stretches
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Stretch   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the stretch directions
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::StretchDir, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
-public:
+protected:
 
+    /**
+     * @brief      Gets the moment based on the output type
+     *
+     * for
+     *      VectorN, the moment is 0
+     *      VectorM, the moment is 1 (unless MatIntegrated==Constant or MatIntegrated==Integrated)
+     *      MatrixA, the moment is 0
+     *      MatrixB, the moment is 1
+     *      MatrixC, the moment is 1
+     *      MatrixD, the moment is 2
+     *      PStressN,the moment is 0
+     *      PStressM,the moment is 1
+     *
+     * @return     The moment.
+     */
     T getMoment() const { return getMoment_impl<out>(); }
 
 private:
+    /// Implementation of \ref getMoment for MaterialOutput::VectorN; the moment is 0
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorN, T>::type getMoment_impl() const { return 0; };
+
+    /// Implementation of \ref getMoment for MaterialOutput::VectorM; the moment is 1
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorM, T>::type getMoment_impl() const { return 1; };
+
+    /// Implementation of \ref getMoment for MaterialOutput::MatrixA; the moment is 0
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::MatrixA, T>::type getMoment_impl() const { return 0; };
+
+    /// Implementation of \ref getMoment for MaterialOutput::MatrixB; the moment is 1
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::MatrixB, T>::type getMoment_impl() const { return 1; };
+
+    /// Implementation of \ref getMoment for MaterialOutput::MatrixC; the moment is 1
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::MatrixC, T>::type getMoment_impl() const { return 1; }; // must be 1
+
+    /// Implementation of \ref getMoment for MaterialOutput::MatrixD; the moment is 2
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::MatrixD, T>::type getMoment_impl() const { return 2; }; // must be 2
+
+    /// Implementation of \ref getMoment for MaterialOutput::PStressN; the moment is 0
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::PStressN, T>::type getMoment_impl() const { return 0; };
+
+    /// Implementation of \ref getMoment for MaterialOutput::PStressM; the moment is 1
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::PStressM, T>::type getMoment_impl() const { return 1; };
+
+    /// Implementation of \ref getMoment for MaterialOutput other than VectorN, VectorM, MatrixA, MatrixB, MatrixC, MatrixD, PStressN, PStressM
     template<enum MaterialOutput _out>
     typename std::enable_if<!(_out==MaterialOutput::VectorN || _out==MaterialOutput::VectorM ||
                               _out==MaterialOutput::MatrixA || _out==MaterialOutput::MatrixB ||
                               _out==MaterialOutput::MatrixC || _out==MaterialOutput::MatrixD ||
                               _out==MaterialOutput::PStressN|| _out==MaterialOutput::PStressM  )
                                                  , index_t>::type getMoment_impl() const { GISMO_NO_IMPLEMENTATION};
-    template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::PStressN, T>::type getMoment_impl() const { return 0; };
-    template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::PStressM, T>::type getMoment_impl() const { return 1; };
 
 protected:
-    void integrateZ_into(const gsMatrix<T> & u, const index_t moment, gsMatrix<T> & result) const;
 
+    /**
+     * @brief      Integrates through-thickness using Gauss integration
+     *
+     * @param[in]  u       evaluation points (in plane)
+     * @param[in]  moment  moment to be taken
+     * @param      result  the result
+     */
+    void integrateZ_into(const gsMatrix<T> & u, const index_t moment, gsMatrix<T> & result) const;
 
     /**
      * @brief      Uses the top and bottom parts of the thickness to compute the integral exactly
@@ -168,22 +241,47 @@ protected:
 
 public:
 
+    /**
+     * @brief      Evaluates the base class in 3D
+     *
+     * @param[in]  u        The evaluation points (in plane)
+     * @param[in]  Z        The through-thickness coordinate
+     *
+     * @return     Matrix ordered over Z and over u within
+     */
     gsMatrix<T> eval3D(const gsMatrix<T>& u, const gsMatrix<T>& Z) const;
+
+
+    /**
+     * @brief      Evaluates the base class in 3D, but on Z=0
+     *
+     * This function is primarily used in cases where the base class already integrates the material matrix or vectors
+     *
+     * @param[in]  u     The evaluation points (in plane)
+     *
+     * @return     Matrix with results
+     */
     gsMatrix<T> eval  (const gsMatrix<T>& u) const;
 
 private:
+    /// Specialisation of \ref eval3D for vectors
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorN ||
                             _out==MaterialOutput::VectorM   , gsMatrix<T>>::type eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const;
+
+    /// Specialisation of \ref eval3D for matrix
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::MatrixA ||
                             _out==MaterialOutput::MatrixB ||
                             _out==MaterialOutput::MatrixC ||
                             _out==MaterialOutput::MatrixD   , gsMatrix<T>>::type eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const;
+
+    /// Specialisation of \ref eval3D for principal stresses
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::PStressN ||
                             _out==MaterialOutput::PStressM  , gsMatrix<T>>::type eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const;
 
+    /// Specialisation of \ref eval3D for other types
     template<enum MaterialOutput _out>
     typename std::enable_if<!(_out==MaterialOutput::VectorN || _out==MaterialOutput::VectorM ||
                               _out==MaterialOutput::MatrixA || _out==MaterialOutput::MatrixB ||

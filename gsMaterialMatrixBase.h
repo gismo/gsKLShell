@@ -25,139 +25,132 @@ template <class T>
 class gsMaterialMatrixBase
 {
 public:
+
+    /// Destructor
     virtual ~gsMaterialMatrixBase() {};
 
-    // GISMO_CLONE_FUNCTION(gsMaterialMatrixBase)
-
+    /**
+     * @brief      Specifies how the matrix is integrated
+     *
+     * Possible options to specify the integration of the matrix (see enum MatIntegration)
+     *  - NotIntegrated     The matrix is not integrated, hence the values of eval3D_matrix provide the through-thickness value for each z coordinate
+     *  - Integrated        The matrix is already integrated; the integrated values are returned for any z coordinate
+     *  - Constant          The matrix is constant over the thickness, but not yet integrated
+     *  - Linear            The matrix is linearly dependent of the thickness value, say a*z+b, hence the 0th moment w.r.t. z is a*t, the 1st moment is 1/2*b*t^2, etc.
+     *
+     * @return     Return MatIntegration enumeration
+     */
     inline virtual enum MatIntegration isMatIntegrated() const {return MatIntegration::NotIntegrated; }
+
+    /**
+     * @brief      Specifies how the vector is integrated
+     *
+     * Possible options to specify the integration of the vector (see enum MatIntegration)
+     *  - NotIntegrated     The vector is not integrated, hence the values of eval3D_matrix provide the through-thickness value for each z coordinate
+     *  - Integrated        The vector is already integrated; the integrated values are returned for any z coordinate
+     *  - Constant          The vector is constant over the thickness, but not yet integrated
+     *  - Linear            The vector is linearly dependent of the thickness value, say a*z+b, hence the 0th moment w.r.t. z is a*t, the 1st moment is 1/2*b*t^2, etc.
+     *
+     * @return     Return MatIntegration enumeration
+     */
     inline virtual enum MatIntegration isVecIntegrated() const {return MatIntegration::NotIntegrated; }
 
+    /**
+     * @brief      Returns the options
+     *
+     * @return     \ref gsOptionList
+     */
     inline virtual gsOptionList & options() = 0;
+    /**
+     * @brief      Sets the options
+     *
+     * @param[in]  opt   @ref gsOptionList
+     */
     inline virtual void setOptions(gsOptionList opt) = 0;
 
+    /**
+     * @brief      Evaluates the density multiplied by the thickness of the shell (scalar)
+     *
+     * @param[in]  patch   The patch to be evaluated on
+     * @param[in]  u       The in-plane shell coordinates to be eveluated on
+     * @param      result  The resut
+     */
     inline virtual void    density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    /**
+     * @brief      Evaluates the stretches in the shell (3x1 vector)
+     *
+     * @param[in]  patch   The patch to be evaluated on
+     * @param[in]  u       The in-plane shell coordinates to be eveluated on
+     * @param      result  The resut
+     */
     inline virtual void    stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    /**
+     * @brief      Evaluates the directions of the stretches in the shell (3x1 vector per direction)
+     *
+     * @param[in]  patch   The patch to be evaluated on
+     * @param[in]  u       The in-plane shell coordinates to be eveluated on
+     * @param      result  The resut
+     */
     inline virtual void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    /**
+     * @brief      Evaluates the thickness of the shell (scalar)
+     *
+     * @param[in]  patch   The patch to be evaluated on
+     * @param[in]  u       The in-plane shell coordinates to be eveluated on
+     * @param      result  The resut
+     */
     inline virtual void  thickness_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
 
+
+
+    /**
+     * @brief      Evaluates the matrix on \a patch on in-plane points \a u with height \a z
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     * @param[in]  out    (for classes with MatIntegration==Integrated, more details about \ref MaterialOutput can be found in \ref gsMaterialMatrixUtils)
+     *
+     * @return     Matrix with the result (matrix) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
     inline virtual gsMatrix<T>  eval3D_matrix(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
+    /**
+     * @brief      Evaluates the vector on \a patch on in-plane points \a u with height \a z
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     * @param[in]  out    (for classes with MatIntegration==Integrated, more details about \ref MaterialOutput can be found in \ref gsMaterialMatrixUtils)
+     *
+     * @return     Matrix with the result (vector) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
     inline virtual gsMatrix<T>  eval3D_vector(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
+    /**
+     * @brief      Evaluates the principal stress on \a patch on in-plane points \a u with height \a z
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     * @param[in]  out    (for classes with MatIntegration==Integrated, more details about \ref MaterialOutput can be found in \ref gsMaterialMatrixUtils)
+     *
+     * @return     Matrix with the result (principal stress) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
     inline virtual gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
 
+    /**
+     * @brief      Sets the material parameters.
+     *
+     * @param[in]  pars  Function pointers for the parameters in a container
+     */
     inline virtual void setParameters(const std::vector<gsFunction<T>*> &pars) =0;
+
+    /**
+     * @brief      Prints info
+     */
     inline virtual void info() const = 0;
 };
 
 } // namespace
-
-
-// #ifndef GISMO_BUILD_LIB
-// #include GISMO_HPP_HEADER(gsMaterialMatrix.hpp)
-// #endif
-
-
-// To Do:
-// * struct for material model
-// Input is parametric coordinates of the surface \a mp
-// template <class T>
-// class gsMaterialMatrix : public gismo::gsFunction<T>
-// {
-//   // Computes the material matrix for different material models
-//   //
-// protected:
-//     const gsFunctionSet<T> * _mp;
-//     const gsFunction<T> * _YoungsModulus;
-//     const gsFunction<T> * _PoissonRatio;
-//     mutable gsMapData<T> _tmp;
-//     mutable gsMatrix<real_t,3,3> F0;
-//     mutable gsMatrix<T> Emat,Nmat;
-//     mutable real_t lambda, mu, E, nu, C_constant;
-
-// public:
-//     /// Shared pointer for gsMaterialMatrix
-//     typedef memory::shared_ptr< gsMaterialMatrix > Ptr;
-
-//     /// Unique pointer for gsMaterialMatrix
-//     typedef memory::unique_ptr< gsMaterialMatrix > uPtr;
-
-//     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-//     gsMaterialMatrix(const gsFunctionSet<T> & mp, const gsFunction<T> & YoungsModulus,
-//                    const gsFunction<T> & PoissonRatio) :
-//     _mp(&mp), _YoungsModulus(&YoungsModulus), _PoissonRatio(&PoissonRatio), _mm_piece(nullptr)
-//     {
-//         _tmp.flags = NEED_JACOBIAN | NEED_NORMAL | NEED_VALUE;
-//     }
-
-//     ~gsMaterialMatrix() { delete _mm_piece; }
-
-//     GISMO_CLONE_FUNCTION(gsMaterialMatrix)
-
-//     short_t domainDim() const {return 2;}
-
-//     short_t targetDim() const {return 9;}
-
-//     mutable gsMaterialMatrix<T> * _mm_piece; // todo: improve the way pieces are accessed
-
-//     const gsFunction<T> & piece(const index_t k) const
-//     {
-//         delete _mm_piece;
-//         _mm_piece = new gsMaterialMatrix(_mp->piece(k), *_YoungsModulus, *_PoissonRatio);
-//         return *_mm_piece;
-//     }
-
-//     //class .. matMatrix_z
-//     // should contain eval_into(thickness variable)
-
-//     // Input is parametric coordinates of the surface \a mp
-//     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
-//     {
-//         // NOTE 1: if the input \a u is considered to be in physical coordinates
-//         // then we first need to invert the points to parameter space
-//         // _mp.patch(0).invertPoints(u, _tmp.points, 1e-8)
-//         // otherwise we just use the input paramteric points
-//         _tmp.points = u;
-
-//         static_cast<const gsFunction<T>&>(_mp->piece(0)).computeMap(_tmp); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
-
-//         // NOTE 2: in the case that parametric value is needed it suffices
-//         // to evaluate Youngs modulus and Poisson's ratio at
-//         // \a u instead of _tmp.values[0].
-//         _YoungsModulus->eval_into(_tmp.values[0], Emat);
-//         _PoissonRatio->eval_into(_tmp.values[0], Nmat);
-
-//         result.resize( targetDim() , u.cols() );
-//         for( index_t i=0; i< u.cols(); ++i )
-//         {
-//             gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(i,3,3);
-
-//             F0.leftCols(2) = _tmp.jacobian(i);
-//             F0.col(2)      = _tmp.normal(i).normalized();
-//             F0 = F0.inverse();
-//             F0 = F0 * F0.transpose(); //3x3
-
-//             // Evaluate material properties on the quadrature point
-//             E = Emat(0,i);
-//             nu = Nmat(0,i);
-//             lambda = E * nu / ( (1. + nu)*(1.-2.*nu)) ;
-//             mu     = E / (2.*(1. + nu)) ;
-
-//             C_constant = 2*lambda*mu/(lambda+2*mu);
-
-//             C(0,0) = C_constant*F0(0,0)*F0(0,0) + 1*mu*(2*F0(0,0)*F0(0,0));
-//             C(1,1) = C_constant*F0(1,1)*F0(1,1) + 1*mu*(2*F0(1,1)*F0(1,1));
-//             C(2,2) = C_constant*F0(0,1)*F0(0,1) + 1*mu*(F0(0,0)*F0(1,1) + F0(0,1)*F0(0,1));
-//             C(1,0) =
-//             C(0,1) = C_constant*F0(0,0)*F0(1,1) + 1*mu*(2*F0(0,1)*F0(0,1));
-//             C(2,0) =
-//             C(0,2) = C_constant*F0(0,0)*F0(0,1) + 1*mu*(2*F0(0,0)*F0(0,1));
-//             C(2,1) = C(1,2) = C_constant*F0(0,1)*F0(1,1) + 1*mu*(2*F0(0,1)*F0(1,1));
-
-//             //gsDebugVar(C);
-//         }
-//     }
-
-//     // piece(k) --> for patch k
-
-// }; //! [Include namespace]
-

@@ -117,7 +117,7 @@ void gsMaterialMatrixLinear<dim,T>::_initialize()
 
 
 template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool deformed) const
+void gsMaterialMatrixLinear<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u) const
 {
     gsMatrix<T> tmp;
 
