@@ -88,12 +88,10 @@ public:
     void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-    {GISMO_NO_IMPLEMENTATION;}
+    void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-    {GISMO_NO_IMPLEMENTATION;}
+    void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
     void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
@@ -192,6 +190,12 @@ protected:
     /// Gets metric quantities on the undeformed geometry
     void _getMetricDeformed(index_t k, T z) const;
 
+    /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
+    void _computeStretch(const gsMatrix<T> & C ) const;
+
+    /// Computes the stretch given deformation tensor C, into a pair
+    std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C ) const;
+
 private:
 
     /// Implementation of \ref _computeMetricDeformed for planar geometries
@@ -264,6 +268,7 @@ protected:
     mutable gsMatrix<T>                 m_parmat;
     mutable gsVector<T>                 m_parvals;
     mutable T                           m_J0, m_J0_sq, m_J, m_J_sq, m_Tval;
+    mutable gsMatrix<T> m_stretches, m_stretchvec;
 
     gsOptionList m_options;
 

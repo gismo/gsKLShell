@@ -166,6 +166,55 @@ void gsMaterialMatrixLinear<dim,T>::density_into(const index_t patch, const gsMa
 }
 
 template <short_t dim, class T >
+void gsMaterialMatrixLinear<dim,T>::stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    m_map.points = u;
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+
+    this->_computePoints(patch,u);
+
+    result.resize(3, u.cols());
+    std::pair<gsVector<T>,gsMatrix<T>> res;
+    for (index_t i=0; i!= u.cols(); i++)
+    {
+        this->_getMetric(i,0.0); // on point i, with height 0.0
+
+        gsMatrix<T> C(3,3);
+        C.setZero();
+        C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+        C(2,2) = 1./m_J0_sq;
+
+        res = _evalStretch(C);
+        result.col(i) = res.first;
+    }
+}
+
+template <short_t dim, class T >
+void gsMaterialMatrixLinear<dim,T>::stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    m_map.points = u;
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+
+    this->_computePoints(patch,u);
+
+    result.resize(9, u.cols());
+    std::pair<gsVector<T>,gsMatrix<T>> res;
+    for (index_t i=0; i!= u.cols(); i++)
+    {
+        this->_getMetric(i,0.0); // on point i, with height 0.0
+
+        gsMatrix<T> C(3,3);
+        C.setZero();
+        C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+        C(2,2) = 1./m_J0_sq;
+
+        res = _evalStretch(C);
+        result.col(i) = res.second.reshape(9,1);
+        break;
+    }
+}
+
+template <short_t dim, class T >
 void gsMaterialMatrixLinear<dim,T>::thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
     m_map.flags = NEED_VALUE;
@@ -595,5 +644,59 @@ gsMaterialMatrixLinear<dim,T>::_getMetricUndeformed_impl(index_t k, T z) const
     m_Gcov_ori(2,2) = 1.0;
     m_Gcon_ori = m_Gcov_ori.inverse();
 }
+
+//--------------------------------------------------------------------------------------------------------------------------------------
+
+template <short_t dim, class T >
+std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalStretch(const gsMatrix<T> & C) const
+{
+    gsVector<T> stretches;
+    gsMatrix<T> stretchvec;
+    std::pair<gsVector<T>,gsMatrix<T>> result;
+    stretches.resize(3,1);    stretches.setZero();
+    stretchvec.resize(3,3);   stretchvec.setZero();
+
+    Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
+
+    gsMatrix<T> B(3,3);
+    B.setZero();
+    for (index_t k = 0; k != 2; k++)
+        for (index_t l = 0; l != 2; l++)
+            B += C(k,l) * m_gcon_ori.col(k) * m_gcon_ori.col(l).transpose();
+
+    eigSolver.compute(B);
+
+    stretchvec.leftCols(2) = eigSolver.eigenvectors().rightCols(2);
+    stretchvec.col(2) = m_gcon_ori.col(2);
+    stretches.block(0,0,2,1) = eigSolver.eigenvalues().block(1,0,2,1); // the eigenvalues are a 3x1 matrix, so we need to use matrix block-operations
+
+    // m_stretches.at(2) = 1/m_J0_sq;
+    stretches.at(2) = C(2,2);
+
+    for (index_t k=0; k!=3; k++)
+        stretches.at(k) = math::sqrt(stretches.at(k));
+
+    result.first = stretches;
+    result.second = stretchvec;
+
+    // // DEBUGGING ONLY!
+    // gsMatrix<T> ones(3,1);
+    // ones.setOnes();
+    // gsDebugVar(m_stretchvec);
+    // gsDebugVar(result.first);
+
+    return result;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------------
+
+template <short_t dim, class T >
+void gsMaterialMatrixLinear<dim,T>::_computeStretch(const gsMatrix<T> & C) const
+{
+    std::pair<gsVector<T>,gsMatrix<T>> result = _evalStretch(C);
+    m_stretches = result.first;
+    m_stretchvec = result.second;
+}
+
 
 } // end namespace
