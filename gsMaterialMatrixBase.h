@@ -101,8 +101,6 @@ public:
      */
     inline virtual void  thickness_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
 
-
-
     /**
      * @brief      Evaluates the matrix on \a patch on in-plane points \a u with height \a z
      *

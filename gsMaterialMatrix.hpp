@@ -534,7 +534,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_mat
     // gsInfo<<"TO DO: evaluate moments using thickness";
     // Input: u in-plane points
     //        z matrix with, per point, a column with z integration points
-    // Output: (n=u.cols(), m=z.cols())
+    // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
     this->_computePoints(patch,u);
@@ -576,7 +576,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_vec
     // gsInfo<<"TO DO: evaluate moments using thickness";
     // Input: u in-plane points
     //        z matrix with, per point, a column with z integration points
-    // Output: (n=u.cols(), m=z.cols())
+    // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
     this->_computePoints(patch,u);
@@ -609,7 +609,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_pst
     // gsInfo<<"TO DO: evaluate moments using thickness";
     // Input: u in-plane points
     //        z matrix with, per point, a column with z integration points
-    // Output: (n=u.cols(), m=z.cols())
+    // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
     this->_computePoints(patch,u);
@@ -1204,10 +1204,10 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
 {
     // Input: j index in-plane point
     //        z out-of-plane coordinate (through thickness) in R1 (z)
-    // Output: (n=u.cols(), m=z.cols())
+    // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
     this->_computePoints(patch,u);
-    gsMatrix<T> result(9, u.cols() * z.cols());
+    gsMatrix<T> result(9, u.cols() * z.rows());
     result.setZero();
 
     for (index_t k=0; k!=u.cols(); k++)
@@ -1216,10 +1216,10 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
         for (index_t v=0; v!=m_parmat.rows(); v++)
             m_parvals.at(v) = m_parmat(v,k);
 
-        for( index_t j=0; j < z.cols(); ++j ) // through-thickness points
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
-            this->_getMetric(k,z.at(j)); // on point i, on height z(0,j)
+            this->_getMetric(k,z(j,k)); // on point i, on height z(0,j)
 
             // Define objects
             gsMatrix<T,3,3> c, cinv;
@@ -1290,10 +1290,10 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_vecto
 {
     // Input: j index in-plane point
     //        z out-of-plane coordinate (through thickness) in R1 (z)
-    // Output: (n=u.cols(), m=z.cols())
+    // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
     this->_computePoints(patch,u);
-    gsMatrix<T> result(3, u.cols() * z.cols());
+    gsMatrix<T> result(3, u.cols() * z.rows());
     result.setZero();
 
     for (index_t k=0; k!=u.cols(); k++)
@@ -1302,10 +1302,10 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_vecto
         for (index_t v=0; v!=m_parmat.rows(); v++)
             m_parvals.at(v) = m_parmat(v,k);
 
-        for( index_t j=0; j < z.cols(); ++j ) // through-thickness points
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
-            this->_getMetric(k,z.at(j)); // on point i, on height z(0,j)
+            this->_getMetric(k,z(j,k)); // on point i, on height z(0,j)
 
             // Define objects
             gsMatrix<T,3,3> c, cinv;
@@ -1368,10 +1368,10 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_pstre
 {
     // Input: j index in-plane point
     //        z out-of-plane coordinate (through thickness) in R1 (z)
-    // Output: (n=u.cols(), m=z.cols())
+    // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
     this->_computePoints(patch,u);
-    gsMatrix<T> result(2, u.cols() * z.cols());
+    gsMatrix<T> result(2, u.cols() * z.rows());
     result.setZero();
 
     for (index_t k=0; k!=u.cols(); k++)
@@ -1380,10 +1380,10 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_pstre
         for (index_t v=0; v!=m_parmat.rows(); v++)
             m_parvals.at(v) = m_parmat(v,k);
 
-        for( index_t j=0; j < z.cols(); ++j ) // through-thickness points
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
-            this->_getMetric(k,z.at(j)); // on point i, on height z(0,j)
+            this->_getMetric(k,z(j,k)); // on point i, on height z(0,j)
 
             // Define objects
             gsMatrix<T,3,3> c, cinv;

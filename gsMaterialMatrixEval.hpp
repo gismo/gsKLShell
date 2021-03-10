@@ -163,7 +163,6 @@ void gsMaterialMatrixEval<T,out>::integrateZ_into(const gsMatrix<T>& u, const in
         w.col(k)=quWeights;
         z.col(k)=quNodes.transpose();
     }
-
     vals = this->eval3D(u,z);
 
     T res;
