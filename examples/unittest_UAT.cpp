@@ -58,7 +58,6 @@ std::pair<real_t,real_t> numerical(index_t material, index_t impl, bool Compress
     gsMultiPatch<> mp, mp_def;
 
     mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
-    mp.embed(3);
 
     if (numElevate!=0)
         mp.degreeElevate(numElevate);
@@ -78,38 +77,33 @@ std::pair<real_t,real_t> numerical(index_t material, index_t impl, bool Compress
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
 
     real_t lambda = 2.0;
-    gsConstantFunction<> displx(lambda-1.0,3);
+    gsConstantFunction<> displx(lambda-1.0,2);
 
-    GISMO_ASSERT(mp.targetDim()==3,"Geometry must be surface (targetDim=3)!");
+    GISMO_ASSERT(mp.targetDim()==2,"Geometry must be planar (targetDim=2)!");
     bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 0 );
-    bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 2 );
 
     bc.addCondition(boundary::east, condition_type::dirichlet, &displx, 0, false, 0 );
-    bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, 2 );
 
     bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1 );
-    bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 2 );
-    bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 2 );
 
     //! [Refinement]
 
     // Linear isotropic material model
-    gsVector<> tmp(3);
+    gsVector<> tmp(2);
     tmp.setZero();
-    gsConstantFunction<> force(tmp,3);
-    gsConstantFunction<> pressFun(tmp,3);
-    gsFunctionExpr<> t(std::to_string(thickness), 3);
-    gsFunctionExpr<> E(std::to_string(E_modulus),3);
-    gsFunctionExpr<> nu(std::to_string(PoissonRatio),3);
-    gsFunctionExpr<> rho(std::to_string(Density),3);
-    gsConstantFunction<> ratio(Ratio,3);
+    gsConstantFunction<> force(tmp,2);
+    gsFunctionExpr<> t(std::to_string(thickness),2);
+    gsFunctionExpr<> E(std::to_string(E_modulus),2);
+    gsFunctionExpr<> nu(std::to_string(PoissonRatio),2);
+    gsFunctionExpr<> rho(std::to_string(Density),2);
+    gsConstantFunction<> ratio(Ratio,2);
 
-    gsConstantFunction<> alpha1fun(alpha1,3);
-    gsConstantFunction<> mu1fun(mu1,3);
-    gsConstantFunction<> alpha2fun(alpha2,3);
-    gsConstantFunction<> mu2fun(mu2,3);
-    gsConstantFunction<> alpha3fun(alpha3,3);
-    gsConstantFunction<> mu3fun(mu3,3);
+    gsConstantFunction<> alpha1fun(alpha1,2);
+    gsConstantFunction<> mu1fun(mu1,2);
+    gsConstantFunction<> alpha2fun(alpha2,2);
+    gsConstantFunction<> mu2fun(mu2,2);
+    gsConstantFunction<> alpha3fun(alpha3,2);
+    gsConstantFunction<> mu3fun(mu3,2);
 
     std::vector<gsFunction<>*> parameters(3);
     parameters[0] = &E;
@@ -135,32 +129,16 @@ std::pair<real_t,real_t> numerical(index_t material, index_t impl, bool Compress
     {
         GISMO_ERROR("This test is not available for SvK models");
     }
-    else if (impl==1)
-    {
-        options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",material);
-        options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",Compressibility);
-        options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
-        materialMatrix = getMaterialMatrix<3,real_t>(mp,mp_def,t,parameters,rho,options);
-    }
-    else if (impl==2)
-    {
-        options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",material);
-        options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",Compressibility);
-        options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",2);
-        materialMatrix = getMaterialMatrix<3,real_t>(mp,mp_def,t,parameters,rho,options);
-    }
-    else if (impl==3)
-    {
-        options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",material);
-        options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",Compressibility);
-        options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",3);
-        materialMatrix = getMaterialMatrix<3,real_t>(mp,mp_def,t,parameters,rho,options);
-    }
     else
-        GISMO_ERROR("Material unknown");
+    {
+        options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",material);
+        options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",Compressibility);
+        options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",impl);
+        materialMatrix = getMaterialMatrix<2,real_t>(mp,mp_def,t,parameters,rho,options);
+    }
 
     gsThinShellAssemblerBase<real_t>* assembler;
-    assembler = new gsThinShellAssembler<3, real_t, true >(mp,dbasis,bc,force,materialMatrix);
+    assembler = new gsThinShellAssembler<2, real_t, false >(mp,dbasis,bc,force,materialMatrix);
 
     assembler->setPointLoads(pLoads);
 
