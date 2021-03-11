@@ -265,7 +265,7 @@ int main(int argc, char *argv[])
         nu12.at(k) = nu21.at(k) = PoissonRatio;
         G12.at(k) = 0.5 * E_modulus / (1+PoissonRatio);
         thick.at(k) = thickness/kmax;
-        phi.at(kmax) = k / kmax * pi/2.0;
+        phi.at(kmax) = static_cast<real_t>(k) / kmax * pi/2.0;
     }
 
     gsConstantFunction<> E11fun(E11,2);

@@ -2,8 +2,14 @@
 
     @brief Unit tests performs Uniaxial Tension Test for Neo-Hookean, Mooney-Rivlin and Ogden material models
 
-    This file tests the following capabilities:
-    -
+    This file tests the following classes and functions:
+    - gsMaterialMatrix      (dim=2, mat=1,3,4, impl=1,2,3)
+    - gsMaterialMatrixEval  (dim=2)
+    - gsMaterialMatrixBase
+    - gsThinShellAssembler  (dim=2)
+        - assemble(), assembleMatrix(), assembleVector()
+        - boundaryFoceVector(), getArea()
+        - constructSolution(), computePrincipalStretches()
 
     This file is part of the G+Smo library.
 
@@ -18,8 +24,6 @@
 
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/getMaterialMatrix.h>
-
-//#include <gsThinShell/gsNewtonIterator.h>
 
 using namespace gismo;
 
