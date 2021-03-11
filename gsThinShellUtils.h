@@ -822,44 +822,82 @@ public:
 
     cartcov_expr(const gsGeometryMap<T> & G) : _G(G) { }
 
-    mutable gsMatrix<Scalar,3,3> covBasis, conBasis, covMetric, conMetric, cartBasis, result;
-    mutable gsVector<Scalar,3> normal, tmp;
-    mutable gsVector<Scalar,3> e1, e2, a1, a2;
+    mutable gsMatrix<Scalar> covBasis, conBasis, covMetric, conMetric, cartBasis;
+    mutable gsMatrix<Scalar,3,3> result;
+    mutable gsVector<Scalar> normal, tmp;
+    mutable gsVector<Scalar> e1, e2, a1, a2;
 
-    gsMatrix<Scalar,3,3> eval(const index_t k) const
+    gsMatrix<Scalar> eval(const index_t k) const
     {
-        // Compute covariant bases in deformed and undeformed configuration
-        normal = _G.data().normals.col(k);
-        normal.normalize();
-        covBasis.leftCols(2) = _G.data().jacobian(k);
-        covBasis.col(2)      = normal;
-        covMetric = covBasis.transpose() * covBasis;
+        if (_G.targetDim()==3)
+        {
+            // Compute covariant bases in deformed and undeformed configuration
+            normal = _G.data().normals.col(k);
+            normal.normalize();
+            covBasis.resize(3,3);
+            conBasis.resize(3,3);
+            covBasis.leftCols(2) = _G.data().jacobian(k);
+            covBasis.col(2)      = normal;
+            covMetric = covBasis.transpose() * covBasis;
 
-        conMetric = covMetric.inverse();
+            conMetric = covMetric.inverse();
 
-        conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
+            conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
 
-        e1 = covBasis.col(0); e1.normalize();
-        e2 = conBasis.col(1); e2.normalize();
-        // e3 = normal;
+            e1 = covBasis.col(0); e1.normalize();
+            e2 = conBasis.col(1); e2.normalize();
 
-        a1 = covBasis.col(0);
-        a2 = covBasis.col(1);
+            a1 = covBasis.col(0);
+            a2 = covBasis.col(1);
 
-        result(0,0) = (e1.dot(a1))*(a1.dot(e1));
-        result(0,1) = (e1.dot(a2))*(a2.dot(e2));
-        result(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));
-        // Row 1
-        result(1,0) = (e2.dot(a1))*(a1.dot(e2));
-        result(1,1) = (e2.dot(a2))*(a2.dot(e2));
-        result(1,2) = 2*(e2.dot(a1))*(a2.dot(e2));
-        // Row 2
-        result(2,0) = (e1.dot(a1))*(a1.dot(e2));
-        result(2,1) = (e1.dot(a2))*(a2.dot(e2));
-        result(2,2) = (e1.dot(a1))*(a2.dot(e2)) + (e1.dot(a2))*(a1.dot(e2));
+            result(0,0) = (e1.dot(a1))*(a1.dot(e1));
+            result(0,1) = (e1.dot(a2))*(a2.dot(e2));
+            result(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));
+            // Row 1
+            result(1,0) = (e2.dot(a1))*(a1.dot(e2));
+            result(1,1) = (e2.dot(a2))*(a2.dot(e2));
+            result(1,2) = 2*(e2.dot(a1))*(a2.dot(e2));
+            // Row 2
+            result(2,0) = (e1.dot(a1))*(a1.dot(e2));
+            result(2,1) = (e1.dot(a2))*(a2.dot(e2));
+            result(2,2) = (e1.dot(a1))*(a2.dot(e2)) + (e1.dot(a2))*(a1.dot(e2));
 
-        // return result.inverse(); // !!!!
-        return result;
+            // return result.inverse(); // !!!!
+            return result;
+        }
+        else if (_G.targetDim()==2)
+        {
+            // Compute covariant bases in deformed and undeformed configuration
+            covBasis.resize(2,2);
+            conBasis.resize(2,2);
+            covBasis = _G.data().jacobian(k);
+            covMetric = covBasis.transpose() * covBasis;
+            conMetric = covMetric.inverse();
+            conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1);
+
+            e1 = covBasis.col(0); e1.normalize();
+            e2 = conBasis.col(1); e2.normalize();
+            // e3 = normal;
+
+            a1 = covBasis.col(0);
+            a2 = covBasis.col(1);
+
+            result(0,0) = (e1.dot(a1))*(a1.dot(e1));
+            result(0,1) = (e1.dot(a2))*(a2.dot(e2));
+            result(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));
+            // Row 1
+            result(1,0) = (e2.dot(a1))*(a1.dot(e2));
+            result(1,1) = (e2.dot(a2))*(a2.dot(e2));
+            result(1,2) = 2*(e2.dot(a1))*(a2.dot(e2));
+            // Row 2
+            result(2,0) = (e1.dot(a1))*(a1.dot(e2));
+            result(2,1) = (e1.dot(a2))*(a2.dot(e2));
+            result(2,2) = (e1.dot(a1))*(a2.dot(e2)) + (e1.dot(a2))*(a1.dot(e2));
+
+            return result;
+        }
+        else
+            GISMO_ERROR("Not implemented");
     }
 
     cartcovinv_expr<T> inv() const
@@ -942,44 +980,92 @@ public:
 
     cartcon_expr(const gsGeometryMap<T> & G) : _G(G) { }
 
-    mutable gsMatrix<Scalar,3,3> covBasis, conBasis, covMetric, conMetric, cartBasis, result;
-    mutable gsVector<Scalar,3> normal, tmp;
-    mutable gsVector<Scalar,3> e1, e2, ac1, ac2;
+    mutable gsMatrix<Scalar> covBasis, conBasis, covMetric, conMetric, cartBasis;
+    mutable gsMatrix<Scalar,3,3> result;
+    mutable gsVector<Scalar> normal, tmp;
+    mutable gsVector<Scalar> e1, e2, ac1, ac2;
 
-    gsMatrix<Scalar,3,3> eval(const index_t k) const
+    gsMatrix<Scalar> eval(const index_t k) const
     {
-        // Compute covariant bases in deformed and undeformed configuration
-        normal = _G.data().normals.col(k);
-        normal.normalize();
-        covBasis.leftCols(2) = _G.data().jacobian(k);
-        covBasis.col(2)      = normal;
-        covMetric = covBasis.transpose() * covBasis;
+        if (_G.targetDim()==3)
+        {
+            // Compute covariant bases in deformed and undeformed configuration
+            normal = _G.data().normals.col(k);
+            normal.normalize();
+            covBasis.resize(3,3);
+            conBasis.resize(3,3);
+            // Compute covariant bases in deformed and undeformed configuration
+            normal = _G.data().normals.col(k);
+            normal.normalize();
+            covBasis.leftCols(2) = _G.data().jacobian(k);
+            covBasis.col(2)      = normal;
+            covMetric = covBasis.transpose() * covBasis;
 
-        conMetric = covMetric.inverse();
+            conMetric = covMetric.inverse();
 
-        conBasis.col(0) = conMetric(0,0)*covBasis.col(0)+conMetric(0,1)*covBasis.col(1)+conMetric(0,2)*covBasis.col(2);
-        conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
+            conBasis.col(0) = conMetric(0,0)*covBasis.col(0)+conMetric(0,1)*covBasis.col(1)+conMetric(0,2)*covBasis.col(2);
+            conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
 
-        e1 = covBasis.col(0); e1.normalize();
-        e2 = conBasis.col(1); e2.normalize();
-        // e3 = normal;
+            e1 = covBasis.col(0); e1.normalize();
+            e2 = conBasis.col(1); e2.normalize();
+            // e3 = normal;
 
-        ac1 = conBasis.col(0);
-        ac2 = conBasis.col(1);
+            ac1 = conBasis.col(0);
+            ac2 = conBasis.col(1);
 
-        result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));
-        result(0,1) = (e1.dot(ac2))*(ac2.dot(e2));
-        result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));
-        // Row 1
-        result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));
-        result(1,1) = (e2.dot(ac2))*(ac2.dot(e2));
-        result(1,2) = 2*(e2.dot(ac1))*(ac2.dot(e2));
-        // Row 2
-        result(2,0) = (e1.dot(ac1))*(ac1.dot(e2));
-        result(2,1) = (e1.dot(ac2))*(ac2.dot(e2));
-        result(2,2) = (e1.dot(ac1))*(ac2.dot(e2)) + (e1.dot(ac2))*(ac1.dot(e2));
+            result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));
+            result(0,1) = (e1.dot(ac2))*(ac2.dot(e2));
+            result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));
+            // Row 1
+            result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));
+            result(1,1) = (e2.dot(ac2))*(ac2.dot(e2));
+            result(1,2) = 2*(e2.dot(ac1))*(ac2.dot(e2));
+            // Row 2
+            result(2,0) = (e1.dot(ac1))*(ac1.dot(e2));
+            result(2,1) = (e1.dot(ac2))*(ac2.dot(e2));
+            result(2,2) = (e1.dot(ac1))*(ac2.dot(e2)) + (e1.dot(ac2))*(ac1.dot(e2));
 
-        return result;
+            return result;
+        }
+        else if (_G.targetDim()==2)
+        {
+            // Compute covariant bases in deformed and undeformed configuration
+            normal = _G.data().normals.col(k);
+            normal.normalize();
+            covBasis.resize(2,2);
+            conBasis.resize(2,2);
+            // Compute covariant bases in deformed and undeformed configuration
+            covBasis = _G.data().jacobian(k);
+            covMetric = covBasis.transpose() * covBasis;
+
+            conMetric = covMetric.inverse();
+
+            conBasis.col(0) = conMetric(0,0)*covBasis.col(0)+conMetric(0,1)*covBasis.col(1);
+            conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1);
+
+            e1 = covBasis.col(0); e1.normalize();
+            e2 = conBasis.col(1); e2.normalize();
+
+            ac1 = conBasis.col(0);
+            ac2 = conBasis.col(1);
+
+            result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));
+            result(0,1) = (e1.dot(ac2))*(ac2.dot(e2));
+            result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));
+            // Row 1
+            result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));
+            result(1,1) = (e2.dot(ac2))*(ac2.dot(e2));
+            result(1,2) = 2*(e2.dot(ac1))*(ac2.dot(e2));
+            // Row 2
+            result(2,0) = (e1.dot(ac1))*(ac1.dot(e2));
+            result(2,1) = (e1.dot(ac2))*(ac2.dot(e2));
+            result(2,2) = (e1.dot(ac1))*(ac2.dot(e2)) + (e1.dot(ac2))*(ac1.dot(e2));
+
+            return result;
+        }
+        else
+            GISMO_ERROR("Not implemented");
+
     }
 
     cartconinv_expr<T> inv() const
