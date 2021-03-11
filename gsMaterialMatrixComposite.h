@@ -23,6 +23,15 @@
 namespace gismo
 {
 
+/**
+ * @brief      This class defines a linear material laminate
+ *
+ * @tparam     dim   The dimension of the problem (2 = planar, 3 = surface)
+ * @tparam     T     Real type
+ *
+ * @ingroup    MaterialMatrix
+ *
+ */
 template <  short_t dim,
             class T
          >

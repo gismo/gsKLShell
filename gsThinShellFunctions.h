@@ -24,6 +24,9 @@ namespace gismo
  *
  *         Currently, gsWriteParaview can only plot vector-valued functions with an output dimension up to three.
  *         Therefore it not possible to plot all stress components as components of a single vector-valued function.
+ *
+ *  \ingroup KLShell
+ *
 */
 struct stress_type
 {
@@ -48,6 +51,9 @@ struct stress_type
 
 /** @brief Compute Cauchy stresses for a previously computed/defined displacement field.
  *         Can be pushed into gsPiecewiseFunction to construct gsField for visualization in Paraview.
+ *
+ *  \ingroup KLShell
+ *
 */
 template <class T>
 class gsShellStressFunction : public gsFunction<T>

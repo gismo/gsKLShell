@@ -23,6 +23,19 @@
 namespace gismo
 {
 
+
+/**
+ * @brief      This class defines hyperelastic material matrices
+ *
+ * @tparam     dim    The dimension of the problem (2 = planar, 3 = surface)
+ * @tparam     T      Real type
+ * @tparam     matId  Encoded ID for material (see \ref encodeMat_id)
+ * @tparam     comp   Compressibility flag
+ * @tparam     mat    Material flag (see \ref Material)
+ * @tparam     imp    Implementation flag (see \ref Implementation)
+ *
+ * @ingroup    MaterialMatrix
+ */
 template <  short_t dim,
             class T,
             short_t matId,

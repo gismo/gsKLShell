@@ -23,6 +23,15 @@
 namespace gismo
 {
 
+
+/**
+ * @brief      This class serves as the evaluator of material matrices, based on \ref gsMaterialMatrixBase
+ *
+ * @tparam     T     Real tyoe
+ * @tparam     out   Output type (see \ref MaterialOutput)
+ *
+ * @ingroup    MaterialMatrix
+ */
 template <class T, enum MaterialOutput out>
 class gsMaterialMatrixEval : public gsFunction<T>
 {

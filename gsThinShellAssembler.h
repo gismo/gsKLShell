@@ -25,19 +25,19 @@ namespace gismo
 {
 
 template<class T> class gsThinShellAssemblerBase;
-
-
-
 /**
- * @brief      This class describes a gs thin shell assembler base.
+ * @brief      Assembles the system matrix and vectors for 2D and 3D shell
+ *             problems, including geometric nonlinearities and loading
+ *             nonlinearities. The material nonlinearities are handled by the
+ *             @ref gsMaterialMatrixEval class.
  *
- * @tparam     T     { description }
+ * @tparam     d        The dimension (2 = planar, 3 = surface)
+ * @tparam     T        Real type
+ * @tparam     bending  True: Assemble bending terms; False: Do not assemble bending terms
+ *
+ *
+ * @ingroup    KLShell
  */
-/** @brief  Assembles the system matrix and vectors for 2D and 3D shell problems, including geometric nonlinearities
- *          and loading nonlinearities. The material nonlinearities are handled by the \ref gsMaterialMatrixEval class.
- *
- *  \ingroup ThinShell FIX !!!!!!
-*/
 template <short_t d, class T, bool bending>
 class gsThinShellAssembler : public gsThinShellAssemblerBase<T>
 {
@@ -301,6 +301,8 @@ protected:
  * @brief      Base class for the gsThinShellAssembler
  *
  * @tparam     T     Real type
+ *
+ * @ingroup    KLShell
  */
 template <class T>
 class gsThinShellAssemblerBase

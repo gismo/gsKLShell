@@ -25,51 +25,25 @@
 namespace gismo
 {
 
-// template<short_t d, class T>
-// gsMaterialMatrixBase<T> * getMaterialMatrix(
-//                                 const gsMultiPatch<T>               & mp,
-//                                 const gsMultiPatch<T>               & mp_def,
-//                                 const gsFunction<T>                 & thickness,
-//                                 const std::vector<gsFunction<T> *>  & parameters,
-//                                 const gsFunction<T>                 & rho,
-//                                 const gsOptionList                  & options
-//                                 );
 
-// template<short_t d, class T>
-// gsMaterialMatrixBase<T> * getMaterialMatrix(
-//                                 const gsMultiPatch<T>               & mp,
-//                                 const gsFunction<T>                 & thickness,
-//                                 const std::vector<gsFunction<T> *>  & parameters,
-//                                 const gsOptionList                  & options
-//                                 )
-// {
-//     return getMaterialMatrix<d,T>(mp,NULL,thickness,parameters,NULL,options);
-// }
-
-// template<short_t d, class T>
-// gsMaterialMatrixBase<T> * getMaterialMatrix(
-//                                 const gsMultiPatch<T>               & mp,
-//                                 const gsFunction<T>                 & thickness,
-//                                 const std::vector<gsFunction<T> *>  & parameters,
-//                                 const gsFunction<T>                 & rho,
-//                                 const gsOptionList                  & options
-//                                 )
-// {
-//     return getMaterialMatrix<d,T>(mp,NULL,thickness,parameters,rho,options);
-// }
-
-// template<short_t d, class T>
-// gsMaterialMatrixBase<T> * getMaterialMatrix(
-//                                 const gsMultiPatch<T>               & mp,
-//                                 const gsMultiPatch<T>               & mp_def,
-//                                 const gsFunction<T>                 & thickness,
-//                                 const std::vector<gsFunction<T> *>  & parameters,
-//                                 const gsOptionList                  & options
-//                                 )
-// {
-//     return getMaterialMatrix<d,T>(mp,mp_def,thickness,parameters,NULL,options);
-// }
-
+/**
+ * @brief      Gets a material matrix based on \a options
+ *
+ * @param[in]  mp          The undeformed geometry
+ * @param[in]  mp_def      The deformed geometry
+ * @param[in]  thickness   The thickness
+ * @param[in]  parameters  The parameters
+ * @param[in]  rho         The density
+ * @param[in]  options     The option list
+ *
+ * @tparam     d           The dimension of the problem (2 = planar, 3 = surface)
+ * @tparam     T           Real type
+ *
+ * @return     The material matrix.
+ *
+ * @ingroup    MaterialMatrix
+ *
+ */
 template<short_t d, class T>
 gsMaterialMatrixBase<T> * getMaterialMatrix(
                                 const gsMultiPatch<T>               & mp,

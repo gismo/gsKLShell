@@ -21,6 +21,13 @@
 namespace gismo
 {
 
+/**
+ * @brief      This class defines the base class for material matrices
+ *
+ * @tparam     T     Real type
+ *
+ * @ingroup    MaterialMatrix
+ */
 template <class T>
 class gsMaterialMatrixBase
 {
