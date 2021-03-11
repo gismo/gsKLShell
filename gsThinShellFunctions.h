@@ -54,6 +54,16 @@ class gsShellStressFunction : public gsFunction<T>
 {
 public:
 
+    /**
+     * @brief      Constructs a new instance.
+     *
+     * @param[in]  geometry   The undeformed geometry
+     * @param[in]  deformed   The deformed geometry
+     * @param      mm         The material matrix
+     * @param[in]  patch      The patch index
+     * @param[in]  type       The stress type
+     * @param[in]  assembler  The shell assembler
+     */
     gsShellStressFunction(const gsMultiPatch<T> & geometry,
                            const gsMultiPatch<T> & deformed,
                            gsMaterialMatrixBase<T> * mm,
@@ -64,7 +74,7 @@ public:
         : m_patches(geometry),
           m_defpatches(deformed),
           m_materialMat(mm),
-          m_patchID(patch), ///WHAT DO WE DO WITH THIS?
+          m_patchID(patch),
           m_stress_type(type),
           m_assembler(assembler)
     {}

@@ -21,6 +21,7 @@
 namespace gismo{
 namespace expr{
 
+/// Expression for the outer tangent (3D)
 template<class T>
 class otangent_expr : public _expr<otangent_expr<T> >
 {
@@ -82,8 +83,7 @@ public:
     void print(std::ostream &os) const { os << "tv2("; _G.print(os); os <<")"; }
 };
 
-// Comments for var1:
-// - TODO: dimensionm indep. later on
+/// Expression for the first variation of the normal
 template<class E>
 class var1_expr : public _expr<var1_expr<E> >
 {
@@ -141,6 +141,7 @@ public:
     void print(std::ostream &os) const { os << "var1("; _u.print(os); os <<")"; }
 
 private:
+// Specialisation for a space
     template<class U> inline
     typename util::enable_if< util::is_same<U,gsFeSpace<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k)  const
@@ -171,6 +172,7 @@ private:
         return res;
     }
 
+    // Specialisation for a solution
     template<class U> inline
     typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k)  const
@@ -195,9 +197,7 @@ private:
     }
 };
 
-// Comments for var2:
-// - TODO: dimensionm indep. later on
-// - TODO: how to structure this matrix
+/// Second variation of the normal times a vector.
 template<class E1, class E2, class E3>
 class var2_expr : public _expr<var2_expr<E1,E2,E3> >
 {
@@ -327,6 +327,7 @@ public:
 };
 
 
+/// Product of the second derivative of a space or a map and a vector
 template<class E1, class E2>
 class deriv2dot_expr : public _expr<deriv2dot_expr<E1, E2> >
 {
@@ -377,6 +378,7 @@ public:
     void print(std::ostream &os) const { os << "deriv2("; _u.print(os); _v.print(os); os <<")"; }
 
 private:
+    /// Specialization for a geometry map
     template<class U> inline
     typename util::enable_if< util::is_same<U,gsGeometryMap<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k)  const
@@ -399,6 +401,7 @@ private:
         return res;
     }
 
+    /// Specialization for a space
     template<class U> inline
     typename util::enable_if<util::is_same<U,gsFeSpace<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k) const
@@ -421,6 +424,7 @@ private:
         return res;
     }
 
+    /// Specialization for a solution
     template<class U> inline
     typename util::enable_if<util::is_same<U,gsFeSolution<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k) const
@@ -466,8 +470,9 @@ private:
 };
 
 
-/*
-    The deriv2_expr computes the hessian of a basis.
+/**
+ * @brief   Compute the hessian of a basis
+
     It assumes that the vector of basis functions is of the form v = u*e_i where u
     is the scalar basis function u: [0,1]^3 -> R^1 and e_i is the unit vector with a 1 on index i and a 0 elsewhere.
     Let us define the following blocks
@@ -486,7 +491,7 @@ private:
     [hess3(u)_1]
     ...
     [hess3(u)_k]
-**/
+*/
 template<class E>
 class deriv2_expr : public _expr<deriv2_expr<E> >
 {
@@ -540,6 +545,7 @@ public:
     void print(std::ostream &os) const { os << "deriv2("; _u.print(os); os <<")"; }
 
     private:
+        /// Spexialization for a geometry map
         template<class U> inline
         typename util::enable_if< util::is_same<U,gsGeometryMap<Scalar> >::value, const gsMatrix<Scalar> & >::type
         eval_impl(const U & u, const index_t k)  const
@@ -558,6 +564,7 @@ public:
             return res;
         }
 
+        /// Spexialization for a space
         template<class U> inline
         typename util::enable_if<util::is_same<U,gsFeSpace<Scalar> >::value, const gsMatrix<Scalar> & >::type
         eval_impl(const U & u, const index_t k) const
@@ -671,9 +678,7 @@ public:
 // };
 
 
-/**
-   TO ADD
- */
+/// ??
 template<class E1, class E2, class E3>
 class flatdot_expr  : public _expr<flatdot_expr<E1,E2,E3> >
 {
@@ -741,10 +746,7 @@ public:
     void print(std::ostream &os) const { os << "flatdot("; _A.print(os);_B.print(os);_C.print(os); os<<")"; }
 };
 
-/**
-   To Do:
-   *    Improve by inputting u instead of deriv2(u)
- */
+/// ???
 template<class E1, class E2, class E3>
 class flatdot2_expr  : public _expr<flatdot2_expr<E1,E2,E3> >
 {
@@ -807,9 +809,7 @@ public:
     void print(std::ostream &os) const { os << "flatdot2("; _A.print(os);_B.print(os);_C.print(os); os<<")"; }
 };
 
-/*
-   Expression for the transformation matrix FROM local covariant TO local cartesian bases, based on a geometry map
- */
+/// Expression for the transformation matrix FROM local covariant TO local cartesian bases, based on a geometry map
 template<class T> class cartcovinv_expr ;
 
 template<class T>
@@ -929,9 +929,7 @@ public:
 };
 
 
-/*
-   Expression for the transformation matrix FROM local contravariant TO local cartesian bases, based on a geometry map
- */
+/// Expression for the transformation matrix FROM local contravariant TO local cartesian bases, based on a geometry map
 template<class T> class cartconinv_expr ;
 
 template<class T>
