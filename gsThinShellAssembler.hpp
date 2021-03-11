@@ -92,6 +92,8 @@ void gsThinShellAssembler<d, T, bending>::_initialize()
     m_foundInd = false;
     // pressure is off by default
     m_pressInd = false;
+
+    GISMO_ASSERT(m_forceFun->targetDim()==d,"Force must have " << d<<" dimensions but has "<<m_forceFun->targetDim());
 }
 
 template <short_t d, class T, bool bending>
