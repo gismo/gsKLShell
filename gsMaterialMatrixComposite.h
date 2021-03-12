@@ -1,6 +1,6 @@
 /** @file gsMaterialMatrixComposite.h
 
-    @brief Provides material matrices for the thin shell class.
+    @brief Provides a material matrix for laminates
 
     This file is part of the G+Smo library.
 

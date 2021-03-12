@@ -1,4 +1,4 @@
-/** @file .cpp
+/** @file unittest_UAT.cpp
 
     @brief Unit tests performs Uniaxial Tension Test for Neo-Hookean, Mooney-Rivlin and Ogden material models
 
@@ -17,7 +17,7 @@
     License, v. 2.0. If a copy of the MPL was not distributed with this
     file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    Author(s): H.M.Verhelst
+    Author(s): H.M.Verhelst (2019 - ..., TU Delft)
 */
 
 #include <gismo.h>

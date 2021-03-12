@@ -1,6 +1,6 @@
 /** @file gsMaterialMatrix.h
 
-    @brief Provides material matrices for the thin shell class.
+    @brief Provides hyperelastic material matrices
 
     This file is part of the G+Smo library.
 

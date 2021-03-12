@@ -1,6 +1,6 @@
 /** @file gsThinShellAssembler.hpp
 
-    @brief Provides linear and nonlinear elasticity systems for thin shells.
+    @brief Provides linear and nonlinear assemblers for thin shells
 
     This file is part of the G+Smo library.
 
@@ -44,7 +44,6 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_defaultOptions()
 {
-    m_options.addInt("NonlinearLoads","Nonlinear Loads: 0: off, 1: on",nl_loads::off);
     m_options.addReal("WeakDirichlet","Penalty parameter weak dirichlet conditions",1e3);
     m_options.addReal("WeakClamped","Penalty parameter weak clamped conditions",1e3);
 
@@ -60,11 +59,13 @@ void gsThinShellAssembler<d, T, bending>::_defaultOptions()
     m_options.addInt("quRule","Quadrature rule [1:GaussLegendre,2:GaussLobatto]",1);
 }
 
+/*
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_getOptions() const
 {
-    m_nl_loads = m_options.getInt("NonlinearLoads");
+
 }
+*/
 
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_initialize()
@@ -191,7 +192,7 @@ void gsThinShellAssembler<d, T, bending>::_applyLoads()
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::assembleMass()
 {
-    this->_getOptions();
+    // this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -214,7 +215,7 @@ void gsThinShellAssembler<d, T, bending>::assembleMass()
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::assembleFoundation()
 {
-    this->_getOptions();
+    // this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -250,7 +251,7 @@ template<int _d, bool _bending>
 typename std::enable_if<_d==3 && _bending, void>::type
 gsThinShellAssembler<d, T, bending>::assemble_impl()
 {
-    this->_getOptions();
+    // this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -330,7 +331,7 @@ template<int _d, bool _bending>
 typename std::enable_if<!(_d==3 && _bending), void>::type
 gsThinShellAssembler<d, T, bending>::assemble_impl()
 {
-    this->_getOptions();
+    // this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1077,7 +1078,7 @@ void gsThinShellAssembler<d, T, bending>::constructStress(const gsMultiPatch<T> 
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & fun, gsMatrix<T>& result)
 {
-    this->_getOptions();
+    // this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);

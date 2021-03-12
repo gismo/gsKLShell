@@ -1,6 +1,6 @@
-/** @file gsMaterialMatrix.h
+/** @file gsMaterialMatrixEval.hpp
 
-    @brief Provides material matrices for the thin shell class.
+    @brief Provides an evaluator for material matrices for thin shells
 
     This file is part of the G+Smo library.
 

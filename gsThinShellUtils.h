@@ -1,4 +1,4 @@
-/** @file gsThinShellUtils.cpp
+/** @file gsThinShellUtils.h
 
     @brief Utilities for gsThinShellAssembler. Mainly expressions
 

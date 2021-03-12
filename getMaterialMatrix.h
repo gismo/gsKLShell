@@ -1,6 +1,6 @@
-/** @file gsMaterialMatrix.h
+/** @file getMaterialMatrix.h
 
-    @brief Provides material matrices for the thin shell class.
+    @brief Provides a simple class to obtain a material matrix pointer
 
     This file is part of the G+Smo library.
 

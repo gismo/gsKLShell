@@ -1,6 +1,6 @@
 /** @file gsThinShellAssembler.h
 
-    @brief Assembles shell equations
+    @brief Provides linear and nonlinear assemblers for thin shells
 
     This file is part of the G+Smo library.
 
@@ -280,21 +280,10 @@ protected:
 
     mutable gsOptionList m_options;
 
-    mutable bool m_nl_loads;
     mutable bool m_foundInd;
     mutable bool m_pressInd;
 
     mutable index_t m_type; // shell_type
-
-    /// @brief Specifies the material law to use
-    struct nl_loads
-    {
-        enum type
-        {
-            off = false,
-            on  = true,
-        };
-    };
 };
 
 /**

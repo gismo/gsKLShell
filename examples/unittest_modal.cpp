@@ -1,6 +1,6 @@
-/** @file gsThinShell_Buckling.cpp
+/** @file unittest_modal.cpp
 
-    @brief Example to compute eigenvalues and eigenmodes of a buckled shell
+    @brief Simple unit test for shells using modal analysis
 
     This file is part of the G+Smo library.
 
@@ -8,7 +8,7 @@
     License, v. 2.0. If a copy of the MPL was not distributed with this
     file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    Author(s): H.M. Verhelst
+    Author(s): H.M.Verhelst (2019 - ..., TU Delft)
 */
 
 #include <gismo.h>

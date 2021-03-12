@@ -1,6 +1,6 @@
-/** @file gsThinShell_test2.cpp
+/** @file example_shell2D.cpp
 
-    @brief Example testing and debugging thin shell solver. Based on gsThinShell_test
+    @brief Simple 2D examples for the shell class
 
     This file is part of the G+Smo library.
 
@@ -8,7 +8,7 @@
     License, v. 2.0. If a copy of the MPL was not distributed with this
     file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    Author(s): H.M.Verhelst
+    Author(s): H.M.Verhelst (2019 - ..., TU Delft)
 */
 
 #include <gismo.h>
