@@ -282,7 +282,6 @@ int main(int argc, char *argv[])
     std::vector<index_t> implementations{ 1,2,3 };
 
     std::pair<real_t,real_t> num;
-    real_t an;
     real_t tol = 1e-3;
     for (std::vector<index_t>::iterator mat = materials.begin(); mat!=materials.end(); mat++)
     {

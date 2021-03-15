@@ -67,20 +67,25 @@ public:
 
     enum{rowSpan = 0, colSpan = 0};
 
-    void setFlag() const { _G.data().flags |= NEED_OUTER_NORMAL | NEED_NORMAL | NEED_DERIV; }
+    void setFlag() const
+    {
+        _G.data().flags |= NEED_OUTER_NORMAL;
+        _G.data().flags |= NEED_NORMAL;
+    }
 
     void parse(gsSortedVector<const gsFunctionSet<Scalar>*> & evList) const
     {
         //GISMO_ASSERT(NULL!=m_fd, "FeVariable: FuncData member not registered");
         evList.push_sorted_unique(&_G.source());
-        _G.data().flags |= NEED_OUTER_NORMAL | NEED_NORMAL | NEED_DERIV;
+        _G.data().flags |= NEED_OUTER_NORMAL;
+        _G.data().flags |= NEED_NORMAL;
     }
 
     // Normalized to unit length
     normalized_expr<otangent_expr<Scalar> > normalized()
     { return normalized_expr<otangent_expr<Scalar> >(*this); }
 
-    void print(std::ostream &os) const { os << "tv2("; _G.print(os); os <<")"; }
+    void print(std::ostream &os) const { os << "tv("; _G.print(os); os <<")"; }
 };
 
 /// Expression for the first variation of the normal

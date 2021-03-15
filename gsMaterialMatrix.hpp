@@ -182,13 +182,13 @@ template <enum Material _mat>
 typename std::enable_if<_mat==Material::OG, void>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_computePoints_impl(const gsMatrix<T>& u) const
 {
-    T prod, sum, mu;
+    // T prod, sum, mu;
     for (index_t c=0; c!=m_parmat.cols(); c++)
     {
         for (index_t r=0; r!=m_parmat.rows(); r++)
             m_parvals.at(r) = m_parmat(r,c);
 
-        mu = m_parvals.at(0) / (2 * (1 + m_parvals.at(1)));
+        // mu = m_parvals.at(0) / (2 * (1 + m_parvals.at(1)));
         GISMO_ENSURE((m_numPars-2 )% 2 ==0, "Ogden material models must have an even number of parameters (tuples of alpha_i and mu_i). m_numPars = "<< m_numPars);
 
         /// THIS CHECK IS NOT NECESSARY
@@ -414,7 +414,6 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_stretchDir_into_impl(const gsMatrix
             {
                 res = _evalStretch(c);
                 result.col(i) = res.second.reshape(9,1);
-                // gsDebugVar(res.second.reshape(9,1));
                 break;
             }
             GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, abs(dc33) = "<<abs(dc33)<<" and tolerance = "<<tol<<"\n");

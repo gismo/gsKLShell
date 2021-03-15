@@ -94,6 +94,17 @@ public:
     {
         switch (m_stress_type)
         {
+            default:
+                return 0;
+                break;
+            case stress_type::membrane :
+                return 3;
+                break;
+
+            case stress_type::flexural :
+                return 3;
+                break;
+
             // TO BE IMPLEMENTED
             // -------------------------------------
             case stress_type::von_mises :
@@ -149,9 +160,6 @@ public:
                 stress_type::principal_stretch_dir2;
                 stress_type::principal_stretch_dir3
             */
-            default:
-                return 3;
-                break;
         }
     }
 

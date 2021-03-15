@@ -174,8 +174,6 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
         ,
         m_bcs.container("Weak Clamped")
     );
-
-    gsDebugVar(m_alpha_d);
 }
 
 template <short_t d, class T, bool bending>
