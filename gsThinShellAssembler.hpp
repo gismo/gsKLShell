@@ -59,13 +59,14 @@ void gsThinShellAssembler<d, T, bending>::_defaultOptions()
     m_options.addInt("quRule","Quadrature rule [1:GaussLegendre,2:GaussLobatto]",1);
 }
 
-/*
+
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_getOptions() const
 {
-
+    m_alpha_d = m_options.getReal("WeakDirichlet");
+    m_alpha_r = m_options.getReal("WeakClamped");
 }
-*/
+
 
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_initialize()
@@ -127,6 +128,151 @@ gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     variable g_N = m_assembler.getBdrFunction();
     m_assembler.assembleRhsBc(m_space * g_N * tv(m_ori).norm(), m_bcs.neumannSides() );
+}
+
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::_assembleWeakBCs()
+{
+    this->_getOptions();
+    _assembleWeakBCs_impl<d,bending>();
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<_d==3 && _bending, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
+{
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    variable g_N = m_assembler.getBdrFunction();
+
+    // Weak BCs
+    m_assembler.assembleLhsRhsBc
+    (
+        -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        ,
+        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Dirichlet")
+    );
+
+    // for weak clamped
+    m_assembler.assembleLhsRhsBc
+    (
+        (
+            m_alpha_r * ( sn(m_ori).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_ori,nv(m_ori).tr()) )
+            +
+            m_alpha_r * ( ( var1(m_space,m_ori) * nv(m_ori) ) * ( var1(m_space,m_ori) * nv(m_ori) ).tr() )
+        ) * meas(m_ori)
+        ,
+        // THIS LINE SHOULD BE ZERO!
+        ( m_alpha_r * ( sn(m_ori).tr()*sn(m_ori) - sn(m_ori).tr()*sn(m_ori) ).val() * ( var1(m_space,m_ori) * sn(m_ori) ) ) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Clamped")
+    );
+
+    gsDebugVar(m_alpha_d);
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<!(_d==3 && _bending), void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
+{
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    variable g_N = m_assembler.getBdrFunction();
+
+    // Weak BCs
+    m_assembler.assembleLhsRhsBc
+    (
+        -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        ,
+        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Dirichlet")
+    );
+}
+
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::_assembleWeakBCs(const gsMultiPatch<T> & deformed)
+{
+    this->_getOptions();
+    _assembleWeakBCs_impl<d,bending>(deformed);
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<_d==3 && _bending, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsMultiPatch<T> & deformed)
+{
+    m_defpatches = deformed;
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    m_assembler.getMap(m_defpatches);
+
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+    geometryMap m_def   = m_assembler.exprData()->getMap2();
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    variable g_N = m_assembler.getBdrFunction();
+
+    // Weak BCs
+    m_assembler.assembleLhsRhsBc
+    (
+        -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
+        ,
+        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Dirichlet")
+    );
+
+    // for weak clamped
+    m_assembler.assembleLhsRhsBc
+    (
+        (
+            m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_def,nv(m_ori).tr()) )
+            +
+            m_alpha_r * ( ( var1(m_space,m_def) * nv(m_ori) ) * ( var1(m_space,m_def) * nv(m_ori) ).tr() )
+        ) * meas(m_ori)
+        ,
+        ( m_alpha_r * ( sn(m_def).tr()*sn(m_ori) - sn(m_ori).tr()*sn(m_ori) ).val() * ( var1(m_space,m_def) * sn(m_ori) ) ) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Clamped")
+    );
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<!(_d==3 && _bending), void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsMultiPatch<T> & deformed)
+{
+    m_defpatches = deformed;
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    m_assembler.getMap(m_defpatches);
+
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+    geometryMap m_def   = m_assembler.exprData()->getMap2();
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    variable g_N = m_assembler.getBdrFunction();
+
+    // Weak BCs
+    m_assembler.assembleLhsRhsBc
+    (
+        -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
+        ,
+        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Dirichlet")
+    );
 }
 
 template <short_t d, class T, bool bending>
@@ -316,6 +462,7 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
         m_space * m_force * meas(m_ori)
         );
 
+    this->_assembleWeakBCs();
     this->_assembleNeumann();
 
     // Assemble the loads
@@ -382,6 +529,7 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
         m_space * m_force * meas(m_ori)
         );
 
+    this->_assembleWeakBCs();
     this->_assembleNeumann();
 
     // Assemble the loads
@@ -480,6 +628,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> &
                     m_Ef_der2
                 ) * meas(m_ori)
             );
+    this->_assembleWeakBCs(deformed);
 }
 
 template<int d, typename T, bool bending>
@@ -543,6 +692,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> &
                 -m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
             );
     }
+    this->_assembleWeakBCs(deformed);
 }
 
 template <short_t d, class T, bool bending>
@@ -625,6 +775,7 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsMultiPatch<T> &
                             ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
                         );
 
+    this->_assembleWeakBCs(deformed);
     this->_assembleNeumann();
 
     // Assemble the loads
@@ -689,8 +840,8 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsMultiPatch<T> &
                 ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
                 );
 
+    this->_assembleWeakBCs(deformed);
     this->_assembleNeumann();
-
 
     // Assemble the loads
     if ( m_pLoads.numLoads() != 0 )

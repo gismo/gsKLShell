@@ -229,6 +229,8 @@ protected:
     void _getOptions() const;
 
     void _assembleNeumann();
+    void _assembleWeakBCs();
+    void _assembleWeakBCs(const gsMultiPatch<T> & deformed);
     void _assembleDirichlet();
 
     void _applyLoads();
@@ -241,6 +243,22 @@ private:
     template<int _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
     _assembleNeumann_impl();
+
+    template<int _d, bool _bending>
+    typename std::enable_if<_d==3 && _bending, void>::type
+    _assembleWeakBCs_impl();
+
+    template<int _d, bool _bending>
+    typename std::enable_if<!(_d==3 && _bending), void>::type
+    _assembleWeakBCs_impl();
+
+    template<int _d, bool _bending>
+    typename std::enable_if<_d==3 && _bending, void>::type
+    _assembleWeakBCs_impl(const gsMultiPatch<T> & deformed);
+
+    template<int _d, bool _bending>
+    typename std::enable_if<!(_d==3 && _bending), void>::type
+    _assembleWeakBCs_impl(const gsMultiPatch<T> & deformed);
 
 protected:
     typedef gsExprAssembler<>::geometryMap geometryMap;
@@ -284,6 +302,9 @@ protected:
     mutable bool m_pressInd;
 
     mutable index_t m_type; // shell_type
+
+    mutable T m_alpha_d,m_alpha_r; // shell_type
+
 };
 
 /**

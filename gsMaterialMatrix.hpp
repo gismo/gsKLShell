@@ -2598,7 +2598,7 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_
 
     Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
 
-    gsMatrix<T> B(3,3);
+    gsMatrix<T,3,3> B;
     B.setZero();
     for (index_t k = 0; k != 2; k++)
         for (index_t l = 0; l != 2; l++)
