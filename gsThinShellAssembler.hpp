@@ -1,6 +1,6 @@
 /** @file gsThinShellAssembler.hpp
 
-    @brief Provides linear and nonlinear elasticity systems for thin shells.
+    @brief Provides linear and nonlinear assemblers for thin shells
 
     This file is part of the G+Smo library.
 
@@ -17,18 +17,19 @@
 
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/gsMaterialMatrix.h>
+#include <gsKLShell/gsMaterialMatrixBase.h>
+#include <gsKLShell/gsMaterialMatrixEval.h>
 
 namespace gismo
 {
 
-template<class T>
-// template<short_t d, class T>
-gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
-                                        const gsMultiBasis<T> & basis,
-                                        const gsBoundaryConditions<T> & bconditions,
-                                        const gsFunction<T> & surface_force,
-                                        const gsMaterialMatrix<T> & materialmatrix
-                                        )
+template <short_t d, class T, bool bending>
+gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> & patches,
+                                                          const gsMultiBasis<T> & basis,
+                                                          const gsBoundaryConditions<T> & bconditions,
+                                                          const gsFunction<T> & surface_force,
+                                                          gsMaterialMatrixBase<T> * materialmatrix
+                                                          )
                                         :
                                         m_patches(patches),
                                         m_basis(basis),
@@ -36,23 +37,13 @@ gsThinShellAssembler<T>::gsThinShellAssembler(  const gsMultiPatch<T> & patches,
                                         m_forceFun(&surface_force),
                                         m_materialMat(materialmatrix)
 {
-    this->defaultOptions();
-    m_dim = m_patches.geoDim();
-    if (m_dim==2)
-    {
-        m_type = 2;
-        gsWarn<<"Plate model assumed because the multipatch is planar, but the multipatch is embedded to 3D \n"; // because of the material matrix class
-        m_patches.embed(3);
-    }
-    else
-        m_type = 0;
-    this->initialize();
+    this->_defaultOptions();
+    this->_initialize();
 }
 
-template <class T>
-void gsThinShellAssembler<T>::defaultOptions()
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::_defaultOptions()
 {
-    m_options.addInt("NonlinearLoads","Nonlinear Loads: 0: off, 1: on",nl_loads::off);
     m_options.addReal("WeakDirichlet","Penalty parameter weak dirichlet conditions",1e3);
     m_options.addReal("WeakClamped","Penalty parameter weak clamped conditions",1e3);
 
@@ -68,22 +59,17 @@ void gsThinShellAssembler<T>::defaultOptions()
     m_options.addInt("quRule","Quadrature rule [1:GaussLegendre,2:GaussLobatto]",1);
 }
 
-template <class T>
-void gsThinShellAssembler<T>::getOptions() const
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::_getOptions() const
 {
-    m_nl_loads = m_options.getInt("NonlinearLoads");
     m_alpha_d = m_options.getReal("WeakDirichlet");
     m_alpha_r = m_options.getReal("WeakClamped");
 }
 
-/*
-    TO INITIALIZE
-        basis
-        boundary conditions
-*/
 
-template <class T>
-void gsThinShellAssembler<T>::initialize()
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::_initialize()
 {
     //gsInfo<<"Active options:\n"<< m_assembler.options() <<"\n";
     m_defpatches = m_patches;
@@ -97,9 +83,9 @@ void gsThinShellAssembler<T>::initialize()
     m_assembler.getMap(m_defpatches);
 
     // Set the discretization space
-    space m_space = m_assembler.getSpace(m_basis, m_dim, 0); // last argument is the space ID
+    space m_space = m_assembler.getSpace(m_basis, d, 0); // last argument is the space ID
 
-    this->assembleDirichlet();
+    this->_assembleDirichlet();
 
     m_ddofs = m_space.fixedPart();
     m_mapper = m_space.mapper();
@@ -108,10 +94,20 @@ void gsThinShellAssembler<T>::initialize()
     m_foundInd = false;
     // pressure is off by default
     m_pressInd = false;
+
+    GISMO_ASSERT(m_forceFun->targetDim()==d,"Force must have " << d<<" dimensions but has "<<m_forceFun->targetDim());
 }
 
-template <class T>
-void gsThinShellAssembler<T>::assembleNeumann()
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::_assembleNeumann()
+{
+    _assembleNeumann_impl<d,bending>();
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<_d==3 && _bending, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
 {
     m_assembler.getMap(m_patches);           // this map is used for integrals
     geometryMap m_ori   = m_assembler.exprData()->getMap();
@@ -121,8 +117,31 @@ void gsThinShellAssembler<T>::assembleNeumann()
     m_assembler.assembleRhsBc(m_space * g_N * otangent(m_ori).norm(), m_bcs.neumannSides() );
 }
 
-template <class T>
-void gsThinShellAssembler<T>::assembleWeakBCs()
+template <short_t d, class T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<!(_d==3 && _bending), void>::type
+gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
+{
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    variable g_N = m_assembler.getBdrFunction();
+    m_assembler.assembleRhsBc(m_space * g_N * tv(m_ori).norm(), m_bcs.neumannSides() );
+}
+
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::_assembleWeakBCs()
+{
+    this->_getOptions();
+    _assembleWeakBCs_impl<d,bending>();
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<_d==3 && _bending, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 {
     m_assembler.getMap(m_patches);           // this map is used for integrals
 
@@ -134,7 +153,7 @@ void gsThinShellAssembler<T>::assembleWeakBCs()
     // Weak BCs
     m_assembler.assembleLhsRhsBc
     (
-        (m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
         ,
         (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * meas(m_ori)
         ,
@@ -157,9 +176,41 @@ void gsThinShellAssembler<T>::assembleWeakBCs()
     );
 }
 
+template <short_t d, class T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<!(_d==3 && _bending), void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
+{
+    m_assembler.getMap(m_patches);           // this map is used for integrals
 
-template <class T>
-void gsThinShellAssembler<T>::assembleWeakBCs(const gsMultiPatch<T> & deformed)
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    variable g_N = m_assembler.getBdrFunction();
+
+    // Weak BCs
+    m_assembler.assembleLhsRhsBc
+    (
+        -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        ,
+        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Dirichlet")
+    );
+}
+
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::_assembleWeakBCs(const gsMultiPatch<T> & deformed)
+{
+    this->_getOptions();
+    _assembleWeakBCs_impl<d,bending>(deformed);
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<_d==3 && _bending, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsMultiPatch<T> & deformed)
 {
     m_defpatches = deformed;
     m_assembler.getMap(m_patches);           // this map is used for integrals
@@ -174,7 +225,7 @@ void gsThinShellAssembler<T>::assembleWeakBCs(const gsMultiPatch<T> & deformed)
     // Weak BCs
     m_assembler.assembleLhsRhsBc
     (
-        m_alpha_d * m_space * m_space.tr() * meas(m_ori)
+        -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
         ,
         m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
         ,
@@ -196,16 +247,42 @@ void gsThinShellAssembler<T>::assembleWeakBCs(const gsMultiPatch<T> & deformed)
     );
 }
 
-template <class T>
-void gsThinShellAssembler<T>::assembleDirichlet()
+template <short_t d, class T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<!(_d==3 && _bending), void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsMultiPatch<T> & deformed)
+{
+    m_defpatches = deformed;
+    m_assembler.getMap(m_patches);           // this map is used for integrals
+    m_assembler.getMap(m_defpatches);
+
+    geometryMap m_ori   = m_assembler.exprData()->getMap();
+    geometryMap m_def   = m_assembler.exprData()->getMap2();
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    variable g_N = m_assembler.getBdrFunction();
+
+    // Weak BCs
+    m_assembler.assembleLhsRhsBc
+    (
+        -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
+        ,
+        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
+        ,
+        m_bcs.container("Weak Dirichlet")
+    );
+}
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::_assembleDirichlet()
 {
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // if statement
     m_space.setup(m_bcs, dirichlet::interpolation, 0);
 }
 
-template <class T>
-void gsThinShellAssembler<T>::homogenizeDirichlet()
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::homogenizeDirichlet()
 {
     // space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // m_space.setup(m_bcs, dirichlet::homogeneous, 0);
@@ -213,8 +290,8 @@ void gsThinShellAssembler<T>::homogenizeDirichlet()
     const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart().setZero();
 }
 
-template<class T>
-void gsThinShellAssembler<T>::applyLoads()
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::_applyLoads()
 {
     gsMatrix<T>        bVals;
     gsMatrix<index_t> acts,globalActs;
@@ -224,8 +301,8 @@ void gsThinShellAssembler<T>::applyLoads()
 
     for (size_t i = 0; i< m_pLoads.numLoads(); ++i )
     {
-        if (m_pLoads[i].value.size()!=m_dim)
-            gsWarn<<"Point load has wrong dimension "<<m_pLoads[i].value.size()<<" instead of "<<m_dim<<"\n";
+        if (m_pLoads[i].value.size()!=d)
+            gsWarn<<"Point load has wrong dimension "<<m_pLoads[i].value.size()<<" instead of "<<d<<"\n";
         // Compute actives and values of basis functions on point load location.
         if ( m_pLoads[i].parametric )   // in parametric space
         {
@@ -241,7 +318,7 @@ void gsThinShellAssembler<T>::applyLoads()
         }
 
         // Add the point load values in the right entries in the global RHS
-        for (size_t j = 0; j< m_dim; ++j)
+        for (size_t j = 0; j< d; ++j)
         {
             if (m_pLoads[i].value[j] != 0.0)
             {
@@ -256,10 +333,10 @@ void gsThinShellAssembler<T>::applyLoads()
     }
 }
 
-template<class T>
-void gsThinShellAssembler<T>::assembleMass()
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assembleMass()
 {
-    this->getOptions();
+    // this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -268,8 +345,8 @@ void gsThinShellAssembler<T>::assembleMass()
 
     // Initialize stystem
     m_assembler.initSystem(false);
-    gsMaterialMatrix<T> m_mm = m_materialMat;
-    m_mm.makeDensity();
+
+    gsMaterialMatrixEval<T,MaterialOutput::Density> m_mm(m_materialMat);
     variable mm0 = m_assembler.getCoeff(m_mm);
 
     space       m_space = m_assembler.trialSpace(0);
@@ -279,10 +356,10 @@ void gsThinShellAssembler<T>::assembleMass()
     m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
 }
 
-template<class T>
-void gsThinShellAssembler<T>::assembleFoundation()
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assembleFoundation()
 {
-    this->getOptions();
+    // this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -300,13 +377,10 @@ void gsThinShellAssembler<T>::assembleFoundation()
     m_assembler.assemble(m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori));
 }
 
-template<class T>
-void gsThinShellAssembler<T>::assemble()
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assemble()
 {
-    if (m_type==0)
-        assembleShell();
-    else
-        assembleMembrane();
+    assemble_impl<d, bending>();
 }
 
 /**
@@ -316,10 +390,12 @@ void gsThinShellAssembler<T>::assemble()
     Since the variational energy of the foundation force k_i u_i is equal to k_i u_i v_i where i denotes any direction, u_i are displacemets and v_i are spaces.
 
 */
-template<class T>
-void gsThinShellAssembler<T>::assembleShell()
+template<int d, typename T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<_d==3 && _bending, void>::type
+gsThinShellAssembler<d, T, bending>::assemble_impl()
 {
-    this->getOptions();
+    // this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -330,15 +406,10 @@ void gsThinShellAssembler<T>::assembleShell()
     // Initialize stystem
     m_assembler.initSystem(false);
 
-    gsMaterialMatrix<T> m_mmA = m_materialMat;
-    m_mmA.makeMatrix(0);
-    gsMaterialMatrix<T> m_mmB = m_materialMat;
-    m_mmB.makeMatrix(1);
-    gsMaterialMatrix<T> m_mmC = m_materialMat;
-    m_mmC.makeMatrix(2);
-    gsMaterialMatrix<T> m_mmD = m_materialMat;
-    m_mmD.makeMatrix(3);
-
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> m_mmA(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixB> m_mmB(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixC> m_mmC(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixD> m_mmD(m_materialMat);
     variable mmA = m_assembler.getCoeff(m_mmA);
     variable mmB = m_assembler.getCoeff(m_mmB);
     variable mmC = m_assembler.getCoeff(m_mmC);
@@ -389,21 +460,23 @@ void gsThinShellAssembler<T>::assembleShell()
         m_space * m_force * meas(m_ori)
         );
 
-    this->assembleWeakBCs();
-    this->assembleNeumann();
+    this->_assembleWeakBCs();
+    this->_assembleNeumann();
 
     // Assemble the loads
     if ( m_pLoads.numLoads() != 0 )
     {
         m_rhs = m_assembler.rhs();
-        applyLoads();
+        _applyLoads();
     }
 }
 
-template<class T>
-void gsThinShellAssembler<T>::assembleMembrane()
+template<int d, typename T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<!(_d==3 && _bending), void>::type
+gsThinShellAssembler<d, T, bending>::assemble_impl()
 {
-    this->getOptions();
+    // this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -414,9 +487,7 @@ void gsThinShellAssembler<T>::assembleMembrane()
     // Initialize stystem
     m_assembler.initSystem(false);
 
-    gsMaterialMatrix<T> m_mmA = m_materialMat;
-    m_mmA.makeMatrix(0);
-
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> m_mmA(m_materialMat);
     variable mmA = m_assembler.getCoeff(m_mmA);
 
     space       m_space = m_assembler.trialSpace(0);
@@ -456,29 +527,27 @@ void gsThinShellAssembler<T>::assembleMembrane()
         m_space * m_force * meas(m_ori)
         );
 
-    this->assembleWeakBCs();
-    this->assembleNeumann();
+    this->_assembleWeakBCs();
+    this->_assembleNeumann();
 
     // Assemble the loads
     if ( m_pLoads.numLoads() != 0 )
     {
         m_rhs = m_assembler.rhs();
-        applyLoads();
+        _applyLoads();
     }
 }
 
-template <class T>
-void gsThinShellAssembler<T>::assembleMatrix(const gsMultiPatch<T> & deformed)
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsMultiPatch<T> & deformed)
 {
-    if (m_type==0)
-        assembleMatrixShell(deformed);
-    else
-        assembleMatrixMembrane(deformed);
+    assembleMatrix_impl<d, bending>(deformed);
 }
 
-
-template <class T>
-void gsThinShellAssembler<T>::assembleMatrixShell(const gsMultiPatch<T> & deformed)
+template<int d, typename T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<_d==3 && _bending, void>::type
+gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -491,25 +560,18 @@ void gsThinShellAssembler<T>::assembleMatrixShell(const gsMultiPatch<T> & deform
     m_assembler.initMatrix(false);
     // m_assembler.initSystem(false);
 
-    gsMaterialMatrix<T> m_mmA = m_materialMat;
-    m_mmA.makeMatrix(0);
-    gsMaterialMatrix<T> m_mmB = m_materialMat;
-    m_mmB.makeMatrix(1);
-    gsMaterialMatrix<T> m_mmC = m_materialMat;
-    m_mmC.makeMatrix(2);
-    gsMaterialMatrix<T> m_mmD = m_materialMat;
-    m_mmD.makeMatrix(3);
-    gsMaterialMatrix<T> m_S0 = m_materialMat;
-    m_S0.makeVector(0);
-    gsMaterialMatrix<T> m_S1 = m_materialMat;
-    m_S1.makeVector(1);
-
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> m_mmA(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixB> m_mmB(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixC> m_mmC(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixD> m_mmD(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> m_S0(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorM> m_S1(m_materialMat);
     variable mmA = m_assembler.getCoeff(m_mmA);
     variable mmB = m_assembler.getCoeff(m_mmB);
     variable mmC = m_assembler.getCoeff(m_mmC);
     variable mmD = m_assembler.getCoeff(m_mmD);
-    variable S0 = m_assembler.getCoeff(m_S0);
-    variable S1 = m_assembler.getCoeff(m_S1);
+    variable S0  = m_assembler.getCoeff(m_S0);
+    variable S1  = m_assembler.getCoeff(m_S1);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m_m2 = m_assembler.getCoeff(mult2t);
@@ -564,10 +626,13 @@ void gsThinShellAssembler<T>::assembleMatrixShell(const gsMultiPatch<T> & deform
                     m_Ef_der2
                 ) * meas(m_ori)
             );
+    this->_assembleWeakBCs(deformed);
 }
 
-template <class T>
-void gsThinShellAssembler<T>::assembleMatrixMembrane(const gsMultiPatch<T> & deformed)
+template<int d, typename T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<!(_d==3 && _bending), void>::type
+gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -580,13 +645,10 @@ void gsThinShellAssembler<T>::assembleMatrixMembrane(const gsMultiPatch<T> & def
     m_assembler.initMatrix(false);
     // m_assembler.initSystem(false);
 
-    gsMaterialMatrix<T> m_mmA = m_materialMat;
-    m_mmA.makeMatrix(0);
-    gsMaterialMatrix<T> m_S0 = m_materialMat;
-    m_S0.makeVector(0);
-
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> m_mmA(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> m_S0(m_materialMat);
     variable mmA = m_assembler.getCoeff(m_mmA);
-    variable S0 = m_assembler.getCoeff(m_S0);
+    variable S0  = m_assembler.getCoeff(m_S0);
 
     space       m_space = m_assembler.trialSpace(0);
     geometryMap m_ori   = m_assembler.exprData()->getMap();
@@ -628,9 +690,11 @@ void gsThinShellAssembler<T>::assembleMatrixMembrane(const gsMultiPatch<T> & def
                 -m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
             );
     }
+    this->_assembleWeakBCs(deformed);
 }
-template<class T>
-void gsThinShellAssembler<T>::assembleMatrix(const gsMatrix<T> & solVector)
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsMatrix<T> & solVector)
 {
     // gsMultiPatch<T> deformed;
     // constructSolution(solVector, deformed);
@@ -640,17 +704,16 @@ void gsThinShellAssembler<T>::assembleMatrix(const gsMatrix<T> & solVector)
     assembleMatrix(m_defpatches);
 }
 
-template <class T>
-void gsThinShellAssembler<T>::assembleVector(const gsMultiPatch<T> & deformed)
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assembleVector(const gsMultiPatch<T> & deformed)
 {
-    if (m_type==0)
-        assembleVectorShell(deformed);
-    else
-        assembleVectorMembrane(deformed);
+  assembleVector_impl<d, bending>(deformed);
 }
 
-template <class T>
-void gsThinShellAssembler<T>::assembleVectorShell(const gsMultiPatch<T> & deformed)
+template<int d, typename T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<_d==3 && _bending, void>::type
+gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -662,13 +725,10 @@ void gsThinShellAssembler<T>::assembleVectorShell(const gsMultiPatch<T> & deform
     // Initialize vector
     m_assembler.initVector(1,false);
 
-    gsMaterialMatrix<T> m_S0 = m_materialMat;
-    m_S0.makeVector(0);
-    gsMaterialMatrix<T> m_S1 = m_materialMat;
-    m_S1.makeVector(1);
-
-    variable S0 = m_assembler.getCoeff(m_S0);
-    variable S1 = m_assembler.getCoeff(m_S1);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> m_S0(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorM> m_S1(m_materialMat);
+    variable S0  = m_assembler.getCoeff(m_S0);
+    variable S1  = m_assembler.getCoeff(m_S1);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m_m2 = m_assembler.getCoeff(mult2t);
@@ -713,20 +773,21 @@ void gsThinShellAssembler<T>::assembleVectorShell(const gsMultiPatch<T> & deform
                             ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
                         );
 
-    this->assembleWeakBCs(deformed);
-    this->assembleNeumann();
+    this->_assembleWeakBCs(deformed);
+    this->_assembleNeumann();
 
     // Assemble the loads
     if ( m_pLoads.numLoads() != 0 )
     {
         m_rhs = m_assembler.rhs();
-        applyLoads();
+        _applyLoads();
     }
 }
 
-
-template <class T>
-void gsThinShellAssembler<T>::assembleVectorMembrane(const gsMultiPatch<T> & deformed)
+template<int d, typename T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<!(_d==3 && _bending), void>::type
+gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsMultiPatch<T> & deformed)
 {
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -738,16 +799,13 @@ void gsThinShellAssembler<T>::assembleVectorMembrane(const gsMultiPatch<T> & def
     // Initialize vector
     m_assembler.initVector(1,false);
 
-    gsMaterialMatrix<T> m_S0 = m_materialMat;
-    m_S0.makeVector(0);
-
-    variable S0 = m_assembler.getCoeff(m_S0);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> m_S0(m_materialMat);
+    variable S0  = m_assembler.getCoeff(m_S0);
 
     space m_space       = m_assembler.trialSpace(0);
     geometryMap m_ori   = m_assembler.exprData()->getMap();
     geometryMap m_def   = m_assembler.exprData()->getMap2();
     variable m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
-    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
 
     this->homogenizeDirichlet();
 
@@ -780,33 +838,31 @@ void gsThinShellAssembler<T>::assembleVectorMembrane(const gsMultiPatch<T> & def
                 ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
                 );
 
-    this->assembleWeakBCs(deformed);
-    this->assembleNeumann();
-
+    this->_assembleWeakBCs(deformed);
+    this->_assembleNeumann();
 
     // Assemble the loads
     if ( m_pLoads.numLoads() != 0 )
     {
         m_rhs = m_assembler.rhs();
-        applyLoads();
+        _applyLoads();
     }
 }
 
-template <class T>
-gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVector(const gsMultiPatch<T> & deformed, patchSide& ps, int com)
+template <short_t d, class T, bool bending>
+gsMatrix<T> gsThinShellAssembler<d, T, bending>::boundaryForceVector(const gsMultiPatch<T> & deformed, patchSide& ps, index_t com)
 {
-    if (m_type==0)
-        boundaryForceVectorShell(deformed,ps,com);
-    else
-        boundaryForceVectorMembrane(deformed,ps,com);
+    return boundaryForceVector_impl<d, bending>(deformed,ps,com);
 }
 
-template <class T>
-gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVectorShell(const gsMultiPatch<T> & deformed, patchSide& ps, int com)
+template<int d, typename T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
+gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsMultiPatch<T> & deformed, patchSide& ps, index_t com)
 {
     gsExprAssembler<T> assembler;
     assembler.setIntegrationElements(m_basis);
-    space u = assembler.getSpace(m_basis, m_dim, 0); // last argument is the space ID
+    space u = assembler.getSpace(m_basis, d, 0); // last argument is the space ID
 
     assembler.initSystem();
 
@@ -818,13 +874,10 @@ gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVectorShell(const gsMultiPatch
     // Initialize vector
     // m_assembler.initVector(1,false);
 
-    gsMaterialMatrix<T> m_S0 = m_materialMat;
-    m_S0.makeVector(0);
-    gsMaterialMatrix<T> m_S1 = m_materialMat;
-    m_S1.makeVector(1);
-
-    variable S0 = assembler.getCoeff(m_S0);
-    variable S1 = assembler.getCoeff(m_S1);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> m_S0(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorM> m_S1(m_materialMat);
+    variable S0  = assembler.getCoeff(m_S0);
+    variable S1  = assembler.getCoeff(m_S1);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m_m2 = assembler.getCoeff(mult2t);
@@ -914,12 +967,14 @@ gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVectorShell(const gsMultiPatch
     return result;
 }
 
-template <class T>
-gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVectorMembrane(const gsMultiPatch<T> & deformed, patchSide& ps, int com)
+template<int d, typename T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
+gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsMultiPatch<T> & deformed, patchSide& ps, index_t com)
 {
     gsExprAssembler<T> assembler;
     assembler.setIntegrationElements(m_basis);
-    space u = assembler.getSpace(m_basis, m_dim, 0); // last argument is the space ID
+    space u = assembler.getSpace(m_basis, d, 0); // last argument is the space ID
 
     assembler.initSystem();
 
@@ -931,10 +986,8 @@ gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVectorMembrane(const gsMultiPa
     // Initialize vector
     // m_assembler.initVector(1,false);
 
-    gsMaterialMatrix<T> m_S0 = m_materialMat;
-    m_S0.makeVector(0);
-
-    variable S0 = assembler.getCoeff(m_S0);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> m_S0(m_materialMat);
+    variable S0  = assembler.getCoeff(m_S0);
 
     geometryMap m_ori   = assembler.exprData()->getMap();
     geometryMap m_def   = assembler.exprData()->getMap2();
@@ -952,8 +1005,7 @@ gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVectorMembrane(const gsMultiPa
 
     gsMatrix<T> Fint = assembler.rhs();
     gsMatrix<T> result;
-    const gsMultiBasis<T> & mbasis =
-        *dynamic_cast<const gsMultiBasis<T>*>(&u.source());
+    const gsMultiBasis<T> & mbasis = *dynamic_cast<const gsMultiBasis<T>*>(&u.source());
     gsMatrix<index_t> boundary;
 
     typedef gsBoundaryConditions<T> bcList;
@@ -1018,32 +1070,32 @@ gsMatrix<T> gsThinShellAssembler<T>::boundaryForceVectorMembrane(const gsMultiPa
     return result;
 }
 
-template<class T>
-void gsThinShellAssembler<T>::assembleVector(const gsMatrix<T> & solVector)
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assembleVector(const gsMatrix<T> & solVector)
 {
     constructSolution(solVector, m_defpatches);
     assembleVector(m_defpatches);
 }
 
-template<class T>
-void gsThinShellAssembler<T>::assemble(const gsMultiPatch<T> & deformed,
-                                        bool Matrix)
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assemble(const gsMultiPatch<T> & deformed,
+                                                   bool Matrix)
 {
     if (Matrix)
         assembleMatrix(deformed);
 
     assembleVector(deformed);
 }
-template<class T>
-void gsThinShellAssembler<T>::assemble(const gsMatrix<T> & solVector,
-                                        bool Matrix)
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assemble(const gsMatrix<T> & solVector,
+                                                   bool Matrix)
 {
     constructSolution(solVector, m_defpatches);
     assemble(m_defpatches,Matrix);
 }
 
-template <class T>
-gsMultiPatch<T> gsThinShellAssembler<T>::constructSolution(const gsMatrix<T> & solVector) const
+template <short_t d, class T, bool bending>
+gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructSolution(const gsMatrix<T> & solVector) const
 {
     m_solvector = solVector;
     gsMultiPatch<T> mp = m_patches;
@@ -1067,14 +1119,14 @@ gsMultiPatch<T> gsThinShellAssembler<T>::constructSolution(const gsMatrix<T> & s
     return mp;
 }
 
-template <class T>
-void gsThinShellAssembler<T>::constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
 {
     deformed = constructSolution(solVector);
 }
 
-template <class T>
-T gsThinShellAssembler<T>::getArea(const gsMultiPatch<T> & geometry)
+template <short_t d, class T, bool bending>
+T gsThinShellAssembler<d, T, bending>::getArea(const gsMultiPatch<T> & geometry)
 {
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1091,8 +1143,8 @@ T gsThinShellAssembler<T>::getArea(const gsMultiPatch<T> & geometry)
 }
 
 
-template <class T>
-gsMultiPatch<T> gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T> & solVector) const
+template <short_t d, class T, bool bending>
+gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructDisplacement(const gsMatrix<T> & solVector) const
 {
     gsMultiPatch<T> displacement = constructSolution(solVector);
     for ( size_t k =0; k!=displacement.nPatches(); ++k) // Deform the geometry
@@ -1103,27 +1155,27 @@ gsMultiPatch<T> gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T>
     return displacement;
 }
 
-template <class T>
-void gsThinShellAssembler<T>::constructDisplacement(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::constructDisplacement(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
 {
     deformed = constructDisplacement(solVector);
 }
 
-// template <class T>
-// void gsThinShellAssembler<T>::constructStresses(const gsMultiPatch<T> & deformed,
+// template <short_t d, class T, bool bending>
+// void gsThinShellAssembler<d, T, bending>::constructStresses(const gsMultiPatch<T> & deformed,
 //                                                     gsPiecewiseFunction<T> & result,
 //                                                     stress_type::type type) const
 // {
 //     deformed = constructDisplacement(solVector);
 // }
 
-template <class T>
-gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T> & u, const gsMultiPatch<T> & deformed, const T z)
+template <short_t d, class T, bool bending>
+gsMatrix<T> gsThinShellAssembler<d, T, bending>::computePrincipalStretches(const gsMatrix<T> & u, const gsMultiPatch<T> & deformed, const T z)
 {
     // gsDebug<<"Warning: Principle Stretch computation of gsThinShellAssembler is depreciated...\n";
     gsMatrix<T> result(3,u.cols());
     result.setZero();
-    // this->getOptions();
+    // this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1133,8 +1185,7 @@ gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T>
     m_assembler.getMap(m_defpatches);
     // m_assembler.initSystem(false);
 
-    gsMaterialMatrix<T> m_mm = m_materialMat;
-    m_mm.makeStretch();
+    gsMaterialMatrixEval<T,MaterialOutput::Stretch> m_mm(m_materialMat);
     variable mm0 = m_assembler.getCoeff(m_mm);
 
     gsExprEvaluator<> evaluator(m_assembler);
@@ -1146,8 +1197,8 @@ gsMatrix<T> gsThinShellAssembler<T>::computePrincipalStretches(const gsMatrix<T>
     return result;
 }
 
-template <class T>
-void gsThinShellAssembler<T>::constructStress(const gsMultiPatch<T> & deformed,
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::constructStress(const gsMultiPatch<T> & deformed,
                                                     gsPiecewiseFunction<T> & result,
                                                     stress_type::type type)
 {
@@ -1158,25 +1209,25 @@ void gsThinShellAssembler<T>::constructStress(const gsMultiPatch<T> & deformed,
 
 }
 
-// template <class T>
-// gsField<T> gsThinShellAssembler<T>::constructStress(const gsMultiPatch<T> & deformed,
+// template <short_t d, class T, bool bending>
+// gsField<T> gsThinShellAssembler<d, T, bending>::constructStress(const gsMultiPatch<T> & deformed,
 //                                                     stress_type::type type)
 // {
 //     gsPiecewiseFunction<T> result;
 //     result.clear();
 
 //     for (size_t p = 0; p < m_patches.nPatches(); ++p )
-//         result.addPiecePointer(new gsShellStressFunction<T>(m_patches,deformed,m_materialMat,p,type,m_assembler));
+//         result.addPiecePointer(new gsShellStressFunction<d, T, bending>(m_patches,deformed,m_materialMat,p,type,m_assembler));
 
 //     gsField<T> stressField(m_patches,result, true);
 //     return stressField;
 
 // }
 
-template <class T>
-void gsThinShellAssembler<T>::projectL2_into(const gsFunction<T> & fun, gsMatrix<T>& result)
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & fun, gsMatrix<T>& result)
 {
-    this->getOptions();
+    // this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1196,8 +1247,8 @@ void gsThinShellAssembler<T>::projectL2_into(const gsFunction<T> & fun, gsMatrix
     result = m_solver.solve(m_assembler.rhs());
 }
 
-template <class T>
-void gsThinShellAssembler<T>::projectL2_into(const gsFunction<T> & fun, gsMultiPatch<T>& mp)
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & fun, gsMultiPatch<T>& mp)
 {
     gsMatrix<T> tmp = projectL2(fun);
     mp = m_patches;
@@ -1220,8 +1271,8 @@ void gsThinShellAssembler<T>::projectL2_into(const gsFunction<T> & fun, gsMultiP
 }
 
 
-template <class T>
-gsMatrix<T> gsThinShellAssembler<T>::projectL2(const gsFunction<T> & fun)
+template <short_t d, class T, bool bending>
+gsMatrix<T> gsThinShellAssembler<d, T, bending>::projectL2(const gsFunction<T> & fun)
 {
     gsMatrix<T> result;
     this->projectL2_into(fun,result);

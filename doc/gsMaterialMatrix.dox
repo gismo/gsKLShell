@@ -1,0 +1,10 @@
+namespace gismo
+{
+
+/** \defgroup MaterialMatrix Material module for thin shells
+
+    This module provides the material class for the KLShell group
+
+*/
+
+}

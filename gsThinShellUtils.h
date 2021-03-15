@@ -1,4 +1,4 @@
-/** @file gsThinShellUtils.cpp
+/** @file gsThinShellUtils.h
 
     @brief Utilities for gsThinShellAssembler. Mainly expressions
 
@@ -21,32 +21,49 @@
 namespace gismo{
 namespace expr{
 
+/// Expression for the outer tangent (3D)
 template<class T>
 class otangent_expr : public _expr<otangent_expr<T> >
 {
-    typename gsGeometryMap<T>::Nested_t _G;
-
 public:
     typedef T Scalar;
 
 private:
-    mutable gsVector<Scalar,3> onormal, normal;
+
+    typename gsGeometryMap<Scalar>::Nested_t _G;
 
 public:
-    otangent_expr(const gsGeometryMap<T> & G) : _G(G) { }
 
-    MatExprType eval(const index_t k) const
+    otangent_expr(const gsGeometryMap<Scalar> & G) : _G(G) { }
+
+    mutable gsVector<Scalar,3> onormal, normal;
+    mutable gsMatrix<Scalar> res;
+
+    const gsMatrix<Scalar> & eval(const index_t k) const
     {
-        onormal = _G.data().outNormals.col(k);
-        normal =  _G.data().normals.col(k);
-        return normal.cross(onormal);
+        GISMO_ASSERT(_G.data().dim.second==3,"Domain dimension should be 3, is "<<_G.data().dim.second);
+
+        gsMatrix<Scalar> Jacobian = _G.data().jacobian(k);
+
+        onormal = _G.data().outNormal(k);
+        normal =  _G.data().normal(k);
+        res = normal.cross(onormal);
+        return res;
+
+        // gsMatrix<T> result(_G.data().dim.second,1);
+        // result.setZero();
+        // return result;
+        // if (_G.data().dim.second!=3)
+        //     return normal.head(_G.data().dim.second);
+        // else
+        //     return normal;
     }
 
     index_t rows() const { return _G.data().dim.second; }
     index_t cols() const { return 1; }
 
-    const gsFeSpace<T> & rowVar() const {return gsNullExpr<T>::get();}
-    const gsFeSpace<T> & colVar() const {return gsNullExpr<T>::get();}
+    const gsFeSpace<Scalar> & rowVar() const {return gsNullExpr<Scalar>::get();}
+    const gsFeSpace<Scalar> & colVar() const {return gsNullExpr<Scalar>::get();}
 
     enum{rowSpan = 0, colSpan = 0};
 
@@ -65,14 +82,13 @@ public:
     }
 
     // Normalized to unit length
-    normalized_expr<otangent_expr<T> > normalized()
-    { return normalized_expr<otangent_expr<T> >(*this); }
+    normalized_expr<otangent_expr<Scalar> > normalized()
+    { return normalized_expr<otangent_expr<Scalar> >(*this); }
 
     void print(std::ostream &os) const { os << "tv("; _G.print(os); os <<")"; }
 };
 
-// Comments for var1:
-// - TODO: dimensionm indep. later on
+/// Expression for the first variation of the normal
 template<class E>
 class var1_expr : public _expr<var1_expr<E> >
 {
@@ -130,6 +146,7 @@ public:
     void print(std::ostream &os) const { os << "var1("; _u.print(os); os <<")"; }
 
 private:
+// Specialisation for a space
     template<class U> inline
     typename util::enable_if< util::is_same<U,gsFeSpace<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k)  const
@@ -160,6 +177,7 @@ private:
         return res;
     }
 
+    // Specialisation for a solution
     template<class U> inline
     typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k)  const
@@ -184,9 +202,7 @@ private:
     }
 };
 
-// Comments for var2:
-// - TODO: dimensionm indep. later on
-// - TODO: how to structure this matrix
+/// Second variation of the normal times a vector.
 template<class E1, class E2, class E3>
 class var2_expr : public _expr<var2_expr<E1,E2,E3> >
 {
@@ -316,6 +332,7 @@ public:
 };
 
 
+/// Product of the second derivative of a space or a map and a vector
 template<class E1, class E2>
 class deriv2dot_expr : public _expr<deriv2dot_expr<E1, E2> >
 {
@@ -366,6 +383,7 @@ public:
     void print(std::ostream &os) const { os << "deriv2("; _u.print(os); _v.print(os); os <<")"; }
 
 private:
+    /// Specialization for a geometry map
     template<class U> inline
     typename util::enable_if< util::is_same<U,gsGeometryMap<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k)  const
@@ -388,6 +406,7 @@ private:
         return res;
     }
 
+    /// Specialization for a space
     template<class U> inline
     typename util::enable_if<util::is_same<U,gsFeSpace<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k) const
@@ -410,6 +429,7 @@ private:
         return res;
     }
 
+    /// Specialization for a solution
     template<class U> inline
     typename util::enable_if<util::is_same<U,gsFeSolution<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k) const
@@ -455,8 +475,9 @@ private:
 };
 
 
-/*
-    The deriv2_expr computes the hessian of a basis.
+/**
+ * @brief   Compute the hessian of a basis
+
     It assumes that the vector of basis functions is of the form v = u*e_i where u
     is the scalar basis function u: [0,1]^3 -> R^1 and e_i is the unit vector with a 1 on index i and a 0 elsewhere.
     Let us define the following blocks
@@ -475,7 +496,7 @@ private:
     [hess3(u)_1]
     ...
     [hess3(u)_k]
-**/
+*/
 template<class E>
 class deriv2_expr : public _expr<deriv2_expr<E> >
 {
@@ -529,6 +550,7 @@ public:
     void print(std::ostream &os) const { os << "deriv2("; _u.print(os); os <<")"; }
 
     private:
+        /// Spexialization for a geometry map
         template<class U> inline
         typename util::enable_if< util::is_same<U,gsGeometryMap<Scalar> >::value, const gsMatrix<Scalar> & >::type
         eval_impl(const U & u, const index_t k)  const
@@ -547,6 +569,7 @@ public:
             return res;
         }
 
+        /// Spexialization for a space
         template<class U> inline
         typename util::enable_if<util::is_same<U,gsFeSpace<Scalar> >::value, const gsMatrix<Scalar> & >::type
         eval_impl(const U & u, const index_t k) const
@@ -660,9 +683,7 @@ public:
 // };
 
 
-/**
-   TO ADD
- */
+/// ??
 template<class E1, class E2, class E3>
 class flatdot_expr  : public _expr<flatdot_expr<E1,E2,E3> >
 {
@@ -730,10 +751,7 @@ public:
     void print(std::ostream &os) const { os << "flatdot("; _A.print(os);_B.print(os);_C.print(os); os<<")"; }
 };
 
-/**
-   To Do:
-   *    Improve by inputting u instead of deriv2(u)
- */
+/// ???
 template<class E1, class E2, class E3>
 class flatdot2_expr  : public _expr<flatdot2_expr<E1,E2,E3> >
 {
@@ -796,9 +814,7 @@ public:
     void print(std::ostream &os) const { os << "flatdot2("; _A.print(os);_B.print(os);_C.print(os); os<<")"; }
 };
 
-/*
-   Expression for the transformation matrix FROM local covariant TO local cartesian bases, based on a geometry map
- */
+/// Expression for the transformation matrix FROM local covariant TO local cartesian bases, based on a geometry map
 template<class T> class cartcovinv_expr ;
 
 template<class T>
@@ -811,44 +827,82 @@ public:
 
     cartcov_expr(const gsGeometryMap<T> & G) : _G(G) { }
 
-    mutable gsMatrix<Scalar,3,3> covBasis, conBasis, covMetric, conMetric, cartBasis, result;
-    mutable gsVector<Scalar,3> normal, tmp;
-    mutable gsVector<Scalar,3> e1, e2, a1, a2;
+    mutable gsMatrix<Scalar> covBasis, conBasis, covMetric, conMetric, cartBasis;
+    mutable gsMatrix<Scalar,3,3> result;
+    mutable gsVector<Scalar> normal, tmp;
+    mutable gsVector<Scalar> e1, e2, a1, a2;
 
-    gsMatrix<Scalar,3,3> eval(const index_t k) const
+    gsMatrix<Scalar> eval(const index_t k) const
     {
-        // Compute covariant bases in deformed and undeformed configuration
-        normal = _G.data().normals.col(k);
-        normal.normalize();
-        covBasis.leftCols(2) = _G.data().jacobian(k);
-        covBasis.col(2)      = normal;
-        covMetric = covBasis.transpose() * covBasis;
+        if (_G.targetDim()==3)
+        {
+            // Compute covariant bases in deformed and undeformed configuration
+            normal = _G.data().normals.col(k);
+            normal.normalize();
+            covBasis.resize(3,3);
+            conBasis.resize(3,3);
+            covBasis.leftCols(2) = _G.data().jacobian(k);
+            covBasis.col(2)      = normal;
+            covMetric = covBasis.transpose() * covBasis;
 
-        conMetric = covMetric.inverse();
+            conMetric = covMetric.inverse();
 
-        conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
+            conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
 
-        e1 = covBasis.col(0); e1.normalize();
-        e2 = conBasis.col(1); e2.normalize();
-        // e3 = normal;
+            e1 = covBasis.col(0); e1.normalize();
+            e2 = conBasis.col(1); e2.normalize();
 
-        a1 = covBasis.col(0);
-        a2 = covBasis.col(1);
+            a1 = covBasis.col(0);
+            a2 = covBasis.col(1);
 
-        result(0,0) = (e1.dot(a1))*(a1.dot(e1));
-        result(0,1) = (e1.dot(a2))*(a2.dot(e2));
-        result(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));
-        // Row 1
-        result(1,0) = (e2.dot(a1))*(a1.dot(e2));
-        result(1,1) = (e2.dot(a2))*(a2.dot(e2));
-        result(1,2) = 2*(e2.dot(a1))*(a2.dot(e2));
-        // Row 2
-        result(2,0) = (e1.dot(a1))*(a1.dot(e2));
-        result(2,1) = (e1.dot(a2))*(a2.dot(e2));
-        result(2,2) = (e1.dot(a1))*(a2.dot(e2)) + (e1.dot(a2))*(a1.dot(e2));
+            result(0,0) = (e1.dot(a1))*(a1.dot(e1));
+            result(0,1) = (e1.dot(a2))*(a2.dot(e2));
+            result(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));
+            // Row 1
+            result(1,0) = (e2.dot(a1))*(a1.dot(e2));
+            result(1,1) = (e2.dot(a2))*(a2.dot(e2));
+            result(1,2) = 2*(e2.dot(a1))*(a2.dot(e2));
+            // Row 2
+            result(2,0) = (e1.dot(a1))*(a1.dot(e2));
+            result(2,1) = (e1.dot(a2))*(a2.dot(e2));
+            result(2,2) = (e1.dot(a1))*(a2.dot(e2)) + (e1.dot(a2))*(a1.dot(e2));
 
-        // return result.inverse(); // !!!!
-        return result;
+            // return result.inverse(); // !!!!
+            return result;
+        }
+        else if (_G.targetDim()==2)
+        {
+            // Compute covariant bases in deformed and undeformed configuration
+            covBasis.resize(2,2);
+            conBasis.resize(2,2);
+            covBasis = _G.data().jacobian(k);
+            covMetric = covBasis.transpose() * covBasis;
+            conMetric = covMetric.inverse();
+            conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1);
+
+            e1 = covBasis.col(0); e1.normalize();
+            e2 = conBasis.col(1); e2.normalize();
+            // e3 = normal;
+
+            a1 = covBasis.col(0);
+            a2 = covBasis.col(1);
+
+            result(0,0) = (e1.dot(a1))*(a1.dot(e1));
+            result(0,1) = (e1.dot(a2))*(a2.dot(e2));
+            result(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));
+            // Row 1
+            result(1,0) = (e2.dot(a1))*(a1.dot(e2));
+            result(1,1) = (e2.dot(a2))*(a2.dot(e2));
+            result(1,2) = 2*(e2.dot(a1))*(a2.dot(e2));
+            // Row 2
+            result(2,0) = (e1.dot(a1))*(a1.dot(e2));
+            result(2,1) = (e1.dot(a2))*(a2.dot(e2));
+            result(2,2) = (e1.dot(a1))*(a2.dot(e2)) + (e1.dot(a2))*(a1.dot(e2));
+
+            return result;
+        }
+        else
+            GISMO_ERROR("Not implemented");
     }
 
     cartcovinv_expr<T> inv() const
@@ -918,9 +972,7 @@ public:
 };
 
 
-/*
-   Expression for the transformation matrix FROM local contravariant TO local cartesian bases, based on a geometry map
- */
+/// Expression for the transformation matrix FROM local contravariant TO local cartesian bases, based on a geometry map
 template<class T> class cartconinv_expr ;
 
 template<class T>
@@ -933,44 +985,92 @@ public:
 
     cartcon_expr(const gsGeometryMap<T> & G) : _G(G) { }
 
-    mutable gsMatrix<Scalar,3,3> covBasis, conBasis, covMetric, conMetric, cartBasis, result;
-    mutable gsVector<Scalar,3> normal, tmp;
-    mutable gsVector<Scalar,3> e1, e2, ac1, ac2;
+    mutable gsMatrix<Scalar> covBasis, conBasis, covMetric, conMetric, cartBasis;
+    mutable gsMatrix<Scalar,3,3> result;
+    mutable gsVector<Scalar> normal, tmp;
+    mutable gsVector<Scalar> e1, e2, ac1, ac2;
 
-    gsMatrix<Scalar,3,3> eval(const index_t k) const
+    gsMatrix<Scalar> eval(const index_t k) const
     {
-        // Compute covariant bases in deformed and undeformed configuration
-        normal = _G.data().normals.col(k);
-        normal.normalize();
-        covBasis.leftCols(2) = _G.data().jacobian(k);
-        covBasis.col(2)      = normal;
-        covMetric = covBasis.transpose() * covBasis;
+        if (_G.targetDim()==3)
+        {
+            // Compute covariant bases in deformed and undeformed configuration
+            normal = _G.data().normals.col(k);
+            normal.normalize();
+            covBasis.resize(3,3);
+            conBasis.resize(3,3);
+            // Compute covariant bases in deformed and undeformed configuration
+            normal = _G.data().normals.col(k);
+            normal.normalize();
+            covBasis.leftCols(2) = _G.data().jacobian(k);
+            covBasis.col(2)      = normal;
+            covMetric = covBasis.transpose() * covBasis;
 
-        conMetric = covMetric.inverse();
+            conMetric = covMetric.inverse();
 
-        conBasis.col(0) = conMetric(0,0)*covBasis.col(0)+conMetric(0,1)*covBasis.col(1)+conMetric(0,2)*covBasis.col(2);
-        conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
+            conBasis.col(0) = conMetric(0,0)*covBasis.col(0)+conMetric(0,1)*covBasis.col(1)+conMetric(0,2)*covBasis.col(2);
+            conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
 
-        e1 = covBasis.col(0); e1.normalize();
-        e2 = conBasis.col(1); e2.normalize();
-        // e3 = normal;
+            e1 = covBasis.col(0); e1.normalize();
+            e2 = conBasis.col(1); e2.normalize();
+            // e3 = normal;
 
-        ac1 = conBasis.col(0);
-        ac2 = conBasis.col(1);
+            ac1 = conBasis.col(0);
+            ac2 = conBasis.col(1);
 
-        result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));
-        result(0,1) = (e1.dot(ac2))*(ac2.dot(e2));
-        result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));
-        // Row 1
-        result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));
-        result(1,1) = (e2.dot(ac2))*(ac2.dot(e2));
-        result(1,2) = 2*(e2.dot(ac1))*(ac2.dot(e2));
-        // Row 2
-        result(2,0) = (e1.dot(ac1))*(ac1.dot(e2));
-        result(2,1) = (e1.dot(ac2))*(ac2.dot(e2));
-        result(2,2) = (e1.dot(ac1))*(ac2.dot(e2)) + (e1.dot(ac2))*(ac1.dot(e2));
+            result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));
+            result(0,1) = (e1.dot(ac2))*(ac2.dot(e2));
+            result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));
+            // Row 1
+            result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));
+            result(1,1) = (e2.dot(ac2))*(ac2.dot(e2));
+            result(1,2) = 2*(e2.dot(ac1))*(ac2.dot(e2));
+            // Row 2
+            result(2,0) = (e1.dot(ac1))*(ac1.dot(e2));
+            result(2,1) = (e1.dot(ac2))*(ac2.dot(e2));
+            result(2,2) = (e1.dot(ac1))*(ac2.dot(e2)) + (e1.dot(ac2))*(ac1.dot(e2));
 
-        return result;
+            return result;
+        }
+        else if (_G.targetDim()==2)
+        {
+            // Compute covariant bases in deformed and undeformed configuration
+            normal = _G.data().normals.col(k);
+            normal.normalize();
+            covBasis.resize(2,2);
+            conBasis.resize(2,2);
+            // Compute covariant bases in deformed and undeformed configuration
+            covBasis = _G.data().jacobian(k);
+            covMetric = covBasis.transpose() * covBasis;
+
+            conMetric = covMetric.inverse();
+
+            conBasis.col(0) = conMetric(0,0)*covBasis.col(0)+conMetric(0,1)*covBasis.col(1);
+            conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1);
+
+            e1 = covBasis.col(0); e1.normalize();
+            e2 = conBasis.col(1); e2.normalize();
+
+            ac1 = conBasis.col(0);
+            ac2 = conBasis.col(1);
+
+            result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));
+            result(0,1) = (e1.dot(ac2))*(ac2.dot(e2));
+            result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));
+            // Row 1
+            result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));
+            result(1,1) = (e2.dot(ac2))*(ac2.dot(e2));
+            result(1,2) = 2*(e2.dot(ac1))*(ac2.dot(e2));
+            // Row 2
+            result(2,0) = (e1.dot(ac1))*(ac1.dot(e2));
+            result(2,1) = (e1.dot(ac2))*(ac2.dot(e2));
+            result(2,2) = (e1.dot(ac1))*(ac2.dot(e2)) + (e1.dot(ac2))*(ac1.dot(e2));
+
+            return result;
+        }
+        else
+            GISMO_ERROR("Not implemented");
+
     }
 
     cartconinv_expr<T> inv() const

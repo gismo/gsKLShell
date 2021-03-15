@@ -1,7 +1,7 @@
-namespace gismo 
+namespace gismo
 {
 
-/** \defgroup ThinShell Thin Shell module
+/** \defgroup KLShell Kirchhoff-Love shell module
 
     This module is about solving elasticity problems on thin shells.
 

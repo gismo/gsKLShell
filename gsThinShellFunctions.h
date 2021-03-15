@@ -24,6 +24,9 @@ namespace gismo
  *
  *         Currently, gsWriteParaview can only plot vector-valued functions with an output dimension up to three.
  *         Therefore it not possible to plot all stress components as components of a single vector-valued function.
+ *
+ *  \ingroup KLShell
+ *
 */
 struct stress_type
 {
@@ -48,15 +51,28 @@ struct stress_type
 
 /** @brief Compute Cauchy stresses for a previously computed/defined displacement field.
  *         Can be pushed into gsPiecewiseFunction to construct gsField for visualization in Paraview.
+ *
+ *  \ingroup KLShell
+ *
 */
 template <class T>
 class gsShellStressFunction : public gsFunction<T>
 {
 public:
 
+    /**
+     * @brief      Constructs a new instance.
+     *
+     * @param[in]  geometry   The undeformed geometry
+     * @param[in]  deformed   The deformed geometry
+     * @param      mm         The material matrix
+     * @param[in]  patch      The patch index
+     * @param[in]  type       The stress type
+     * @param[in]  assembler  The shell assembler
+     */
     gsShellStressFunction(const gsMultiPatch<T> & geometry,
                            const gsMultiPatch<T> & deformed,
-                           const gsMaterialMatrix<T> & mm,
+                           gsMaterialMatrixBase<T> * mm,
                            index_t patch,
                            stress_type::type type,
                            const gsExprAssembler<T> & assembler
@@ -64,7 +80,7 @@ public:
         : m_patches(geometry),
           m_defpatches(deformed),
           m_materialMat(mm),
-          m_patchID(patch), ///WHAT DO WE DO WITH THIS?
+          m_patchID(patch),
           m_stress_type(type),
           m_assembler(assembler)
     {}
@@ -133,6 +149,17 @@ public:
             case stress_type::principal_stretch_dir3 :
                 return 3;
                 break;
+            /*
+                DEFAULT includes:
+                stress_type::membrane;
+                stress_type::flexural;
+                stress_type::membrane_strain;
+                stress_type::flexural_strain;
+                stress_type::principal_stretch;
+                stress_type::principal_stretch_dir1;
+                stress_type::principal_stretch_dir2;
+                stress_type::principal_stretch_dir3
+            */
         }
     }
 
@@ -154,9 +181,9 @@ protected:
 
     const gsMultiPatch<T>& m_patches;
     const gsMultiPatch<T>& m_defpatches;
+    mutable gsMaterialMatrixBase<T> * m_materialMat;
     index_t m_patchID;
     stress_type::type m_stress_type;
-    gsMaterialMatrix<T> m_materialMat;
     mutable gsExprAssembler<> m_assembler;
 
 }; // class definition ends

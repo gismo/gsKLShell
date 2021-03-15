@@ -42,7 +42,7 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}"
   FILES_MATCHING PATTERN "*.h" )
 
 # add filedata folder
-add_definitions(-DSTRAN_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/filedata/")
+add_definitions(-DSHELL_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/filedata/")
 
 # add example files
 aux_cpp_directory(${CMAKE_CURRENT_SOURCE_DIR}/examples FILES)

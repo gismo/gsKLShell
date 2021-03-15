@@ -62,4 +62,4 @@ The template parameters of the class are the dimension of the geometry (`dim`) w
 * Error estimation via DWR
 
 #### To do:
-* improve the way pieces are accessed. Removed the `piece(0)` in `gsMaterialMatrix.hpp`.
+* Remove the SvK from gsMaterialMatrixNonlinear
