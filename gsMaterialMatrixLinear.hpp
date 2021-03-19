@@ -30,7 +30,6 @@
 namespace gismo
 {
 
-// Linear material models
 template <short_t dim, class T >
 gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                         const gsFunctionSet<T> & mp,
@@ -45,35 +44,15 @@ gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
     _initialize();
 }
 
-// Linear material models
-template <short_t dim, class T >
-gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
-                                        const gsFunctionSet<T> & mp,
-                                        const gsFunctionSet<T> & mp_def,
-                                        const gsFunction<T> & thickness,
-                                        const std::vector<gsFunction<T>*> &pars
-                                        )
-                                        :
-                                        m_patches(&mp),
-                                        m_defpatches(&mp_def),
-                                        m_thickness(&thickness),
-                                        m_pars(pars)
-{
-    _initialize();
-}
-
-// Linear material models
 template <short_t dim, class T >
 gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                     const gsFunctionSet<T> & mp,
-                                    const gsFunctionSet<T> & mp_def,
                                     const gsFunction<T> & thickness,
                                     const std::vector<gsFunction<T>*> &pars,
                                     const gsFunction<T> & density
                                     )
                                     :
                                     m_patches(&mp),
-                                    m_defpatches(&mp_def),
                                     m_thickness(&thickness),
                                     m_pars(pars),
                                     m_density(&density)
@@ -126,11 +105,11 @@ void gsMaterialMatrixLinear<dim,T>::_computePoints(const index_t patch, const gs
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
     this->_computeMetricUndeformed();
 
-    if (m_defpatches->nPieces()!=0)
+    if (Base::m_defpatches->nPieces()!=0)
     {
         m_map_def.flags = m_map.flags;
         m_map_def.points = u;
-        static_cast<const gsFunction<T>&>(m_defpatches->piece(patch)).computeMap(m_map_def); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+        static_cast<const gsFunction<T>&>(Base::m_defpatches->piece(patch)).computeMap(m_map_def); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
         this->_computeMetricDeformed();
     }
 

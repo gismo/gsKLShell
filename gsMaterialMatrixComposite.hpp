@@ -78,57 +78,6 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
 {
     _initialize();
 }
-template <short_t dim, class T>
-gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
-                            const gsFunctionSet<T>                              & mp,
-                            const gsFunctionSet<T>                              & mp_def,
-                            const gsFunction<T>                                 & thickness,
-                            const gsFunction<T>                                 & E11,
-                            const gsFunction<T>                                 & E22,
-                            const gsFunction<T>                                 & G12,
-                            const gsFunction<T>                                 & nu12,
-                            const gsFunction<T>                                 & nu21,
-                            const gsFunction<T>                                 & phi           )
-                            :
-                            m_patches(&mp),
-                            m_defpatches(&mp_def),
-                            m_thickness(&thickness),
-                            m_E11(&E11),
-                            m_E22(&E22),
-                            m_G12(&G12),
-                            m_nu12(&nu12),
-                            m_nu21(&nu21),
-                            m_phi(&phi)
-{
-    _initialize();
-}
-
-template <short_t dim, class T>
-gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
-                            const gsFunctionSet<T>                              & mp,
-                            const gsFunctionSet<T>                              & mp_def,
-                            const gsFunction<T>                                 & thickness,
-                            const gsFunction<T>                                 & E11,
-                            const gsFunction<T>                                 & E22,
-                            const gsFunction<T>                                 & G12,
-                            const gsFunction<T>                                 & nu12,
-                            const gsFunction<T>                                 & nu21,
-                            const gsFunction<T>                                 & phi,
-                            const gsFunction<T>                                 & rho           )
-                            :
-                            m_patches(&mp),
-                            m_defpatches(&mp_def),
-                            m_thickness(&thickness),
-                            m_E11(&E11),
-                            m_E22(&E22),
-                            m_G12(&G12),
-                            m_nu12(&nu12),
-                            m_nu21(&nu21),
-                            m_phi(&phi),
-                            m_rho(&rho)
-{
-    _initialize();
-}
 
 template <short_t dim, class T>
 gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
@@ -148,30 +97,11 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
 template <short_t dim, class T>
 gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                             const gsFunctionSet<T>                              & mp,
-                            const gsFunctionSet<T>                              & mp_def,
-                            const gsFunction<T>                                 & thickness,
-                            const std::vector<gsFunction<T>*>                   & pars          )
-                            :
-                            m_patches(&mp),
-                            m_defpatches(&mp_def),
-                            m_thickness(&thickness),
-                            m_pars(pars),
-                            m_rho(nullptr)
-{
-    _initializeParameters();
-    _initialize();
-}
-
-template <short_t dim, class T>
-gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
-                            const gsFunctionSet<T>                              & mp,
-                            const gsFunctionSet<T>                              & mp_def,
                             const gsFunction<T>                                 & thickness,
                             const std::vector<gsFunction<T>*>                   & pars,
                             const gsFunction<T>                                 & rho           )
                             :
                             m_patches(&mp),
-                            m_defpatches(&mp_def),
                             m_thickness(&thickness),
                             m_pars(pars),
                             m_rho(&rho)
@@ -241,7 +171,7 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
 //                             const gsVector<T>                                   & phi           )
 //                             :
 //                             m_patches(&mp),
-//                             m_defpatches(&mp_def)
+//                             Base::m_defpatches(&mp_def)
 // {
 //     m_E11       = new gsConstantFunction<T>(E11,3);
 //     m_E22       = new gsConstantFunction<T>(E22,3);
@@ -267,7 +197,7 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
 //                             const gsVector<T>                                   & rho           )
 //                             :
 //                             m_patches(&mp),
-//                             m_defpatches(&mp_def)
+//                             Base::m_defpatches(&mp_def)
 // {
 //     m_E11       = new gsConstantFunction<T>(E11,3);
 //     m_E22       = new gsConstantFunction<T>(E22,3);
@@ -335,11 +265,11 @@ void gsMaterialMatrixComposite<dim,T>::_computePoints(const index_t patch, const
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
     this->_computeMetricUndeformed();
 
-    if (m_defpatches->nPieces()!=0)
+    if (Base::m_defpatches->nPieces()!=0)
     {
         m_map_def.flags = m_map.flags;
         m_map_def.points = u;
-        static_cast<const gsFunction<T>&>(m_defpatches->piece(patch)).computeMap(m_map_def); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+        static_cast<const gsFunction<T>&>(Base::m_defpatches->piece(patch)).computeMap(m_map_def); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
         this->_computeMetricDeformed();
     }
 

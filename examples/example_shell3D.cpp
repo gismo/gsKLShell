@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
         parameters[5] = &phifun;
         options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
         options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",0);
-        materialMatrix = getMaterialMatrix<3,real_t>(mp,mp_def,t,parameters,rho,options);
+        materialMatrix = getMaterialMatrix<3,real_t>(mp,t,parameters,rho,options);
     }
     else
     {
@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
         parameters[1] = &nu;
         options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
         options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
-        materialMatrix = getMaterialMatrix<3,real_t>(mp,mp_def,t,parameters,rho,options);
+        materialMatrix = getMaterialMatrix<3,real_t>(mp,t,parameters,rho,options);
     }
 
     // Set assembler

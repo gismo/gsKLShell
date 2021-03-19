@@ -138,7 +138,7 @@ std::pair<real_t,real_t> numerical(index_t material, index_t impl, bool Compress
         options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",material);
         options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",Compressibility);
         options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",impl);
-        materialMatrix = getMaterialMatrix<2,real_t>(mp,mp_def,t,parameters,rho,options);
+        materialMatrix = getMaterialMatrix<2,real_t>(mp,t,parameters,rho,options);
     }
 
     gsThinShellAssemblerBase<real_t>* assembler;

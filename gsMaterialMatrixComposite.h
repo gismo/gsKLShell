@@ -38,6 +38,8 @@ template <  short_t dim,
 class gsMaterialMatrixComposite : public gsMaterialMatrixBase<T>
 {
 public:
+    using Base = gsMaterialMatrixBase<T>;
+
     /** @brief Constructor of the assembler object.
 
         \param[in] ...
@@ -59,29 +61,6 @@ public:
 
         gsMaterialMatrixComposite(
                                 const gsFunctionSet<T>                              & mp,
-                                const gsFunctionSet<T>                              & mp_def,
-                                const gsFunction<T>                                 & thickness,
-                                const gsFunction<T>                                 & E11,
-                                const gsFunction<T>                                 & E22,
-                                const gsFunction<T>                                 & G12,
-                                const gsFunction<T>                                 & nu12,
-                                const gsFunction<T>                                 & nu21,
-                                const gsFunction<T>                                 & phi           );
-
-        gsMaterialMatrixComposite(
-                                const gsFunctionSet<T>                              & mp,
-                                const gsFunction<T>                                 & thickness,
-                                const gsFunction<T>                                 & E11,
-                                const gsFunction<T>                                 & E22,
-                                const gsFunction<T>                                 & G12,
-                                const gsFunction<T>                                 & nu12,
-                                const gsFunction<T>                                 & nu21,
-                                const gsFunction<T>                                 & phi,
-                                const gsFunction<T>                                 & rho           );
-
-        gsMaterialMatrixComposite(
-                                const gsFunctionSet<T>                              & mp,
-                                const gsFunctionSet<T>                              & mp_def,
                                 const gsFunction<T>                                 & thickness,
                                 const gsFunction<T>                                 & E11,
                                 const gsFunction<T>                                 & E22,
@@ -98,13 +77,6 @@ public:
 
         gsMaterialMatrixComposite(
                                 const gsFunctionSet<T>                              & mp,
-                                const gsFunctionSet<T>                              & mp_def,
-                                const gsFunction<T>                                 & thickness,
-                                const std::vector<gsFunction<T>*>                   & pars          );
-
-        gsMaterialMatrixComposite(
-                                const gsFunctionSet<T>                              & mp,
-                                const gsFunctionSet<T>                              & mp_def,
                                 const gsFunction<T>                                 & thickness,
                                 const std::vector<gsFunction<T>*>                   & pars,
                                 const gsFunction<T>                                 & rho           );
@@ -242,7 +214,7 @@ protected:
 protected:
     // constructor
     const gsFunctionSet<T> * m_patches;
-    const gsFunctionSet<T> * m_defpatches;
+    // const gsFunctionSet<T> * m_defpatches;
     const gsFunction<T> * m_thickness;
     const gsFunction<T> * m_E11;
     const gsFunction<T> * m_E22;

@@ -39,6 +39,8 @@ template <  short_t dim,
 class gsMaterialMatrixLinear : public gsMaterialMatrixBase<T>
 {
 public:
+    using Base = gsMaterialMatrixBase<T>;
+
     /**
      * @brief      Constructor without deformed multipatch and density
      *
@@ -47,19 +49,6 @@ public:
      * @param[in]  pars       Vector with parameters (E, nu)
      */
     gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
-                        const gsFunction<T> & thickness,
-                        const std::vector<gsFunction<T> *> &pars);
-
-    /**
-     * @brief      Constructor without density
-     *
-     * @param[in]  mp         Original geometry
-     * @param[in]  mp_def     Deformed geometry
-     * @param[in]  thickness  Thickness function
-     * @param[in]  pars       Vector with parameters (E, nu)
-     */
-    gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
-                        const gsFunctionSet<T> & mp_def,
                         const gsFunction<T> & thickness,
                         const std::vector<gsFunction<T> *> &pars);
 
@@ -73,7 +62,6 @@ public:
      * @param[in]  Density    Density function
      */
     gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
-                        const gsFunctionSet<T> & mp_def,
                         const gsFunction<T> & thickness,
                         const std::vector<gsFunction<T> *> &pars,
                         const gsFunction<T> & Density);
@@ -253,7 +241,7 @@ protected:
 
     // constructor
     const gsFunctionSet<T> * m_patches;
-    const gsFunctionSet<T> * m_defpatches;
+    // const gsFunctionSet<T> * m_defpatches;
     const gsFunction<T> * m_thickness;
     std::vector<gsFunction<T>* > m_pars;
     const gsFunction<T> * m_density;

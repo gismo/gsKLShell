@@ -32,17 +32,17 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     // Initialize stystem
     // m_assembler.initSystem(false);
 
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> m_S0(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> m_S0(m_materialMat,m_defpatches);
     variable S0 = m_assembler.getCoeff(m_S0);
-    gsMaterialMatrixEval<T,MaterialOutput::VectorM> m_S1(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorM> m_S1(m_materialMat,m_defpatches);
     variable S1 = m_assembler.getCoeff(m_S1);
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> m_Sp0(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::PStressN> m_Sp0(m_materialMat,m_defpatches);
     variable Sp0 = m_assembler.getCoeff(m_Sp0);
-    gsMaterialMatrixEval<T,MaterialOutput::PStressM> m_Sp1(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::PStressM> m_Sp1(m_materialMat,m_defpatches);
     variable Sp1 = m_assembler.getCoeff(m_Sp1);
-    gsMaterialMatrixEval<T,MaterialOutput::Stretch> m_lambda(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::Stretch> m_lambda(m_materialMat,m_defpatches);
     variable lambda = m_assembler.getCoeff(m_lambda);
-    gsMaterialMatrixEval<T,MaterialOutput::StretchDir> m_lambdadir(m_materialMat);
+    gsMaterialMatrixEval<T,MaterialOutput::StretchDir> m_lambdadir(m_materialMat,m_defpatches);
     variable lambdadir = m_assembler.getCoeff(m_lambdadir);
 
     geometryMap m_ori   = m_assembler.exprData()->getMap();

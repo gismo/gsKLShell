@@ -30,7 +30,6 @@ namespace gismo
  * @brief      Gets a material matrix based on \a options
  *
  * @param[in]  mp          The undeformed geometry
- * @param[in]  mp_def      The deformed geometry
  * @param[in]  thickness   The thickness
  * @param[in]  parameters  The parameters
  * @param[in]  rho         The density
@@ -47,7 +46,6 @@ namespace gismo
 template<short_t d, class T>
 gsMaterialMatrixBase<T> * getMaterialMatrix(
                                 const gsMultiPatch<T>               & mp,
-                                const gsMultiPatch<T>               & mp_def,
                                 const gsFunction<T>                 & thickness,
                                 const std::vector<gsFunction<T> *>  & parameters,
                                 const gsFunction<T>                 & rho,
@@ -64,9 +62,9 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
     if      (mat==Material::SvK)
     {
         if (impl==Implementation::Composite)
-                return new gsMaterialMatrixComposite<d,T>(mp,mp_def,thickness,parameters,rho);
+                return new gsMaterialMatrixComposite<d,T>(mp,thickness,parameters,rho);
         else
-                return new gsMaterialMatrixLinear<d,T>(mp,mp_def,thickness,parameters,rho);
+                return new gsMaterialMatrixLinear<d,T>(mp,thickness,parameters,rho);
     }
     else
     {
@@ -76,33 +74,33 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         else if ((mat==Material::NH) && (impl==Implementation::Analytical) && (!compressibility))
         {
             constexpr int id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
-            return new gsMaterialMatrix<d,real_t,id,false>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,false>(mp,thickness,parameters,rho);
         }
         else if ((mat==Material::NH) && (impl==Implementation::Generalized) && (!compressibility))
         {
             constexpr int id = encodeMat_id<Material::NH, Implementation::Generalized>::id;
-            return new gsMaterialMatrix<d,real_t,id,false>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,false>(mp,thickness,parameters,rho);
         }
         else if ((mat==Material::NH) && (impl==Implementation::Spectral) && (!compressibility))
         {
             constexpr int id = encodeMat_id<Material::NH, Implementation::Spectral>::id;
-            return new gsMaterialMatrix<d,real_t,id,false>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,false>(mp,thickness,parameters,rho);
         }
         //--------------------------------------NH Compressible--------------------------------------------------
         else if ((mat==Material::NH) && (impl==Implementation::Analytical) && (compressibility))
         {
             constexpr int id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
-            return new gsMaterialMatrix<d,real_t,id,true>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters,rho);
         }
         else if ((mat==Material::NH) && (impl==Implementation::Generalized) && (compressibility))
         {
             constexpr int id = encodeMat_id<Material::NH, Implementation::Generalized>::id;
-            return new gsMaterialMatrix<d,real_t,id,true>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters,rho);
         }
         else if ((mat==Material::NH) && (impl==Implementation::Spectral) && (compressibility))
         {
             constexpr int id = encodeMat_id<Material::NH, Implementation::Spectral>::id;
-            return new gsMaterialMatrix<d,real_t,id,true>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters,rho);
         }
         //
         //--------------------------------------NH_ext Incompressible--------------------------------------------------
@@ -114,50 +112,50 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         else if ((mat==Material::NH_ext) && (impl==Implementation::Analytical) && (compressibility))
         {
             constexpr int id = encodeMat_id<Material::NH_ext, Implementation::Analytical>::id;
-            return new gsMaterialMatrix<d,real_t,id,true>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters,rho);
         }
         else if ((mat==Material::NH_ext) && (impl==Implementation::Generalized) && (compressibility))
         {
             constexpr int id = encodeMat_id<Material::NH_ext, Implementation::Generalized>::id;
-            return new gsMaterialMatrix<d,real_t,id,true>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters,rho);
         }
         else if ((mat==Material::NH_ext) && (impl==Implementation::Spectral) && (compressibility))
         {
             constexpr int id = encodeMat_id<Material::NH_ext, Implementation::Spectral>::id;
-            return new gsMaterialMatrix<d,real_t,id,true>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters,rho);
         }
         //
         //--------------------------------------MR Incompressible--------------------------------------------------
         else if ((mat==Material::MR) && (impl==Implementation::Analytical) && (!compressibility))
         {
             constexpr int id = encodeMat_id<Material::MR, Implementation::Analytical>::id;
-            return new gsMaterialMatrix<d,real_t,id,false>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,false>(mp,thickness,parameters,rho);
         }
         else if ((mat==Material::MR) && (impl==Implementation::Generalized) && (!compressibility))
         {
             constexpr int id = encodeMat_id<Material::MR, Implementation::Generalized>::id;
-            return new gsMaterialMatrix<d,real_t,id,false>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,false>(mp,thickness,parameters,rho);
         }
         else if ((mat==Material::MR) && (impl==Implementation::Spectral) && (!compressibility))
         {
             constexpr int id = encodeMat_id<Material::MR, Implementation::Spectral>::id;
-            return new gsMaterialMatrix<d,real_t,id,false>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,false>(mp,thickness,parameters,rho);
         }
         //---------------------------------------MR Compressible-------------------------------------------------
         else if      ((mat==Material::MR) && (impl==Implementation::Analytical) && (compressibility))
         {
             constexpr int id = encodeMat_id<Material::MR, Implementation::Analytical>::id;
-            return new gsMaterialMatrix<d,real_t,id,true>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters,rho);
         }
         else if ((mat==Material::MR) && (impl==Implementation::Generalized) && (compressibility))
         {
             constexpr int id = encodeMat_id<Material::MR, Implementation::Generalized>::id;
-            return new gsMaterialMatrix<d,real_t,id,true>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters,rho);
         }
         else if ((mat==Material::MR) && (impl==Implementation::Spectral) && (compressibility))
         {
             constexpr int id = encodeMat_id<Material::MR, Implementation::Spectral>::id;
-            return new gsMaterialMatrix<d,real_t,id,true>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters,rho);
         }
         //
         //--------------------------------------OG Incompressible--------------------------------------------------
@@ -172,7 +170,7 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         else if ((mat==Material::OG) && (impl==Implementation::Spectral) && (!compressibility))
         {
             constexpr int id = encodeMat_id<Material::OG, Implementation::Spectral>::id;
-            return new gsMaterialMatrix<d,real_t,id,false>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,false>(mp,thickness,parameters,rho);
         }
         //---------------------------------------OG Compressible-------------------------------------------------
         else if      ((mat==Material::OG) && (impl==Implementation::Analytical) && (compressibility))
@@ -186,7 +184,7 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         else if ((mat==Material::OG) && (impl==Implementation::Spectral) && (compressibility))
         {
             constexpr int id = encodeMat_id<Material::OG, Implementation::Spectral>::id;
-            return new gsMaterialMatrix<d,real_t,id,true>(mp,mp_def,thickness,parameters,rho);
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters,rho);
         }
         else
             return NULL;
