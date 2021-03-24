@@ -419,6 +419,12 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     variable m_m2 = m_assembler.getCoeff(mult2t);
 
     space       m_space = m_assembler.trialSpace(0);
+
+    /*
+        NOTE: after update of the exprParser, we can use
+        geometryMap m_ori   = m_assembler.getMap(m_patches);
+        geometryMap m_def   = m_assembler.getMap(m_defpatches);
+     */
     geometryMap m_ori   = m_assembler.exprData()->getMap();
     geometryMap m_def   = m_assembler.exprData()->getMap2();
     variable m_force = m_assembler.getCoeff(*m_forceFun, m_ori);

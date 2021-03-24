@@ -79,7 +79,7 @@ public:
     gsOptionList & options() {return m_options;}
 
     /// See \ref gsMaterialMatrixBase for details
-    void setOptions(gsOptionList opt) { m_options = opt; } // gsOptionList opt
+    void setOptions(gsOptionList opt) {m_options.update(opt,gsOptionList::addIfUnknown); }
 
     /// See \ref gsMaterialMatrixBase for details
     void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
