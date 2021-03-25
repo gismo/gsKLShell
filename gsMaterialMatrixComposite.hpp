@@ -273,14 +273,15 @@ void gsMaterialMatrixComposite<dim,T>::_computePoints(const index_t patch, const
         this->_computeMetricDeformed();
     }
 
-    // REDEFINE CHECKS!!!
-    GISMO_ASSERT(m_E11->size()==m_E22->size(),"Size of vectors of Youngs Moduli not equal: " << m_E11->size()<<" & "<<m_E22->size());
-    GISMO_ASSERT(m_nu12->size()==m_nu21->size(),"Size of vectors of Poisson Ratios is not equal: " << m_nu12->size()<<" & "<<m_nu21->size());
-    GISMO_ASSERT(m_E11->size()==m_nu12->size(),"Size of vectors of Youngs Moduli and Poisson Ratios is not equal: " << m_E11->size()<<" & "<<m_nu12->size());
-    GISMO_ASSERT(m_E11->size()==m_G12->size(),"Size of vectors of Youngs Moduli and Shear Moduli is not equal: " << m_E11->size()<<" & "<<m_G12->size());
-    GISMO_ASSERT(m_thickness->size()==m_phi->size(),"Size of vectors of thickness and angles is not equal: " << m_thickness->size()<<" & "<<m_phi->size());
-    GISMO_ASSERT(m_E11->size()==m_thickness->size(),"Size of vectors of material properties and laminate properties is not equal: " << m_E11->size()<<" & "<<m_thickness->size());
-    GISMO_ASSERT(m_E11->size()!=0,"No laminates defined");
+    GISMO_ASSERT(m_E11->targetDim()==m_E22->targetDim(),"Size of vectors of Youngs Moduli not equal: " << m_E11->targetDim()<<" & "<<m_E22->targetDim());
+    GISMO_ASSERT(m_nu12->targetDim()==m_nu21->targetDim(),"Size of vectors of Poisson Ratios is not equal: " << m_nu12->targetDim()<<" & "<<m_nu21->targetDim());
+    GISMO_ASSERT(m_E11->targetDim()==m_nu12->targetDim(),"Size of vectors of Youngs Moduli and Poisson Ratios is not equal: " << m_E11->targetDim()<<" & "<<m_nu12->targetDim());
+    GISMO_ASSERT(m_E11->targetDim()==m_G12->targetDim(),"Size of vectors of Youngs Moduli and Shear Moduli is not equal: " << m_E11->targetDim()<<" & "<<m_G12->targetDim());
+    GISMO_ASSERT(m_thickness->targetDim()==m_phi->targetDim(),"Size of vectors of thickness and angles is not equal: " << m_thickness->targetDim()<<" & "<<m_phi->targetDim());
+    GISMO_ASSERT(m_E11->targetDim()==m_thickness->targetDim(),"Size of vectors of material properties and laminate properties is not equal: " << m_E11->targetDim()<<" & "<<m_thickness->targetDim());
+    GISMO_ASSERT(m_E11->targetDim()!=0,"No laminates defined");
+
+
     // Compute properties per ply
     m_Tmat.resize(m_nLayers,u.cols());
     m_E1mat.resize(m_nLayers,u.cols());
@@ -291,19 +292,19 @@ void gsMaterialMatrixComposite<dim,T>::_computePoints(const index_t patch, const
     m_phiMat.resize(m_nLayers,u.cols());
     m_rhoMat.resize(m_nLayers,u.cols());
 
-    m_E11 ->eval_into(m_map.values[0], m_E1mat);
-    m_E22 ->eval_into(m_map.values[0], m_E2mat);
-    m_G12 ->eval_into(m_map.values[0], m_G12mat);
-    m_nu12->eval_into(m_map.values[0], m_nu12mat);
-    m_nu21->eval_into(m_map.values[0], m_nu21mat);
-    m_thickness->eval_into(m_map.values[0], m_Tmat);
-    m_phi->eval_into(m_map.values[0], m_phiMat);
+    m_E1mat = m_E11 ->eval(m_map.values[0]);
+    m_E2mat = m_E22 ->eval(m_map.values[0]);
+    m_G12mat = m_G12 ->eval(m_map.values[0]);
+    m_nu12mat = m_nu12->eval(m_map.values[0]);
+    m_nu21mat = m_nu21->eval(m_map.values[0]);
+    m_Tmat = m_thickness->eval(m_map.values[0]);
+    m_phiMat = m_phi->eval(m_map.values[0]);
 }
 
 template <short_t dim, class T >
 void gsMaterialMatrixComposite<dim,T>::density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    GISMO_ASSERT(m_thickness->size()==m_rho->size(),"Size of vectors of thickness and densities is not equal: " << m_thickness->size()<<" & "<<m_rho->size());
+    GISMO_ASSERT(m_thickness->targetDim()==m_rho->targetDim(),"Size of vectors of thickness and densities is not equal: " << m_thickness->targetDim()<<" & "<<m_rho->targetDim());
 
     m_map.flags = NEED_VALUE;
     m_map.points = u;

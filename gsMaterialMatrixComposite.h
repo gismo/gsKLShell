@@ -222,7 +222,7 @@ protected:
     const gsFunction<T> * m_nu12;
     const gsFunction<T> * m_nu21;
     const gsFunction<T> * m_phi;
-    std::vector<gsFunction<T>* > m_pars;
+    std::vector<gsFunction<T>* > m_pars; // TO DO: change to uPtr
     const gsFunction<T> * m_rho;
 
 
