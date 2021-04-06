@@ -1103,24 +1103,10 @@ void gsThinShellAssembler<d, T, bending>::assemble(const gsMatrix<T> & solVector
 template <short_t d, class T, bool bending>
 gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructSolution(const gsMatrix<T> & solVector) const
 {
-    m_solvector = solVector;
     gsMultiPatch<T> mp = m_patches;
-
-    // Solution vector and solution variable
-    space m_space = m_assembler.trialSpace(0);
-    const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart() = m_ddofs;
-
-    solution m_solution = m_assembler.getSolution(m_space, m_solvector);
-
-    GISMO_ASSERT(m_defpatches.nPatches()==mp.nPatches(),"The number of patches of the result multipatch is not equal to that of the geometry!");
-
-    gsMatrix<T> cc;
-    for ( size_t k =0; k!=mp.nPatches(); ++k) // Deform the geometry
-    {
-        // // extract deformed geometry
-        m_solution.extract(cc, k);
-        mp.patch(k).coefs() += cc;  // defG points to mp_def, therefore updated
-    }
+    gsMultiPatch<T> displacement = constructDisplacement(solVector);
+    for ( size_t k =0; k!=displacement.nPatches(); ++k) // Deform the geometry
+        mp.patch(k).coefs() += displacement.patch(k).coefs();;  // defG points to mp_def, therefore updated
 
     return mp;
 }
@@ -1150,15 +1136,32 @@ T gsThinShellAssembler<d, T, bending>::getArea(const gsMultiPatch<T> & geometry)
 
 
 template <short_t d, class T, bool bending>
-gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructDisplacement(const gsMatrix<T> & solVector) const
+gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructMultiPatch(const gsMatrix<T> & solVector) const
 {
-    gsMultiPatch<T> displacement = constructSolution(solVector);
-    for ( size_t k =0; k!=displacement.nPatches(); ++k) // Deform the geometry
+    m_solvector = solVector;
+    gsMultiPatch<T> result;
+
+    // Solution vector and solution variable
+    space m_space = m_assembler.trialSpace(0);
+    const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart() = m_ddofs;
+
+    solution m_solution = m_assembler.getSolution(m_space, m_solvector);
+
+    gsMatrix<T> cc;
+    for ( size_t k =0; k!=m_defpatches.nPatches(); ++k) // Deform the geometry
     {
-        displacement.patch(k).coefs() -= m_patches.patch(k).coefs();;  // defG points to mp_def, therefore updated
+        // extract deformed geometry
+        m_solution.extract(cc, k);
+        result.addPatch(m_basis.basis(k).makeGeometry( give(cc) ));  // defG points to mp_def, therefore updated
     }
 
-    return displacement;
+    return result;
+}
+
+template <short_t d, class T, bool bending>
+gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructDisplacement(const gsMatrix<T> & solVector) const
+{
+    return constructMultiPatch(solVector);
 }
 
 template <short_t d, class T, bool bending>

@@ -31,6 +31,8 @@ enum class GoalFunction : short_t
     Displacement        = 1,
     MembraneStrain      = 2,
     MembraneStress      = 3,
+    Modal               = 10,
+    Buckling            = 20,
 };
 
 template<class T> class gsThinShellAssemblerDWRBase;
@@ -52,79 +54,274 @@ public:
                                 gsMaterialMatrixBase<T> * materialmatrix
                             );
 
-    void assembleMatrixL();
-    void assembleMatrixH();
 
-    void assemblePrimalL();
-    void assemblePrimalH();
+    void assembleMassL()
+    { m_massL = _assembleMass(m_basisL); }
+    void assembleMassH()
+    { m_massH = _assembleMass(m_basisH); }
+    void assembleMatrixL()
+    { m_matrixL = _assembleMatrix(m_basisL); }
+    void assembleMatrixH()
+    { m_matrixH = _assembleMatrix(m_basisH); }
+    void assembleMatrixL(const gsMultiPatch<T> & deformed)
+    { m_matrixL = _assembleMatrix(m_basisL,deformed); }
+    void assembleMatrixH(const gsMultiPatch<T> & deformed)
+    { m_matrixH = _assembleMatrix(m_basisH,deformed); }
 
-    void assembleDualL() { return assembleDualL_impl<GF>(); }
-    void assembleDualH() { return assembleDualH_impl<GF>(); }
+    void assemblePrimalL()
+    { m_pL = _assemblePrimal(m_basisL); }
+    void assemblePrimalH()
+    { m_pH = _assemblePrimal(m_basisH); }
+    void assemblePrimalL(const gsMultiPatch<T> & deformed)
+    { m_pL = _assemblePrimal(m_basisL,deformed); }
+    void assemblePrimalH(const gsMultiPatch<T> & deformed)
+    { m_pH = _assemblePrimal(m_basisH,deformed); }
+
+
+    void assembleDualL(const gsMultiPatch<T> & primal)
+    { m_dL += _assembleDual(m_basisL,primal); }
+    void assembleDualH(const gsMultiPatch<T> & primal)
+    { m_dH += _assembleDual(m_basisH,primal); }
+
+    void assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal)
+    { m_dL += _assembleDual(points,m_basisL,primal); }
+    void assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal)
+    { m_dH += _assembleDual(points,m_basisH,primal); }
 
     const gsSparseMatrix<T> & matrixL() const { return m_matrixL; }
     const gsSparseMatrix<T> & matrixH() const { return m_matrixH; }
 
+    const gsSparseMatrix<T> & massL() const { return m_massL; }
+    const gsSparseMatrix<T> & massH() const { return m_massH; }
+
     const gsMatrix<T> primalL() const { return m_pL; }
     const gsMatrix<T> primalH() const { return m_pH; }
 
-    const gsMatrix<T> dualL();
-    const gsMatrix<T> dualH();
+    const gsMatrix<T> dualL() const { return m_dL; }
+    const gsMatrix<T> dualH() const { return m_dH; }
 
+    void constructMultiPatchL(const gsMatrix<T> & solVector, gsMultiPatch<T> & result);
+    void constructMultiPatchH(const gsMatrix<T> & solVector, gsMultiPatch<T> & result);
+
+    void constructSolutionL(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed);
+    void constructSolutionH(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed);
+    gsMultiPatch<T> constructSolutionL(const gsMatrix<T> & solVector);
+    gsMultiPatch<T> constructSolutionH(const gsMatrix<T> & solVector);
+    gsMultiPatch<T> constructDisplacementL(const gsMatrix<T> & solVector);
+    gsMultiPatch<T> constructDisplacementH(const gsMatrix<T> & solVector);
+
+    // Linear elasticity
+    T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH);
+
+    // Nonlinear elasticity
+    T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
+
+    // Eigenvalues
+    T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
+                      const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
+                      const gsMultiPatch<T> & deformed);
+    T computeGoalEig(const T evPrimalL, const T evDualL, const T evDualH,
+                      const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
+                      const gsMultiPatch<T> & deformed)
+    {GISMO_NO_IMPLEMENTATION;}
+
+    T computeGoal(const gsMultiPatch<T> & deformed)
+    { return computeGoal_impl<GF>(deformed); }
+
+    T computeGoal(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
+    { return computeGoal_impl<GF>(points, deformed); }
+
+protected:
+
+    void _setBasis(const gsMultiBasis<T> & basis);
+
+    gsSparseMatrix<T>   _assembleMass(const gsMultiBasis<T> & basis);
+
+    gsSparseMatrix<T>   _assembleMatrix(const gsMultiBasis<T> & basis);
+    gsSparseMatrix<T>   _assembleMatrix(const gsMultiBasis<T> & basis, const gsMultiPatch<T> & deformed);
+    gsVector<T>         _assemblePrimal(const gsMultiBasis<T> & basis);
+    gsVector<T>         _assemblePrimal(const gsMultiBasis<T> & basis, const gsMultiPatch<T> & deformed);
+
+    /**
+     * @brief      Assembles the dual as a domain integral
+     *
+     * @param[in]  basis     The basis
+     * @param[in]  deformed  The deformed geometry
+     *
+     * @return     RHS vector
+     */
+    gsVector<T>         _assembleDual(const gsMultiBasis<T> & basis, const gsMultiPatch<T> & deformed)
+    {
+       assembleDual_impl<GF>(basis,deformed);
+       return Base::m_assembler.rhs();
+    }
+
+    /**
+     * @brief      Assembles the dual as a domain integral
+     *
+     * @param[in]  basis     The basis
+     * @param[in]  deformed  The deformed geometry
+     *
+     * @return     RHS vector
+     */
+    gsVector<T>         _assembleDual(const gsMatrix<T> & points, const gsMultiBasis<T> & basis, const gsMultiPatch<T> & deformed)
+    {
+       return assembleDual_impl<GF>(points,basis,deformed);
+    }
+
+
+    void _assembleDual_expr(auto expr, const gsMultiPatch<T> & deformed, const gsMultiBasis<T> & basis);
 
 private:
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
     template<enum GoalFunction _GF>
     typename std::enable_if<_GF==GoalFunction::DisplacementNorm, void>::type
-    assembleDualL_impl();
+    assembleDual_impl(const gsMultiBasis<T> & basis, const gsMultiPatch<T> & primal);
 
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
     template<enum GoalFunction _GF>
     typename std::enable_if<_GF==GoalFunction::Displacement, void>::type
-    assembleDualL_impl();
+    assembleDual_impl(const gsMultiBasis<T> & basis, const gsMultiPatch<T> & primal);
 
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
     template<enum GoalFunction _GF>
     typename std::enable_if<_GF==GoalFunction::MembraneStrain, void>::type
-    assembleDualL_impl();
+    assembleDual_impl(const gsMultiBasis<T> & basis, const gsMultiPatch<T> & primal);
 
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
     template<enum GoalFunction _GF>
     typename std::enable_if<_GF==GoalFunction::MembraneStress, void>::type
-    assembleDualL_impl();
+    assembleDual_impl(const gsMultiBasis<T> & basis, const gsMultiPatch<T> & primal);
 
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
     template<enum GoalFunction _GF>
     typename std::enable_if<_GF!=GoalFunction::DisplacementNorm &&
                             _GF!=GoalFunction::Displacement &&
                             _GF!=GoalFunction::MembraneStrain &&
                             _GF!=GoalFunction::MembraneStress
                             , void>::type
-    assembleDualL_impl()
+    assembleDual_impl(const gsMultiBasis<T> & basis, const gsMultiPatch<T> & primal)
     {
         GISMO_NO_IMPLEMENTATION;
     }
 
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
     template<enum GoalFunction _GF>
-    typename std::enable_if<_GF==GoalFunction::DisplacementNorm, void>::type
-    assembleDualH_impl();
+    typename std::enable_if<_GF==GoalFunction::DisplacementNorm, gsVector<T>>::type
+    assembleDual_impl(const gsMatrix<T>& points, const gsMultiBasis<T> & basis, const gsMultiPatch<T> & primal);
 
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
     template<enum GoalFunction _GF>
-    typename std::enable_if<_GF==GoalFunction::Displacement, void>::type
-    assembleDualH_impl();
+    typename std::enable_if<_GF==GoalFunction::Displacement, gsVector<T>>::type
+    assembleDual_impl(const gsMatrix<T>& points, const gsMultiBasis<T> & basis, const gsMultiPatch<T> & primal);
 
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
     template<enum GoalFunction _GF>
-    typename std::enable_if<_GF==GoalFunction::MembraneStrain, void>::type
-    assembleDualH_impl();
+    typename std::enable_if<_GF==GoalFunction::MembraneStrain, gsVector<T>>::type
+    assembleDual_impl(const gsMatrix<T>& points, const gsMultiBasis<T> & basis, const gsMultiPatch<T> & primal);
 
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
     template<enum GoalFunction _GF>
-    typename std::enable_if<_GF==GoalFunction::MembraneStress, void>::type
-    assembleDualH_impl();
+    typename std::enable_if<_GF==GoalFunction::MembraneStress, gsVector<T>>::type
+    assembleDual_impl(const gsMatrix<T>& points, const gsMultiBasis<T> & basis, const gsMultiPatch<T> & primal);
 
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
     template<enum GoalFunction _GF>
     typename std::enable_if<_GF!=GoalFunction::DisplacementNorm &&
                             _GF!=GoalFunction::Displacement &&
                             _GF!=GoalFunction::MembraneStrain &&
                             _GF!=GoalFunction::MembraneStress
-                            , void>::type
-    assembleDualH_impl()
+                            , gsVector<T>>::type
+    assembleDual_impl(const gsMatrix<T>& points, const gsMultiBasis<T> & basis, const gsMultiPatch<T> & primal)
     {
         GISMO_NO_IMPLEMENTATION;
     }
+
+    template<int _d, bool _bending>
+    typename std::enable_if<(_d==3 && _bending), T>::type
+    computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
+
+
+    template<int _d, bool _bending>
+    typename std::enable_if<!(_d==3 && _bending), T>::type
+    computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
+
+    template<enum GoalFunction _GF>
+    typename std::enable_if<!(_GF==GoalFunction::Buckling || _GF==GoalFunction::Modal), T>::type
+    computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,const gsMultiPatch<T> & deformed);
+
+    template<enum GoalFunction _GF>
+    typename std::enable_if<(_GF==GoalFunction::Buckling), T>::type
+    computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,const gsMultiPatch<T> & deformed);
+
+    template<enum GoalFunction _GF>
+    typename std::enable_if<(_GF==GoalFunction::Modal), T>::type
+    computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,const gsMultiPatch<T> & deformed);
+
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
+    template<enum GoalFunction _GF>
+    typename std::enable_if<_GF==GoalFunction::DisplacementNorm, T>::type
+    computeGoal_impl(const gsMultiPatch<T> & deformed);
+
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
+    template<enum GoalFunction _GF>
+    typename std::enable_if<_GF==GoalFunction::Displacement, T>::type
+    computeGoal_impl(const gsMultiPatch<T> & deformed);
+
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
+    template<enum GoalFunction _GF>
+    typename std::enable_if<_GF==GoalFunction::MembraneStrain, T>::type
+    computeGoal_impl(const gsMultiPatch<T> & deformed);
+
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
+    template<enum GoalFunction _GF>
+    typename std::enable_if<_GF==GoalFunction::MembraneStress, T>::type
+    computeGoal_impl(const gsMultiPatch<T> & deformed);
+
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
+    template<enum GoalFunction _GF>
+    typename std::enable_if<_GF!=GoalFunction::DisplacementNorm &&
+                            _GF!=GoalFunction::Displacement &&
+                            _GF!=GoalFunction::MembraneStrain &&
+                            _GF!=GoalFunction::MembraneStress
+                            , T>::type
+    computeGoal_impl(const gsMultiPatch<T> & deformed)
+    {
+        GISMO_NO_IMPLEMENTATION;
+    }
+
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
+    template<enum GoalFunction _GF>
+    typename std::enable_if<_GF==GoalFunction::DisplacementNorm, T>::type
+    computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed);
+
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
+    template<enum GoalFunction _GF>
+    typename std::enable_if<_GF==GoalFunction::Displacement, T>::type
+    computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed);
+
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
+    template<enum GoalFunction _GF>
+    typename std::enable_if<_GF==GoalFunction::MembraneStrain, T>::type
+    computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed);
+
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
+    template<enum GoalFunction _GF>
+    typename std::enable_if<_GF==GoalFunction::MembraneStress, T>::type
+    computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed);
+
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
+    template<enum GoalFunction _GF>
+    typename std::enable_if<_GF!=GoalFunction::DisplacementNorm &&
+                            _GF!=GoalFunction::Displacement &&
+                            _GF!=GoalFunction::MembraneStrain &&
+                            _GF!=GoalFunction::MembraneStress
+                            , T>::type
+    computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
+    {
+        GISMO_NO_IMPLEMENTATION;
+    }
+
 
 protected:
     mutable gsThinShellAssemblerBase<T> * m_assemblerL;
@@ -135,8 +332,15 @@ protected:
     gsVector<T> m_pL, m_pH, m_dL, m_dH;
     gsSparseMatrix<T> m_matrixL;
     gsSparseMatrix<T> m_matrixH;
+    gsSparseMatrix<T> m_massL;
+    gsSparseMatrix<T> m_massH;
 
     gsMultiBasis<T> m_basisL, m_basisH;
+
+    typedef gsExprAssembler<>::geometryMap geometryMap;
+    typedef gsExprAssembler<>::variable    variable;
+    typedef gsExprAssembler<>::space       space;
+    typedef gsExprAssembler<>::solution    solution;
 
     // using Base::m_patches;
     // using Base::m_basis;
@@ -144,7 +348,7 @@ protected:
     // using Base::m_forceFun;
     // using Base::m_materialMat;
 
-    // using Base::m_assembler;
+    using Base::m_assembler;
 
 };
 
@@ -165,8 +369,11 @@ public:
     virtual void assembleMatrixL() = 0;
     virtual void assembleMatrixH() = 0;
 
-    virtual void assembleDualL() = 0;
-    virtual void assembleDualH() = 0;
+    virtual void assemblePrimalL() = 0;
+    virtual void assemblePrimalH() = 0;
+
+    virtual void assembleDualL(const gsMultiPatch<T> & deformed) = 0;
+    virtual void assembleDualH(const gsMultiPatch<T> & deformed) = 0;
 };
 
 } // namespace gismo

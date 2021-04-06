@@ -176,27 +176,32 @@ public:
 
     //--------------------- GEOMETRY ACCESS --------------------------------//
     /// See \ref gsThinShellAssemblerBase for details
-    const gsMultiPatch<T> & geometry()    const  {return m_patches;}
+    const gsMultiPatch<T> & geometry()      const  {return m_patches;}
 
     /// See \ref gsThinShellAssemblerBase for details
-    const gsMultiPatch<T> & defGeometry() const  {return m_defpatches;}
+    const gsMultiPatch<T> & defGeometry()   const  {return m_defpatches;}
 
     /// See \ref gsThinShellAssemblerBase for details
     T getArea(const gsMultiPatch<T> & geometry);
 
+    //--------------------- MATERIAL ACCESS --------------------------------//
+    gsMaterialMatrixBase<T> * material()    const  {return m_materialMat;}
+
     //--------------------- SYSTEM ACCESS ----------------------------------//
-    const gsSparseMatrix<T> & matrix()  const   {return m_assembler.matrix();}
+    const gsSparseMatrix<T> & matrix()      const   {return m_assembler.matrix();}
     // gsSparseMatrix<T> & matrix() {return const_cast <gsSparseMatrix<T> &>(m_assembler.matrix());}
 
-    const gsMatrix<T>       & rhs()     const {return m_rhs.size()==0 ? m_assembler.rhs() : m_rhs;}
+    const gsMatrix<T>       & rhs()         const {return m_rhs.size()==0 ? m_assembler.rhs() : m_rhs;}
     // const gsMatrix<T>       & rhs()     const {return m_assembler.rhs();}
 
     //--------------------- SOLUTION CONSTRUCTION ----------------------------------//
-    /// See \ref gsThinShellAssemblerBase for details
-    virtual gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const;
+    gsMultiPatch<T> constructMultiPatch(const gsMatrix<T> & solVector) const;
 
     /// See \ref gsThinShellAssemblerBase for details
-    virtual void constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const;
+    gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const;
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const;
 
     /// See \ref gsThinShellAssemblerBase for details
     gsMultiPatch<T> constructDisplacement(const gsMatrix<T> & solVector) const;
@@ -435,6 +440,9 @@ public:
     /// Returns the deformed geometry
     virtual const gsMultiPatch<T> & defGeometry() const = 0;
 
+    /// Returns the material matrix used in the class
+    virtual gsMaterialMatrixBase<T> * material()          const = 0;
+
     /// Returns the area of \a geometry
     virtual T getArea(const gsMultiPatch<T> & geometry) = 0;
 
@@ -443,6 +451,9 @@ public:
 
     /// Returns a reference to the right-hand side vector that is assembled
     virtual const gsMatrix<T>       & rhs()     const  = 0;
+
+    /// Construct solution field from computed solution vector \a solVector and returns a multipatch
+    virtual gsMultiPatch<T> constructMultiPatch(const gsMatrix<T> & solVector) const = 0;
 
     /// Construct deformed shell geometry from computed solution vector \a solVector and returns a multipatch
     virtual gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const  = 0;
@@ -471,12 +482,6 @@ public:
 
     /// Projects function \a fun on the basis and geometry stored in the class and returns the coefficients as a matrix
     virtual gsMatrix<T> projectL2(const gsFunction<T> &fun) = 0;
-};
-
-template <short_t d, class T, bool bending>
-class gsThinShellAssemblerDWR : public gsThinShellAssembler<d,T,bending>
-{
-
 };
 
 
