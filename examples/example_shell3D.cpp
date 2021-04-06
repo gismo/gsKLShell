@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
         parameters[5] = &phifun;
         options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
         options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",0);
-        materialMatrix = getMaterialMatrix<3,real_t>(mp,t,parameters,rho,options);
+        materialMatrix = getMaterialMatrix<3,real_t>(mp,thickfun,parameters,rho,options);
     }
     else
     {
@@ -370,10 +370,7 @@ int main(int argc, char *argv[])
     totaltime += stopwatch2.stop();
 
     mp_def = assembler->constructSolution(solVector);
-
-    gsMultiPatch<> deformation = mp_def;
-    for (size_t k = 0; k != mp_def.nPatches(); ++k)
-        deformation.patch(k).coefs() -= mp.patch(k).coefs();
+    gsMultiPatch<> deformation = assembler->constructDisplacement(solVector);
 
     // ! [Export visualization in ParaView]
 
