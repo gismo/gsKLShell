@@ -73,6 +73,18 @@ public:
                         const std::vector<gsFunction<T> *> &pars,
                         const gsFunction<T> & Density);
 
+    /**
+     * @brief      Full constructor
+     *
+     * @param[in]  mp         Original geometry
+     * @param[in]  thickness  Thickness function
+     * @param[in]  pars       Vector with parameters (E, nu)
+     * @param[in]  Density    Density function
+     */
+    gsMaterialMatrix(   const gsFunctionSet<T> & mp,
+                        const gsFunction<T> & thickness,
+                        const std::vector<gsFunction<T> *> &pars);
+
     /// Destructor
     gsMaterialMatrix() { }
 

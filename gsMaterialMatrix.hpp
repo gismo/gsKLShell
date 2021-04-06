@@ -61,6 +61,21 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
+                                    const gsFunctionSet<T> & mp,
+                                    const gsFunction<T> & thickness,
+                                    const std::vector<gsFunction<T>*> &pars
+                                    )
+                                    :
+                                    m_patches(&mp),
+                                    m_thickness(&thickness),
+                                    m_pars(pars),
+                                    m_density(nullptr)
+{
+    _initialize();
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::info() const
 {
     gsInfo  <<"---------------------------------------------------------------------\n"

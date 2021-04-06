@@ -189,7 +189,169 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         else
             return NULL;
     }
+}
 
+/**
+ * @brief      Gets a material matrix based on \a options
+ *
+ * @param[in]  mp          The undeformed geometry
+ * @param[in]  thickness   The thickness
+ * @param[in]  parameters  The parameters
+ * @param[in]  options     The option list
+ *
+ * @tparam     d           The dimension of the problem (2 = planar, 3 = surface)
+ * @tparam     T           Real type
+ *
+ * @return     The material matrix.
+ *
+ * @ingroup    MaterialMatrix
+ *
+ */
+template<short_t d, class T>
+gsMaterialMatrixBase<T> * getMaterialMatrix(
+                                const gsMultiPatch<T>               & mp,
+                                const gsFunction<T>                 & thickness,
+                                const std::vector<gsFunction<T> *>  & parameters,
+                                const gsOptionList                  & options
+                                )
+{
+    index_t material        = options.askInt("Material",0); // SvK by default
+    bool compressibility    = options.askSwitch("Compressibility",false);
+    index_t implementation  = options.askInt("Implementation",1);
+
+    enum Material       mat     = static_cast<enum Material>(material);
+    enum Implementation impl    = static_cast<enum Implementation>(implementation);
+
+    if      (mat==Material::SvK)
+    {
+        if (impl==Implementation::Composite)
+                return new gsMaterialMatrixComposite<d,T>(mp,thickness,parameters);
+        else
+                return new gsMaterialMatrixLinear<d,T>(mp,thickness,parameters);
+    }
+    else
+    {
+        if (impl==Implementation::Composite)
+            GISMO_ERROR("Hyperelastic composites not available");
+        //--------------------------------------NH Incompressible--------------------------------------------------
+        else if ((mat==Material::NH) && (impl==Implementation::Analytical) && (!compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
+            return new gsMaterialMatrix<d,real_t,id,false>(mp,thickness,parameters);
+        }
+        else if ((mat==Material::NH) && (impl==Implementation::Generalized) && (!compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::NH, Implementation::Generalized>::id;
+            return new gsMaterialMatrix<d,real_t,id,false>(mp,thickness,parameters);
+        }
+        else if ((mat==Material::NH) && (impl==Implementation::Spectral) && (!compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::NH, Implementation::Spectral>::id;
+            return new gsMaterialMatrix<d,real_t,id,false>(mp,thickness,parameters);
+        }
+        //--------------------------------------NH Compressible--------------------------------------------------
+        else if ((mat==Material::NH) && (impl==Implementation::Analytical) && (compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters);
+        }
+        else if ((mat==Material::NH) && (impl==Implementation::Generalized) && (compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::NH, Implementation::Generalized>::id;
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters);
+        }
+        else if ((mat==Material::NH) && (impl==Implementation::Spectral) && (compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::NH, Implementation::Spectral>::id;
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters);
+        }
+        //
+        //--------------------------------------NH_ext Incompressible--------------------------------------------------
+        else if ((mat==Material::NH_ext) && (!compressibility))
+        {
+            GISMO_ERROR("Incompressible Extended NH with not available");
+        }
+        //---------------------------------------NH_ext Compressible-------------------------------------------------
+        else if ((mat==Material::NH_ext) && (impl==Implementation::Analytical) && (compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::NH_ext, Implementation::Analytical>::id;
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters);
+        }
+        else if ((mat==Material::NH_ext) && (impl==Implementation::Generalized) && (compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::NH_ext, Implementation::Generalized>::id;
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters);
+        }
+        else if ((mat==Material::NH_ext) && (impl==Implementation::Spectral) && (compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::NH_ext, Implementation::Spectral>::id;
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters);
+        }
+        //
+        //--------------------------------------MR Incompressible--------------------------------------------------
+        else if ((mat==Material::MR) && (impl==Implementation::Analytical) && (!compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::MR, Implementation::Analytical>::id;
+            return new gsMaterialMatrix<d,real_t,id,false>(mp,thickness,parameters);
+        }
+        else if ((mat==Material::MR) && (impl==Implementation::Generalized) && (!compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::MR, Implementation::Generalized>::id;
+            return new gsMaterialMatrix<d,real_t,id,false>(mp,thickness,parameters);
+        }
+        else if ((mat==Material::MR) && (impl==Implementation::Spectral) && (!compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::MR, Implementation::Spectral>::id;
+            return new gsMaterialMatrix<d,real_t,id,false>(mp,thickness,parameters);
+        }
+        //---------------------------------------MR Compressible-------------------------------------------------
+        else if      ((mat==Material::MR) && (impl==Implementation::Analytical) && (compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::MR, Implementation::Analytical>::id;
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters);
+        }
+        else if ((mat==Material::MR) && (impl==Implementation::Generalized) && (compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::MR, Implementation::Generalized>::id;
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters);
+        }
+        else if ((mat==Material::MR) && (impl==Implementation::Spectral) && (compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::MR, Implementation::Spectral>::id;
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters);
+        }
+        //
+        //--------------------------------------OG Incompressible--------------------------------------------------
+        else if ((mat==Material::OG) && (impl==Implementation::Analytical) && (!compressibility))
+        {
+            GISMO_ERROR("Incompressible Ogden with analytical implementation not available");
+        }
+        else if ((mat==Material::OG) && (impl==Implementation::Generalized) && (!compressibility))
+        {
+            GISMO_ERROR("Incompressible Ogden with generalized implementation not available");
+        }
+        else if ((mat==Material::OG) && (impl==Implementation::Spectral) && (!compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::OG, Implementation::Spectral>::id;
+            return new gsMaterialMatrix<d,real_t,id,false>(mp,thickness,parameters);
+        }
+        //---------------------------------------OG Compressible-------------------------------------------------
+        else if      ((mat==Material::OG) && (impl==Implementation::Analytical) && (compressibility))
+        {
+            GISMO_ERROR("Compressible Ogden with analytical implementation not available");
+        }
+        else if ((mat==Material::OG) && (impl==Implementation::Generalized) && (compressibility))
+        {
+            GISMO_ERROR("Compressible Ogden with generalized implementation not available");
+        }
+        else if ((mat==Material::OG) && (impl==Implementation::Spectral) && (compressibility))
+        {
+            constexpr int id = encodeMat_id<Material::OG, Implementation::Spectral>::id;
+            return new gsMaterialMatrix<d,real_t,id,true>(mp,thickness,parameters);
+        }
+        else
+            return NULL;
+    }
 }
 
 
