@@ -284,10 +284,10 @@ void gsThinShellAssembler<d, T, bending>::_assembleDirichlet()
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::homogenizeDirichlet()
 {
-    // space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    // m_space.setup(m_bcs, dirichlet::homogeneous, 0);
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart().setZero();
+    m_space.setup(m_bcs, dirichlet::homogeneous, 0);
+    // space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    // const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart().setZero();
 }
 
 template <short_t d, class T, bool bending>
@@ -405,6 +405,7 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
 
     // Initialize stystem
     m_assembler.initSystem(false);
+    m_assembler.initVector(1,false);
 
     gsMaterialMatrixEval<T,MaterialOutput::MatrixA> m_mmA(m_materialMat,m_defpatches);
     gsMaterialMatrixEval<T,MaterialOutput::MatrixB> m_mmB(m_materialMat,m_defpatches);
@@ -1162,6 +1163,28 @@ template <short_t d, class T, bool bending>
 gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructDisplacement(const gsMatrix<T> & solVector) const
 {
     return constructMultiPatch(solVector);
+}
+
+template <short_t d, class T, bool bending>
+gsVector<T> gsThinShellAssembler<d, T, bending>::constructSolutionVector(const gsMultiPatch<T> & displacements) const
+{
+    gsVector<T> result(m_mapper.freeSize());
+
+    for (index_t p=0; p!=displacements.nPatches(); p++)
+    {
+        for (size_t dim = 0; dim!=d; dim++)
+        {
+            for (size_t k=0; k!=m_mapper.patchSize(p,dim); k++)
+            {
+                if (m_mapper.is_free(k,p,dim))
+                {
+                    result.at(m_mapper.index(k,p,dim)) = displacements.patch(p).coefs()(k,dim);
+                }
+            }
+        }
+
+    }
+    return result;
 }
 
 template <short_t d, class T, bool bending>
