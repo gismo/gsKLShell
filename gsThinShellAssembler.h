@@ -204,6 +204,9 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     void constructDisplacement(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const;
 
+    /// See \ref gsThinShellAssemblerBase for details
+    gsVector<T> constructSolutionVector(const gsMultiPatch<T> & deformed) const;
+
     //--------------------- SPECIALS ----------------------------------//
     /// See \ref gsThinShellAssemblerBase for details
     void constructStress(const gsMultiPatch<T> & deformed,
@@ -455,6 +458,9 @@ public:
 
     /// Construct displacement field from computed solution vector \a solVector and returns the result in \a deformed
     virtual void constructDisplacement(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const = 0;
+
+    /// Reconstruct the solution vector based on the currently stored boundary conditions (thus the mapper).
+    virtual gsVector<T> constructSolutionVector(const gsMultiPatch<T> & deformed) const = 0;
 
     /// Construct Cauchy stress tensor for visualization
     virtual void constructStress(const gsMultiPatch<T> & deformed,gsPiecewiseFunction<T> & result,stress_type::type type) = 0;
