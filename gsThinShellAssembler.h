@@ -111,7 +111,7 @@ private:
 
 public:
     /// See \ref gsThinShellAssemblerBase for details
-    void assembleMass();
+    void assembleMass(bool lumped = false);
 
     /// See \ref gsThinShellAssemblerBase for details
     void assembleFoundation();
@@ -365,8 +365,8 @@ public:
     /// Assembles the linear system and corresponding right-hand side
     virtual void assemble() = 0;
 
-    /// Assembles the mass matrix (including density and thickness!)
-    virtual void assembleMass() = 0;
+    /// Assembles the mass matrix (including density and thickness!); if lumped=true, a lumped mass matrix will be constructed,
+    virtual void assembleMass(bool lumped) = 0;
 
     /// Assembles the elastic foundation matrix
     virtual void assembleFoundation() = 0;

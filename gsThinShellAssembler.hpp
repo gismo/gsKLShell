@@ -334,10 +334,8 @@ void gsThinShellAssembler<d, T, bending>::_applyLoads()
 }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleMass()
+void gsThinShellAssembler<d, T, bending>::assembleMass(bool lumped)
 {
-    // this->_getOptions();
-
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
 
@@ -353,14 +351,15 @@ void gsThinShellAssembler<d, T, bending>::assembleMass()
     geometryMap m_ori   = m_assembler.exprData()->getMap();
 
     // assemble system
-    m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
+    if (lumped)
+        m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
+    else
+        m_assembler.assemble(mm0.val()*(m_space.rowSum())*meas(m_ori));
 }
 
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::assembleFoundation()
 {
-    // this->_getOptions();
-
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
 
@@ -1167,7 +1166,7 @@ gsVector<T> gsThinShellAssembler<d, T, bending>::constructSolutionVector(const g
 {
     gsVector<T> result(m_mapper.freeSize());
 
-    for (index_t p=0; p!=displacements.nPatches(); p++)
+    for (size_t p=0; p!=displacements.nPatches(); p++)
     {
         for (size_t dim = 0; dim!=d; dim++)
         {
