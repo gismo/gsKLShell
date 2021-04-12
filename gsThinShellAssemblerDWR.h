@@ -55,10 +55,10 @@ public:
                             );
 
 
-    void assembleMassL()
-    { m_massL = _assembleMass(m_basisL); }
-    void assembleMassH()
-    { m_massH = _assembleMass(m_basisH); }
+    void assembleMassL(bool lumped = false)
+    { m_massL = _assembleMass(m_basisL, lumped); }
+    void assembleMassH(bool lumped = false)
+    { m_massH = _assembleMass(m_basisH, lumped); }
     void assembleMatrixL()
     { m_matrixL = _assembleMatrix(m_basisL); }
     void assembleMatrixH()
@@ -135,7 +135,7 @@ protected:
 
     void _setBasis(const gsMultiBasis<T> & basis);
 
-    gsSparseMatrix<T>   _assembleMass(const gsMultiBasis<T> & basis);
+    gsSparseMatrix<T>   _assembleMass(const gsMultiBasis<T> & basis, bool lumped = false);
 
     gsSparseMatrix<T>   _assembleMatrix(const gsMultiBasis<T> & basis);
     gsSparseMatrix<T>   _assembleMatrix(const gsMultiBasis<T> & basis, const gsMultiPatch<T> & deformed);

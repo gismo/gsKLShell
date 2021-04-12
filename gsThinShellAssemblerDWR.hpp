@@ -51,10 +51,10 @@ void gsThinShellAssemblerDWR<d, T, bending, GF>::_setBasis(const gsMultiBasis<T>
 }
 
 template <short_t d, class T, bool bending, enum GoalFunction GF>
-gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending, GF>::_assembleMass(const gsMultiBasis<T> & basis)
+gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending, GF>::_assembleMass(const gsMultiBasis<T> & basis, bool lumped)
 {
     this->_setBasis(basis);
-    Base::assembleMass();
+    Base::assembleMass(lumped);
     return Base::matrix();
 }
 
