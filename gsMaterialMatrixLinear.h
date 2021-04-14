@@ -100,8 +100,7 @@ public:
     gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const
-    { GISMO_NO_IMPLEMENTATION; }
+    gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     /// See \ref gsMaterialMatrixBase for details
     void setParameters(const std::vector<gsFunction<T>*> &pars)
@@ -193,6 +192,12 @@ protected:
     /// Computes the stretch given deformation tensor C, into a pair
     std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C ) const;
 
+    /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
+    void _computePStress(const gsMatrix<T> & C ) const;
+
+    /// Computes the stretch given deformation tensor C, into a pair
+    std::pair<gsVector<T>,gsMatrix<T>> _evalPStress(const gsMatrix<T> & C ) const;
+
 private:
 
     /// Implementation of \ref _computeMetricDeformed for planar geometries
@@ -265,7 +270,9 @@ protected:
     mutable gsMatrix<T>                 m_parmat;
     mutable gsVector<T>                 m_parvals;
     mutable T                           m_J0, m_J0_sq, m_J, m_J_sq, m_Tval;
+    mutable gsMatrix<T> m_pstress, m_pstressvec;
     mutable gsMatrix<T> m_stretches, m_stretchvec;
+
 
     gsOptionList m_options;
 
