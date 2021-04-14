@@ -366,7 +366,7 @@ public:
     virtual void assemble() = 0;
 
     /// Assembles the mass matrix (including density and thickness!); if lumped=true, a lumped mass matrix will be constructed,
-    virtual void assembleMass(bool lumped) = 0;
+    virtual void assembleMass(bool lumped = false) = 0;
 
     /// Assembles the elastic foundation matrix
     virtual void assembleFoundation() = 0;

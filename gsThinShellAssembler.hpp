@@ -351,7 +351,7 @@ void gsThinShellAssembler<d, T, bending>::assembleMass(bool lumped)
     geometryMap m_ori   = m_assembler.exprData()->getMap();
 
     // assemble system
-    if (lumped)
+    if (!lumped)
         m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
     else
         m_assembler.assemble(mm0.val()*(m_space.rowSum())*meas(m_ori));

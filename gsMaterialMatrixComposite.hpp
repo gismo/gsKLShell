@@ -235,7 +235,7 @@ void gsMaterialMatrixComposite<dim,T>::info() const
 template <short_t dim, class T >
 void gsMaterialMatrixComposite<dim,T>::_initializeParameters()
 {
-    GISMO_ASSERT(m_pars.size()==6,"parameters should contain 6 functions!");
+    GISMO_ASSERT(m_pars.size()==6,"parameters should contain 6 functions, not "<<m_pars.size());
     m_E11   = m_pars[0];
     m_E22   = m_pars[1];
     m_G12   = m_pars[2];
