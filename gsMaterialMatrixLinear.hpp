@@ -277,6 +277,40 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, co
     return result;
 }
 
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+
+    this->_computePoints(patch,u);
+    gsMatrix<T> result(2, u.cols() * z.rows());
+    result.setZero();
+    gsMatrix<T,3,3> S;
+    std::pair<gsVector<T>,gsMatrix<T>> res;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        // Evaluate material properties on the quadrature point
+        for (index_t v=0; v!=m_parmat.rows(); v++)
+            m_parvals.at(v) = m_parmat(v,k);
+
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+                this->_getMetric(k,z(j,k)); // on point i, on height z(0,j)
+
+                S.setZero();
+                S(0,0) = _Sij(0,0,0,out);
+                S(0,1) = _Sij(0,1,0,out);
+                S(1,0) = _Sij(1,0,0,out);
+                S(1,1) = _Sij(1,1,0,out);
+
+                res = _evalPStress(S);
+                result.col(j*u.cols()+k) = res.first.head(2);
+        }
+    }
+
+    return result;
+
+}
+
 /*
     Available class members:
         - m_parvals
@@ -307,14 +341,14 @@ T gsMaterialMatrixLinear<dim,T>::_Sij(const index_t i, const index_t j, const T 
 {
     gsMatrix<T> strain;
     GISMO_ENSURE( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
-    if      (out == MaterialOutput::VectorN) // To be used with multiplyZ_into
+    if      (out == MaterialOutput::VectorN || out == MaterialOutput::PStressN) // To be used with multiplyZ_into
         strain = 0.5*(m_Acov_def - m_Acov_ori);
-    else if (out == MaterialOutput::VectorM) // To be used with multiplyZ_into
+    else if (out == MaterialOutput::VectorM || out == MaterialOutput::PStressM) // To be used with multiplyZ_into
         strain = (m_Bcov_ori - m_Bcov_def);
     else if (out == MaterialOutput::Generic) // To be used with multiplyLinZ_into or integrateZ_into
         strain = 0.5*(m_Acov_def - m_Acov_ori) + z*(m_Bcov_ori - m_Bcov_def);
     else
-        GISMO_ERROR("Output type is not VectorN, VectorM or Generic!");
+        GISMO_ERROR("Output type is not VectorN, PstressN, VectorM, PstressM or Generic!");
 
     T result =  _Cijkl(i,j,0,0) * strain(0,0) + _Cijkl(i,j,0,1) * strain(0,1)
                 + _Cijkl(i,j,1,0) * strain(1,0) + _Cijkl(i,j,1,1) * strain(1,1);
@@ -543,18 +577,35 @@ gsMaterialMatrixLinear<dim,T>::_getMetricDeformed_impl(index_t k, T z) const
     GISMO_ENSURE(m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Bcov_def_mat.cols()!=0,"Is the metric initialized?");
+    GISMO_ENSURE(m_acov_def_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_acon_def_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_ncov_def_mat.cols()!=0,"Is the basis initialized?");
 
     // metrics
     m_Acov_def = m_Acov_def_mat.reshapeCol(k,2,2);
     m_Acon_def = m_Acon_def_mat.reshapeCol(k,2,2);
     m_Bcov_def = m_Bcov_def_mat.reshapeCol(k,2,2);
     // basis vectors
+    m_acov_def = m_acov_def_mat.reshapeCol(k,3,2);
+    m_acon_def = m_acon_def_mat.reshapeCol(k,3,2);
     m_ncov_def = m_ncov_def_mat.reshapeCol(k,3,2);
     // Compute full metric
     m_Gcov_def.setZero();
     m_Gcov_def.block(0,0,2,2)= m_Acov_def - 2.0 * z * m_Bcov_def + z*z * m_ncov_def.transpose()*m_ncov_def;
     m_Gcov_def(2,2) = 1.0;
     m_Gcon_def = m_Gcov_def.inverse();
+
+    // Compute full basis
+    gsMatrix<T,3,1> normal = m_map_def.normal(k).normalized();
+    m_gcov_def.leftCols(2) = m_acov_def + z * m_ncov_def;
+    m_gcov_def.col(2) = normal;
+
+    for (index_t c = 0; c!=3; c++)
+    {
+        m_gcon_def.col(c) = m_Gcon_def(c,0) * m_gcov_def.col(0)
+                            + m_Gcon_def(c,1) * m_gcov_def.col(1)
+                            + m_Gcon_def(c,2) * m_gcov_def.col(2);
+    }
 }
 
 template <short_t dim, class T>
@@ -564,15 +615,33 @@ gsMaterialMatrixLinear<dim,T>::_getMetricDeformed_impl(index_t k, T z) const
 {
     GISMO_ENSURE(m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_def_mat.cols()!=0,"Is the metric initialized?");
+    GISMO_ENSURE(m_acov_def_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_acon_def_mat.cols()!=0,"Is the basis initialized?");
 
     // metrics
     m_Acov_def = m_Acov_def_mat.reshapeCol(k,2,2);
     m_Acon_def = m_Acon_def_mat.reshapeCol(k,2,2);
+    // basis vectors
+    m_acov_def = m_acov_def_mat.reshapeCol(k,2,2);
+    m_acon_def = m_acon_def_mat.reshapeCol(k,2,2);
     // Compute full metric
     m_Gcov_def.setZero();
     m_Gcov_def.block(0,0,2,2)= m_Acov_def;
     m_Gcov_def(2,2) = 1.0;
     m_Gcon_def = m_Gcov_def.inverse();
+    // Compute full basis
+    gsMatrix<T,3,1> normal;
+    normal << 0,0,1;
+    m_gcov_def.setZero();
+    m_gcov_def.block(0,0,2,2) = m_acov_def;
+    m_gcov_def.col(2) = normal;
+
+    for (index_t c = 0; c!=3; c++)
+    {
+        m_gcon_def.col(c) = m_Gcon_def(c,0) * m_gcov_def.col(0)
+                            + m_Gcon_def(c,1) * m_gcov_def.col(1)
+                            + m_Gcon_def(c,2) * m_gcov_def.col(2);
+    }
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------
@@ -591,6 +660,8 @@ gsMaterialMatrixLinear<dim,T>::_getMetricUndeformed_impl(index_t k, T z) const
     GISMO_ENSURE(m_Acov_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Bcov_ori_mat.cols()!=0,"Is the metric initialized?");
+    GISMO_ENSURE(m_acov_ori_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_acon_ori_mat.cols()!=0,"Is the basis initialized?");
     GISMO_ENSURE(m_ncov_ori_mat.cols()!=0,"Is the basis initialized?");
 
     // metrics
@@ -604,6 +675,16 @@ gsMaterialMatrixLinear<dim,T>::_getMetricUndeformed_impl(index_t k, T z) const
     m_Gcov_ori.block(0,0,2,2)= m_Acov_ori - 2.0 * z * m_Bcov_ori + z*z * m_ncov_ori.transpose()*m_ncov_ori;
     m_Gcov_ori(2,2) = 1.0;
     m_Gcon_ori = m_Gcov_ori.inverse();
+    // Compute full basis
+    gsMatrix<T,3,1> normal = m_map.normal(k).normalized();
+    m_gcov_ori.leftCols(2) = m_acov_ori + z * m_ncov_ori;
+    m_gcov_ori.col(2) = normal;
+    for (index_t c = 0; c!=3; c++)
+    {
+        m_gcon_ori.col(c) = m_Gcon_ori(c,0) * m_gcov_ori.col(0)
+                            + m_Gcon_ori(c,1) * m_gcov_ori.col(1)
+                            + m_Gcon_ori(c,2) * m_gcov_ori.col(2);
+    }
 }
 
 template <short_t dim, class T>
@@ -613,15 +694,32 @@ gsMaterialMatrixLinear<dim,T>::_getMetricUndeformed_impl(index_t k, T z) const
 {
     GISMO_ENSURE(m_Acov_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_Acon_ori_mat.cols()!=0,"Is the metric initialized?");
-
+    GISMO_ENSURE(m_acov_ori_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_acon_ori_mat.cols()!=0,"Is the basis initialized?");
     // metrics
     m_Acov_ori = m_Acov_ori_mat.reshapeCol(k,2,2);
     m_Acon_ori = m_Acon_ori_mat.reshapeCol(k,2,2);
+    // basis vectors
+    m_acov_ori = m_acov_ori_mat.reshapeCol(k,2,2);
+    m_acon_ori = m_acon_ori_mat.reshapeCol(k,2,2);
     // Compute full metric
     m_Gcov_ori.setZero();
     m_Gcov_ori.block(0,0,2,2)= m_Acov_ori;
     m_Gcov_ori(2,2) = 1.0;
     m_Gcon_ori = m_Gcov_ori.inverse();
+    // Compute full basis
+    gsMatrix<T,3,1> normal;
+    normal << 0,0,1;
+    m_gcov_ori.setZero();
+    m_gcov_ori.block(0,0,2,2) = m_acov_ori;
+    m_gcov_ori.col(2) = normal;
+
+    for (index_t c = 0; c!=3; c++)
+    {
+        m_gcon_ori.col(c) = m_Gcon_ori(c,0) * m_gcov_ori.col(0)
+                            + m_Gcon_ori(c,1) * m_gcov_ori.col(1)
+                            + m_Gcon_ori(c,2) * m_gcov_ori.col(2);
+    }
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------
@@ -677,5 +775,59 @@ void gsMaterialMatrixLinear<dim,T>::_computeStretch(const gsMatrix<T> & C) const
     m_stretchvec = result.second;
 }
 
+
+//--------------------------------------------------------------------------------------------------------------------------------------
+
+
+template <short_t dim, class T >
+std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalPStress(const gsMatrix<T> & S) const
+{
+    gsVector<T> pstresses;
+    gsMatrix<T> pstressvec;
+    std::pair<gsVector<T>,gsMatrix<T>> result;
+    pstresses.resize(3,1);    pstresses.setZero();
+    pstressvec.resize(3,3);   pstressvec.setZero();
+
+    Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
+
+    gsMatrix<T> B(3,3);
+    B.setZero();
+    for (index_t k = 0; k != 2; k++)
+        for (index_t l = 0; l != 2; l++)
+            B += S(k,l) * m_gcov_ori.col(k) * m_gcov_ori.col(l).transpose();
+
+    eigSolver.compute(B);
+
+    pstressvec.leftCols(2) = eigSolver.eigenvectors().rightCols(2);
+    pstressvec.col(2) = m_gcon_ori.col(2);
+    pstresses.block(0,0,2,1) = eigSolver.eigenvalues().block(1,0,2,1); // the eigenvalues are a 3x1 matrix, so we need to use matrix block-operations
+
+    // m_stretches.at(2) = 1/m_J0_sq;
+    pstresses.at(2) = S(2,2);
+
+    // for (index_t k=0; k!=3; k++)
+    //     pstresses.at(k) = math::sqrt(pstresses.at(k));
+
+    result.first = pstresses;
+    result.second = pstressvec;
+
+    // // DEBUGGING ONLY!
+    // gsMatrix<T> ones(3,1);
+    // ones.setOnes();
+    // gsDebugVar(pstressvec);
+    // gsDebugVar(result.first);
+
+    return result;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------------
+
+template <short_t dim, class T >
+void gsMaterialMatrixLinear<dim,T>::_computePStress(const gsMatrix<T> & C) const
+{
+    std::pair<gsVector<T>,gsMatrix<T>> result = _evalPStress(C);
+    m_pstress = result.first;
+    m_pstressvec = result.second;
+}
 
 } // end namespace
