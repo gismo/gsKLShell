@@ -32,7 +32,6 @@ namespace gismo
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
                                         const gsFunctionSet<T> & mp,
-                                        const gsFunctionSet<T> & mp_def,
                                         const gsFunction<T> & thickness,
                                         const std::vector<gsFunction<T>*> &pars
                                         )
@@ -56,21 +55,6 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
                                     m_thickness(&thickness),
                                     m_pars(pars),
                                     m_density(&density)
-{
-    _initialize();
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
-                                    const gsFunctionSet<T> & mp,
-                                    const gsFunction<T> & thickness,
-                                    const std::vector<gsFunction<T>*> &pars
-                                    )
-                                    :
-                                    Base(mp),
-                                    m_thickness(&thickness),
-                                    m_pars(pars),
-                                    m_density(nullptr)
 {
     _initialize();
 }

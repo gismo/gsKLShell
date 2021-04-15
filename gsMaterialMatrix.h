@@ -57,7 +57,6 @@ public:
      * @param[in]  pars       Vector with parameters (E, nu)
      */
     gsMaterialMatrix(   const gsFunctionSet<T> & mp,
-                        const gsFunctionSet<T> & mp_def,
                         const gsFunction<T> & thickness,
                         const std::vector<gsFunction<T> *> &pars);
 

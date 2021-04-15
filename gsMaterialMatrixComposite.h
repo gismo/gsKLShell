@@ -82,52 +82,6 @@ public:
                                 const std::vector<gsFunction<T>*>                   & pars,
                                 const gsFunction<T>                                 & rho           );
 
-        // // ---------------------------------------------------------------------------------------------
-
-        // gsMaterialMatrixComposite(
-        //                         const gsFunctionSet<T>                              & mp,
-        //                         const gsVector<T>                                   & E11,
-        //                         const gsVector<T>                                   & E22,
-        //                         const gsVector<T>                                   & G12,
-        //                         const gsVector<T>                                   & nu12,
-        //                         const gsVector<T>                                   & nu21,
-        //                         const gsVector<T>                                   & thickness,
-        //                         const gsVector<T>                                   & phi           );
-
-        // gsMaterialMatrixComposite(
-        //                         const gsFunctionSet<T>                              & mp,
-        //                         const gsFunctionSet<T>                              & mp_def,
-        //                         const gsVector<T>                                   & E11,
-        //                         const gsVector<T>                                   & E22,
-        //                         const gsVector<T>                                   & G12,
-        //                         const gsVector<T>                                   & nu12,
-        //                         const gsVector<T>                                   & nu21,
-        //                         const gsVector<T>                                   & thickness,
-        //                         const gsVector<T>                                   & phi           );
-
-        // gsMaterialMatrixComposite(
-        //                         const gsFunctionSet<T>                              & mp,
-        //                         const gsVector<T>                                   & E11,
-        //                         const gsVector<T>                                   & E22,
-        //                         const gsVector<T>                                   & G12,
-        //                         const gsVector<T>                                   & nu12,
-        //                         const gsVector<T>                                   & nu21,
-        //                         const gsVector<T>                                   & thickness,
-        //                         const gsVector<T>                                   & phi,
-        //                         const gsVector<T>                                   & rho           );
-
-        // gsMaterialMatrixComposite(
-        //                         const gsFunctionSet<T>                              & mp,
-        //                         const gsFunctionSet<T>                              & mp_def,
-        //                         const gsVector<T>                                   & E11,
-        //                         const gsVector<T>                                   & E22,
-        //                         const gsVector<T>                                   & G12,
-        //                         const gsVector<T>                                   & nu12,
-        //                         const gsVector<T>                                   & nu21,
-        //                         const gsVector<T>                                   & thickness,
-        //                         const gsVector<T>                                   & phi,
-        //                         const gsVector<T>                                   & rho           );
-
     enum MatIntegration isMatIntegrated() const {return MatIntegration::Integrated; }
     enum MatIntegration isVecIntegrated() const {return MatIntegration::Integrated; }
 
