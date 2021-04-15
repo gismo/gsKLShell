@@ -16,6 +16,7 @@
 #pragma once
 
 #include <gsKLShell/gsMaterialMatrixBase.h>
+#include <gsKLShell/gsMaterialMatrixBaseDim.h>
 #include <gsKLShell/gsMaterialMatrixUtils.h>
 #include <gsIO/gsOptionList.h>
 #include <gsCore/gsFuncData.h>
@@ -36,10 +37,10 @@ namespace gismo
 template <  short_t dim,
             class T
          >
-class gsMaterialMatrixLinear : public gsMaterialMatrixBase<T>
+class gsMaterialMatrixLinear : public gsMaterialMatrixBaseDim<dim,T>
 {
 public:
-    using Base = gsMaterialMatrixBase<T>;
+    using Base = gsMaterialMatrixBaseDim<dim,T>;
 
     /**
      * @brief      Constructor without deformed multipatch and density
@@ -171,107 +172,46 @@ protected:
      */
     void _computePoints(const index_t patch, const gsMatrix<T> & u) const;
 
-    /// Computes metric quantities on the deformed geometry
-    void _computeMetricDeformed() const;
-
-    /// Computes metric quantities on the undeformed geometry
-    void _computeMetricUndeformed() const;
-
-    /// Gets metric quantities on the deformed and undeformed geometries
-    void _getMetric(index_t k, T z) const;
-
-    /// Gets metric quantities on the deformed geometry
-    void _getMetricUndeformed(index_t k, T z) const;
-
-    /// Gets metric quantities on the undeformed geometry
-    void _getMetricDeformed(index_t k, T z) const;
-
-    /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
-    void _computeStretch(const gsMatrix<T> & C ) const;
-
-    /// Computes the stretch given deformation tensor C, into a pair
-    std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C ) const;
-
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     void _computePStress(const gsMatrix<T> & C ) const;
 
     /// Computes the stretch given deformation tensor C, into a pair
     std::pair<gsVector<T>,gsMatrix<T>> _evalPStress(const gsMatrix<T> & C ) const;
 
-private:
-
-    /// Implementation of \ref _computeMetricDeformed for planar geometries
-    template<short_t _dim>
-    typename std::enable_if<_dim==2, void>::type _computeMetricDeformed_impl() const;
-
-    /// Implementation of \ref _computeMetricDeformed for surface geometries
-    template<short_t _dim>
-    typename std::enable_if<_dim==3, void>::type _computeMetricDeformed_impl() const;
-
-    /// Implementation of \ref _computeMetricUndeformed for planar geometries
-    template<short_t _dim>
-    typename std::enable_if<_dim==2, void>::type _computeMetricUndeformed_impl() const;
-
-    /// Implementation of \ref _computeMetricUndeformed for surface geometries
-    template<short_t _dim>
-    typename std::enable_if<_dim==3, void>::type _computeMetricUndeformed_impl() const;
-
-    /// Implementation of \ref _getMetric for planar geometries
-    template<short_t _dim>
-    typename std::enable_if<_dim==2, void>::type _getMetric_impl(index_t k, T z) const;
-
-    /// Implementation of \ref _getMetric for surface geometries
-    template<short_t _dim>
-    typename std::enable_if<_dim==3, void>::type _getMetric_impl(index_t k, T z) const;
-
-    /// Implementation of \ref _getMetricDeformed for planar geometries
-    template<short_t _dim>
-    typename std::enable_if<_dim==2, void>::type _getMetricDeformed_impl(index_t k, T z) const;
-
-    /// Implementation of \ref _getMetricDeformed for surface geometries
-    template<short_t _dim>
-    typename std::enable_if<_dim==3, void>::type _getMetricDeformed_impl(index_t k, T z) const;
-
-    /// Implementation of \ref _getMetricUndeformed for planar geometries
-    template<short_t _dim>
-    typename std::enable_if<_dim==2, void>::type _getMetricUndeformed_impl(index_t k, T z) const;
-
-    /// Implementation of \ref _getMetricUndeformed for surface geometries
-    template<short_t _dim>
-    typename std::enable_if<_dim==3, void>::type _getMetricUndeformed_impl(index_t k, T z) const;
-
 protected:
     // general
     index_t m_numPars; // how many parameters for the material model?
 
     // constructor
-    const gsFunctionSet<T> * m_patches;
-    // const gsFunctionSet<T> * m_defpatches;
+    using Base::m_patches;
+    using Base::m_defpatches;
     const gsFunction<T> * m_thickness;
     std::vector<gsFunction<T>* > m_pars;
     const gsFunction<T> * m_density;
 
-    // Linear material matrix
-    mutable gsMapData<T> m_map, m_map_def;
-    mutable gsMatrix<T,2,2> m_Acov_ori, m_Acon_ori, m_Acov_def, m_Acon_def, m_Bcov_ori, m_Bcon_ori, m_Bcov_def, m_Bcon_def;
-    mutable gsMatrix<T,dim,2> m_acov_ori, m_acon_ori, m_acov_def, m_acon_def;
-    mutable gsMatrix<T,3,2> m_ncov_ori, m_ncov_def;
-    mutable gsMatrix<T> m_Acov_ori_mat, m_Acon_ori_mat, m_Acov_def_mat, m_Acon_def_mat, m_Bcov_ori_mat, m_Bcov_def_mat;
-    mutable gsMatrix<T> m_acov_ori_mat, m_acon_ori_mat, m_acov_def_mat, m_acon_def_mat, m_ncov_ori_mat, m_ncov_def_mat;
     mutable gsMatrix<T> m_Emat,m_Nmat,m_Tmat,m_rhomat;
     mutable real_t m_lambda, m_mu, m_Cconstant;
 
-    // Compressible material matrix
-    mutable gsMatrix<T>                 m_deriv2_def, m_deriv2_ori;
-    mutable gsMatrix<T,3,3>             m_Gcov_ori, m_Gcon_ori, m_Gcov_def, m_Gcon_def, m_Gcov_ori_L, m_Gcov_def_L;
-    mutable gsMatrix<T,3,3>             m_gcov_ori, m_gcov_def,m_gcon_ori, m_gcon_def;
-
-
     mutable gsMatrix<T>                 m_parmat;
     mutable gsVector<T>                 m_parvals;
-    mutable T                           m_J0, m_J0_sq, m_J, m_J_sq, m_Tval;
+
     mutable gsMatrix<T> m_pstress, m_pstressvec;
-    mutable gsMatrix<T> m_stretches, m_stretchvec;
+
+    // Geometric data point
+    using Base::m_map, Base::m_map_def;
+
+    using Base::m_Acov_ori, Base::m_Acon_ori, Base::m_Acov_def, Base::m_Acon_def, Base::m_Bcov_ori, Base::m_Bcon_ori, Base::m_Bcov_def, Base::m_Bcon_def;
+    using Base::m_acov_ori, Base::m_acon_ori, Base::m_acov_def, Base::m_acon_def;
+    using Base::m_ncov_ori, Base::m_ncov_def;
+    using Base::m_Gcov_ori, Base::m_Gcon_ori, Base::m_Gcov_def, Base::m_Gcon_def, Base::m_Gcov_ori_L, Base::m_Gcov_def_L;
+    using Base::m_gcov_ori, Base::m_gcov_def, Base::m_gcon_ori, Base::m_gcon_def;
+    using Base::m_Acov_ori_mat, Base::m_Acon_ori_mat, Base::m_Acov_def_mat, Base::m_Acon_def_mat, Base::m_Bcov_ori_mat, Base::m_Bcov_def_mat;
+    using Base::m_acov_ori_mat, Base::m_acon_ori_mat, Base::m_acov_def_mat, Base::m_acon_def_mat, Base::m_ncov_ori_mat, Base::m_ncov_def_mat;
+
+    using Base::m_stretches, Base::m_stretchvec;
+
+    using Base::m_J0_sq, Base::m_J_sq;
+
 
 
     gsOptionList m_options;

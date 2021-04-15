@@ -1187,6 +1187,28 @@ gsVector<T> gsThinShellAssembler<d, T, bending>::constructSolutionVector(const g
 }
 
 template <short_t d, class T, bool bending>
+gsVector<T> gsThinShellAssembler<d, T, bending>::constructSolutionVector(const gsMultiPatch<T> & displacements) const
+{
+    gsVector<T> result(m_mapper.freeSize());
+
+    for (size_t p=0; p!=displacements.nPatches(); p++)
+    {
+        for (size_t dim = 0; dim!=d; dim++)
+        {
+            for (size_t k=0; k!=m_mapper.patchSize(p,dim); k++)
+            {
+                if (m_mapper.is_free(k,p,dim))
+                {
+                    result.at(m_mapper.index(k,p,dim)) = displacements.patch(p).coefs()(k,dim);
+                }
+            }
+        }
+
+    }
+    return result;
+}
+
+template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::constructDisplacement(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
 {
     deformed = constructDisplacement(solVector);
