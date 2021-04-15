@@ -2,6 +2,7 @@
 
 #include <gsKLShell/gsMaterialMatrixBase.h>
 #include <gsKLShell/gsMaterialMatrixBaseDim.h>
+#include <gsKLShell/gsMaterialMatrixBaseDim.hpp>
 
 namespace gismo
 {

@@ -120,7 +120,8 @@ private:
 
 protected:
     const gsFunctionSet<T> * m_patches;
-    const gsFunctionSet<T> * m_defpatches;
+    using Base::m_defpatches;
+    // const gsFunctionSet<T> * m_defpatches;
 
     // Geometric data point
     mutable gsMapData<T> m_map, m_map_def;

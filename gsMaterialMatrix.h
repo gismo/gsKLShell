@@ -1012,11 +1012,11 @@ protected:
 
 
 private:
-    /// Implementation of \ref _computeMetricDeformed for planar geometries
+    /// Implementation of \ref _computePoints for planar geometries
     template<enum Material _mat>
     typename std::enable_if<_mat==Material::OG, void>::type _computePoints_impl(const gsMatrix<T> & u) const;
 
-    /// Implementation of \ref _computeMetricDeformed for surface geometries
+    /// Implementation of \ref _computePoints for surface geometries
     template<enum Material _mat>
     typename std::enable_if<_mat!=Material::OG, void>::type _computePoints_impl(const gsMatrix<T> & u) const;
 
@@ -1025,9 +1025,6 @@ protected:
     index_t m_numPars; // how many parameters for the material model?
 
     // constructor
-    // const gsFunctionSet<T> * m_patches;
-    // const gsFunctionSet<T> * m_defpatches;
-    //
     using Base::m_patches;
     using Base::m_defpatches;
     const gsFunction<T> * m_thickness;
