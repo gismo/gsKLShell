@@ -1,7 +1,5 @@
 #include <gsCore/gsTemplateTools.h>
 
-#include <gsKLShell/gsMaterialMatrixBase.h>
-
 #include <gsKLShell/gsMaterialMatrix.h>
 #include <gsKLShell/gsMaterialMatrix.hpp>
 
