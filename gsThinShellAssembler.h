@@ -161,6 +161,9 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     gsMatrix<T> boundaryForceVector(const gsMultiPatch<T>   & deformed , patchSide& ps, index_t com );
 
+    gsMatrix<T> boundaryForce(const gsMultiPatch<T>   & deformed , patchSide& ps);
+
+
 private:
     /// Implementation of the boundary force vector for surfaces (3D)
     template<int _d, bool _bending>
@@ -171,6 +174,16 @@ private:
     template<int _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
     boundaryForceVector_impl(const gsMultiPatch<T>   & deformed , patchSide& ps, index_t com );
+
+    /// Implementation of the boundary force vector for surfaces (3D)
+    template<int _d, bool _bending>
+    typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
+    boundaryForce_impl(const gsMultiPatch<T>   & deformed , patchSide& ps);
+
+    /// Implementation of the boundary force vector for planar geometries (2D)
+    template<int _d, bool _bending>
+    typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
+    boundaryForce_impl(const gsMultiPatch<T>   & deformed , patchSide& ps);
 
 public:
 
@@ -284,7 +297,7 @@ protected:
 
     gsMultiPatch<T> m_patches;
     gsMultiPatch<T> m_defpatches;
-    gsMultiBasis<T> m_basis;
+    mutable gsMultiBasis<T> m_basis;
     gsBoundaryConditions<T> m_bcs;
 
     mutable gsMatrix<T> m_ddofs;
@@ -436,6 +449,8 @@ public:
      * @return     The loads on the control points. The sum is the total load on the boundary
      */
     virtual gsMatrix<T> boundaryForceVector(const gsMultiPatch<T>   & deformed , patchSide& ps, int com ) = 0;
+
+    virtual gsMatrix<T> boundaryForce(const gsMultiPatch<T>   & deformed , patchSide& ps) = 0;
 
     /// Returns the undeformed geometry
     virtual const gsMultiPatch<T> & geometry()    const = 0;

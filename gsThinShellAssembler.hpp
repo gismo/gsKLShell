@@ -856,6 +856,140 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsMultiPatch<T> &
 }
 
 template <short_t d, class T, bool bending>
+gsMatrix<T> gsThinShellAssembler<d, T, bending>::boundaryForce(const gsMultiPatch<T> & deformed, patchSide& ps)
+{
+    return boundaryForce_impl<d, bending>(deformed,ps);
+}
+
+template<int d, typename T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
+gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsMultiPatch<T> & deformed, patchSide& ps)
+{
+    gsExprAssembler<T> assembler;
+    assembler.setIntegrationElements(m_basis);
+    space u = assembler.getSpace(m_basis, d, 0); // last argument is the space ID
+
+    assembler.initSystem();
+
+    m_defpatches = deformed;
+
+    assembler.getMap(m_patches);           // this map is used for integrals
+    assembler.getMap(m_defpatches);
+
+    // Initialize vector
+    // m_assembler.initVector(1,false);
+
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> m_S0(m_materialMat,m_defpatches);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorM> m_S1(m_materialMat,m_defpatches);
+    variable S0  = assembler.getCoeff(m_S0);
+    variable S1  = assembler.getCoeff(m_S1);
+
+    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
+    variable m_m2 = assembler.getCoeff(mult2t);
+
+    geometryMap m_ori   = assembler.exprData()->getMap();
+    geometryMap m_def   = assembler.exprData()->getMap2();
+    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
+
+    // this->homogenizeDirichlet();
+
+    auto m_N        = S0.tr();
+    auto m_Em_der   = flat( jac(m_def).tr() * jac(u) ) ;
+
+    auto m_M        = S1.tr(); // output is a column
+    auto m_Ef_der   = -( deriv2(u,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(u,m_def) ) ) * reshape(m_m2,3,3); //[checked]
+
+    // Assemble vector
+    assembler.assemble(
+                  - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+                );
+
+    gsMatrix<T> Fint = assembler.rhs();
+    gsVector<T> result(d);
+    const gsMultiBasis<T> & mbasis = *dynamic_cast<const gsMultiBasis<T>*>(&u.source());
+    gsMatrix<index_t> boundary;
+
+    gsBoundaryConditions<real_t>::bcContainer container;
+    m_bcs.getConditionFromSide(ps,container);
+
+    for ( index_t com = 0; com!=d; com++)
+    {
+        const gsBasis<T> & basis = mbasis[ps.patch];
+        boundary = basis.boundary(ps.side());
+
+        T offset = u.mapper().offset(ps.patch);
+        T size = u.mapper().size(com);
+        for (index_t l=0; l!= boundary.size(); ++l)
+        {
+            index_t ii = offset + size*com + boundary.at(l);
+            result.at(com) += Fint.at(ii);
+        }
+    }
+
+    return result;
+}
+
+template<int d, typename T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
+gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsMultiPatch<T> & deformed, patchSide& ps)
+{
+    gsExprAssembler<T> assembler;
+    assembler.setIntegrationElements(m_basis);
+    space u = assembler.getSpace(m_basis, d, 0); // last argument is the space ID
+
+    assembler.initSystem();
+
+    m_defpatches = deformed;
+
+    assembler.getMap(m_patches);           // this map is used for integrals
+    assembler.getMap(m_defpatches);
+
+    // Initialize vector
+    // m_assembler.initVector(1,false);
+
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> m_S0(m_materialMat,m_defpatches);
+    variable S0  = assembler.getCoeff(m_S0);
+
+    geometryMap m_ori   = assembler.exprData()->getMap();
+    geometryMap m_def   = assembler.exprData()->getMap2();
+    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
+
+    // this->homogenizeDirichlet();
+
+    auto m_N        = S0.tr();
+    auto m_Em_der   = flat( jac(m_def).tr() * jac(u) ) ;
+
+    // Assemble vector
+    assembler.assemble(
+                  - ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
+                );
+
+    gsMatrix<T> Fint = assembler.rhs();
+    gsVector<T> result(d);
+    const gsMultiBasis<T> & mbasis = *dynamic_cast<const gsMultiBasis<T>*>(&u.source());
+    gsMatrix<index_t> boundary;
+
+
+    for ( index_t com = 0; com!=d; com++)
+    {
+        const gsBasis<T> & basis = mbasis[ps.patch];
+        boundary = basis.boundary(ps.side());
+
+        T offset = u.mapper().offset(ps.patch);
+        T size = u.mapper().size(com);
+        for (index_t l=0; l!= boundary.size(); ++l)
+        {
+            index_t ii = offset + size*com + boundary.at(l);
+            result.at(com) += Fint.at(ii);
+        }
+    }
+
+    return result;
+}
+
+template <short_t d, class T, bool bending>
 gsMatrix<T> gsThinShellAssembler<d, T, bending>::boundaryForceVector(const gsMultiPatch<T> & deformed, patchSide& ps, index_t com)
 {
     return boundaryForceVector_impl<d, bending>(deformed,ps,com);
@@ -916,22 +1050,15 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsMultiPatch
     gsBoundaryConditions<real_t>::bcContainer container;
     m_bcs.getConditionFromSide(ps,container);
 
+    // If the boundary is not a dirichlet boundary, then there are forces applied????
     for ( typename bcList::const_iterator it =  container.begin();
           it != container.end() ; ++it )
     {
         if( it->unknown()!=u.id() ) continue;
-
         if( (it->unkComponent()!=com) && (it->unkComponent()!=-1) ) continue;
 
         const int k = it->patch();
         const gsBasis<T> & basis = mbasis[k];
-
-        // if (it->type()==condition_type::dirichlet)
-        //     gsDebug<<"Dirichlet\n";
-        // else if (it->type()==condition_type::neumann)
-        //     gsDebug<<"Neumann\n";
-        // else
-        //     GISMO_ERROR("Type unknown");
 
         // Get dofs on this boundary
         boundary = basis.boundary(it->side());
@@ -1162,28 +1289,6 @@ template <short_t d, class T, bool bending>
 gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructDisplacement(const gsMatrix<T> & solVector) const
 {
     return constructMultiPatch(solVector);
-}
-
-template <short_t d, class T, bool bending>
-gsVector<T> gsThinShellAssembler<d, T, bending>::constructSolutionVector(const gsMultiPatch<T> & displacements) const
-{
-    gsVector<T> result(m_mapper.freeSize());
-
-    for (size_t p=0; p!=displacements.nPatches(); p++)
-    {
-        for (size_t dim = 0; dim!=d; dim++)
-        {
-            for (size_t k=0; k!=m_mapper.patchSize(p,dim); k++)
-            {
-                if (m_mapper.is_free(k,p,dim))
-                {
-                    result.at(m_mapper.index(k,p,dim)) = displacements.patch(p).coefs()(k,dim);
-                }
-            }
-        }
-
-    }
-    return result;
 }
 
 template <short_t d, class T, bool bending>
