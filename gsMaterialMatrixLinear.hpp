@@ -96,14 +96,14 @@ void gsMaterialMatrixLinear<dim,T>::_initialize()
 
 
 template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u) const
+void gsMaterialMatrixLinear<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool basis) const
 {
     gsMatrix<T> tmp;
 
-    this->_computeMetricUndeformed(patch,u);
+    this->_computeMetricUndeformed(patch,u,basis);
 
     if (Base::m_defpatches->nPieces()!=0)
-        this->_computeMetricDeformed(patch,u);
+        this->_computeMetricDeformed(patch,u,basis);
 
     m_thickness->eval_into(m_map.values[0], m_Tmat);
 
@@ -124,7 +124,7 @@ void gsMaterialMatrixLinear<dim,T>::density_into(const index_t patch, const gsMa
 {
     m_map.flags = NEED_VALUE;
     m_map.points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
 
     result.resize(1, u.cols());
     m_thickness->eval_into(m_map.values[0], m_Tmat);
@@ -140,15 +140,15 @@ template <short_t dim, class T >
 void gsMaterialMatrixLinear<dim,T>::stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     m_map.points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
 
-    this->_computePoints(patch,u);
+    this->_computePoints(patch,u,false);
 
     result.resize(3, u.cols());
     std::pair<gsVector<T>,gsMatrix<T>> res;
     for (index_t i=0; i!= u.cols(); i++)
     {
-        this->_getMetric(i,0.0); // on point i, with height 0.0
+        this->_getMetric(i,0.0,false); // on point i, with height 0.0
 
         gsMatrix<T> C(3,3);
         C.setZero();
@@ -164,15 +164,15 @@ template <short_t dim, class T >
 void gsMaterialMatrixLinear<dim,T>::stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     m_map.points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
 
-    this->_computePoints(patch,u);
+    this->_computePoints(patch,u,false);
 
     result.resize(9, u.cols());
     std::pair<gsVector<T>,gsMatrix<T>> res;
     for (index_t i=0; i!= u.cols(); i++)
     {
-        this->_getMetric(i,0.0); // on point i, with height 0.0
+        this->_getMetric(i,0.0,false); // on point i, with height 0.0
 
         gsMatrix<T> C(3,3);
         C.setZero();
@@ -190,7 +190,7 @@ void gsMaterialMatrixLinear<dim,T>::thickness_into(const index_t patch, const gs
 {
     m_map.flags = NEED_VALUE;
     m_map.points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
     m_thickness->eval_into(m_map.values[0], result);
 }
 
@@ -203,7 +203,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
     // Output: (n=u.cols(), m=z.cols())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    this->_computePoints(patch,u);
+    this->_computePoints(patch,u,false);
     gsMatrix<T> result(9, u.cols() * z.rows());
     result.setZero();
 
@@ -216,7 +216,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
                 // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
-                this->_getMetric(k,z(j,k)); // on point i, on height z(0,j)
+                this->_getMetric(k,z(j,k),false); // on point i, on height z(0,j)
 
                 gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
                 /*
@@ -245,7 +245,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, co
     // Output: (n=u.cols(), m=z.cols())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    this->_computePoints(patch,u);
+    this->_computePoints(patch,u,false);
     gsMatrix<T> result(3, u.cols() * z.rows());
     result.setZero();
 
@@ -258,7 +258,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, co
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
                 // this->computeMetric(i,z.at(j),true,true);
-                this->_getMetric(k,z(j,k)); // on point i, on height z(0,j)
+                this->_getMetric(k,z(j,k),false); // on point i, on height z(0,j)
 
                 result(0,j*u.cols()+k) = _Sij(0,0,z(j,k),out);
                 result(1,j*u.cols()+k) = _Sij(1,1,z(j,k),out);
@@ -273,7 +273,7 @@ template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
 
-    this->_computePoints(patch,u);
+    this->_computePoints(patch,u,true);
     gsMatrix<T> result(2, u.cols() * z.rows());
     result.setZero();
     gsMatrix<T,3,3> S;
@@ -286,7 +286,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-                this->_getMetric(k,z(j,k)); // on point i, on height z(0,j)
+                this->_getMetric(k,z(j,k),true); // on point i, on height z(0,j)
 
                 S.setZero();
                 S(0,0) = _Sij(0,0,0,out);
@@ -321,7 +321,7 @@ T gsMaterialMatrixLinear<dim,T>::_Cijkl(const index_t i, const index_t j, const 
     T lambda, mu, Cconstant;
 
     mu = m_parvals.at(0) / (2.*(1. + m_parvals.at(1)));
-    GISMO_ENSURE((1.-2.*m_parvals.at(1)) != 0, "Division by zero in construction of SvK material parameters! (1.-2.*m_parvals.at(1)) = "<<(1.-2.*m_parvals.at(1))<<"; m_parvals.at(1) = "<<m_parvals.at(1));
+    GISMO_ENSURE((1.-2.*m_parvals.at(1)) != 0, "Division by zero in construction of SvK material parameters! (1.-2.*nu) = "<<(1.-2.*m_parvals.at(1))<<"; m_parvals.at(1) = "<<m_parvals.at(1));
     lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1))) ;
     Cconstant = 2*lambda*mu/(lambda+2*mu);
 

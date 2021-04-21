@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     index_t numRefine  = 1;
     index_t numElevate = 1;
     index_t testCase = 1;
-    bool Compressibility = 0;
+    bool Compressibility = false;
     index_t material = 0;
     bool verbose = false;
     std::string fn;
@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
     cmd.addInt( "t", "testCase", "Test case to run: 1 = unit square; 2 = Scordelis Lo Roof",  testCase );
     cmd.addInt( "m", "Material", "Material law",  material );
     cmd.addInt( "I", "Implementation", "Implementation: 1= analytical, 2= generalized, 3= spectral",  impl );
-    cmd.addSwitch( "c", "Compressibility", "1: compressible, 0: incompressible",  Compressibility );
+    cmd.addSwitch("comp", "1: compressible, 0: incompressible",  Compressibility );
     cmd.addString( "f", "file", "Input XML file", fn );
     cmd.addSwitch("verbose", "Full matrix and vector output", verbose);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
         real_t mu = 1.5e6;
         thickness = 0.001;
         if (!Compressibility)
-          PoissonRatio = 0.5;
+          PoissonRatio = 0.499;
         else
           PoissonRatio = 0.45;
         E_modulus = 2*mu*(1+PoissonRatio);
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
         E_modulus = 1;
         thickness = 1;
         if (!Compressibility)
-          PoissonRatio = 0.5;
+          PoissonRatio = 0.499;
         else
           PoissonRatio = 0.45;
     }
@@ -89,6 +89,7 @@ int main(int argc, char *argv[])
     mp.addAutoBoundaries();
 
     gsInfo<<"mu = "<<E_modulus / (2 * (1 + PoissonRatio))<<"\n";
+    gsDebugVar(PoissonRatio);
 
     // p-refine
     if (numElevate!=0)
@@ -169,47 +170,31 @@ int main(int argc, char *argv[])
     gsMaterialMatrixBase<real_t>* materialMatrix;
 
     // Linear anisotropic material model
-    real_t pi = math::atan(1)*4;
     index_t kmax = 1;
-    gsVector<> E11(kmax), E22(kmax), G12(kmax), nu12(kmax), nu21(kmax), thick(kmax), phi(kmax);
-    E11.setZero(); E22.setZero(); G12.setZero(); nu12.setZero(); nu21.setZero(); thick.setZero(); phi.setZero();
-    for (index_t k=0; k != kmax; ++k)
-    {
-        E11.at(k) = E22.at(k) = E_modulus;
-        nu12.at(k) = nu21.at(k) = PoissonRatio;
-        G12.at(k) = 0.5 * E_modulus / (1+PoissonRatio);
-        thick.at(k) = thickness/kmax;
-        phi.at(k) = static_cast<real_t>(k) / kmax * pi/2.0;
-    }
 
-    gsConstantFunction<> E11fun(E11,2);
-    gsConstantFunction<> E22fun(E22,2);
-    gsConstantFunction<> G12fun(G12,2);
-    gsConstantFunction<> nu12fun(nu12,2);
-    gsConstantFunction<> nu21fun(nu21,2);
-    gsConstantFunction<> thickfun(thick,2);
-    gsConstantFunction<> phifun(phi,2);
+    std::vector<gsFunctionSet<> * > Gs(kmax);
+    std::vector<gsFunctionSet<> * > Ts(kmax);
+    std::vector<gsFunctionSet<> * > Phis(kmax);
 
-    // Set material parameters
+    gsMatrix<> Gmat = gsCompositeMatrix(E_modulus,E_modulus,0.5 * E_modulus / (1+PoissonRatio),PoissonRatio,PoissonRatio);
+    Gmat.resize(Gmat.rows()*Gmat.cols(),1);
+    gsConstantFunction<> Gfun(Gmat,2);
+    Gs[0] = &Gfun;
+
+    gsConstantFunction<> phi;
+    phi.setValue(0,2);
+
+    Phis[0] = &phi;
+
+    gsConstantFunction<> thicks(thickness/kmax,2);
+    Ts[0] = &thicks;
+
     std::vector<gsFunction<>*> parameters;
     if (material==0) // SvK & Composites
     {
-      if (composite)
-      {
-        parameters.resize(6);
-        parameters[0] = &E11fun;
-        parameters[1] = &E22fun;
-        parameters[2] = &G12fun;
-        parameters[3] = &nu12fun;
-        parameters[4] = &nu21fun;
-        parameters[5] = &phifun;
-      }
-      else
-      {
-        parameters.resize(2);
-        parameters[0] = &E;
-        parameters[1] = &nu;
-      }
+      parameters.resize(2);
+      parameters[0] = &E;
+      parameters[1] = &nu;
     }
     else if (material==1 || material==2) // NH & NH_ext
     {
@@ -242,9 +227,7 @@ int main(int argc, char *argv[])
     {
         if (composite)
         {
-            options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
-            options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",0);
-            materialMatrix = getMaterialMatrix<2,real_t>(mp,thickfun,parameters,rho,options);
+            materialMatrix = new gsMaterialMatrixComposite<2,real_t>(mp,Ts,Gs,Phis);
         }
         else
         {

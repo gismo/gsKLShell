@@ -48,39 +48,21 @@ public:
 
     */
     /// Default empty constructor
-        gsMaterialMatrixComposite() { }
+    gsMaterialMatrixComposite() { }
 
-        gsMaterialMatrixComposite(
-                                const gsFunctionSet<T>                              & mp,
-                                const gsFunction<T>                                 & thickness,
-                                const gsFunction<T>                                 & E11,
-                                const gsFunction<T>                                 & E22,
-                                const gsFunction<T>                                 & G12,
-                                const gsFunction<T>                                 & nu12,
-                                const gsFunction<T>                                 & nu21,
-                                const gsFunction<T>                                 & phi           );
+    gsMaterialMatrixComposite(
+                            const gsFunctionSet<T>                              & mp,
+                            const std::vector< gsFunctionSet<T> *>              & thickness,
+                            const std::vector< gsFunctionSet<T> *>              & G,
+                            const std::vector< gsFunctionSet<T> *>              & alpha,
+                            const std::vector< gsFunctionSet<T> *>              & rho           );
 
-        gsMaterialMatrixComposite(
-                                const gsFunctionSet<T>                              & mp,
-                                const gsFunction<T>                                 & thickness,
-                                const gsFunction<T>                                 & E11,
-                                const gsFunction<T>                                 & E22,
-                                const gsFunction<T>                                 & G12,
-                                const gsFunction<T>                                 & nu12,
-                                const gsFunction<T>                                 & nu21,
-                                const gsFunction<T>                                 & phi,
-                                const gsFunction<T>                                 & rho           );
+    gsMaterialMatrixComposite(
+                            const gsFunctionSet<T>                              & mp,
+                            const std::vector< gsFunctionSet<T> *>              & thickness,
+                            const std::vector< gsFunctionSet<T> *>              & G,
+                            const std::vector< gsFunctionSet<T> *>              & alpha         );
 
-        gsMaterialMatrixComposite(
-                                const gsFunctionSet<T>                              & mp,
-                                const gsFunction<T>                                 & thickness,
-                                const std::vector<gsFunction<T>*>                   & pars          );
-
-        gsMaterialMatrixComposite(
-                                const gsFunctionSet<T>                              & mp,
-                                const gsFunction<T>                                 & thickness,
-                                const std::vector<gsFunction<T>*>                   & pars,
-                                const gsFunction<T>                                 & rho           );
 
     enum MatIntegration isMatIntegrated() const {return MatIntegration::Integrated; }
     enum MatIntegration isVecIntegrated() const {return MatIntegration::Integrated; }
@@ -120,7 +102,7 @@ protected:
     void _initializeParameters();
     void _defaultOptions();
 
-    gsMatrix<T> _computeMatrix(const T E11, const T E22, const T G12, const T nu12, const T nu21, const T phi) const;
+    gsMatrix<T> _transformationMatrix(const gsMatrix<T> & phi, const gsMatrix<T> & u) const;
     gsMatrix<T> _cart2cov(const gsVector<T> a1, const gsVector<T> a2, const gsVector<T> e1, const gsVector<T> e2) const;
     gsMatrix<T> _con2cart(const gsVector<T> ac1, const gsVector<T> ac2, const gsVector<T> e1, const gsVector<T> e2) const;
 
@@ -128,7 +110,7 @@ protected:
 protected:
 
     // template MAT
-    void _computePoints(const index_t patch, const gsMatrix<T> & u) const;
+    void _computePoints(const index_t patch, const gsMatrix<T> & u, bool basis = true) const;
 
 protected:
     // constructor
@@ -165,6 +147,11 @@ protected:
 
     gsOptionList m_options;
 
+    const std::vector<gsFunctionSet<T> * > m_Ts;
+    const std::vector<gsFunctionSet<T> * > m_Gs;
+    const std::vector<gsFunctionSet<T> * > m_As;
+    const std::vector<gsFunctionSet<T> * > m_Rs;
+    mutable std::vector< gsMatrix<T> > m_Gcontainer, m_Tcontainer, m_Acontainer, m_Rcontainer;
 };
 
 } // namespace

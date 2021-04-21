@@ -188,7 +188,7 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::density_into(const index_t patc
 {
     m_map.flags = NEED_VALUE;
     m_map.points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
 
     result.resize(1, u.cols());
     m_thickness->eval_into(m_map.values[0], m_Tmat);
@@ -204,7 +204,7 @@ template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enu
 void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     m_map.points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
 
     this->_computePoints(patch,u);
 
@@ -300,7 +300,7 @@ template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enu
 void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     m_map.points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
 
     this->_computePoints(patch,u);
 
@@ -397,7 +397,7 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::thickness_into(const index_t pa
 {
     m_map.flags = NEED_VALUE;
     m_map.points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
     m_thickness->eval_into(m_map.values[0], result);
 }
 
