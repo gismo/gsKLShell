@@ -170,7 +170,7 @@ protected:
      * @param[in]  patch  The patch index
      * @param[in]  u      The in-plane point coordinates
      */
-    void _computePoints(const index_t patch, const gsMatrix<T> & u) const;
+    void _computePoints(const index_t patch, const gsMatrix<T> & u, bool basis = true) const;
 
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     void _computePStress(const gsMatrix<T> & C ) const;
