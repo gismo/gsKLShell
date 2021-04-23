@@ -81,6 +81,10 @@ public:
 
     void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
+    /// See \ref gsMaterialMatrixBase for details
+    void transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
+    {GISMO_NO_IMPLEMENTATION;}
+
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
     gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
     gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const

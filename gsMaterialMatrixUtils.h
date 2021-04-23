@@ -107,8 +107,9 @@ enum class MaterialOutput : short_t
     MatrixD  = 7,
     PStressN = 8,
     PStressM = 9,
-    Stretch = 10,
-    StretchDir = 11,
+    Stretch = 10,       // ONLY ON MID-PLANE
+    StretchDir = 11,    // ONLY ON MID-PLANE
+    Transformation = 12,
 };
 
 

@@ -71,11 +71,14 @@ public:
     /// Gets metric quantities on the undeformed geometry
     void _getMetricUndeformed(index_t k, T z, bool basis = true) const;
 
+    /// Computes the stretch given deformation tensor C, into a pair
+    std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C ) const;
+
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     void _computeStretch(const gsMatrix<T> & C ) const;
 
-    /// Computes the stretch given deformation tensor C, into a pair
-    std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C ) const;
+    /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
+    gsMatrix<T> _transformation(const gsMatrix<T> & basis1, const gsMatrix<T> & basis2 ) const;
 
 private:
     /// Implementation of \ref _computeMetricUndeformed for planar geometries

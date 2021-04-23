@@ -24,7 +24,6 @@
 #pragma once
 
 #include <gsKLShell/gsMaterialMatrixComposite.h>
-#include <gsKLShell/gsMaterialMatrixEval.h>
 #include <gsKLShell/gsMaterialMatrixUtils.h>
 #include <gsCore/gsFunction.h>
 

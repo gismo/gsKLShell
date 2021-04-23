@@ -34,16 +34,20 @@ gsMatrix<T> gsCompositeMatrix(  const T Exx,
                               const T nuyx
                             )
 {
-  gsMatrix<T> G(3,3);
-  G.setZero();
+    GISMO_ASSERT(nuyx*Exx == nuxy*Eyy, "No symmetry in material properties for ply! (nu12*E2!=nu21*E1):\n"<<
+            "\tnu12 = "<<nuxy<<"\t E22 = "<<Eyy<<"\t nu12*E22 = "<<nuxy*Eyy<<"\n"
+          <<"\tnu21 = "<<nuyx<<"\t E11 = "<<Exx<<"\t nu21*E11 = "<<nuyx*Exx);
 
-  G(0,0) = Exx / (1-nuxy*nuyx);
-  G(1,1) = Eyy / (1-nuxy*nuyx);
-  G(2,2) = Gxy;
-  G(0,1) = nuyx*Exx / (1-nuxy*nuyx);
-  G(1,0) = nuxy*Eyy / (1-nuxy*nuyx);
-  G(2,0) = G(0,2) = G(2,1) = G(1,2) = 0.0;
-  return G;
+    gsMatrix<T> G(3,3);
+    G.setZero();
+
+    G(0,0) = Exx / (1-nuxy*nuyx);
+    G(1,1) = Eyy / (1-nuxy*nuyx);
+    G(2,2) = Gxy;
+    G(0,1) = nuyx*Exx / (1-nuxy*nuyx);
+    G(1,0) = nuxy*Eyy / (1-nuxy*nuyx);
+    G(2,0) = G(0,2) = G(2,1) = G(1,2) = 0.0;
+    return G;
 }
 
 /**
@@ -245,7 +249,7 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
     if      (mat==Material::SvK)
     {
         if (impl==Implementation::Composite)
-                return new gsMaterialMatrixComposite<d,T>(mp,thickness,parameters);
+                GISMO_ERROR("Construct composite material models using the constructor of gsMaterialMatrixComposite directly.");
         else
                 return new gsMaterialMatrixLinear<d,T>(mp,thickness,parameters);
     }

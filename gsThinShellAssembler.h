@@ -29,7 +29,7 @@ template<class T> class gsThinShellAssemblerBase;
  * @brief      Assembles the system matrix and vectors for 2D and 3D shell
  *             problems, including geometric nonlinearities and loading
  *             nonlinearities. The material nonlinearities are handled by the
- *             @ref gsMaterialMatrixEval class.
+ *             @ref gsMaterialMatrixIntegrate class.
  *
  * @tparam     d        The dimension (2 = planar, 3 = surface)
  * @tparam     T        Real type

@@ -31,15 +31,25 @@ namespace gismo
 
 // Linear material models
 template <class T, enum MaterialOutput out>
-gsMaterialMatrixEval<T,out>::gsMaterialMatrixEval( gsMaterialMatrixBase<T> * materialMatrix, //??
-                                                   const gsFunctionSet<T> & deformed
+gsMaterialMatrixEval<T,out>::gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * materialMatrix, //??
+                                                    const gsFunctionSet<T> & deformed,
+                                                    const gsMatrix<T> z
                                                    )
 :
 m_materialMat(materialMatrix),
+m_z(z),
 m_piece(nullptr)
 {
     m_pIndex = 0;
     m_materialMat->setDeformed(deformed);
+
+    if (m_z.cols()==0 || m_z.rows()==0)
+    {
+        m_z.resize(1,1);
+        m_z.setZero();
+    }
+    GISMO_ASSERT(z.cols()==1,"Z coordinates should be provided row-wise in one column");
+
     // m_materialMat = new gsMaterialMatrix(materialMatrix);
 }
 
@@ -59,36 +69,10 @@ gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& r
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::VectorN, void>::type
+typename std::enable_if<_out==MaterialOutput::VectorN || _out==MaterialOutput::VectorM || _out==MaterialOutput::Generic, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    if (m_materialMat->isVecIntegrated() == MatIntegration::NotIntegrated)
-        this->integrateZ_into(u,getMoment(),result);
-    else if (m_materialMat->isVecIntegrated() == MatIntegration::Integrated)
-        result = this->eval(u);
-    else if (m_materialMat->isVecIntegrated() == MatIntegration::Constant)
-        this->multiplyZ_into(u,0,result);
-    else if (m_materialMat->isVecIntegrated() == MatIntegration::Linear)
-        this->multiplyLinZ_into(u,getMoment(),result);
-    else
-        GISMO_ERROR("Integration status unknown");
-}
-
-template <class T, enum MaterialOutput out>
-template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::VectorM, void>::type
-gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
-{
-    if (m_materialMat->isVecIntegrated() == MatIntegration::NotIntegrated)
-        this->integrateZ_into(u,getMoment(),result);
-    else if (m_materialMat->isVecIntegrated() == MatIntegration::Integrated)
-        result = this->eval(u);
-    else if (m_materialMat->isVecIntegrated() == MatIntegration::Constant)
-        this->multiplyZ_into(u,2,result);
-    else if (m_materialMat->isVecIntegrated() == MatIntegration::Linear)
-        this->multiplyLinZ_into(u,getMoment(),result);
-    else
-        GISMO_ERROR("Integration status unknown");
+    result = m_materialMat->eval3D_vector(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
 }
 
 template <class T, enum MaterialOutput out>
@@ -97,16 +81,7 @@ typename std::enable_if<   _out==MaterialOutput::MatrixA || _out==MaterialOutput
                         || _out==MaterialOutput::MatrixC || _out==MaterialOutput::MatrixD, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    if (m_materialMat->isMatIntegrated() == MatIntegration::NotIntegrated)
-        this->integrateZ_into(u,getMoment(),result);
-    else if (m_materialMat->isMatIntegrated() == MatIntegration::Integrated)
-        result = this->eval(u);
-    else if (m_materialMat->isMatIntegrated() == MatIntegration::Constant)
-        this->multiplyZ_into(u,getMoment(),result);
-    else if (m_materialMat->isMatIntegrated() == MatIntegration::Linear)
-        this->multiplyLinZ_into(u,getMoment(),result);
-    else
-        GISMO_ERROR("Integration status unknown");
+    result = m_materialMat->eval3D_matrix(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
 }
 
 template <class T, enum MaterialOutput out>
@@ -114,16 +89,7 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::PStressN || _out==MaterialOutput::PStressM, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    if (m_materialMat->isMatIntegrated() == MatIntegration::NotIntegrated)
-        this->integrateZ_into(u,getMoment(),result);
-    else if (m_materialMat->isMatIntegrated() == MatIntegration::Integrated)
-        result = this->eval(u);
-    else if (m_materialMat->isMatIntegrated() == MatIntegration::Constant)
-        this->multiplyZ_into(u,getMoment(),result);
-    else if (m_materialMat->isMatIntegrated() == MatIntegration::Linear)
-        this->multiplyLinZ_into(u,getMoment(),result);
-    else
-        GISMO_ERROR("Integration status unknown");
+    result = m_materialMat->eval3D_pstress(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
 }
 
 template <class T, enum MaterialOutput out>
@@ -143,153 +109,12 @@ gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& r
 }
 
 template <class T, enum MaterialOutput out>
-void gsMaterialMatrixEval<T,out>::integrateZ_into(const gsMatrix<T>& u, const index_t moment, gsMatrix<T> & result) const
-{
-    // Input: points in R2
-    // Ouput: results in targetDim
-
-    // Perform integration
-    index_t numGauss = m_materialMat->options().askInt("NumGauss",4);
-
-    result.resize(this->targetDim(),u.cols());
-    result.setZero();
-
-    gsGaussRule<T> gauss = gsGaussRule<T>(numGauss);
-    gsMatrix<T> z(numGauss,u.cols());
-    gsMatrix<T> w(numGauss,u.cols());
-    gsMatrix<T> vals;
-    // m_points3D.resize(1,numGauss);
-
-    gsMatrix<T> Tmat;
-    m_materialMat->thickness_into(m_pIndex,u,Tmat);
-    T Thalf;
-    // pre-compute Z
-    for (index_t k = 0; k != u.cols(); ++k) // for all points
-    {
-        gsMatrix<T> quNodes(1,numGauss);
-        gsVector<T> quWeights(numGauss);
-        // set new integration point
-        Thalf = Tmat(0,k)/2.0;
-        gauss.mapTo(-Thalf,Thalf,quNodes,quWeights);
-        w.col(k)=quWeights;
-        z.col(k)=quNodes.transpose();
-    }
-    vals = this->eval3D(u,z);
-
-    T res;
-    for (index_t k = 0; k != u.cols(); ++k) // for all points
-    {
-        for (index_t i=0; i!=this->targetDim(); ++i) // components
-        {
-            res = 0.0;
-            for (index_t j = 0; j != numGauss; ++j) // compute integral
-                res += w(j,k) * math::pow(z(j,k),moment) * vals(i,j*u.cols() + k);
-            result(i,k) = res;
-        }
-
-    }
-}
-
-
-/*
- * WARNING: This function assumes the function to be integrated: f(z,...) = g(,...) + z h(...)
- */
-template <class T, enum MaterialOutput out>
-void gsMaterialMatrixEval<T,out>::multiplyLinZ_into(const gsMatrix<T>& u, const index_t moment, gsMatrix<T>& result) const
-{
-    // Input: points in R2
-    // Ouput: results in targetDim
-    result.resize(this->targetDim(),u.cols());
-
-    gsMatrix<T> z(2,u.cols());
-    gsMatrix<T> Tmat;
-    m_materialMat->thickness_into(m_pIndex,u,Tmat);
-
-    T Thalf;
-    // pre-compute Z
-    for (index_t k = 0; k != u.cols(); ++k) // for all points
-    {
-        Thalf = Tmat(0,k)/2.0;
-        z.col(k)<<Thalf,-Thalf;
-    }
-
-    T fac = (moment % 2 == 0) ? 0. : 1.;
-
-    gsMatrix<T> vals = this->eval3D(u,z);
-    for (index_t k = 0; k != u.cols(); ++k) // for all points
-    {
-            // 1/(alpha+1) * [ (t/2)^(alpha+1) * g(...)  - (-t/2)^(alpha+1) * g(...) ]
-            // 1/(alpha+2) * [ (t/2)^(alpha+1) * h(...)  - (-t/2)^(alpha+1) * h(...) ]
-            result.col(k) = 1.0/(moment+fac+1) *
-                            ( math::pow( z(0,k), moment + 1) * vals.col(0*u.cols() + k)
-                                - math::pow( z(1,k), moment + 1) * vals.col(1*u.cols() + k) );
-    }
-
-}
-
-template <class T, enum MaterialOutput out>
-void gsMaterialMatrixEval<T,out>::multiplyZ_into(const gsMatrix<T>& u, index_t moment, gsMatrix<T>& result) const
-{
-    // Input: points in R2
-    // Ouput: results in targetDim
-    result.resize(this->targetDim(),u.cols());
-
-    if (moment % 2 != 0)  //then the moment is odd
-        result.setZero();
-    else                    // then the moment is even
-    {
-        T fac;
-        gsMatrix<T> Tmat;
-        m_materialMat->thickness_into(m_pIndex,u,Tmat);
-        T Thalf;
-        gsMatrix<T> vals = this->eval(u);
-        for (index_t k = 0; k != u.cols(); ++k) // for all points
-        {
-            Thalf = Tmat(0,k)/2.0;
-            fac = 2.0/(moment+1) * math::pow( Thalf , moment + 1);
-            result.col(k) = vals.col(k) * fac;
-        }
-
-    }
-}
-
-template <class T, enum MaterialOutput out>
-gsMatrix<T> gsMaterialMatrixEval<T,out>::eval(const gsMatrix<T>& u) const
-{
-    gsMatrix<T> Z(1,u.cols());
-    Z.setZero();
-    return this->eval3D(u,Z);
-}
-
-template <class T, enum MaterialOutput out>
-gsMatrix<T> gsMaterialMatrixEval<T,out>::eval3D(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
-{
-        return this->eval3D_impl<out>(u,Z);
-}
-
-template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<   _out==MaterialOutput::MatrixA || _out==MaterialOutput::MatrixB
-                        || _out==MaterialOutput::MatrixC || _out==MaterialOutput::MatrixD, gsMatrix<T>>::type
-gsMaterialMatrixEval<T,out>::eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
+typename std::enable_if<_out==MaterialOutput::Transformation, void>::type
+gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    return m_materialMat->eval3D_matrix(m_pIndex,u,Z,_out);
+    m_materialMat->transform_into(m_pIndex,u,result);
 }
 
-template <class T, enum MaterialOutput out>
-template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::VectorN || _out==MaterialOutput::VectorM, gsMatrix<T>>::type
-gsMaterialMatrixEval<T,out>::eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
-{
-    return m_materialMat->eval3D_vector(m_pIndex,u,Z,_out);
-}
-
-template <class T, enum MaterialOutput out>
-template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::PStressN || _out==MaterialOutput::PStressM, gsMatrix<T>>::type
-gsMaterialMatrixEval<T,out>::eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
-{
-    return m_materialMat->eval3D_pstress(m_pIndex,u,Z,_out);
-}
 
 } // end namespace

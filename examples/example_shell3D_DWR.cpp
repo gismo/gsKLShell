@@ -17,7 +17,6 @@
 #include <gsKLShell/gsThinShellAssemblerDWR.h>
 #include <gsKLShell/gsThinShellUtils.h>
 #include <gsKLShell/getMaterialMatrix.h>
-#include <gsKLShell/gsMaterialMatrixEval.h>
 #include <gsAssembler/gsAdaptiveRefUtils.h>
 
 //#include <gsThinShell/gsNewtonIterator.h>

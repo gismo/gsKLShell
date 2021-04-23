@@ -17,7 +17,6 @@
 #include <gsKLShell/gsThinShellAssemblerDWR.h>
 #include <gsKLShell/gsThinShellUtils.h>
 #include <gsKLShell/getMaterialMatrix.h>
-#include <gsKLShell/gsMaterialMatrixEval.h>
 #include <gsAssembler/gsAdaptiveRefUtils.h>
 
 //#include <gsThinShell/gsNewtonIterator.h>
@@ -157,7 +156,21 @@ int main(int argc, char *argv[])
     gsThinShellAssembler<3, real_t, true > shellAssemblerH(mp,basisH,bc,force,materialMatrix);
     gsThinShellAssemblerBase<real_t>*assemblerH = &shellAssemblerH;
 
-    gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::DisplacementNorm> DWR(mp,basisL,basisH,bc,force,materialMatrix);
+    gsThinShellAssemblerDWRBase<real_t> * DWR;
+    if (goal==1)
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::DisplacementNorm>(mp,basisL,basisH,bc,force,materialMatrix);
+    else if (goal==2)
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement>(mp,basisL,basisH,bc,force,materialMatrix);
+    else if (goal==3)
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStrain>(mp,basisL,basisH,bc,force,materialMatrix);
+    else if (goal==4)
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStress>(mp,basisL,basisH,bc,force,materialMatrix);
+    else if (goal==5)
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneForce>(mp,basisL,basisH,bc,force,materialMatrix);
+    else if (goal==6)
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStress>(mp,basisL,basisH,bc,force,materialMatrix);
+    else
+        GISMO_ERROR("Goal function unknown");
 
     gsSparseSolver<>::LU solver;
     gsVector<> solVector, updateVector;
@@ -169,30 +182,29 @@ int main(int argc, char *argv[])
     // points.col(2).setConstant(0.75);
 
     gsInfo << "Assembling primal... "<< std::flush;
-    DWR.assembleMatrixL();
-    DWR.assemblePrimalL();
+    DWR->assembleMatrixL();
+    DWR->assemblePrimalL();
     gsInfo << "done\n";
 
-    gsInfo << "Solving primal, size ="<<DWR.matrixL().rows()<<","<<DWR.matrixL().cols()<<"... "<< "\n";
-    solver.compute(DWR.matrixL());
-    solVector = solver.solve(DWR.primalL());
-    DWR.constructMultiPatchL(solVector,primalL);
-    DWR.constructSolutionL(solVector,mp_def);
-
+    gsInfo << "Solving primal, size ="<<DWR->matrixL().rows()<<","<<DWR->matrixL().cols()<<"... "<< "\n";
+    solver.compute(DWR->matrixL());
+    solVector = solver.solve(DWR->primalL());
+    DWR->constructMultiPatchL(solVector,primalL);
+    DWR->constructSolutionL(solVector,mp_def);
     index_t itMax = 100;
     real_t tol = 1e-14;
-    real_t residual = DWR.primalL().norm();
+    real_t residual = DWR->primalL().norm();
     real_t residual0 = residual;
     real_t residualOld = residual;
     for (index_t it = 0; it != itMax; ++it)
     {
-        DWR.assembleMatrixL(mp_def);
-        DWR.assemblePrimalL(mp_def);
-        solver.compute(DWR.matrixL());
-        updateVector = solver.solve(DWR.primalL());
+        DWR->assembleMatrixL(mp_def);
+        DWR->assemblePrimalL(mp_def);
+        solver.compute(DWR->matrixL());
+        updateVector = solver.solve(DWR->primalL());
         solVector += updateVector;
 
-        residual = DWR.primalL().norm();
+        residual = DWR->primalL().norm();
 
         gsInfo<<"Iteration: "<< it
                <<", residue: "<< residual
@@ -202,53 +214,93 @@ int main(int argc, char *argv[])
                <<"\n";
 
         residualOld = residual;
-        DWR.constructSolutionL(solVector,mp_def);
+        DWR->constructSolutionL(solVector,mp_def);
         if (updateVector.norm() < tol)
             break;
     }
+
+    DWR->constructMultiPatchL(solVector,primalL);
+
     gsInfo << "done.\n";
 
     gsInfo << "Assembling dual vector (L)... "<< std::flush;
-    DWR.assembleDualL(primalL);
-    DWR.assembleDualL(points,primalL);
+    DWR->assembleDualL(primalL);
+    DWR->assembleDualL(points,primalL);
     gsInfo << "done.\n";
 
-    gsInfo << "Solving dual (low), size = "<<DWR.matrixL().rows()<<","<<DWR.matrixL().cols()<<"... "<< std::flush;
-    solVector = solver.solve(DWR.dualL());
-    DWR.constructMultiPatchL(solVector,dualL);
+    gsInfo << "Solving dual (low), size = "<<DWR->matrixL().rows()<<","<<DWR->matrixL().cols()<<"... "<< std::flush;
+    solVector = solver.solve(DWR->dualL());
+
+    gsDebugVar(DWR->dualL());
+    gsDebugVar(solVector);
+
+    DWR->constructMultiPatchL(solVector,dualL);
     gsInfo << "done.\n";
     // gsInfo << "done." << " --> ";
     // gsInfo <<"Dual L error: \t"<<evL.integral(((dual_exL - zL_sol).norm()*meas(mapL)))<<"\n";
 
     gsInfo << "Assembling dual matrix (H)... "<< std::flush;
-    DWR.assembleMatrixH(mp_def);
+    DWR->assembleMatrixH(mp_def);
     gsInfo << "done.\n";
 
     gsInfo << "Assembling dual vector (H)... "<< std::flush;
-    DWR.assembleDualH(primalL);
-    DWR.assembleDualH(points,primalL);
+    DWR->assembleDualH(primalL);
+    DWR->assembleDualH(points,primalL);
     gsInfo << "done.\n";
 
-    gsInfo << "Solving dual (high), size = "<<DWR.matrixH().rows()<<","<<DWR.matrixH().cols()<<"... "<< std::flush;
-    solver.compute(DWR.matrixH());
-    solVector = solver.solve(DWR.dualH());
-    DWR.constructMultiPatchH(solVector,dualH);
+    gsInfo << "Solving dual (high), size = "<<DWR->matrixH().rows()<<","<<DWR->matrixH().cols()<<"... "<< std::flush;
+    solver.compute(DWR->matrixH());
+    solVector = solver.solve(DWR->dualH());
+    DWR->constructMultiPatchH(solVector,dualH);
     gsInfo << "done.\n";
+
+    gsDebugVar(DWR->dualH());
+    gsDebugVar(solVector);
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     real_t approx, exact = 0;
 
-    gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::DisplacementNorm> DWR2(mp,basisR,basisR,bc,force,materialMatrix);
-    exact += DWR2.computeGoal(mp_ex);
-    exact += DWR2.computeGoal(points,mp_ex);
-    exact -= DWR.computeGoal(mp_def);
-    exact -= DWR.computeGoal(points,mp_def);
-    approx = DWR.computeError(dualL,dualH,mp_def);
+    gsThinShellAssemblerDWRBase<real_t> * DWR2;
+    if (goal==1)
+        DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::DisplacementNorm>(mp,basisR,basisR,bc,force,materialMatrix);
+    else if (goal==2)
+        DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement>(mp,basisR,basisR,bc,force,materialMatrix);
+    else if (goal==3)
+        DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStrain>(mp,basisR,basisR,bc,force,materialMatrix);
+    else if (goal==4)
+        DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStress>(mp,basisR,basisR,bc,force,materialMatrix);
+    else if (goal==5)
+        DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneForce>(mp,basisR,basisR,bc,force,materialMatrix);
+    else if (goal==6)
+        DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStress>(mp,basisR,basisR,bc,force,materialMatrix);
+    else
+        GISMO_ERROR("Goal function unknown");
+
+    exact += DWR2->computeGoal(mp_ex);
+    exact += DWR2->computeGoal(points,mp_ex);
+    exact -= DWR->computeGoal(mp_def);
+    exact -= DWR->computeGoal(points,mp_def);
+    approx = DWR->computeError(dualL,dualH,mp_def);
 
     gsInfo<<"approx = "<<approx<<"\n";
     gsInfo<<"Exact = "<<exact<<"\n";
     gsInfo<<"Efficiency = "<<approx/exact<<"\n";
+
+    if (plot)
+    {
+        gsField<> fieldDL(mp, dualL);
+        gsField<> fieldDH(mp, dualH);
+
+        gsField<> fieldPL(mp, primalL);
+
+
+        gsWriteParaview<>( fieldDL, "dualL", 1000);
+        gsWriteParaview<>( fieldDH, "dualH", 1000);
+        gsWriteParaview<>( fieldPL, "primalL", 1000);
+    }
+
 
     return EXIT_SUCCESS;
 
