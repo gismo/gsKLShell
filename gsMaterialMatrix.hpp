@@ -597,7 +597,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_pst
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
     this->_computePoints(patch,u);
-    gsMatrix<T> result(2, u.cols() * z.rows());
+    gsMatrix<T> result(3, u.cols() * z.rows());
     result.setZero();
 
     for (index_t k=0; k!=u.cols(); k++)
@@ -612,6 +612,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_pst
 
                 result(0,j*u.cols()+k) = _Sii(0);
                 result(1,j*u.cols()+k) = _Sii(1);
+                result(2,j*u.cols()+k) = 0;
         }
     }
 

@@ -65,6 +65,9 @@ public:
     gsOptionList & options() {return m_options;}
 
     /// See \ref gsThinShellAssemblerBase for details
+    gsExprAssembler<T> assembler() {return m_assembler; }
+
+    /// See \ref gsThinShellAssemblerBase for details
     void setOptions(gsOptionList & options) {m_options.update(options,gsOptionList::addIfUnknown); }
 
     //--------------------- PROBLEM FORMULATION-------------------------------//
@@ -344,6 +347,9 @@ public:
 
     /// Returns the options of the assembler
     virtual gsOptionList & options() = 0;
+
+    /// Returns the internal expression assembler
+    virtual gsExprAssembler<T> assembler() =0;
 
     /// Sets the options of the assembler
     virtual void setOptions(gsOptionList & options) = 0;

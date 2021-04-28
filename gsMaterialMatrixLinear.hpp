@@ -288,7 +288,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
 {
 
     this->_computePoints(patch,u,true);
-    gsMatrix<T> result(2, u.cols() * z.rows());
+    gsMatrix<T> result(3, u.cols() * z.rows());
     result.setZero();
     gsMatrix<T,3,3> S;
     std::pair<gsVector<T>,gsMatrix<T>> res;
@@ -309,7 +309,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
                 S(1,1) = _Sij(1,1,0,out);
                 S(2,2) = 0;
                 res = _evalPStress(S);
-                result.col(j*u.cols()+k) = res.first.head(2);
+                result.col(j*u.cols()+k) = res.first;
         }
     }
 

@@ -498,7 +498,7 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalStretch(
     eigSolver.compute(B);
 
     stretchvec.leftCols(2) = eigSolver.eigenvectors().rightCols(2);
-    stretchvec.col(2) = m_gcon_ori.col(2);
+    stretchvec.col(2) = m_gcon_ori.col(2); // replace with: stretchvec.col(0).template head<3>().cross(stretchvec.col(1).template head<3>())
     stretches.block(0,0,2,1) = eigSolver.eigenvalues().block(1,0,2,1); // the eigenvalues are a 3x1 matrix, so we need to use matrix block-operations
 
     // m_stretches.at(2) = 1/m_J0_sq;
@@ -539,16 +539,16 @@ gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_transformation(const gsMatrix<T> & 
 
     for (index_t i = 0; i!=2; i++)
         for (index_t j = 0; j!=2; j++)
-            Tmat(i,j) = math::pow(basis1.col(i).dot(basis2.col(j)),2);
+            Tmat(i,j) = math::pow(basis2.col(i).dot(basis1.col(j)),2);
 
-    Tmat(2,0)   = basis1.col(0).dot(basis2.col(0))*basis1.col(1).dot(basis2.col(0));
-    Tmat(2,1)   = basis1.col(1).dot(basis2.col(1))*basis1.col(0).dot(basis2.col(1));
+    Tmat(2,0)   = basis2.col(1).dot(basis1.col(0)) * basis2.col(0).dot(basis1.col(0));
+    Tmat(2,1)   = basis2.col(0).dot(basis1.col(1)) * basis2.col(1).dot(basis1.col(1));
 
-    Tmat(0,2)   = 2*basis1.col(0).dot(basis2.col(1))*basis1.col(0).dot(basis2.col(0));
-    Tmat(1,2)   = 2*basis1.col(1).dot(basis2.col(0))*basis1.col(1).dot(basis2.col(1));
+    Tmat(0,2)   = 2*basis2.col(0).dot(basis1.col(1)) * basis2.col(0).dot(basis1.col(0));
+    Tmat(1,2)   = 2*basis2.col(1).dot(basis1.col(0)) * basis2.col(1).dot(basis1.col(1));
 
-    Tmat(2,2)   = basis1.col(0).dot(basis2.col(1))*basis1.col(1).dot(basis2.col(0))
-                 +basis1.col(0).dot(basis2.col(0))*basis1.col(1).dot(basis2.col(1));
+    Tmat(2,2)   = basis2.col(0).dot(basis1.col(1)) * basis2.col(1).dot(basis1.col(0))
+                 +basis2.col(0).dot(basis1.col(0)) * basis2.col(1).dot(basis1.col(1));
 
     return Tmat;
 }

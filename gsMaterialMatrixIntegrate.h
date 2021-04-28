@@ -74,7 +74,7 @@ private:
     /// Implementation of \ref targetDim for principal stress fields
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::PStressN ||
-                            _out==MaterialOutput::PStressM  , short_t>::type targetDim_impl() const { return 2; };
+                            _out==MaterialOutput::PStressM  , short_t>::type targetDim_impl() const { return 3; };
 
     /// Implementation of \ref targetDim for principal stretch fields
     template<enum MaterialOutput _out>
