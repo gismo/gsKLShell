@@ -571,7 +571,7 @@ private:
 
 
         // evaluate the geometry map of U
-        tmp =_u.data().values[2].reshapeCol(k, cols(), _u.data().dim.second );
+        tmp = _u.data().values[2].reshapeCol(k, cols(), _u.data().dim.second);
         vEv = _v.eval(k);
         res = vEv * tmp.transpose();
         return res;
@@ -588,14 +588,14 @@ private:
             hess(v) . normal = hess(v_i) * n_i (vector-scalar multiplication. The result is then of the form
             [hess(v_1)*n_1 .., hess(v_2)*n_2 .., hess(v_3)*n_3 ..]. Here, the dots .. represent the active basis functions.
         */
-        const index_t numAct = u.data().values[0].rows();   // number of actives of a basis function
-        const index_t cardinality = u.cardinality();        // total number of actives (=3*numAct)
-        res.resize(rows()*cardinality, cols() );
-        tmp.transpose() =_u.data().values[2].reshapeCol(k, cols(), numAct );
+        const index_t numAct = u.data().values[0].rows(); // number of actives of a basis function
+        const index_t cardinality = u.cardinality();      // total number of actives (=3*numAct)
+        res.resize(rows() * cardinality, cols());
+        tmp.transpose() = _u.data().values[2].reshapeCol(k, cols(), numAct);
         vEv = _v.eval(k);
 
-        for (index_t i = 0; i!=_u.dim(); i++)
-            res.block(i*numAct, 0, numAct, cols() ) = tmp * vEv.at(i);
+        for (index_t i = 0; i != _u.dim(); i++)
+            res.block(i * numAct, 0, numAct, cols()) = tmp * vEv.at(i);
 
         return res;
     }
@@ -615,12 +615,12 @@ private:
         */
 
         gsMatrix<> tmp2;
-        tmp =  u.data().values[2].col(k);
+        tmp = u.data().values[2].col(k);
         index_t nDers = _u.source().domainDim() * (_u.source().domainDim() + 1) / 2;
         index_t dim = _u.source().targetDim();
-        tmp2.resize(nDers,dim);
+        tmp2.resize(nDers, dim);
         for (index_t comp = 0; comp != u.source().targetDim(); comp++)
-            tmp2.col(comp) = tmp.block(comp*nDers,0,nDers,1); //star,length
+            tmp2.col(comp) = tmp.block(comp * nDers, 0, nDers, 1); //star,length
 
         vEv = _v.eval(k);
         res = vEv * tmp2.transpose();
@@ -643,9 +643,9 @@ private:
         */
 
         solHess_expr<Scalar> sHess = solHess_expr<Scalar>(_u);
-        tmp = sHess.eval(k);
+        tmp = sHess.eval(k).transpose();
         vEv = _v.eval(k);
-        res = vEv * tmp;
+        res = vEv * tmp.transpose();
         return res;
     }
 

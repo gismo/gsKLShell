@@ -85,7 +85,6 @@ public:
     void assemblePrimalH(const gsMultiPatch<T> & deformed)
     { m_pH = _assemblePrimal(m_assemblerH,deformed); }
 
-
     void assembleDualL(const gsMultiPatch<T> & primal)
     { m_dL += _assembleDual(m_assemblerL,primal); }
     void assembleDualH(const gsMultiPatch<T> & primal)

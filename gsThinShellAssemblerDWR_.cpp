@@ -23,5 +23,7 @@ namespace gismo
   CLASS_TEMPLATE_INST gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStress>;
   CLASS_TEMPLATE_INST gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStress>;
   CLASS_TEMPLATE_INST gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneForce>;
+  CLASS_TEMPLATE_INST gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Modal>;
+  CLASS_TEMPLATE_INST gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Buckling>;
 }
 

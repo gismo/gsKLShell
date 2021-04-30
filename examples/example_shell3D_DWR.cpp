@@ -150,13 +150,21 @@ int main(int argc, char *argv[])
     options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
     materialMatrix = getMaterialMatrix<3,real_t>(mp,t,parameters,options);
 
-    gsThinShellAssembler<3, real_t, true > shellAssemblerL(mp,basisL,bc,force,materialMatrix);
-    gsThinShellAssemblerBase<real_t>*assemblerL = &shellAssemblerL;
-
-    gsThinShellAssembler<3, real_t, true > shellAssemblerH(mp,basisH,bc,force,materialMatrix);
-    gsThinShellAssemblerBase<real_t>*assemblerH = &shellAssemblerH;
-
-    gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::DisplacementNorm> DWR(mp,basisL,basisH,bc,force,materialMatrix);
+    gsThinShellAssemblerDWRBase<real_t> * DWR;
+    if (goal==1)
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::DisplacementNorm>(mp,basisL,basisH,bc,force,materialMatrix);
+    else if (goal==2)
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement>(mp,basisL,basisH,bc,force,materialMatrix);
+    else if (goal==3)
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStrain>(mp,basisL,basisH,bc,force,materialMatrix);
+    else if (goal==4)
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStress>(mp,basisL,basisH,bc,force,materialMatrix);
+    else if (goal==5)
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneForce>(mp,basisL,basisH,bc,force,materialMatrix);
+    else if (goal==6)
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStress>(mp,basisL,basisH,bc,force,materialMatrix);
+    else
+        GISMO_ERROR("Goal function unknown");
 
     gsSparseSolver<>::LU solver;
     gsVector<> solVector;
@@ -168,15 +176,15 @@ int main(int argc, char *argv[])
     // points.col(2).setConstant(0.75);
 
     gsInfo << "Assembling primal... "<< std::flush;
-    DWR.assembleMatrixL();
-    DWR.assemblePrimalL();
+    DWR->assembleMatrixL();
+    DWR->assemblePrimalL();
     gsInfo << "done\n";
 
-    gsInfo << "Solving primal, size ="<<DWR.matrixL().rows()<<","<<DWR.matrixL().cols()<<"... "<< std::flush;
-    solver.compute(DWR.matrixL());
-    solVector = solver.solve(DWR.primalL());
-    DWR.constructMultiPatchL(solVector,primalL);
-    DWR.constructSolutionL(solVector,mp_def);
+    gsInfo << "Solving primal, size ="<<DWR->matrixL().rows()<<","<<DWR->matrixL().cols()<<"... "<< std::flush;
+    solver.compute(DWR->matrixL());
+    solVector = solver.solve(DWR->primalL());
+    DWR->constructMultiPatchL(solVector,primalL);
+    DWR->constructSolutionL(solVector,mp_def);
 
     gsInfo << "done.\n";
     // gsInfo << "done." << " --> ";
@@ -184,31 +192,31 @@ int main(int argc, char *argv[])
 
 
     gsInfo << "Assembling dual vector (L)... "<< std::flush;
-    DWR.assembleDualL(primalL);
-    DWR.assembleDualL(points,primalL);
+    DWR->assembleDualL(primalL);
+    DWR->assembleDualL(points,primalL);
     gsInfo << "done.\n";
 
-    gsInfo << "Solving dual (low), size = "<<DWR.matrixL().rows()<<","<<DWR.matrixL().cols()<<"... "<< std::flush;
-    solVector = solver.solve(DWR.dualL());
-    DWR.constructMultiPatchL(solVector,dualL);
+    gsInfo << "Solving dual (low), size = "<<DWR->matrixL().rows()<<","<<DWR->matrixL().cols()<<"... "<< std::flush;
+    solVector = solver.solve(DWR->dualL());
+    DWR->constructMultiPatchL(solVector,dualL);
     gsInfo << "done.\n";
     // gsInfo << "done." << " --> ";
     // gsInfo <<"Dual L error: \t"<<evL.integral(((dual_exL - zL_sol).norm()*meas(mapL)))<<"\n";
 
 
     gsInfo << "Assembling dual matrix (H)... "<< std::flush;
-    DWR.assembleMatrixH();
+    DWR->assembleMatrixH();
     gsInfo << "done.\n";
 
     gsInfo << "Assembling dual vector (H)... "<< std::flush;
-    DWR.assembleDualH(primalL);
-    DWR.assembleDualH(points,primalL);
+    DWR->assembleDualH(primalL);
+    DWR->assembleDualH(points,primalL);
     gsInfo << "done.\n";
 
-    gsInfo << "Solving dual (high), size = "<<DWR.matrixH().rows()<<","<<DWR.matrixH().cols()<<"... "<< std::flush;
-    solver.compute(DWR.matrixH());
-    solVector = solver.solve(DWR.dualH());
-    DWR.constructMultiPatchH(solVector,dualH);
+    gsInfo << "Solving dual (high), size = "<<DWR->matrixH().rows()<<","<<DWR->matrixH().cols()<<"... "<< std::flush;
+    solver.compute(DWR->matrixH());
+    solVector = solver.solve(DWR->dualH());
+    DWR->constructMultiPatchH(solVector,dualH);
     gsInfo << "done.\n";
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -218,9 +226,9 @@ int main(int argc, char *argv[])
     gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::DisplacementNorm> DWR2(mp,basisR,basisR,bc,force,materialMatrix);
     exact += DWR2.computeGoal(mp_ex);
     exact += DWR2.computeGoal(points,mp_ex);
-    exact -= DWR.computeGoal(mp_def);
-    exact -= DWR.computeGoal(points,mp_def);
-    approx = DWR.computeError(dualL,dualH);
+    exact -= DWR->computeGoal(mp_def);
+    exact -= DWR->computeGoal(points,mp_def);
+    approx = DWR->computeError(dualL,dualH);
 
     gsInfo<<"approx = "<<approx<<"\n";
     gsInfo<<"Exact = "<<exact<<"\n";

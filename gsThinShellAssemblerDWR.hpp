@@ -148,7 +148,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::assembleDual_impl(gsThinShellAssembl
 
     m_defpatches = m_patches;
     for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();;  // defG points to mp_def, therefore updated
+        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
 
     exprAssembler.getMap(m_patches);           // this map is used for integrals
     exprAssembler.getMap(m_defpatches);
@@ -185,7 +185,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::assembleDual_impl(gsThinShellAssembl
 
     m_defpatches = m_patches;
     for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();;  // defG points to mp_def, therefore updated
+        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
 
     exprAssembler.getMap(m_patches);           // this map is used for integrals
     exprAssembler.getMap(m_defpatches);
@@ -195,9 +195,9 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::assembleDual_impl(gsThinShellAssembl
     exprAssembler.initVector(1,false);
 
     gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(assembler->material(),m_defpatches,Z);
+    // gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(assembler->material(),m_defpatches,Z);
     variable mmA = exprAssembler.getCoeff(mmAf);
-    variable S0 = exprAssembler.getCoeff(S0f);
+    // variable S0 = exprAssembler.getCoeff(S0f);
 
     space  space       = exprAssembler.trialSpace(0);
     geometryMap Gori   = exprAssembler.exprData()->getMap();
@@ -227,7 +227,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::assembleDual_impl(gsThinShellAssembl
 
     m_defpatches = m_patches;
     for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();;  // defG points to mp_def, therefore updated
+        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
 
     exprAssembler.getMap(m_patches);           // this map is used for integrals
     exprAssembler.getMap(m_defpatches);
@@ -272,7 +272,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::assembleDual_impl(gsThinShellAssembl
 
 //     m_defpatches = m_patches;
 //     for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-//         m_defpatches.patch(k).coefs() += primal.patch(k).coefs();;  // defG points to mp_def, therefore updated
+//         m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
 
 //     exprAssembler.getMap(m_patches);           // this map is used for integrals
 //     exprAssembler.getMap(m_defpatches);
@@ -316,7 +316,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::assembleDual_impl(gsThinShellAssembl
 
     m_defpatches = m_patches;
     for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();;  // defG points to mp_def, therefore updated
+        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
 
     exprAssembler.getMap(m_patches);           // this map is used for integrals
     exprAssembler.getMap(m_defpatches);
@@ -509,7 +509,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::assembleDual_impl(const gsMatrix<T> 
 
     m_defpatches = m_patches;
     for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();;  // defG points to mp_def, therefore updated
+        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
 
     exprAssembler.getMap(m_patches);           // this map is used for integrals
     exprAssembler.getMap(m_defpatches);
@@ -566,7 +566,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::assembleDual_impl(const gsMatrix<T> 
 
     m_defpatches = m_patches;
     for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();;  // defG points to mp_def, therefore updated
+        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
 
     exprAssembler.getMap(m_patches);           // this map is used for integrals
 
@@ -575,9 +575,9 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::assembleDual_impl(const gsMatrix<T> 
     exprAssembler.initVector(1,false);
 
     gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(assembler->material(),m_defpatches,Z);
+    // gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(assembler->material(),m_defpatches,Z);
     variable mmA = exprAssembler.getCoeff(mmAf);
-    variable S0 = exprAssembler.getCoeff(S0f);
+    // variable S0 = exprAssembler.getCoeff(S0f);
 
     space  space       = exprAssembler.trialSpace(0);
     geometryMap Gori   = exprAssembler.exprData()->getMap();
@@ -629,7 +629,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::assembleDual_impl(const gsMatrix<T> 
 
     m_defpatches = m_patches;
     for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();;  // defG points to mp_def, therefore updated
+        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
 
     exprAssembler.getMap(m_patches);           // this map is used for integrals
 
@@ -691,7 +691,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::assembleDual_impl(const gsMatrix<T> 
 
     m_defpatches = m_patches;
     for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();;  // defG points to mp_def, therefore updated
+        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
 
     exprAssembler.getMap(m_patches);           // this map is used for integrals
 
@@ -987,7 +987,7 @@ T gsThinShellAssemblerDWR<d, T, bending, GF>::computeErrorEig(const T evPrimalL,
 template <short_t d, class T, bool bending, enum GoalFunction GF>
 template<enum GoalFunction _GF>
 typename std::enable_if<!(_GF==GoalFunction::Buckling || _GF==GoalFunction::Modal), T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF>::computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,const gsMultiPatch<T> & deformed)
+gsThinShellAssemblerDWR<d, T, bending, GF>::computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,const gsMultiPatch<T> & primal)
 {
     GISMO_ERROR("Eigenvalue error estimation not available for this goal function");
 }
@@ -995,7 +995,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::computeErrorEig_impl(const T evPrima
 template <short_t d, class T, bool bending, enum GoalFunction GF>
 template<enum GoalFunction _GF>
 typename std::enable_if<(_GF==GoalFunction::Buckling), T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF>::computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,const gsMultiPatch<T> & deformed)
+gsThinShellAssemblerDWR<d, T, bending, GF>::computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,const gsMultiPatch<T> & primal)
 {
     // this->_setBasis(m_basisL);
     // exprAssembler.cleanUp();
@@ -1027,12 +1027,15 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::computeErrorEig_impl(const T evPrima
 template <short_t d, class T, bool bending, enum GoalFunction GF>
 template<enum GoalFunction _GF>
 typename std::enable_if<(_GF==GoalFunction::Modal), T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF>::computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,const gsMultiPatch<T> & deformed)
+gsThinShellAssemblerDWR<d, T, bending, GF>::computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,const gsMultiPatch<T> & primal)
 {
     gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
     exprAssembler.cleanUp();
     exprAssembler.setOptions(m_assemblerL->options());
-    m_defpatches = deformed;
+
+    m_defpatches = m_patches;
+    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
+        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
 
     exprAssembler.getMap(m_patches);           // this map is used for integrals
     exprAssembler.getMap(m_defpatches);
@@ -1041,20 +1044,65 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::computeErrorEig_impl(const T evPrima
     exprAssembler.initSystem(false);
     exprAssembler.initVector(1,false);
 
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAf(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBf(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCf(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDf(m_assemblerL->material(),m_defpatches);
+    variable mmA    = exprAssembler.getCoeff(mmAf);
+    variable mmB    = exprAssembler.getCoeff(mmBf);
+    variable mmC    = exprAssembler.getCoeff(mmCf);
+    variable mmD    = exprAssembler.getCoeff(mmDf);
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),m_defpatches);
     gsMaterialMatrixIntegrate<T,MaterialOutput::Density> rhof(m_assemblerL->material(),m_defpatches);
+    variable S0  = exprAssembler.getCoeff(S0f);
+    variable S1  = exprAssembler.getCoeff(S1f);
     variable rho  = exprAssembler.getCoeff(rhof);
 
+    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
+    variable m2 = exprAssembler.getCoeff(mult2t);
+
+    variable usol   = exprAssembler.getCoeff(primal);
     variable zsolL  = exprAssembler.getCoeff(dualL);
     variable zsolH  = exprAssembler.getCoeff(dualH);
 
     geometryMap Gori  = exprAssembler.exprData()->getMap();
     geometryMap Gdef  = exprAssembler.exprData()->getMap2();
 
+    auto N      = S0.tr();
+    auto Em_der = flat( jac(Gori).tr() * (fjac(zsolH) - fjac(zsolL)) ) ; //[checked]
+
+    auto M      = S1.tr(); // output is a column
+    auto Ef_der = -(deriv2(zsolH, sn(Gori).normalized().tr()) - deriv2(zsolL, sn(Gori).normalized().tr()) + deriv2(Gori, var1(zsolH, Gdef)) - deriv2(Gori, var1(zsolL, Gdef))) * reshape(m2, 3, 3); //[checked]
+
+    auto N_der  = Em_der * reshape(mmA,3,3) + Ef_der * reshape(mmB,3,3);
+    auto M_der  = Em_der * reshape(mmC,3,3) + Ef_der * reshape(mmD,3,3);
+
+    // auto N_der = Em_der * reshape(mmA, 3, 3);
+    // auto M_der = Ef_der * reshape(mmD, 3, 3);
+
+    auto Fint   = ( N_der * Em_der.tr() + M_der * Ef_der.tr() ) * meas(Gori);
+
+    gsVector<T> pt(2);
+    pt.setConstant(0.25);
+
     gsExprEvaluator<T> ev(exprAssembler);
+
     T integral = 0.0;
-    integral += evPrimalL * ev.integral( rho.val() * Gdef * ( zsolH - zsolL ) * meas(Gori) );
-    // T Second = -ev.integral( Fint  * meas(Gori) );
-    integral += (evDualH-evDualL)*(ev.integral( rho.val() * Gdef * Gdef.tr() * meas(Gori)) -1.0 );
+    integral += evPrimalL * ev.integral(rho.val() * usol.tr() * (zsolH - zsolL) * meas(Gori));
+    gsDebugVar(evPrimalL * ev.integral(rho.val() * usol.tr() * (zsolH - zsolL) * meas(Gori)));
+    integral += -ev.integral( Fint  * meas(Gori) );
+    gsDebugVar(-ev.integral( Fint  * meas(Gori) ));
+    integral += (evDualH - evDualL) * (ev.integral(rho.val() * usol.tr() * usol * meas(Gori)) - 1.0);
+    gsDebugVar((evDualH - evDualL) * (ev.integral(rho.val() * usol.tr() * usol * meas(Gori)) - 1.0));
+
+    gsDebug << ev.eval(N_der, pt) << "\n";
+    gsDebug << ev.eval(M_der, pt) << "\n";
+    gsDebug << ev.eval(Fint, pt) << "\n";
+    gsDebug << ev.eval(Fint * meas(Gori), pt) << "\n";
+    gsInfo << "Fint_m = " << ev.integral((N_der * Em_der.tr()) * meas(Gori)) << "\n";
+    gsInfo << "Fint_f = " << ev.integral((M_der * Ef_der.tr()) * meas(Gori)) << "\n";
 
     return integral;
 }
@@ -1205,7 +1253,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::computeGoal_impl(const gsMultiPatch<
 
     geometryMap Gori   = exprAssembler.exprData()->getMap();
 
-    auto expr = S0.tr() * gismo::expr::uv(0,3) * meas(Gori);
+    auto expr = P0.tr() * gismo::expr::uv(0,3) * meas(Gori);
 
     gsExprEvaluator<T> ev(exprAssembler);
 
