@@ -229,8 +229,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-                // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
-                this->_getMetric(k,z(j,k),false); // on point i, on height z(0,j)
+                // this->_getMetric(k, z(j, k), false); // on point i, on height z(0,j)
+                this->_getMetric(k, z(j, k) * m_Tmat(0, k), false); // on point i, on height z(0,j)
 
                 gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
                 /*
@@ -271,12 +271,12 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, co
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-                // this->computeMetric(i,z.at(j),true,true);
-                this->_getMetric(k,z(j,k),false); // on point i, on height z(0,j)
+            // this->_getMetric(k, z(j, k), false); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_Tmat(0, k), false); // on point i, on height z(0,j)
 
-                result(0,j*u.cols()+k) = _Sij(0,0,z(j,k),out);
-                result(1,j*u.cols()+k) = _Sij(1,1,z(j,k),out);
-                result(2,j*u.cols()+k) = _Sij(0,1,z(j,k),out);
+            result(0, j * u.cols() + k) = _Sij(0, 0, z(j, k), out);
+            result(1, j * u.cols() + k) = _Sij(1, 1, z(j, k), out);
+            result(2, j * u.cols() + k) = _Sij(0, 1, z(j, k), out);
         }
     }
 
@@ -300,16 +300,20 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-                this->_getMetric(k,z(j,k),true); // on point i, on height z(0,j)
+            // this->_getMetric(k, z(j, k), true); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
 
-                S.setZero();
-                S(0,0) = _Sij(0,0,0,out);
-                S(0,1) = _Sij(0,1,0,out);
-                S(1,0) = _Sij(1,0,0,out);
-                S(1,1) = _Sij(1,1,0,out);
-                S(2,2) = 0;
-                res = _evalPStress(S);
-                result.col(j*u.cols()+k) = res.first;
+            gsDebugVar(z(j, k));
+            gsDebugVar(m_Tmat(0, k));
+
+            S.setZero();
+            S(0, 0) = _Sij(0, 0, 0, out);
+            S(0, 1) = _Sij(0, 1, 0, out);
+            S(1, 0) = _Sij(1, 0, 0, out);
+            S(1, 1) = _Sij(1, 1, 0, out);
+            S(2, 2) = 0;
+            res = _evalPStress(S);
+            result.col(j * u.cols() + k) = res.first;
         }
     }
 
