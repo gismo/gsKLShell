@@ -1079,15 +1079,14 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::computeErrorEig_impl(const T evPrima
     auto N_der  = Em_der * reshape(mmA,3,3) + Ef_der * reshape(mmB,3,3);
     auto M_der  = Em_der * reshape(mmC,3,3) + Ef_der * reshape(mmD,3,3);
 
-    // auto N_der = Em_der * reshape(mmA, 3, 3);
-    // auto M_der = Ef_der * reshape(mmD, 3, 3);
-
     auto Fint   = ( N_der * Em_der.tr() + M_der * Ef_der.tr() ) * meas(Gori);
 
     gsVector<T> pt(2);
     pt.setConstant(0.25);
 
     gsExprEvaluator<T> ev(exprAssembler);
+
+    gsDebug<<"ampl = "<<ev.integral(rho.val() * usol.tr()*usol *meas(Gori))<<"\n";
 
     T integral = 0.0;
     integral += evPrimalL * ev.integral(rho.val() * usol.tr() * (zsolH - zsolL) * meas(Gori));
@@ -1097,6 +1096,10 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::computeErrorEig_impl(const T evPrima
     integral += (evDualH - evDualL) * (ev.integral(rho.val() * usol.tr() * usol * meas(Gori)) - 1.0);
     gsDebugVar((evDualH - evDualL) * (ev.integral(rho.val() * usol.tr() * usol * meas(Gori)) - 1.0));
 
+    gsDebug << ev.eval(Gori.tr(), pt) << "\n";
+    gsDebug << ev.eval(Gdef.tr(), pt) << "\n";
+    gsDebug << ev.eval(zsolL.tr(), pt) << "\n";
+    gsDebug << ev.eval(zsolH.tr(), pt) << "\n";
     gsDebug << ev.eval(N_der, pt) << "\n";
     gsDebug << ev.eval(M_der, pt) << "\n";
     gsDebug << ev.eval(Fint, pt) << "\n";
@@ -1525,4 +1528,59 @@ gsThinShellAssemblerDWR<d, T, bending, GF>::computeGoal_impl(const gsMatrix<T> &
     return result;
 }
 
-}// namespace gismo
+template <short_t d, class T, bool bending, enum GoalFunction GF>
+template <enum GoalFunction _GF>
+typename std::enable_if<_GF == GoalFunction::Modal, T>::type
+gsThinShellAssemblerDWR<d, T, bending, GF>::matrixNorm_impl(const gismo::gsMultiPatch<T> &dualL, const gismo::gsMultiPatch<T> &dualH) const
+{
+    gsExprAssembler<T> exprAssembler = m_assemblerH->assembler();
+    exprAssembler.cleanUp();
+    exprAssembler.setOptions(m_assemblerH->options());
+
+    exprAssembler.getMap(m_patches); // this map is used for integrals
+
+    // Initialize vector
+    exprAssembler.initSystem(false);
+    exprAssembler.initVector(1, false);
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::Density> rhof(m_assemblerL->material(),m_defpatches);
+    variable rho = exprAssembler.getCoeff(rhof);
+
+    variable zsolL = exprAssembler.getCoeff(dualL);
+    variable zsolH = exprAssembler.getCoeff(dualH);
+
+    geometryMap Gori = exprAssembler.exprData()->getMap();
+
+    gsExprEvaluator<T> ev(exprAssembler);
+    return ev.integral(rho.val() * zsolL.tr() * zsolH * meas(Gori));
+}
+
+template <short_t d, class T, bool bending, enum GoalFunction GF>
+template <enum GoalFunction _GF>
+typename std::enable_if<_GF == GoalFunction::Buckling, T>::type
+gsThinShellAssemblerDWR<d, T, bending, GF>::matrixNorm_impl(const gismo::gsMultiPatch<T> &dualL, const gismo::gsMultiPatch<T> &dualH) const
+{
+    // gsExprAssembler<T> exprAssembler = m_assemblerH->assembler();
+    // exprAssembler.cleanUp();
+    // exprAssembler.setOptions(m_assemblerH->options());
+
+    // exprAssembler.getMap(m_patches); // this map is used for integrals
+
+    // // Initialize vector
+    // exprAssembler.initSystem(false);
+    // exprAssembler.initVector(1, false);
+
+    // gsMaterialMatrixIntegrate<T,MaterialOutput::Density> rhof(m_assemblerL->material(),m_defpatches);
+    // variable rho = exprAssembler.getCoeff(rhof);
+
+    // variable zsolL = exprAssembler.getCoeff(dualL);
+    // variable zsolH = exprAssembler.getCoeff(dualH);
+
+    // geometryMap Gori = exprAssembler.exprData()->getMap();
+
+    // gsExprEvaluator<T> ev(exprAssembler);
+    // return ev.integral(rho.val() * usol.tr() * usol * meas(Gori));
+    return -1;
+}
+
+} // namespace gismo

@@ -21,6 +21,12 @@
 
 //#include <gsThinShell/gsNewtonIterator.h>
 
+template<typename T>
+index_t sgn(T val)
+{
+    return (T(0) < val) - (val < T(0));
+}
+
 using namespace gismo;
 
 int main(int argc, char *argv[])
@@ -135,10 +141,10 @@ int main(int argc, char *argv[])
 
     for (index_t i = 0; i != 3; ++i)
     {
-        bc.addCondition(boundary::north, condition_type::dirichlet, 0, i);
-        bc.addCondition(boundary::east, condition_type::dirichlet, 0, i);
-        bc.addCondition(boundary::south, condition_type::dirichlet, 0, i);
-        bc.addCondition(boundary::west, condition_type::dirichlet, 0, i);
+        bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, i);
+        bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, i);
+        bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, i);
+        bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, i);
     }
     tmp << 0, 0, -load;
     //! [Refinement]
@@ -205,9 +211,14 @@ int main(int argc, char *argv[])
     solVectorDualH = eigSolver.eigenvectors().col(modeIdx);
     real_t dualvalH = eigSolver.eigenvalues()[modeIdx];
     // Mass-normalize
-    solVectorDualH = -1 / (solVectorDualH.transpose() * DWR.massH() * solVectorDualH) * solVectorDualH;
+    solVectorDualH = 1 / (solVectorDualH.transpose() * DWR.massH() * solVectorDualH) * solVectorDualH;
 
     DWR.constructMultiPatchH(solVectorDualH, dualH);
+
+    // Swap multipatch
+    solVectorDualH *= sgn(DWR.matrixNorm(dualL, dualH));
+    DWR.constructMultiPatchH(solVectorDualH, dualH);
+
     gsInfo << "done.\n";
 
     gsDebugVar(solVectorDualL.norm());

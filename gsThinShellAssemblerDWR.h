@@ -138,6 +138,11 @@ public:
     T computeGoal(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
     { return computeGoal_impl<GF>(points, deformed); }
 
+    T matrixNorm(const gsMultiPatch<T> &dualL, const gsMultiPatch<T> &dualH) const
+    {
+        return matrixNorm_impl<GF>(dualL,dualH);
+    }
+
 protected:
 
     void _setBasis(const gsMultiBasis<T> & basis);
@@ -373,6 +378,25 @@ private:
         GISMO_NO_IMPLEMENTATION;
     }
 
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
+    template<enum GoalFunction _GF>
+    typename std::enable_if<_GF==GoalFunction::Modal, T>::type
+    matrixNorm_impl(const gismo::gsMultiPatch<T> &dualL, const gismo::gsMultiPatch<T> &dualH) const;
+
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
+    template<enum GoalFunction _GF>
+    typename std::enable_if<_GF==GoalFunction::Buckling, T>::type
+    matrixNorm_impl(const gismo::gsMultiPatch<T> &dualL, const gismo::gsMultiPatch<T> &dualH) const;
+
+    // template<short_t _d, bool _bending, enum GoalFunction _GF>
+    template<enum GoalFunction _GF>
+    typename std::enable_if<_GF!=GoalFunction::Modal &&
+                            _GF!=GoalFunction::Buckling, T>::type
+    matrixNorm_impl(const gismo::gsMultiPatch<T> &dualL, const gismo::gsMultiPatch<T> &dualH) const
+    {
+        GISMO_NO_IMPLEMENTATION;
+    }
+
 
 protected:
     mutable gsThinShellAssemblerBase<T> * m_assemblerL;
@@ -395,7 +419,6 @@ protected:
 
     // using Base::m_patches;
     // using Base::m_basis;
-    // using Base::m_bcs;
 
     using Base::m_patches;
     using Base::m_defpatches;
@@ -481,6 +504,8 @@ public:
     virtual T computeGoal(const gsMultiPatch<T> & deformed) =0;
 
     virtual T computeGoal(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed) =0;
+
+    virtual T matrixNorm(const gsMultiPatch<T> &dualL, const gsMultiPatch<T> &dualH) const = 0;
 };
 
 } // namespace gismo
