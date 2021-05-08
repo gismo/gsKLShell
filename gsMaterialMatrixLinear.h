@@ -95,6 +95,9 @@ public:
     void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
+    void transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+
+    /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     /// See \ref gsMaterialMatrixBase for details
@@ -211,6 +214,7 @@ protected:
     using Base::m_stretches, Base::m_stretchvec;
 
     using Base::m_J0_sq, Base::m_J_sq;
+
 
 
     gsOptionList m_options;

@@ -24,7 +24,6 @@
 #pragma once
 
 #include <gsKLShell/gsMaterialMatrixLinear.h>
-#include <gsKLShell/gsMaterialMatrixEval.h>
 #include <gsKLShell/gsMaterialMatrixUtils.h>
 
 namespace gismo
@@ -142,13 +141,13 @@ void gsMaterialMatrixLinear<dim,T>::stretch_into(const index_t patch, const gsMa
     m_map.points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
 
-    this->_computePoints(patch,u,false);
+    this->_computePoints(patch,u,true);
 
     result.resize(3, u.cols());
     std::pair<gsVector<T>,gsMatrix<T>> res;
     for (index_t i=0; i!= u.cols(); i++)
     {
-        this->_getMetric(i,0.0,false); // on point i, with height 0.0
+        this->_getMetric(i,0.0,true); // on point i, with height 0.0
 
         gsMatrix<T> C(3,3);
         C.setZero();
@@ -166,13 +165,13 @@ void gsMaterialMatrixLinear<dim,T>::stretchDir_into(const index_t patch, const g
     m_map.points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
 
-    this->_computePoints(patch,u,false);
+    this->_computePoints(patch,u,true);
 
     result.resize(9, u.cols());
     std::pair<gsVector<T>,gsMatrix<T>> res;
     for (index_t i=0; i!= u.cols(); i++)
     {
-        this->_getMetric(i,0.0,false); // on point i, with height 0.0
+        this->_getMetric(i,0.0,true); // on point i, with height 0.0
 
         gsMatrix<T> C(3,3);
         C.setZero();
@@ -181,7 +180,6 @@ void gsMaterialMatrixLinear<dim,T>::stretchDir_into(const index_t patch, const g
 
         res = this->_evalStretch(C);
         result.col(i) = res.second.reshape(9,1);
-        break;
     }
 }
 
@@ -194,13 +192,29 @@ void gsMaterialMatrixLinear<dim,T>::thickness_into(const index_t patch, const gs
     m_thickness->eval_into(m_map.values[0], result);
 }
 
+// Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) convariant basis
+template <short_t dim, class T >
+void gsMaterialMatrixLinear<dim,T>::transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+{
+    result.resize(9, u.cols());
+    gsMatrix<T> tmp, conbasis,sbasis;
+    this->stretchDir_into(patch,u,tmp);
+    for (index_t i=0; i!= u.cols(); i++)
+    {
+        this->_getMetric(i,0.0,true); // on point i, with height 0.0
+        sbasis = tmp.reshapeCol(i,3,3);
+        conbasis = m_gcon_ori;
+        result.col(i) = this->_transformation(conbasis,sbasis).reshape(9,1);
+    }
+}
+
 template <short_t dim, class T >
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     // gsInfo<<"TO DO: evaluate moments using thickness";
     // Input: u in-plane points
     //        z matrix with, per point, a column with z integration points
-    // Output: (n=u.cols(), m=z.cols())
+    // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
     this->_computePoints(patch,u,false);
@@ -274,7 +288,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
 {
 
     this->_computePoints(patch,u,true);
-    gsMatrix<T> result(2, u.cols() * z.rows());
+    gsMatrix<T> result(3, u.cols() * z.rows());
     result.setZero();
     gsMatrix<T,3,3> S;
     std::pair<gsVector<T>,gsMatrix<T>> res;
@@ -293,9 +307,9 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
                 S(0,1) = _Sij(0,1,0,out);
                 S(1,0) = _Sij(1,0,0,out);
                 S(1,1) = _Sij(1,1,0,out);
-
+                S(2,2) = 0;
                 res = _evalPStress(S);
-                result.col(j*u.cols()+k) = res.first.head(2);
+                result.col(j*u.cols()+k) = res.first;
         }
     }
 
@@ -370,24 +384,26 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalPStress(c
 
     eigSolver.compute(B);
 
-    pstressvec.leftCols(2) = eigSolver.eigenvectors().rightCols(2);
+    index_t zeroIdx = -1;
+    for (index_t k=0; k!=3; k++)
+        zeroIdx = eigSolver.eigenvalues()[k] == 0 ? k : zeroIdx;
+
+    GISMO_ASSERT(zeroIdx!=-1,"No zero found?");
+
+    index_t count = 0;
     pstressvec.col(2) = m_gcon_ori.col(2);
-    pstresses.block(0,0,2,1) = eigSolver.eigenvalues().block(1,0,2,1); // the eigenvalues are a 3x1 matrix, so we need to use matrix block-operations
+    pstresses(2,0) = S(2,2);
 
-    // m_stretches.at(2) = 1/m_J0_sq;
-    pstresses.at(2) = S(2,2);
-
-    // for (index_t k=0; k!=3; k++)
-    //     pstresses.at(k) = math::sqrt(pstresses.at(k));
+    for (index_t k=0; k!=3; k++)
+    {
+        if (k==zeroIdx) continue;
+        pstressvec.col(count) = eigSolver.eigenvectors().col(k);
+        pstresses(count,0) = eigSolver.eigenvalues()(k,0);
+        count++;
+    }
 
     result.first = pstresses;
     result.second = pstressvec;
-
-    // // DEBUGGING ONLY!
-    // gsMatrix<T> ones(3,1);
-    // ones.setOnes();
-    // gsDebugVar(pstressvec);
-    // gsDebugVar(result.first);
 
     return result;
 }

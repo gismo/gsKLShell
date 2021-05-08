@@ -109,6 +109,15 @@ public:
     inline virtual void  thickness_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
 
     /**
+     * @brief      ???????????????
+     *
+     * @param[in]  patch   The patch to be evaluated on
+     * @param[in]  u       The in-plane shell coordinates to be eveluated on
+     * @param      result  The resut
+     */
+    inline virtual void  transform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+
+    /**
      * @brief      Evaluates the matrix on \a patch on in-plane points \a u with height \a z
      *
      * @param[in]  patch  The patch

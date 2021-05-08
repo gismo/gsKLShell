@@ -24,7 +24,6 @@
 #pragma once
 
 #include <gsKLShell/gsMaterialMatrix.h>
-#include <gsKLShell/gsMaterialMatrixEval.h>
 
 namespace gismo
 {
@@ -325,7 +324,6 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_stretchDir_into_impl(const gsMatrix
 
         res = this->_evalStretch(C);
         result.col(i) = res.second.reshape(9,1);
-        break;
     }
 }
 
@@ -385,7 +383,6 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_stretchDir_into_impl(const gsMatrix
             {
                 res = this->_evalStretch(c);
                 result.col(i) = res.second.reshape(9,1);
-                break;
             }
             GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, abs(dc33) = "<<abs(dc33)<<" and tolerance = "<<tol<<"\n");
         }
@@ -399,6 +396,21 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::thickness_into(const index_t pa
     m_map.points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
     m_thickness->eval_into(m_map.values[0], result);
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+{
+    result.resize(9, u.cols());
+    gsMatrix<T> tmp, conbasis,sbasis;
+    this->stretchDir_into(patch,u,tmp);
+    for (index_t i=0; i!= u.cols(); i++)
+    {
+        this->_getMetric(i,0.0,true); // on point i, with height 0.0
+        sbasis = tmp.reshapeCol(i,3,3);
+        conbasis = m_gcon_ori;
+        result.col(i) = this->_transformation(conbasis,sbasis).reshape(9,1);
+    }
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
@@ -585,7 +597,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_pst
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
     this->_computePoints(patch,u);
-    gsMatrix<T> result(2, u.cols() * z.rows());
+    gsMatrix<T> result(3, u.cols() * z.rows());
     result.setZero();
 
     for (index_t k=0; k!=u.cols(); k++)
@@ -600,6 +612,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_pst
 
                 result(0,j*u.cols()+k) = _Sii(0);
                 result(1,j*u.cols()+k) = _Sii(1);
+                result(2,j*u.cols()+k) = 0;
         }
     }
 

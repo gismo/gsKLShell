@@ -34,25 +34,31 @@ class gsMaterialMatrixBaseDim : public gsMaterialMatrixBase<T>
 
 public:
 
-    gsMaterialMatrixBaseDim() {};
+    gsMaterialMatrixBaseDim() : m_patches(nullptr)
+    {
+        membersSetZero();
+    }
 
 
     gsMaterialMatrixBaseDim(const gsFunctionSet<T> & mp)
     :
     m_patches(&mp)
-    { };
+    {
+        membersSetZero();
+    }
 
     gsMaterialMatrixBaseDim(const gsFunctionSet<T> & mp,
                             const gsFunctionSet<T> & mp_def)
     :
     m_patches(&mp)
     {
+        membersSetZero();
         this->setDeformed(mp_def);
-    };
+    }
 
 
     /// Destructor
-    virtual ~gsMaterialMatrixBaseDim() {};
+    virtual ~gsMaterialMatrixBaseDim() {}
 
 public:
 
@@ -71,11 +77,14 @@ public:
     /// Gets metric quantities on the undeformed geometry
     void _getMetricUndeformed(index_t k, T z, bool basis = true) const;
 
+    /// Computes the stretch given deformation tensor C, into a pair
+    std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C ) const;
+
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     void _computeStretch(const gsMatrix<T> & C ) const;
 
-    /// Computes the stretch given deformation tensor C, into a pair
-    std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C ) const;
+    /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
+    gsMatrix<T> _transformation(const gsMatrix<T> & basis1, const gsMatrix<T> & basis2 ) const;
 
 private:
     /// Implementation of \ref _computeMetricUndeformed for planar geometries
@@ -117,8 +126,20 @@ private:
     template<short_t _dim>
     typename std::enable_if<_dim==3, void>::type _getMetricUndeformed_impl(index_t k, T z, bool basis) const;
 
-
 protected:
+
+    void membersSetZero()
+    {
+        m_Acov_ori.setZero(); m_Acon_ori.setZero(); m_Acov_def.setZero(); m_Acon_def.setZero(); m_Bcov_ori.setZero(); m_Bcon_ori.setZero(); m_Bcov_def.setZero(); m_Bcon_def.setZero();
+        m_acov_ori.setZero(); m_acon_ori.setZero(); m_acov_def.setZero(); m_acon_def.setZero();
+        m_ncov_ori.setZero(); m_ncov_def.setZero();
+        m_Gcov_ori.setZero(); m_Gcon_ori.setZero(); m_Gcov_def.setZero(); m_Gcon_def.setZero(); m_Gcov_ori_L.setZero(); m_Gcov_def_L.setZero();
+        m_gcov_ori.setZero(); m_gcov_def.setZero();m_gcon_ori.setZero(); m_gcon_def.setZero();
+        m_Acov_ori_mat.setZero(); m_Acon_ori_mat.setZero(); m_Acov_def_mat.setZero(); m_Acon_def_mat.setZero(); m_Bcov_ori_mat.setZero(); m_Bcov_def_mat.setZero();
+        m_acov_ori_mat.setZero(); m_acon_ori_mat.setZero(); m_acov_def_mat.setZero(); m_acon_def_mat.setZero(); m_ncov_ori_mat.setZero(); m_ncov_def_mat.setZero();
+
+    }
+
     const gsFunctionSet<T> * m_patches;
     using Base::m_defpatches;
     // const gsFunctionSet<T> * m_defpatches;
@@ -138,6 +159,8 @@ protected:
 
     mutable T           m_J0_sq, m_J_sq;
 
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW //must be present whenever the class contains fixed size matrices
 
 };
 

@@ -358,10 +358,7 @@ int main(int argc, char *argv[])
     totaltime += stopwatch2.stop();
 
     mp_def = assembler->constructSolution(solVector);
-
-    gsMultiPatch<> deformation = mp_def;
-    for (size_t k = 0; k != mp_def.nPatches(); ++k)
-        deformation.patch(k).coefs() -= mp.patch(k).coefs();
+    gsMultiPatch<> deformation = assembler->constructDisplacement(solVector);
 
     // ! [Export visualization in ParaView]
 
