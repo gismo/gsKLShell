@@ -114,7 +114,7 @@ gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     variable g_N = m_assembler.getBdrFunction();
-    m_assembler.assembleRhsBc(m_space * g_N * otangent(m_ori).norm(), m_bcs.neumannSides() );
+    m_assembler.assembleRhsBc(m_space * g_N * tv(m_ori).norm(), m_bcs.neumannSides() );
 }
 
 template <short_t d, class T, bool bending>
