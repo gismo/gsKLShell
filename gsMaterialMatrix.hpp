@@ -534,7 +534,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_mat
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
                 // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
-                this->_getMetric(k,z(j,k)); // on point i, on height z(0,j)
+                this->_getMetric(k,z(j,k) * m_Tmat(0,k) ); // on point i, on height z(0,j)
 
                 gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
                 /*
@@ -575,12 +575,11 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_vec
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-                // this->computeMetric(i,z.at(j),true,true);
-                this->_getMetric(k,z(j,k)); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_Tmat(0, k)); // on point i, on height z(0,j)
 
-                result(0,j*u.cols()+k) = _Sij(0,0);
-                result(1,j*u.cols()+k) = _Sij(1,1);
-                result(2,j*u.cols()+k) = _Sij(0,1);
+            result(0, j * u.cols() + k) = _Sij(0, 0);
+            result(1, j * u.cols() + k) = _Sij(1, 1);
+            result(2, j * u.cols() + k) = _Sij(0, 1);
         }
     }
 
@@ -608,11 +607,11 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_pst
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-                this->_getMetric(k,z(j,k)); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_Tmat(0, k)); // on point i, on height z(0,j)
 
-                result(0,j*u.cols()+k) = _Sii(0);
-                result(1,j*u.cols()+k) = _Sii(1);
-                result(2,j*u.cols()+k) = 0;
+            result(0, j * u.cols() + k) = _Sii(0);
+            result(1, j * u.cols() + k) = _Sii(1);
+            result(2, j * u.cols() + k) = 0;
         }
     }
 
@@ -1204,7 +1203,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
-            this->_getMetric(k,z(j,k)); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_Tmat(0, k)); // on point i, on height z(0,j)
 
             // Define objects
             gsMatrix<T,3,3> c, cinv;
@@ -1290,7 +1289,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_vecto
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
-            this->_getMetric(k,z(j,k)); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_Tmat(0, k)); // on point i, on height z(0,j)
 
             // Define objects
             gsMatrix<T,3,3> c, cinv;
@@ -1368,7 +1367,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_pstre
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
-            this->_getMetric(k,z(j,k)); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_Tmat(0, k)); // on point i, on height z(0,j)
 
             // Define objects
             gsMatrix<T,3,3> c, cinv;

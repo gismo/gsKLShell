@@ -428,7 +428,7 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     geometryMap m_ori   = m_assembler.exprData()->getMap();
     geometryMap m_def   = m_assembler.exprData()->getMap2();
     variable m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
-    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
+
 
     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) );
     auto m_Ef_der   = -( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3);
@@ -585,7 +585,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> &
     space       m_space = m_assembler.trialSpace(0);
     geometryMap m_ori   = m_assembler.exprData()->getMap();
     geometryMap m_def   = m_assembler.exprData()->getMap2();
-    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
+
 
     this->homogenizeDirichlet();
 
@@ -659,7 +659,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> &
     space       m_space = m_assembler.trialSpace(0);
     geometryMap m_ori   = m_assembler.exprData()->getMap();
     geometryMap m_def   = m_assembler.exprData()->getMap2();
-    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
+
 
     this->homogenizeDirichlet();
 
@@ -743,7 +743,7 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsMultiPatch<T> &
     geometryMap m_ori   = m_assembler.exprData()->getMap();
     geometryMap m_def   = m_assembler.exprData()->getMap2();
     variable m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
-    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
+
 
     this->homogenizeDirichlet();
 
@@ -890,7 +890,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsMultiPatch<T> & 
 
     geometryMap m_ori   = assembler.exprData()->getMap();
     geometryMap m_def   = assembler.exprData()->getMap2();
-    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
+
 
     // this->homogenizeDirichlet();
 
@@ -954,7 +954,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsMultiPatch<T> & 
 
     geometryMap m_ori   = assembler.exprData()->getMap();
     geometryMap m_def   = assembler.exprData()->getMap2();
-    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
+
 
     // this->homogenizeDirichlet();
 
@@ -1024,7 +1024,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsMultiPatch
 
     geometryMap m_ori   = assembler.exprData()->getMap();
     geometryMap m_def   = assembler.exprData()->getMap2();
-    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
+
 
     // this->homogenizeDirichlet();
 
@@ -1124,7 +1124,6 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsMultiPatch
 
     geometryMap m_ori   = assembler.exprData()->getMap();
     geometryMap m_def   = assembler.exprData()->getMap2();
-    // variable m_thick = m_assembler.getCoeff(*m_thickFun, m_ori);
 
     // this->homogenizeDirichlet();
 

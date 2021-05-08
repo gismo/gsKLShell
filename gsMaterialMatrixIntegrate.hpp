@@ -169,7 +169,8 @@ void gsMaterialMatrixIntegrate<T,out>::integrateZ_into(const gsMatrix<T>& u, con
         gsMatrix<T> quNodes(1,numGauss);
         gsVector<T> quWeights(numGauss);
         // set new integration point
-        Thalf = Tmat(0,k)/2.0;
+        // Thalf = Tmat(0,k)/2.0;
+        Thalf = 0.5;
         gauss.mapTo(-Thalf,Thalf,quNodes,quWeights);
         w.col(k)=quWeights;
         z.col(k)=quNodes.transpose();
@@ -183,7 +184,7 @@ void gsMaterialMatrixIntegrate<T,out>::integrateZ_into(const gsMatrix<T>& u, con
         {
             res = 0.0;
             for (index_t j = 0; j != numGauss; ++j) // compute integral
-                res += w(j,k) * math::pow(z(j,k),moment) * vals(i,j*u.cols() + k);
+                res += w(j, k) * math::pow(z(j, k) * Tmat(0, k), moment) * vals(i, j * u.cols() + k) * Tmat(0, k); // int_z=[-1/2,1/2] (xi*t)^moment * <quantity(xi)> * t
             result(i,k) = res;
         }
 
@@ -193,6 +194,7 @@ void gsMaterialMatrixIntegrate<T,out>::integrateZ_into(const gsMatrix<T>& u, con
 
 /*
  * WARNING: This function assumes the function to be integrated: f(z,...) = g(,...) + z h(...)
+    Note: z is assumed to be [-1,1]
  */
 template <class T, enum MaterialOutput out>
 void gsMaterialMatrixIntegrate<T,out>::multiplyLinZ_into(const gsMatrix<T>& u, const index_t moment, gsMatrix<T>& result) const
@@ -209,7 +211,8 @@ void gsMaterialMatrixIntegrate<T,out>::multiplyLinZ_into(const gsMatrix<T>& u, c
     // pre-compute Z
     for (index_t k = 0; k != u.cols(); ++k) // for all points
     {
-        Thalf = Tmat(0,k)/2.0;
+        Thalf = 1.0 / 2.0;
+        // Thalf = Tmat(0, k) / 2.0;
         z.col(k)<<Thalf,-Thalf;
     }
 
@@ -221,8 +224,8 @@ void gsMaterialMatrixIntegrate<T,out>::multiplyLinZ_into(const gsMatrix<T>& u, c
             // 1/(alpha+1) * [ (t/2)^(alpha+1) * g(...)  - (-t/2)^(alpha+1) * g(...) ]
             // 1/(alpha+2) * [ (t/2)^(alpha+1) * h(...)  - (-t/2)^(alpha+1) * h(...) ]
             result.col(k) = 1.0/(moment+fac+1) *
-                            ( math::pow( z(0,k), moment + 1) * vals.col(0*u.cols() + k)
-                                - math::pow( z(1,k), moment + 1) * vals.col(1*u.cols() + k) );
+                            ( math::pow( z(0,k) * Tmat(0, k), moment + 1) * vals.col(0*u.cols() + k)
+                                - math::pow( z(1,k) * Tmat(0, k), moment + 1) * vals.col(1*u.cols() + k) );
     }
 
 }
@@ -245,7 +248,7 @@ void gsMaterialMatrixIntegrate<T,out>::multiplyZ_into(const gsMatrix<T>& u, inde
         gsMatrix<T> vals = this->eval(u);
         for (index_t k = 0; k != u.cols(); ++k) // for all points
         {
-            Thalf = Tmat(0,k)/2.0;
+            Thalf = Tmat(0, k) / 2.0;
             fac = 2.0/(moment+1) * math::pow( Thalf , moment + 1);
             result.col(k) = vals.col(k) * fac;
         }
