@@ -17,6 +17,7 @@
 #include <gsKLShell/gsThinShellAssemblerDWR.h>
 #include <gsKLShell/gsThinShellUtils.h>
 #include <gsKLShell/getMaterialMatrix.h>
+#include <gsKLShell/gsMaterialMatrixEval.h>
 #include <gsAssembler/gsAdaptiveRefUtils.h>
 
 //#include <gsThinShell/gsNewtonIterator.h>
@@ -152,19 +153,24 @@ int main(int argc, char *argv[])
 
     gsThinShellAssemblerDWRBase<real_t> * DWR;
     if (goal==1)
-        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::DisplacementNorm>(mp,basisL,basisH,bc,force,materialMatrix);
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement,9>(mp,basisL,basisH,bc,force,materialMatrix);
     else if (goal==2)
-        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement>(mp,basisL,basisH,bc,force,materialMatrix);
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement,0>(mp,basisL,basisH,bc,force,materialMatrix);
     else if (goal==3)
-        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStrain>(mp,basisL,basisH,bc,force,materialMatrix);
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Stretch,1>(mp,basisL,basisH,bc,force,materialMatrix);
     else if (goal==4)
-        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStress>(mp,basisL,basisH,bc,force,materialMatrix);
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStrain,9>(mp,basisL,basisH,bc,force,materialMatrix);
     else if (goal==5)
-        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneForce>(mp,basisL,basisH,bc,force,materialMatrix);
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStrain,0>(mp,basisL,basisH,bc,force,materialMatrix);
     else if (goal==6)
-        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStress>(mp,basisL,basisH,bc,force,materialMatrix);
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStress,0>(mp,basisL,basisH,bc,force,materialMatrix);
+    else if (goal==7)
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStress,1>(mp,basisL,basisH,bc,force,materialMatrix);
+    else if (goal==8)
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneForce,0>(mp,basisL,basisH,bc,force,materialMatrix);
     else
         GISMO_ERROR("Goal function unknown");
+
 
     gsSparseSolver<>::LU solver;
     gsVector<> solVector;
@@ -223,9 +229,29 @@ int main(int argc, char *argv[])
 
     real_t approx, exact = 0;
 
-    gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::DisplacementNorm> DWR2(mp,basisR,basisR,bc,force,materialMatrix);
-    exact += DWR2.computeGoal(mp_ex);
-    exact += DWR2.computeGoal(points,mp_ex);
+
+    gsThinShellAssemblerDWRBase<real_t> * DWR2;
+    if (goal==1)
+        DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement,9>(mp,basisR,basisR,bc,force,materialMatrix);
+    else if (goal==2)
+        DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement,0>(mp,basisR,basisR,bc,force,materialMatrix);
+    else if (goal==3)
+        DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Stretch,1>(mp,basisR,basisR,bc,force,materialMatrix);
+    else if (goal==4)
+        DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStrain,9>(mp,basisR,basisR,bc,force,materialMatrix);
+    else if (goal==5)
+        DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStrain,0>(mp,basisR,basisR,bc,force,materialMatrix);
+    else if (goal==6)
+        DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStress,0>(mp,basisR,basisR,bc,force,materialMatrix);
+    else if (goal==7)
+        DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStress,1>(mp,basisR,basisR,bc,force,materialMatrix);
+    else if (goal==8)
+        DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneForce,0>(mp,basisR,basisR,bc,force,materialMatrix);
+    else
+        GISMO_ERROR("Goal function unknown");
+
+    exact += DWR2->computeGoal(mp_ex);
+    exact += DWR2->computeGoal(points,mp_ex);
     exact -= DWR->computeGoal(mp_def);
     exact -= DWR->computeGoal(points,mp_def);
     approx = DWR->computeError(dualL,dualH);
@@ -234,6 +260,8 @@ int main(int argc, char *argv[])
     gsInfo<<"Exact = "<<exact<<"\n";
     gsInfo<<"Efficiency = "<<approx/exact<<"\n";
 
+    delete DWR;
+    delete DWR2;
     return EXIT_SUCCESS;
 
 }// end main

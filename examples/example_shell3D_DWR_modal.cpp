@@ -61,6 +61,8 @@ int main(int argc, char *argv[])
     refParameter = 0.85;
     RefineLoopMax = 1;
 
+    int testCase = 0;
+
     gsCmdLine cmd("Tutorial on solving a Poisson problem.");
     cmd.addInt("i", "index", "index of mode", modeIdx);
     cmd.addInt("e", "degreeElevation",
@@ -68,20 +70,16 @@ int main(int argc, char *argv[])
     cmd.addInt("r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving", numRefine);
     cmd.addInt("R", "refine", "Maximum number of adaptive refinement steps to perform",
                RefineLoopMax);
+    cmd.addInt("t", "testcase",
+                "Test case: 0: Beam - pinned-pinned, 1: Beam - fixed-fixed, 2: beam - fixed-free, 3: plate - fully pinned, 4: plate - fully fixed, 5: circle - fully pinned, 6: 5: circle - fully fixed",
+               testCase);
     cmd.addReal("T", "thickness", "thickness", thickness);
     cmd.addInt("g", "goal", "Goal function to use", goal);
     cmd.addString("f", "file", "Input XML file", fn);
     cmd.addSwitch("nl", "Solve nonlinear problem", nonlinear);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
 
-    try
-    {
-        cmd.getValues(argc, argv);
-    }
-    catch (int rv)
-    {
-        return rv;
-    }
+    try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
 
     gsVector<> pts(2);
@@ -91,11 +89,28 @@ int main(int argc, char *argv[])
     gsMultiPatch<> mp;
     gsMultiPatch<> mp_def;
 
-    // Unit square
-    mp.addPatch(gsNurbsCreator<>::BSplineSquare(1)); // degree
-    mp.addAutoBoundaries();
-    mp.embed(3);
-    E_modulus = 1.0;
+    if (testCase==0)
+    {
+        // Unit square
+        mp.addPatch(gsNurbsCreator<>::BSplineSquare(1)); // degree
+        mp.addAutoBoundaries();
+        mp.embed(3);
+        E_modulus = 1.0;
+        Density = 1.0;
+        PoissonRatio = 0.3;
+        thickness = 0.01;
+    }
+    else if (testCase==1)
+    {
+        std::string fn = "planar/unitcircle.xml";
+        gsReadFile<>(fn, mp);
+        thickness = 0.01;
+        PoissonRatio = 0.3;
+        E_modulus     = 1e0;
+        Density = 1e0;
+    }
+
+
     // thickness = 1.0;
 
     // p-refine
@@ -133,20 +148,48 @@ int main(int argc, char *argv[])
     gsVector<> tmp(3);
     tmp << 0, 0, 0;
 
-    real_t load = 1.0;
     real_t D = E_modulus * math::pow(thickness, 3) / (12 * (1 - math::pow(PoissonRatio, 2)));
+    gsInfo<<"D = "<<D<<"\n";
 
-    gsFunctionExpr<> u_ex("0", "0", "w:= 0; for (u := 1; u < 100; u += 2) { for (v := 1; v < 100; v += 2) { w += -16.0 * " + std::to_string(load) + " / ( pi^6*" + std::to_string(D) + " ) * 1 / (v * u * ( v^2 + u^2 )^2 ) * sin( v * pi * x) * sin(u * pi * y) } }", 3);
-    gsFunctionExpr<> z_ex("0", "0", "w:= 0; for (u := 1; u < 100; u += 2) { for (v := 1; v < 100; v += 2) { w += 16.0 * 1 / ( pi^6*" + std::to_string(D) + " ) * 1 / (v * u * ( v^2 + u^2 )^2 ) * sin( v * pi * x) * sin(u * pi * y) } }", 3);
-
-    for (index_t i = 0; i != 3; ++i)
+    std::vector<real_t> omegas;
+    if (testCase==0)
     {
-        bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, i);
-        bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, i);
-        bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, i);
-        bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, i);
+        for (index_t i = 0; i != 3; ++i)
+        {
+            bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, i);
+            bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, i);
+            bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, i);
+            bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, i);
+        }
+        for (index_t m=1; m!=10; m++)
+          for (index_t n=1; n!=10; n++)
+            omegas.push_back((math::pow(m/1.0,2)+math::pow(n/1.0,2))*math::pow(3.1415926535,2)*math::sqrt(D / (Density * thickness)));
+
+        std::sort(omegas.begin(),omegas.end());
     }
-    tmp << 0, 0, -load;
+    else if (testCase==1)
+    {
+        // Circle
+        // Pinned-Pinned-Pinned-Pinned
+        for (index_t i = 0; i != 3; ++i)
+        {
+            bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, i);
+            bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, i);
+            bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, i);
+            bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, i);
+        }
+        bc.addCondition(boundary::north, condition_type::clamped,0,0,false,2);
+        bc.addCondition(boundary::east, condition_type::clamped,0,0,false,2);
+        bc.addCondition(boundary::south, condition_type::clamped,0,0,false,2);
+        bc.addCondition(boundary::west, condition_type::clamped,0,0,false,2);
+        gsVector<> gammas(10);
+        gammas<<3.1962206158252, 4.6108999, 5.9056782, 6.3064370, 7.1435310, 7.7992738, 8.3466059, 9.1968826, 9.4394991, 9.5257014;
+        for (index_t n=0; n!=gammas.size(); n++)
+          omegas.push_back(math::pow(math::pow(gammas[n],4)*D/(Density*thickness),0.5));
+    }
+    else
+        GISMO_ERROR("TESTCASE UNKNOWN!");
+
     //! [Refinement]
 
     gsConstantFunction<> force(tmp, 3);
@@ -191,13 +234,26 @@ int main(int argc, char *argv[])
     real_t eigvalL, dualvalL;
     eigvalL = dualvalL = eigSolver.eigenvalues()[modeIdx];
 
-    // Mass-normalize
+    real_t Mnorm;
+    // Mass-normalize primal
     solVector = 1 / (solVector.transpose() * DWR.massL() * solVector) * solVector;
-    solVectorDualL = 1 / (solVectorDualL.transpose() * DWR.massL() * solVectorDualL) * solVectorDualL;
-
     DWR.constructMultiPatchL(solVector, primalL);
-    DWR.constructMultiPatchL(solVectorDualL, dualL);
     DWR.constructSolutionL(solVector, mp_def);
+    gsField<> primalLField(mp, primalL);
+    gsWriteParaview(primalLField, "primalL", 1000);
+
+
+    // mass-normalize w.r.t. primal
+    DWR.constructMultiPatchL(solVectorDualL, dualL);
+    Mnorm = DWR.matrixNorm(primalL, dualL);
+    solVectorDualL *= 1. / Mnorm;
+    DWR.constructMultiPatchL(solVectorDualL, dualL);
+    gsField<> dualLField(mp, dualL);
+    gsWriteParaview(dualLField, "dualL", 1000);
+
+    // solVectorDualL = 1 / (solVectorDualL.transpose() * DWR.massL() * solVectorDualL) * solVectorDualL;
+    // DWR.constructMultiPatchL(solVectorDualL, dualL);
+
     gsInfo << "done.\n";
 
     gsInfo << "Assembling dual matrix (H)... " << std::flush;
@@ -210,19 +266,24 @@ int main(int argc, char *argv[])
     gsDebugVar(math::sqrt(eigSolver.eigenvalues()[modeIdx]));
     solVectorDualH = eigSolver.eigenvectors().col(modeIdx);
     real_t dualvalH = eigSolver.eigenvalues()[modeIdx];
-    // Mass-normalize
-    solVectorDualH = 1 / (solVectorDualH.transpose() * DWR.massH() * solVectorDualH) * solVectorDualH;
 
+    // mass-normalize w.r.t. primal
+    DWR.constructMultiPatchH(solVectorDualH, dualH);
+    gsField<> dualHField(mp, dualH);
+    gsWriteParaview(dualHField, "dualH", 1000);
+    Mnorm = DWR.matrixNorm(primalL, dualH);
+    gsDebugVar(Mnorm);
+    solVectorDualH *= 1. / Mnorm;
     DWR.constructMultiPatchH(solVectorDualH, dualH);
 
-    // Swap multipatch
-    solVectorDualH *= sgn(DWR.matrixNorm(dualL, dualH));
-    DWR.constructMultiPatchH(solVectorDualH, dualH);
+    // solVectorDualH = 1 / (solVectorDualH.transpose() * DWR.massH() * solVectorDualH) * solVectorDualH;
+    // DWR.constructMultiPatchH(solVectorDualH, dualH);
+
+    // // Swap multipatch
+    // solVectorDualH *= sgn(DWR.matrixNorm(dualL, dualH));
+    // DWR.constructMultiPatchH(solVectorDualH, dualH);
 
     gsInfo << "done.\n";
-
-    gsDebugVar(solVectorDualL.norm());
-    gsDebugVar(solVectorDualH.norm());
 
     gsField<> dualField(mp, dualH);
     gsWriteParaview(dualField, "dualH", 1000);
@@ -231,9 +292,10 @@ int main(int argc, char *argv[])
 
     real_t approx = DWR.computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
 
-    index_t m, n;
-    m = n = 1;
-    real_t lambda_an = (math::pow(m / 1.0, 2) + math::pow(n / 1.0, 2)) * math::pow(3.1415926535, 2) * math::sqrt(D / (Density * thickness));
+    real_t lambda_an = omegas[0];
+    gsDebugVar(math::pow(lambda_an, 2));
+    gsDebugVar(lambda_an);
+    gsDebugVar(eigvalL);
 
     real_t exact = math::pow(lambda_an, 2) - eigvalL;
 

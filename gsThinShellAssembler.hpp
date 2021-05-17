@@ -114,7 +114,7 @@ gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     variable g_N = m_assembler.getBdrFunction();
-    m_assembler.assembleRhsBc(m_space * g_N * otangent(m_ori).norm(), m_bcs.neumannSides() );
+    m_assembler.assembleRhsBc(m_space * g_N * tv(m_ori).norm(), m_bcs.neumannSides() );
 }
 
 template <short_t d, class T, bool bending>
@@ -164,7 +164,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     m_assembler.assembleLhsRhsBc
     (
         (
-            m_alpha_r * ( sn(m_ori).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_ori,nv(m_ori).tr()) )
+            m_alpha_r * ( sn(m_ori).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2dot(m_space,m_space,m_ori,nv(m_ori).tr()) )
             +
             m_alpha_r * ( ( var1(m_space,m_ori) * nv(m_ori) ) * ( var1(m_space,m_ori) * nv(m_ori) ).tr() )
         ) * meas(m_ori)
@@ -236,7 +236,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsMultiPatch<T>
     m_assembler.assembleLhsRhsBc
     (
         (
-            m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_def,nv(m_ori).tr()) )
+            m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2dot(m_space,m_space,m_def,nv(m_ori).tr()) )
             +
             m_alpha_r * ( ( var1(m_space,m_def) * nv(m_ori) ) * ( var1(m_space,m_def) * nv(m_ori) ).tr() )
         ) * meas(m_ori)
@@ -597,7 +597,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> &
     auto m_M        = S1.tr(); // output is a column
     auto m_Ef_der   = -( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
     auto m_Ef_der2  = -(flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_M  ).symmetrize()
-                            + var2(m_space,m_space,m_def, m_M ));
+                            + var2dot(m_space,m_space,m_def, m_M ));
 
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);

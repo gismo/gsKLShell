@@ -97,6 +97,7 @@ int main (int argc, char** argv)
     typedef gsExprAssembler<>::variable    variable;
 
     geometryMap map = A.getMap(mp); // the last map counts
+    geometryMap def = A.getMap(mp_def); // the last map counts
 
     gsExprEvaluator<> ev(A);
 
@@ -174,8 +175,6 @@ int main (int argc, char** argv)
     variable mmDp = A.getCoeff(mmD_p);
     gsInfo<<"matrix D = \n"<<ev.eval(mmDp,pt)<<"\n";
 
-
-
     gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> S0_p(materialMatrix,mp_def,Z);
     variable S0p = A.getCoeff(S0_p);
     gsInfo<<"Vector N = \n"<<ev.eval(S0p,pt)<<"\n";
@@ -211,6 +210,15 @@ int main (int argc, char** argv)
     variable transp = A.getCoeff(trans_p);
     gsInfo<<"Transformation = \n"<<ev.eval(transp,pt)<<"\n";
 
+    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","0.5",2);
+    variable m2 = A.getCoeff(mult2t);
+
+    auto Em = 0.5 * ( flat(jac(def).tr()*jac(def)) - flat(jac(map).tr()* jac(map)) );
+    auto Cm = ( flat(jac(def).tr()*jac(def)) ) * reshape(m2,3,3);
+    gsInfo<<"Em = \n"<<ev.eval(Em,pt)<<"\n";
+    gsInfo<<"Sm = \n"<<ev.eval(Em * reshape(mmAp,3,3),pt)<<"\n";
+    gsInfo<<"Em = \n"<<ev.eval(Cm * reshape(transp,3,3).tr(),pt)<<"\n";
+
     gsInfo<<"PStressN (transformed) = \n"<<ev.eval(reshape(transp,3,3) * S0p,pt)<<"\n";
     gsInfo<<"PStressM (transformed) = \n"<<ev.eval(reshape(transp,3,3) * S1p,pt)<<"\n";
     gsInfo<<"PStressM (transformed) = \n"<<ev.eval(reshape(transp,3,3) * Stp,pt)<<"\n";
@@ -220,14 +228,17 @@ int main (int argc, char** argv)
     //////////////////////////////////////////////////////////////////////////////////////////////
 
     gsMatrix<> Tmats;
+    gsMatrix<> Stretches;
     gsMatrix<> Stresses;
     gsMatrix<> PStresses;
     trans_p.eval_into(pts,Tmats);
+    lambda_p.eval_into(pts,Stretches);
     S0_p.eval_into(pts,Stresses);
     P0_p.eval_into(pts,PStresses);
     for (index_t k=0; k!=pts.cols(); k++)
     {
         gsMatrix<> Tmat = Tmats.reshapeCol(k,3,3);
+        gsMatrix<> Stretch = Stretches.reshapeCol(k,3,1);
         gsMatrix<> Stress = Stresses.reshapeCol(k,3,1);
         gsMatrix<> PStress = PStresses.reshapeCol(k,3,1);
 

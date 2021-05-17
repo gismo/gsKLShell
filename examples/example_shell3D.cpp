@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
         PoissonRatio = 0.3;
         gsReadFile<>("surface/pinched_cylinder.xml", mp);
     }
-    else
+    else if (testCase == 4)
     {
         // Unit square
         mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
@@ -89,6 +89,8 @@ int main(int argc, char *argv[])
         PoissonRatio = 0.3;
         nonlinear = true;
     }
+    else
+        GISMO_ERROR("Testcase "<<testCase<<" unknown");
     //! [Read input file]
     // p-refine
     if (numElevate!=0)
@@ -127,22 +129,7 @@ int main(int argc, char *argv[])
     real_t pressure = 0.0;
 
     gsVector<> refPoint(2);
-    if (testCase == 0)
-    {
-        for (index_t i=0; i!=3; ++i)
-        {
-            bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0 ,false,i);
-            bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0 ,false,i);
-            bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0 ,false,i);
-            bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0 ,false,i);
-        }
-
-        pressure = -1;
-        refPoint<<0.5,0.5;
-        // tmp << 0,0,-1;
-
-    }
-    else if (testCase == 1)
+    if (testCase == 1)
     {
         // Diaphragm conditions
         bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0 ,false, 1 );
@@ -217,8 +204,23 @@ int main(int argc, char *argv[])
 
         refPoint = point;
     }
+    if (testCase == 4)
+    {
+        for (index_t i=0; i!=3; ++i)
+        {
+            bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0 ,false,i);
+            bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0 ,false,i);
+            bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0 ,false,i);
+            bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0 ,false,i);
+        }
+
+        pressure = -1;
+        refPoint<<0.5,0.5;
+        // tmp << 0,0,-1;
+
+    }
     else
-        GISMO_ERROR("Test case not known");
+        GISMO_ERROR("Testcase "<<testCase<<" unknown");
 
     //! [Refinement]
 

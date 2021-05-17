@@ -303,9 +303,6 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
             // this->_getMetric(k, z(j, k), true); // on point i, on height z(0,j)
             this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
 
-            gsDebugVar(z(j, k));
-            gsDebugVar(m_Tmat(0, k));
-
             S.setZero();
             S(0, 0) = _Sij(0, 0, 0, out);
             S(0, 1) = _Sij(0, 1, 0, out);

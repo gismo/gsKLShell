@@ -148,12 +148,10 @@ private:
 
 protected:
     gsMaterialMatrixBase<T> * m_materialMat;
-    mutable gsMaterialMatrixEval<T,out> * m_piece;
-    index_t m_pIndex;
-
     gsMatrix<T> m_z;
 
-
+    mutable gsMaterialMatrixEval<T,out> * m_piece;
+    index_t m_pIndex;
 };
 
 } // namespace

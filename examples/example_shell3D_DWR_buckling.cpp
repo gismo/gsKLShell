@@ -23,6 +23,9 @@
 
 using namespace gismo;
 
+template <class T>
+gsMultiPatch<T> Rectangle(T L, T B);
+
 int main(int argc, char *argv[])
 {
     // Number of adaptive refinement loops
@@ -44,10 +47,12 @@ int main(int argc, char *argv[])
     bool nonlinear = false;
     std::string fn;
 
-    real_t E_modulus = 1.0;
+    real_t E_modulus = 200e9;
     real_t PoissonRatio = 0.3;
-    real_t Density = 1.0;
-    real_t thickness = 0.01;
+    real_t thickness = 1e-2;
+
+    real_t aDim = 1.0;
+    real_t bDim = 1.0;
 
     index_t modeIdx = 0;
 
@@ -64,6 +69,10 @@ int main(int argc, char *argv[])
                RefineLoopMax);
     cmd.addReal("T", "thickness", "thickness", thickness);
     cmd.addInt("g", "goal", "Goal function to use", goal);
+
+    cmd.addReal("a","adim", "dimension a", aDim);
+    cmd.addReal("b","bdim", "dimension b", bDim);
+
     cmd.addString("f", "file", "Input XML file", fn);
     cmd.addSwitch("nl", "Solve nonlinear problem", nonlinear);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
@@ -86,11 +95,7 @@ int main(int argc, char *argv[])
     gsMultiPatch<> mp_def;
 
     // Unit square
-    mp.addPatch(gsNurbsCreator<>::BSplineSquare(1)); // degree
-    mp.addAutoBoundaries();
-    mp.embed(3);
-    E_modulus = 1.0;
-    // thickness = 1.0;
+    mp = Rectangle(aDim,bDim);
 
     // p-refine
     if (numElevate != 0)
@@ -125,29 +130,44 @@ int main(int argc, char *argv[])
     gsBoundaryConditions<> bc;
     bc.setGeoMap(mp);
     gsVector<> tmp(3);
+    gsVector<> neu(3);
     tmp << 0, 0, 0;
+    neu << 0, 0, 0;
+    gsConstantFunction<> neuData(neu,3);
 
-    real_t load = 1.0;
+    real_t Load = 1.0;
     real_t D = E_modulus * math::pow(thickness, 3) / (12 * (1 - math::pow(PoissonRatio, 2)));
 
-    gsFunctionExpr<> u_ex("0", "0", "w:= 0; for (u := 1; u < 100; u += 2) { for (v := 1; v < 100; v += 2) { w += -16.0 * " + std::to_string(load) + " / ( pi^6*" + std::to_string(D) + " ) * 1 / (v * u * ( v^2 + u^2 )^2 ) * sin( v * pi * x) * sin(u * pi * y) } }", 3);
-    gsFunctionExpr<> z_ex("0", "0", "w:= 0; for (u := 1; u < 100; u += 2) { for (v := 1; v < 100; v += 2) { w += 16.0 * 1 / ( pi^6*" + std::to_string(D) + " ) * 1 / (v * u * ( v^2 + u^2 )^2 ) * sin( v * pi * x) * sin(u * pi * y) } }", 3);
+    // poisson_ratio = 0.0;
+    Load = 1e2;
+    neu << Load, 0, 0;
+    neuData.setValue(neu,3);
+    // // Clamped-Clamped
+    bc.addCondition(boundary::east, condition_type::neumann, &neuData ); // unknown 0 - x
 
-    for (index_t i = 0; i != 3; ++i)
-    {
-        bc.addCondition(boundary::north, condition_type::dirichlet, 0, i);
-        bc.addCondition(boundary::east, condition_type::dirichlet, 0, i);
-        bc.addCondition(boundary::south, condition_type::dirichlet, 0, i);
-        bc.addCondition(boundary::west, condition_type::dirichlet, 0, i);
-    }
-    tmp << 0, 0, -load;
+    bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
+    bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
+
+    // bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false,0 ); // unknown 0 - x
+    bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
+    bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
+
+    // bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false,0 ); // unknown 0 - x
+    bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
+    bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
+
+    bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 0); // unknown 0 - x
+    bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false,1 ); // unknown 1 - y
+    bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false,2 ); // unknown 2 - z
     //! [Refinement]
+
+    tmp << 0, 0, 0;
+
 
     gsConstantFunction<> force(tmp, 3);
     gsFunctionExpr<> t(std::to_string(thickness), 3);
     gsFunctionExpr<> E(std::to_string(E_modulus), 3);
     gsFunctionExpr<> nu(std::to_string(PoissonRatio), 3);
-    gsFunctionExpr<> rho(std::to_string(Density), 3);
 
     std::vector<gsFunction<> *> parameters(2);
     parameters[0] = &E;
@@ -156,9 +176,9 @@ int main(int argc, char *argv[])
     gsOptionList options;
     options.addInt("Material", "Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden", 0);
     options.addInt("Implementation", "Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral", 1);
-    materialMatrix = getMaterialMatrix<3, real_t>(mp, t, parameters, rho, options);
+    materialMatrix = getMaterialMatrix<3, real_t>(mp, t, parameters, options);
 
-    gsThinShellAssemblerDWR<3, real_t, true, GoalFunction::Modal> DWR(mp, basisL, basisH, bc, force, materialMatrix);
+    gsThinShellAssemblerDWR<3, real_t, true, GoalFunction::Buckling> DWR(mp, basisL, basisH, bc, force, materialMatrix);
 
     gsSparseSolver<>::LU solver;
     gsVector<> solVector, solVectorDualL, solVectorDualH;
@@ -169,62 +189,94 @@ int main(int argc, char *argv[])
     // points.col(1).setConstant(0.50);
     // points.col(2).setConstant(0.75);
 
-    gsInfo << "Assembling primal... " << std::flush;
+    real_t Mnorm;
+    gsInfo << "Computing load step... " << std::flush;
     DWR.assembleMatrixL();
-    DWR.assembleMassL();
+    DWR.assemblePrimalL();
+    gsSparseMatrix<> K_L =  DWR.matrixL();
+    gsVector<> rhs = DWR.primalL();
+    solver.compute(K_L);
+    gsVector<> solVectorLinear = solver.solve(rhs);
+    DWR.constructSolutionL(solVectorLinear, mp_def);
+    gsInfo << "done\n";
+
+    gsInfo << "Assembling primal... " << std::flush;
+    DWR.assembleMatrixL(mp_def);
+    gsSparseMatrix<real_t> K_NL = DWR.matrixL();
     gsInfo << "done\n";
 
     // Solve system
     gsInfo << "Solving primal, size =" << DWR.matrixL().rows() << "," << DWR.matrixL().cols() << "... " << std::flush;
     Eigen::GeneralizedSelfAdjointEigenSolver<gsMatrix<real_t>::Base> eigSolver;
-    eigSolver.compute(DWR.matrixL(), DWR.massL());
-    gsDebugVar(math::sqrt(eigSolver.eigenvalues()[modeIdx]));
+    eigSolver.compute(K_L, K_NL-K_L);
+    gsDebugVar(eigSolver.eigenvalues()[modeIdx]*Load);
 
     solVector = solVectorDualL = eigSolver.eigenvectors().col(modeIdx);
 
     real_t eigvalL, dualvalL;
     eigvalL = dualvalL = eigSolver.eigenvalues()[modeIdx];
-
-    // Mass-normalize
-    solVector = 1 / (solVector.transpose() * DWR.massL() * solVector) * solVector;
-    solVectorDualL = 1 / (solVectorDualL.transpose() * DWR.massL() * solVectorDualL) * solVectorDualL;
-
     DWR.constructMultiPatchL(solVector, primalL);
+
+    Mnorm = DWR.matrixNorm(primalL, primalL,mp_def);
+    gsDebugVar(solVector.transpose() * (K_NL-K_L) * (solVector));
+    gsDebugVar(Mnorm);
+
+    // Mass-normalize primal
+    solVector *= 1 / Mnorm;
+    DWR.constructMultiPatchL(solVector, primalL);
+    gsField<> primalLField(mp, primalL);
+    gsWriteParaview(primalLField, "primalL", 1000);
+
+    // mass-normalize w.r.t. primal
     DWR.constructMultiPatchL(solVectorDualL, dualL);
-    DWR.constructSolutionL(solVector, mp_def);
+    Mnorm = DWR.matrixNorm(primalL, dualL,mp_def);
+    gsDebugVar(solVector.transpose() * (K_NL-K_L) * (solVectorDualL));
+    gsDebugVar(Mnorm);
+    solVectorDualL *= 1. / Mnorm;
+    DWR.constructMultiPatchL(solVectorDualL, dualL);
+    gsField<> dualLField(mp, dualL);
+    gsWriteParaview(dualLField, "dualL", 1000);
+
     gsInfo << "done.\n";
+
+    gsDebugVar(solVector.transpose() * (K_NL-K_L) * (solVectorDualL));
+    // gsDebugVar(solVector.transpose() * K_NL * (solVectorDualL - solVector));
 
     gsInfo << "Assembling dual matrix (H)... " << std::flush;
     DWR.assembleMatrixH();
-    DWR.assembleMassH();
+    K_L = DWR.matrixH();
+    DWR.assembleMatrixH(mp_def);
+    K_NL = DWR.matrixH();
     gsInfo << "done.\n";
 
     gsInfo << "Solving dual (high), size = " << DWR.matrixH().rows() << "," << DWR.matrixH().cols() << "... " << std::flush;
-    eigSolver.compute(DWR.matrixH(), DWR.massH());
-    gsDebugVar(math::sqrt(eigSolver.eigenvalues()[modeIdx]));
+    eigSolver.compute(K_L, K_NL-K_L);
+    gsDebugVar(eigSolver.eigenvalues()[modeIdx]*Load);
     solVectorDualH = eigSolver.eigenvectors().col(modeIdx);
     real_t dualvalH = eigSolver.eigenvalues()[modeIdx];
-    // Mass-normalize
-    solVectorDualH = -1 / (solVectorDualH.transpose() * DWR.massH() * solVectorDualH) * solVectorDualH;
 
+    // mass-normalize w.r.t. primal
+    DWR.constructMultiPatchH(solVectorDualH, dualH);
+    gsField<> dualHField(mp, dualH);
+    gsWriteParaview(dualHField, "dualH", 1000);
+    Mnorm = DWR.matrixNorm(primalL, dualH,mp_def);
+    gsDebugVar(Mnorm);
+    solVectorDualH *= 1. / Mnorm;
     DWR.constructMultiPatchH(solVectorDualH, dualH);
     gsInfo << "done.\n";
 
-    gsDebugVar(solVectorDualL.norm());
-    gsDebugVar(solVectorDualH.norm());
-
-    gsField<> dualField(mp, dualH);
-    gsWriteParaview(dualField, "dualH", 1000);
-
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    real_t approx = DWR.computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
+    real_t approx = DWR.computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL,mp_def);
 
     index_t m, n;
     m = n = 1;
-    real_t lambda_an = (math::pow(m / 1.0, 2) + math::pow(n / 1.0, 2)) * math::pow(3.1415926535, 2) * math::sqrt(D / (Density * thickness));
+    real_t lambda_an = 556190.724186789/Load;
 
-    real_t exact = math::pow(lambda_an, 2) - eigvalL;
+    real_t exact = lambda_an - eigvalL;
+
+    gsDebugVar(lambda_an);
+    gsDebugVar(eigvalL);
 
     gsInfo << "approx = " << approx << "\n";
     gsInfo << "Exact = " << exact << "\n";
@@ -233,3 +285,53 @@ int main(int argc, char *argv[])
     return EXIT_SUCCESS;
 
 } // end main
+
+template <class T>
+gsMultiPatch<T> Rectangle(T L, T B)
+{
+  // -------------------------------------------------------------------------
+  // --------------------------Make beam geometry-----------------------------
+  // -------------------------------------------------------------------------
+  int dim = 3; //physical dimension
+  gsKnotVector<> kv0;
+  kv0.initUniform(0,1,0,2,1);
+  gsKnotVector<> kv1;
+  kv1.initUniform(0,1,0,2,1);
+
+  // Make basis
+  gsTensorBSplineBasis<2,T> basis(kv0,kv1);
+
+  // Initiate coefficient matrix
+  gsMatrix<> coefs(basis.size(),dim);
+  // Number of control points needed per component
+  size_t len0 = basis.component(0).size();
+  size_t len1 = basis.component(1).size();
+  gsVector<> coefvec0(len0);
+  // Uniformly distribute control points per component
+  coefvec0.setLinSpaced(len0,0.0,L);
+  gsVector<> coefvec1(basis.component(1).size());
+  coefvec1.setLinSpaced(len1,0.0,B);
+
+  // Z coordinate is zero
+  coefs.col(2).setZero();
+
+  // Define a matrix with ones
+  gsVector<> temp(len0);
+  temp.setOnes();
+  for (size_t k = 0; k < len1; k++)
+  {
+    // First column contains x-coordinates (length)
+    coefs.col(0).segment(k*len0,len0) = coefvec0;
+    // Second column contains y-coordinates (width)
+    coefs.col(1).segment(k*len0,len0) = temp*coefvec1.at(k);
+  }
+  // Create gsGeometry-derived object for the patch
+  gsTensorBSpline<2,real_t> shape(basis,coefs);
+
+  gsMultiPatch<T> mp;
+  mp.addPatch(shape);
+  mp.addAutoBoundaries();
+
+  return mp;
+}
+
