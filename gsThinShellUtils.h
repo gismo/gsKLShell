@@ -665,8 +665,6 @@ private:
         cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
         cDer2 = _G.data().values[2].reshapeCol(k, _G.data().dim.second, _G.data().dim.second);
 
-        const index_t cardU = _u.data().values[0].rows(); // number of actives per component of u
-        const index_t cardV = _v.data().values[0].rows(); // number of actives per component of v
         const Scalar measure =  _G.data().measures.at(k);
 
 
