@@ -47,13 +47,9 @@ int main(int argc, char *argv[])
     bool loop = false;
     std::string fn;
 
-    // real_t E_modulus = 200e9;
-    // real_t PoissonRatio = 0.3;
-    // real_t thickness = 0.01;
-
-    real_t E_modulus = 1.0;
-    real_t PoissonRatio = 0.0;
-    real_t thickness = 1.0;
+    real_t E_modulus = 1;
+    real_t PoissonRatio = 0.3;
+    real_t thickness = 0.01;
 
     refCriterion = GARU;
     refParameter = 0.85;
@@ -65,7 +61,6 @@ int main(int argc, char *argv[])
     cmd.addInt( "r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
     cmd.addInt("R", "refine", "Maximum number of adaptive refinement steps to perform",
         RefineLoopMax);
-    cmd.addReal( "T", "thickness", "thickness",  thickness );
     cmd.addInt( "g", "goal", "Goal function to use", goal );
     cmd.addInt( "C", "comp", "Component", component );
     cmd.addString( "f", "file", "Input XML file", fn );
@@ -82,14 +77,15 @@ int main(int argc, char *argv[])
     //! [Read input file]
     gsMultiPatch<> mp;
     gsMultiPatch<> mp_def;
-    gsMultiPatch<> mp_ex;
-    gsReadFile<>("deformed_plate_T=" + std::to_string(thickness) + ".xml",mp_ex);
-    gsMultiBasis<> basisR(mp_ex);
 
     // Unit square
+    real_t L = 2;
+    real_t B = 1;
     mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
-    mp.addAutoBoundaries();
+    mp.patch(0).coefs().col(0) *= L;
+    mp.patch(0).coefs().col(1) *= B;
     mp.embed(3);
+    mp.addAutoBoundaries();
 
     // p-refine
     if (numElevate!=0)
@@ -103,16 +99,92 @@ int main(int argc, char *argv[])
         numRefine = 0;
     }
 
+    gsBoundaryConditions<> bc;
+    bc.setGeoMap(mp);
+    gsVector<> tmp(3);
+    tmp << 0, 0, 0;
+
+    real_t load = 1e-5;
+
+    for (index_t i=0; i!=3; ++i)
+    {
+        bc.addCondition(boundary::north,condition_type::dirichlet, 0, i );
+        bc.addCondition(boundary::east, condition_type::dirichlet, 0, i );
+        bc.addCondition(boundary::south,condition_type::dirichlet, 0, i );
+        bc.addCondition(boundary::west, condition_type::dirichlet, 0, i );
+    }
+    tmp << 0,0,-load;
+    //! [Refinement]
+
+    gsConstantFunction<> force(tmp,3);
+    gsFunctionExpr<> t(std::to_string(thickness), 3);
+    gsFunctionExpr<> E(std::to_string(E_modulus),3);
+    gsFunctionExpr<> nu(std::to_string(PoissonRatio),3);
+
+    std::vector<gsFunction<>*> parameters(2);
+    parameters[0] = &E;
+    parameters[1] = &nu;
+    gsMaterialMatrixBase<real_t>* materialMatrix;
+    gsOptionList options;
+    options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
+    options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+    materialMatrix = getMaterialMatrix<3,real_t>(mp,t,parameters,options);
+
+    gsSparseSolver<>::LU solver;
+
+    gsMatrix<> points(2,0);
+    // points.col(0).setConstant(0.25);
+    // points.col(1).setConstant(0.50);
+    // points.col(2).setConstant(0.75);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    gsThinShellAssemblerDWRBase<real_t> * DWR2;
+
+    gsMultiPatch<> mp_ex;
+    gsReadFile<>("deformed_plate_nl.xml",mp_ex);
+    gsMultiBasis<> basisR(mp_ex);
+
+    DWR2 = new gsThinShellAssemblerDWR<3,real_t,true>(mp,basisR,basisR,bc,force,materialMatrix);
+    if (goal==1)
+        DWR2->setGoal(GoalFunction::Displacement,component);
+    else if (goal==2)
+        DWR2->setGoal(GoalFunction::Stretch,component);
+    else if (goal==3)
+        DWR2->setGoal(GoalFunction::MembraneStrain,component);
+    else if (goal==4)
+        DWR2->setGoal(GoalFunction::MembranePStrain,component);
+    else if (goal==5)
+        DWR2->setGoal(GoalFunction::MembraneStress,component);
+    else if (goal==6)
+        DWR2->setGoal(GoalFunction::MembranePStress,component);
+    else if (goal==7)
+        DWR2->setGoal(GoalFunction::MembraneForce,component);
+    else if (goal==8)
+        DWR2->setGoal(GoalFunction::FlexuralStrain,component);
+    else if (goal==9)
+        DWR2->setGoal(GoalFunction::FlexuralStress,component);
+    else if (goal==10)
+        DWR2->setGoal(GoalFunction::FlexuralMoment,component);
+    else
+        GISMO_ERROR("Goal function unknown");
+
+    real_t exactGoal = 0;
+    exactGoal += DWR2->computeGoal(mp_ex);
+    exactGoal += DWR2->computeGoal(points,mp_ex);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
     std::vector<real_t> exacts(numRefine+1);
     std::vector<real_t> approxs(numRefine+1);
     std::vector<real_t> efficiencies(numRefine+1);
 
-    gsSparseSolver<>::LU solver;
     gsVector<> solVector, updateVector;
     gsMultiPatch<> primalL,dualL,dualH;
 
     gsThinShellAssemblerDWRBase<real_t> * DWR;
-    gsThinShellAssemblerDWRBase<real_t> * DWR2;
+
+    real_t approx, exact;
 
     for (index_t r=0; r!=numRefine+1; r++)
     {
@@ -138,118 +210,27 @@ int main(int argc, char *argv[])
         gsInfo<<"Basis Primal: "<<basisL.basis(0)<<"\n";
         gsInfo<<"Basis Dual:   "<<basisH.basis(0)<<"\n";
 
-        gsBoundaryConditions<> bc;
-        bc.setGeoMap(mp);
-        gsVector<> tmp(3);
-        tmp << 0, 0, 0;
-
-        real_t load = 1.0;
-        real_t D = E_modulus * math::pow(thickness,3) / ( 12 * ( 1- math::pow(PoissonRatio,2) ) );
-
-        gsFunctionExpr<> u_ex( "0","0","w:= 0; for (u := 1; u < 100; u += 2) { for (v := 1; v < 100; v += 2) { w += -16.0 * " + std::to_string(load) + " / ( pi^6*" + std::to_string(D) + " ) * 1 / (v * u * ( v^2 + u^2 )^2 ) * sin( v * pi * x) * sin(u * pi * y) } }",3);
-        gsFunctionExpr<> z_ex( "0","0","w:= 0; for (u := 1; u < 100; u += 2) { for (v := 1; v < 100; v += 2) { w += 16.0 * 1 / ( pi^6*" + std::to_string(D) + " ) * 1 / (v * u * ( v^2 + u^2 )^2 ) * sin( v * pi * x) * sin(u * pi * y) } }",3);
-
-        for (index_t i=0; i!=3; ++i)
-        {
-            bc.addCondition(boundary::north,condition_type::dirichlet, 0, i );
-            bc.addCondition(boundary::east, condition_type::dirichlet, 0, i );
-            bc.addCondition(boundary::south,condition_type::dirichlet, 0, i );
-            bc.addCondition(boundary::west, condition_type::dirichlet, 0, i );
-        }
-        tmp << 0,0,-load;
-        //! [Refinement]
-
-        gsConstantFunction<> force(tmp,3);
-        gsFunctionExpr<> t(std::to_string(thickness), 3);
-        gsFunctionExpr<> E(std::to_string(E_modulus),3);
-        gsFunctionExpr<> nu(std::to_string(PoissonRatio),3);
-
-        std::vector<gsFunction<>*> parameters(2);
-        parameters[0] = &E;
-        parameters[1] = &nu;
-        gsMaterialMatrixBase<real_t>* materialMatrix;
-        gsOptionList options;
-        options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
-        options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
-        materialMatrix = getMaterialMatrix<3,real_t>(mp,t,parameters,options);
-
+        DWR = new gsThinShellAssemblerDWR<3,real_t,true>(mp,basisL,basisH,bc,force,materialMatrix);
         if (goal==1)
-            if (component==9)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement,9>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==0)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement,0>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==1)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement,1>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==2)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement,2>(mp,basisL,basisH,bc,force,materialMatrix);
-            else
-                GISMO_ERROR("Component unknown");
+            DWR->setGoal(GoalFunction::Displacement,component);
         else if (goal==2)
-            if (component==9)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Stretch,9>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==0)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Stretch,0>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==1)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Stretch,1>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==2)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Stretch,2>(mp,basisL,basisH,bc,force,materialMatrix);
-            else
-                GISMO_ERROR("Component unknown");
+            DWR->setGoal(GoalFunction::Stretch,component);
         else if (goal==3)
-            if (component==9)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStrain,9>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==0)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStrain,0>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==1)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStrain,1>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==2)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStrain,2>(mp,basisL,basisH,bc,force,materialMatrix);
-            else
-                GISMO_ERROR("Component unknown");
+            DWR->setGoal(GoalFunction::MembraneStrain,component);
         else if (goal==4)
-            if (component==9)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStrain,9>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==0)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStrain,0>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==1)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStrain,1>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==2)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStrain,2>(mp,basisL,basisH,bc,force,materialMatrix);
-            else
-                GISMO_ERROR("Component unknown");
+            DWR->setGoal(GoalFunction::MembranePStrain,component);
         else if (goal==5)
-            if (component==9)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStress,9>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==0)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStress,0>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==1)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStress,1>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==2)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStress,2>(mp,basisL,basisH,bc,force,materialMatrix);
-            else
-                GISMO_ERROR("Component unknown");
+            DWR->setGoal(GoalFunction::MembraneStress,component);
         else if (goal==6)
-            if (component==9)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStress,9>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==0)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStress,0>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==1)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStress,1>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==2)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStress,2>(mp,basisL,basisH,bc,force,materialMatrix);
-            else
-                GISMO_ERROR("Component unknown");
+            DWR->setGoal(GoalFunction::MembranePStress,component);
         else if (goal==7)
-            if (component==9)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneForce,9>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==0)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneForce,0>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==1)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneForce,1>(mp,basisL,basisH,bc,force,materialMatrix);
-            else if (component==2)
-                DWR = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneForce,2>(mp,basisL,basisH,bc,force,materialMatrix);
-            else
-                GISMO_ERROR("Component unknown");
+            DWR->setGoal(GoalFunction::MembraneForce,component);
+        else if (goal==8)
+            DWR->setGoal(GoalFunction::FlexuralStrain,component);
+        else if (goal==9)
+            DWR->setGoal(GoalFunction::FlexuralStress,component);
+        else if (goal==10)
+            DWR->setGoal(GoalFunction::FlexuralMoment,component);
         else
             GISMO_ERROR("Goal function unknown");
 
@@ -330,90 +311,9 @@ int main(int argc, char *argv[])
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        real_t approx, exact = 0;
+        exact = 0;
 
-        if (goal==1)
-            if (component==9)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement,9>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==0)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement,0>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==1)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement,1>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==2)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Displacement,2>(mp,basisR,basisR,bc,force,materialMatrix);
-            else
-                GISMO_ERROR("Component unknown");
-        else if (goal==2)
-            if (component==9)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Stretch,9>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==0)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Stretch,0>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==1)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Stretch,1>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==2)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::Stretch,2>(mp,basisR,basisR,bc,force,materialMatrix);
-            else
-                GISMO_ERROR("Component unknown");
-        else if (goal==3)
-            if (component==9)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStrain,9>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==0)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStrain,0>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==1)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStrain,1>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==2)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStrain,2>(mp,basisR,basisR,bc,force,materialMatrix);
-            else
-                GISMO_ERROR("Component unknown");
-        else if (goal==4)
-            if (component==9)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStrain,9>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==0)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStrain,0>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==1)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStrain,1>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==2)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStrain,2>(mp,basisR,basisR,bc,force,materialMatrix);
-            else
-                GISMO_ERROR("Component unknown");
-        else if (goal==5)
-            if (component==9)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStress,9>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==0)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStress,0>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==1)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStress,1>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==2)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneStress,2>(mp,basisR,basisR,bc,force,materialMatrix);
-            else
-                GISMO_ERROR("Component unknown");
-        else if (goal==6)
-            if (component==9)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStress,9>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==0)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStress,0>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==1)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStress,1>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==2)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembranePStress,2>(mp,basisR,basisR,bc,force,materialMatrix);
-            else
-                GISMO_ERROR("Component unknown");
-        else if (goal==7)
-            if (component==9)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneForce,9>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==0)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneForce,0>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==1)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneForce,1>(mp,basisR,basisR,bc,force,materialMatrix);
-            else if (component==2)
-                DWR2 = new gsThinShellAssemblerDWR<3,real_t,true,GoalFunction::MembraneForce,2>(mp,basisR,basisR,bc,force,materialMatrix);
-            else
-                GISMO_ERROR("Component unknown");
-        else
-            GISMO_ERROR("Goal function unknown");
-
-        exact += DWR2->computeGoal(mp_ex);
-        exact += DWR2->computeGoal(points,mp_ex);
+        exact += exactGoal;
         exact -= DWR->computeGoal(mp_def);
         exact -= DWR->computeGoal(points,mp_def);
         approx = DWR->computeError(dualL,dualH,mp_def);

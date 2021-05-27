@@ -82,6 +82,10 @@ int main(int argc, char *argv[])
     gsInfo << "Patches: "<< mp.nPatches() <<", degree: "<< dbasis.minCwiseDegree() <<"\n";
     gsInfo << dbasis.basis(0)<<"\n";
 
+    // Basis for the exact solution
+    gsMultiBasis<> exBasis(mp);
+    exBasis.setDegree(4);
+
     gsBoundaryConditions<> bc;
     bc.setGeoMap(mp);
 
@@ -144,7 +148,6 @@ int main(int argc, char *argv[])
 
     // Set assembler
     gsThinShellAssemblerBase<real_t>* assembler;
-    assembler = new gsThinShellAssembler<3, real_t, true >(mp,dbasis,bc,force,materialMatrix);
 
     // Set stopwatch
     gsStopwatch stopwatch,stopwatch2;
@@ -178,6 +181,7 @@ int main(int argc, char *argv[])
     std::vector<real_t> errors(numRefine+1);
     for (index_t r = 0; r!=numRefine+1; r++)
     {
+        assembler = new gsThinShellAssembler<3, real_t, true >(mp,dbasis,bc,force,materialMatrix);
         // Define Matrices
         stopwatch.restart();
         stopwatch2.restart();
@@ -238,17 +242,45 @@ int main(int argc, char *argv[])
 
         gsDebugVar(solField.distanceL2(exf));
 
-        dbasis.uniformRefine();
+        mp.uniformRefine();
+        mp_def.uniformRefine();
+        dbasis = gsMultiBasis(mp);
     }
 
 
+    typedef gsExprAssembler<>::geometryMap geometryMap;
+    typedef gsExprAssembler<>::variable    variable;
+    typedef gsExprAssembler<>::space       space;
+    typedef gsExprAssembler<>::solution    solution;
 
+    gsExprAssembler<> exA(1,1);
+    exA.setIntegrationElements(exBasis);
+    space u = exA.getSpace(exBasis,3);
+    geometryMap G = exA.getMap(mp);
+    variable ff = exA.getCoeff(ex, G);
 
+    gsMatrix<> projection;
+    solution u_sol = exA.getSolution(u, projection);
+
+    exA.initSystem();
+
+    exA.assemble(u * u.tr(), u * ff);
+    gsSparseSolver<>::CGDiagonal solver;
+    solver.compute(exA.matrix());
+    projection = solver.solve(exA.rhs());
+
+    gsMultiPatch<> exact;
+    u_sol.extract(exact);
+
+    gsField<> exactfield(mp,exact);
+    gsDebugVar(exactfield.distanceL2(exf));
 
     if (plot)
     {
         gsInfo<<"Plotting in Paraview...\n";
         gsWriteParaview<>( solField, "Deformation", 1000, true);
+
+        gsWriteParaview<>( exactfield, "Exact", 1000, false);
 
     }
     if (stress)

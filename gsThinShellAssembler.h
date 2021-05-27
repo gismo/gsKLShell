@@ -92,6 +92,13 @@ public:
     }
 
     /// See \ref gsThinShellAssemblerBase for details
+    void updateBasis(gsMultiBasis<T> & basis)
+    {
+        m_basis = basis;
+        this->_initialize();
+    }
+
+    /// See \ref gsThinShellAssemblerBase for details
     void homogenizeDirichlet();
 
     /// See \ref gsThinShellAssemblerBase for details
@@ -379,6 +386,13 @@ public:
      * @param[in]  bconditions  The boundary conditions
      */
     virtual void updateBCs(const gsBoundaryConditions<T> & bconditions) = 0;
+
+    /**
+     * @brief      Overwrites the basis
+     *
+     * @param[in]  bconditions  The basis
+     */
+    virtual void updateBasis(gsMultiBasis<T> & basis) = 0;
 
     /// Sets the Dirichlet BCs to zero
     virtual void homogenizeDirichlet() = 0;

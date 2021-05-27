@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
     real_t PoissonRatio = 0.0;
     real_t Density = 1.0;
     real_t thickness = 1.0;
+    bool nonlinear = false;
 
     gsCmdLine cmd("Tutorial on solving a Poisson problem.");
     cmd.addInt( "e", "degreeElevation",
@@ -47,6 +48,7 @@ int main(int argc, char *argv[])
     cmd.addSwitch("stress", "Create a ParaView visualization file with the stresses", stress);
     cmd.addSwitch("membrane", "Use membrane model (no bending)", membrane);
     cmd.addSwitch("composite", "Composite material", composite);
+    cmd.addSwitch("nl", "Nonlinear simulation", nonlinear);
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
@@ -55,7 +57,6 @@ int main(int argc, char *argv[])
     gsMultiPatch<> mp;
     gsMultiPatch<> mp_def;
     std::string fn;
-    bool nonlinear = false;
     if (testCase == 1 )
     {
         thickness = 0.25;
@@ -80,14 +81,16 @@ int main(int argc, char *argv[])
     }
     else if (testCase == 4)
     {
-        // Unit square
+        real_t L = 2;
+        real_t B = 1;
         mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
+        mp.patch(0).coefs().col(0) *= L;
+        mp.patch(0).coefs().col(1) *= B;
         mp.embed(3);
         mp.addAutoBoundaries();
-        E_modulus = 1e0;
-        thickness = 1e0;
+        E_modulus = 1;
+        thickness = 1e-2;
         PoissonRatio = 0.3;
-        nonlinear = true;
     }
     else
         GISMO_ERROR("Testcase "<<testCase<<" unknown");
@@ -214,9 +217,9 @@ int main(int argc, char *argv[])
             bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0 ,false,i);
         }
 
-        pressure = -1;
+        // pressure = -1;
         refPoint<<0.5,0.5;
-        // tmp << 0,0,-1;
+        tmp << 0,0,-1e-5;
 
     }
     else
@@ -404,6 +407,14 @@ int main(int argc, char *argv[])
     }
     gsInfo<<"Total ellapsed assembly time: \t\t"<<time<<" s\n";
     gsInfo<<"Total ellapsed solution time (incl. assembly): \t"<<totaltime<<" s\n";
+
+    if (testCase==4)
+    {
+        if (nonlinear)
+            gsWrite(mp_def,"deformed_plate_nl");
+        else
+            gsWrite(mp_def,"deformed_plate");
+    }
 
     delete assembler;
     return EXIT_SUCCESS;

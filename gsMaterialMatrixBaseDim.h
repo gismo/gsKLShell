@@ -1,6 +1,6 @@
-/** @file gsMaterialMatrixBase.h
+/** @file gsMaterialMatrixBaseDim.h
 
-    @brief Provides a base class for material matrices
+    @brief Base class with dimension in template; used for metric computations
 
     This file is part of the G+Smo library.
 
@@ -85,6 +85,8 @@ public:
 
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     gsMatrix<T> _transformation(const gsMatrix<T> & basis1, const gsMatrix<T> & basis2 ) const;
+
+    void setDeformed(const gsFunctionSet<T> & deformed) {this->setDeformed(deformed);}
 
 private:
     /// Implementation of \ref _computeMetricUndeformed for planar geometries

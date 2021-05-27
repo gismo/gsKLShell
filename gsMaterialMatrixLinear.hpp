@@ -192,9 +192,25 @@ void gsMaterialMatrixLinear<dim,T>::thickness_into(const index_t patch, const gs
     m_thickness->eval_into(m_map.values[0], result);
 }
 
+// Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) covariant basis
+template <short_t dim, class T >
+void gsMaterialMatrixLinear<dim,T>::covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+{
+    result.resize(9, u.cols());
+    gsMatrix<T> tmp, conbasis,sbasis;
+    this->stretchDir_into(patch,u,tmp);
+    for (index_t i=0; i!= u.cols(); i++)
+    {
+        this->_getMetric(i,0.0,true); // on point i, with height 0.0
+        sbasis = tmp.reshapeCol(i,3,3);
+        conbasis = m_gcov_ori;
+        result.col(i) = this->_transformation(conbasis,sbasis).reshape(9,1);
+    }
+}
+
 // Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) convariant basis
 template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+void gsMaterialMatrixLinear<dim,T>::contransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
     result.resize(9, u.cols());
     gsMatrix<T> tmp, conbasis,sbasis;
@@ -386,8 +402,10 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalPStress(c
     eigSolver.compute(B);
 
     index_t zeroIdx = -1;
+    real_t tol = 1e-14;
+    real_t max = eigSolver.eigenvalues().array().abs().maxCoeff();
     for (index_t k=0; k!=3; k++)
-        zeroIdx = eigSolver.eigenvalues()[k] == 0 ? k : zeroIdx;
+        zeroIdx = std::abs(eigSolver.eigenvalues()[k] ) / max < 1e-14 ? k : zeroIdx;
 
     GISMO_ASSERT(zeroIdx!=-1,"No zero found?");
 

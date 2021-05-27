@@ -109,7 +109,8 @@ enum class MaterialOutput : short_t
     PStressM = 9,
     Stretch = 10,       // ONLY ON MID-PLANE
     StretchDir = 11,    // ONLY ON MID-PLANE
-    Transformation = 12,
+    CovTransform = 12,  // Transformation matrix from spectral to covariant basis
+    ConTransform = 13,  // Transformation matrix from spectral to contravariant basis
 };
 
 

@@ -24,8 +24,8 @@
 namespace gismo
 {
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::gsThinShellAssemblerDWR(
+template <short_t d, class T, bool bending>
+gsThinShellAssemblerDWR<d, T, bending>::gsThinShellAssemblerDWR(
                                                                 const gsMultiPatch<T> & patches,
                                                                 const gsMultiBasis<T> & basisL,
                                                                 const gsMultiBasis<T> & basisH,
@@ -43,24 +43,24 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::gsThinShellAssemblerDWR(
 
     m_dL = gsVector<T>::Zero(m_assemblerL->numDofs());
     m_dH = gsVector<T>::Zero(m_assemblerH->numDofs());
-}
+ }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-void gsThinShellAssemblerDWR<d, T, bending, GF, comp>::_setBasis(const gsMultiBasis<T> & basis)
+template <short_t d, class T, bool bending>
+void gsThinShellAssemblerDWR<d, T, bending>::_setBasis(const gsMultiBasis<T> & basis)
 {
     Base::m_basis = basis;
     Base::_initialize();
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending, GF, comp>::_assembleMass(gsThinShellAssemblerBase<T> * assembler, bool lumped)
+template <short_t d, class T, bool bending>
+gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleMass(gsThinShellAssemblerBase<T> * assembler, bool lumped)
 {
     assembler->assembleMass(lumped);
     return assembler->matrix();
 }
 
-// template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-// gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending, GF, comp>::_assembleMassLM(gsThinShellAssemblerBase<T> * assembler, bool lumped)
+// template <short_t d, class T, bool bending>
+// gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleMassLM(gsThinShellAssemblerBase<T> * assembler, bool lumped)
 // {
 //     gsExprAssembler<T> assembler(1,1);
 //     // Elements used for numerical integration
@@ -111,658 +111,854 @@ gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending, GF, comp>::_assembleMas
     //     m_assembler.assemble(mm0.val()*(m_space.rowSum())*meas(m_ori));
 // }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending, GF, comp>::_assembleMatrix(gsThinShellAssemblerBase<T> * assembler)
+template <short_t d, class T, bool bending>
+gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleMatrix(gsThinShellAssemblerBase<T> * assembler)
 {
     assembler->assemble();
     return assembler->matrix();
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending, GF, comp>::_assembleMatrix(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & deformed)
+template <short_t d, class T, bool bending>
+gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleMatrix(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & deformed)
 {
     assembler->assemble();
     assembler->assembleMatrix(deformed);
     return assembler->matrix(); //Base::matrix();
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-gsVector<T> gsThinShellAssemblerDWR<d, T, bending, GF, comp>::_assemblePrimal(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & deformed)
+template <short_t d, class T, bool bending>
+gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assemblePrimal(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & deformed)
 {
     assembler->assembleVector(deformed);
     return assembler->rhs();
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-gsVector<T> gsThinShellAssemblerDWR<d, T, bending, GF, comp>::_assemblePrimal(gsThinShellAssemblerBase<T> * assembler)
+template <short_t d, class T, bool bending>
+gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assemblePrimal(gsThinShellAssemblerBase<T> * assembler)
 {
     assembler->assemble();
     return assembler->rhs();
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Displacement && _comp==9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
+template <short_t d, class T, bool bending>
+gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
 {
+    GISMO_ASSERT(m_component < d || m_component==9,"Component is out of bounds");
+
+    // For the stretches
+    // ! Only works with Z=0 for now, since principal stresses and directions are implemented for Z=0, since principal stresses and directions are implemented for Z=0
+    gsMatrix<T> Z(1,1);
+    Z.setZero();
+    ////
+
     gsExprAssembler<T> exprAssembler = assembler->assembler();
     exprAssembler.cleanUp();
     exprAssembler.setOptions(assembler->options());
 
+    m_defpatches = m_patches;
+    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
+        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // Gdef points to mp_def, therefore updated
+
     exprAssembler.getMap(m_patches);           // this map is used for integrals
+    exprAssembler.getMap(m_defpatches);
 
     // Initialize vector
     exprAssembler.initSystem(false);
     exprAssembler.initVector(1,false);
 
+    // Space
     space   space   = exprAssembler.trialSpace(0);
+
+    // Solution
     variable usol   = exprAssembler.getCoeff(primal);
+
+    // Geometries
     geometryMap Gori= exprAssembler.exprData()->getMap();
-
-    auto expr = 2 * space * usol * meas(Gori);
-    exprAssembler.assemble(expr);
-    return exprAssembler.rhs();
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Displacement && _comp!=9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-
-    auto expr = space * gismo::expr::uv(_comp,3) * meas(Gori);
-    exprAssembler.assemble(expr);
-    return exprAssembler.rhs();
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Stretch && _comp==9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    // ! Only works with Z=0 for now
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    // To compensate for the flat, since flat does [E11,E22,2*E12]
-    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","0.5",2);
-    variable m2 = exprAssembler.getCoeff(mult2t);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
     geometryMap Gdef   = exprAssembler.exprData()->getMap2();
 
-    // gsMaterialMatrixEval<T,MaterialOutput::Stretch>  lambdaf(m_assemblerL->material(),m_defpatches,Z);
-    // variable Lambda = exprAssembler.getCoeff(lambdaf);
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(m_assemblerL->material(),m_defpatches,Z);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
+    // Transformation for stretches
+    gsMaterialMatrixEval<T,MaterialOutput::CovTransform>  Tcovf(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),m_defpatches,Z);
+    variable Tcov = exprAssembler.getCoeff(Tcovf);
+    variable Tcon = exprAssembler.getCoeff(Tconf);
 
-    auto Cm         = flat( jac(Gdef).tr() * jac(Gdef) ) * reshape(m2,3,3);
-    auto Cm_der     = 2* flat( jac(Gdef).tr() * jac(space) ) * reshape(m2,3,3);
-    auto lambda     = Cm     * reshape(Tmat,3,3).tr();
-    auto lambda_der = Cm_der * reshape(Tmat,3,3).tr();
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    auto expr = 2 * lambda_der * lambda.tr() * meas(Gori);
-    exprAssembler.assemble(expr);
-    return exprAssembler.rhs();
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Stretch && _comp!=9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-    GISMO_ASSERT(_comp!=2 ,"Not available for comp = 2");
-
-    // ! Only works with Z=0 for now
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    // To compensate for the flat, since flat does [E11,E22,2*E12]
-    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","0.5",2);
-    variable m2 = exprAssembler.getCoeff(mult2t);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(m_assemblerL->material(),m_defpatches,Z);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    auto Cm_der     = 2* flat( jac(Gdef).tr() * jac(space) ) * reshape(m2,3,3);
-    auto lambda_der = Cm_der * reshape(Tmat,3,3).tr();
-
-    gsExprEvaluator<T> ev(exprAssembler);
-    gsVector<T> pt(2);
-    pt.setConstant(0.25);
-    gsDebugVar(ev.eval(flat( jac(Gdef).tr() * jac(space) ),pt));
-    gsDebugVar(ev.eval(m2,pt));
-    gsDebugVar(ev.eval(Cm_der,pt));
-    gsDebugVar(ev.eval(reshape(Tmat,3,3).tr(),pt));
-
-    auto expr = lambda_der * gismo::expr::uv(_comp,3) * meas(Gori);
-    exprAssembler.assemble(expr);
-    return exprAssembler.rhs();
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStrain && _comp==9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
-    auto Em_der = flat( jac(Gdef).tr() * jac(space) ) ;
-
-    auto expr = 2 * Em_der * Em.tr() * meas(Gori);
-    exprAssembler.assemble(expr);
-    return exprAssembler.rhs();
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStrain && _comp!=9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
-    auto Em_der = flat( jac(Gdef).tr() * jac(space) ) ;
-
-    auto expr = Em_der *  gismo::expr::uv(_comp,3) * meas(Gori);
-    exprAssembler.assemble(expr);
-    return exprAssembler.rhs();
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStrain && _comp==9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(assembler->material(),m_defpatches,Z);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-
-    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
-    auto Em_der = flat( jac(Gdef).tr() * jac(space) ) ;
-
-    auto Emp    = Em * reshape(Tmat,3,3).tr();
-    auto Emp_der= Em_der * reshape(Tmat,3,3).tr();
-
-
-    auto expr = 2 * Emp_der * Emp.tr() * meas(Gori);
-
-    exprAssembler.assemble(expr);
-    return exprAssembler.rhs();
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStrain && _comp!=9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(assembler->material(),m_defpatches,Z);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-
-    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
-    auto Em_der = flat( jac(Gdef).tr() * jac(space) ) ;
-
-    auto Emp    = Em * reshape(Tmat,3,3).tr();
-    auto Emp_der= Em_der * reshape(Tmat,3,3).tr();
-
-
-    // auto expr = 2 * Emp_der * Emp.tr() * meas(Gori);
-    auto expr = Emp_der * gismo::expr::uv(_comp,3) * meas(Gori);
-
-    exprAssembler.assemble(expr);
-    return exprAssembler.rhs();
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStress && _comp==9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
+    // Material tensors at Z
     gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(assembler->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixD> mmDf(assembler->material(),m_defpatches,Z);
     variable mmA = exprAssembler.getCoeff(mmAf);
+    variable mmD = exprAssembler.getCoeff(mmDf);
+
+    // Material tensors integrated
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAfi(assembler->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBfi(assembler->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCfi(assembler->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDfi(assembler->material(),m_defpatches);
+    variable mmAi = exprAssembler.getCoeff(mmAfi);
+    variable mmBi = exprAssembler.getCoeff(mmBfi);
+    variable mmCi = exprAssembler.getCoeff(mmCfi);
+    variable mmDi = exprAssembler.getCoeff(mmDfi);
+
+    // Stress tensors
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),m_defpatches,Z);
     variable S0 = exprAssembler.getCoeff(S0f);
+    variable S1 = exprAssembler.getCoeff(S1f);
 
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto Em_der   = flat( jac(Gdef).tr() * jac(space) ) ;
-    auto Sm_der     = Em_der * reshape(mmA,3,3);
-    auto expr = 2 * Sm_der * S0 * meas(Gori);
-    exprAssembler.assemble(expr);
-    return exprAssembler.rhs();
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStress && _comp!=9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches,Z);
-    // gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(assembler->material(),m_defpatches,Z);
-    variable mmA = exprAssembler.getCoeff(mmAf);
-    // variable S0 = exprAssembler.getCoeff(S0f);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto Em_der   = flat( jac(Gdef).tr() * jac(space) ) ;
-    auto Sm_der     = Em_der * reshape(mmA,3,3);
-    auto expr = Sm_der * gismo::expr::uv(_comp,3) * meas(Gori);
-    exprAssembler.assemble(expr);
-    return exprAssembler.rhs();
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStress && _comp==9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(assembler->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(assembler->material(),m_defpatches,Z);
-    variable mmA = exprAssembler.getCoeff(mmAf);
+    // Principal stress tensors
+    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_assemblerL->material(),m_defpatches,Z);
     variable P0  = exprAssembler.getCoeff(P0f);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
 
-    // gsFunctionExpr<> Tmatf("1","0","0","0","2","0","0","0","3",2);
-    // variable Tmat = exprAssembler.getCoeff(Tmatf);
+    // Force and moment tensors
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> Mf(m_assemblerL->material(),m_defpatches);
+    variable N = exprAssembler.getCoeff(Nf);
+    variable M = exprAssembler.getCoeff(Mf);
 
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto Em_der   = flat( jac(Gdef).tr() * jac(space) ) ;
-    auto Sm_der     = Em_der * reshape(mmA,3,3);
-    // auto expr = (Sm_der * reshape(Tmat,3,3).tr()) * gismo::expr::uv(_comp,3) * meas(Gori);
-    auto expr = 2 * (Sm_der * reshape(Tmat,3,3).tr()) * P0 * meas(Gori);
-    exprAssembler.assemble(expr);
-
-    // gsExprEvaluator<T> ev(exprAssembler);
-    // gsVector<T> pt(2);
-    // pt.setConstant(0.25);
-    // gsDebugVar(ev.eval((Sm_der * reshape(Tmat,3,3).tr()) * gismo::expr::uv(0,3) * meas(Gori),pt));
-    // gsDebugVar(ev.eval((Sm_der * reshape(Tmat,3,3).tr()) * gismo::expr::uv(1,3) * meas(Gori),pt));
-    // gsDebugVar(ev.eval((Sm_der * reshape(Tmat,3,3).tr()) * gismo::expr::uv(2,3) * meas(Gori),pt));
-
-    return exprAssembler.rhs();
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStress && _comp!=9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(assembler->material(),m_defpatches,Z);
-    variable mmA = exprAssembler.getCoeff(mmAf);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    // gsFunctionExpr<> Tmatf("1","0","0","0","2","0","0","0","3",2);
-    // variable Tmat = exprAssembler.getCoeff(Tmatf);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto Em_der   = flat( jac(Gdef).tr() * jac(space) ) ;
-    auto Sm_der     = Em_der * reshape(mmA,3,3);
-    auto expr = (Sm_der * reshape(Tmat,3,3).tr()) * gismo::expr::uv(_comp,3) * meas(Gori);
-    exprAssembler.assemble(expr);
-
-    // gsExprEvaluator<T> ev(exprAssembler);
-    // gsVector<T> pt(2);
-    // pt.setConstant(0.25);
-    // gsDebugVar(ev.eval((Sm_der * reshape(Tmat,3,3).tr()) * gismo::expr::uv(0,3) * meas(Gori),pt));
-    // gsDebugVar(ev.eval((Sm_der * reshape(Tmat,3,3).tr()) * gismo::expr::uv(1,3) * meas(Gori),pt));
-    // gsDebugVar(ev.eval((Sm_der * reshape(Tmat,3,3).tr()) * gismo::expr::uv(2,3) * meas(Gori),pt));
-
-    return exprAssembler.rhs();
-}
-
-// template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-// template<enum GoalFunction _GF, short_t _comp>
-// typename std::enable_if<_GF==GoalFunction::FlexuralStress, void>::type
-// gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-// {
-//     this->_setBasis(basis);
-
-//     gsMatrix<T> Z(1,1);
-//     Z.setZero();
-
-//     exprAssembler.cleanUp();
-//     exprAssembler.setOptions(assembler->options());
-
-//     m_defpatches = m_patches;
-//     for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-//         m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-//     exprAssembler.getMap(m_patches);           // this map is used for integrals
-//     exprAssembler.getMap(m_defpatches);
-
-//     // Initialize vector
-//     exprAssembler.initSystem(false);
-//     exprAssembler.initVector(1,false);
-
-//     gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(m_materialMat,m_defpatches,Z);
-//     gsMaterialMatrixEval<T,MaterialOutput::MatrixB> mmBf(m_materialMat,m_defpatches,Z);
-//     variable mmA = exprAssembler.getCoeff(mmAf);
-//     variable mmB = exprAssembler.getCoeff(mmBf);
-
-//     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
-//     variable m2 = exprAssembler.getCoeff(mult2t);
-
-//     space  space       = exprAssembler.trialSpace(0);
-//     geometryMap Gori   = exprAssembler.exprData()->getMap();
-//     geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-//     auto Ef_der   = -( deriv2(space,sn(Gdef).normalized().tr() ) + deriv2(Gdef,var1(space,Gdef) ) ) * reshape(m2,3,3);
-
-//     auto Sf_der     = Ef_der * reshape(mmB,3,3);
-//     auto expr = Sm_der * gismo::expr::uv(_comp,3) * meas(Gori);
-//     exprAssembler.assemble(expr);
-
-//     // _assembleDual_expr(expr,deformed,basis);
-// }
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneForce && _comp==9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    GISMO_NO_IMPLEMENTATION;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneForce && _comp!=9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBf(assembler->material(),m_defpatches);
-    variable mmA = exprAssembler.getCoeff(mmAf);
-    variable mmB = exprAssembler.getCoeff(mmBf);
-
+    // Helper matrix for flexural components
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m2 = exprAssembler.getCoeff(mult2t);
 
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
+    // Deformation gradient and its first variation
+        // To compensate for the flat, since flat does [E11,E22,2*E12]
+    gsFunctionExpr<> mult12t("1","0","0","0","1","0","0","0","0.5",2);
+    variable m12 = exprAssembler.getCoeff(mult2t);
 
-    auto Em_der   = flat( jac(Gdef).tr() * jac(space) ) ;
-    auto Ef_der   = -( deriv2(space,sn(Gdef).normalized().tr() ) + deriv2(Gdef,var1(space,Gdef) ) ) * reshape(m2,3,3);
-    // auto N_der    = Em_der * reshape(mmA,3,3)
-    //                 +
-    //                 Ef_der * reshape(mmB,3,3);
+    auto Cm         = flat( jac(Gdef).tr() * jac(Gdef) ) * reshape(m12,3,3);
+    auto Cm_der     = 2* flat( jac(Gdef).tr() * jac(space) ) * reshape(m12,3,3);
 
-    gsWarn<<"The MembraneForce goal function seems to be problematic (Nder)\n";
-    auto N_der1     = Em_der * reshape(mmA,3,3);
-    auto N_der2     = Ef_der * reshape(mmB,3,3);
-    auto N_der      = N_der1 + N_der2;
+    // Principal stretch and its first variation
+    auto lambda     = Cm     * reshape(Tcov,3,3).tr();
+    auto lambda_der = Cm_der * reshape(Tcov,3,3).tr();
 
-    // auto expr = N_der * gismo::expr::uv(_comp,3) * meas(Gori);
-    auto expr = N_der * gismo::expr::uv(_comp,3) * meas(Gori);
-    auto expr1 = N_der1 * gismo::expr::uv(_comp,3) * meas(Gori);
-    auto expr2 = N_der2 * gismo::expr::uv(_comp,3) * meas(Gori);
-    exprAssembler.assemble(expr);
+    // Membrane strain and its first variation
+    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
+    auto Em_der = flat( jac(Gdef).tr() * jac(space) ) ;
 
+    // Principal membrane strain and its first variation
+    auto Emp    = Em * reshape(Tcon,3,3).tr();
+    auto Emp_der= Em_der * reshape(Tcon,3,3).tr();
 
-    gsDebugVar(exprAssembler.rhs().rows());
+    // Flexural strain and its first variation
+    auto Ef     = ( deriv2(Gori,sn(Gori).normalized().tr()) - deriv2(Gdef,sn(Gdef).normalized().tr()) ) * reshape(m2,3,3) ;
+    auto Ef_der = -( deriv2(space,sn(Gdef).normalized().tr() ) + deriv2(Gdef,var1(space,Gdef) ) ) * reshape(m2,3,3);
 
+    // Membrane stress (its first variation)
+    auto Sm_der     = Em_der * reshape(mmA,3,3);
+    auto Sf_der     = Ef_der * reshape(mmD,3,3);
 
+    // Membrane force (its first variation)
+    // auto N_der    = Em_der * reshape(mmAi,3,3) + Ef_der * reshape(mmBi,3,3);
+    auto M_der    = Em_der * reshape(mmCi,3,3) + Ef_der * reshape(mmDi,3,3);
+
+    gsExprEvaluator<T> ev(exprAssembler);
     gsVector<T> pt(2);
     pt.setConstant(0.25);
-    gsExprEvaluator<T> ev(exprAssembler);
-    gsDebugVar(ev.eval(Gdef,pt));
-    gsDebugVar(ev.eval(Em_der,pt));
-    gsDebugVar(ev.eval(Ef_der,pt));
-    gsDebugVar(ev.eval(Em_der * reshape(mmA,3,3),pt));
-    gsDebugVar(ev.eval(Ef_der * reshape(mmB,3,3),pt));
-    gsDebugVar(ev.eval(N_der,pt));
-    gsDebugVar(ev.eval(expr,pt));
-    gsDebugVar(ev.eval(expr1,pt));
-    gsDebugVar(ev.eval(expr2,pt));
 
-    gsDebugVar(exprAssembler.rhs());
+    if (m_goalFunction == GoalFunction::Displacement)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * space * usol * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+        else
+        {
+            auto expr = space * gismo::expr::uv(m_component,3) * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+    }
+    else if (m_goalFunction == GoalFunction::Stretch)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * lambda_der * lambda.tr() * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+        else
+        {
+            gsDebugVar(ev.eval(flat( jac(Gdef).tr() * jac(space) ),pt));
+            gsDebugVar(ev.eval(reshape(Tcov,3,3).tr(),pt));
 
-    return exprAssembler.rhs();
+            auto expr = lambda_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembraneStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Em_der * Em.tr() * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+        else
+        {
+            auto expr = Em_der *  gismo::expr::uv(m_component,3) * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembranePStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Emp_der * Emp.tr() * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+        else
+        {
+            auto expr = Emp_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembraneStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Sm_der * S0 * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+        else
+        {
+            auto expr = Sm_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembranePStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * (Sm_der * reshape(Tcov,3,3).tr()) * P0 * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+        else
+        {
+            auto expr = (Sm_der * reshape(Tcov,3,3).tr()) * gismo::expr::uv(m_component,3) * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembraneForce)
+    {
+        if (m_component==9)
+        {
+            gsWarn<<"The MembraneForce goal function seems to be problematic (Nder)\n";
+            auto N_der1     = Em_der * reshape(mmAi,3,3);
+            auto N_der2     = Ef_der * reshape(mmBi,3,3);
+            auto N_der      = N_der1 + N_der2;
+
+            // auto expr = N_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            auto expr = N_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            auto expr1 = N_der1 * gismo::expr::uv(m_component,3) * meas(Gori);
+            auto expr2 = N_der2 * gismo::expr::uv(m_component,3) * meas(Gori);
+            exprAssembler.assemble(expr);
+
+
+            gsDebugVar(exprAssembler.rhs().rows());
+
+
+            gsDebugVar(ev.eval(Gdef,pt));
+            gsDebugVar(ev.eval(Em_der,pt));
+            gsDebugVar(ev.eval(Ef_der,pt));
+            gsDebugVar(ev.eval(Em_der * reshape(mmAi,3,3),pt));
+            gsDebugVar(ev.eval(Ef_der * reshape(mmBi,3,3),pt));
+            gsDebugVar(ev.eval(N_der,pt));
+            gsDebugVar(ev.eval(expr,pt));
+            gsDebugVar(ev.eval(expr1,pt));
+            gsDebugVar(ev.eval(expr2,pt));
+
+            gsDebugVar(exprAssembler.rhs());
+
+            return exprAssembler.rhs();
+        }
+        else
+        {
+            gsWarn<<"The MembraneForce goal function seems to be problematic (Nder)\n";
+            auto N_der1     = Em_der * reshape(mmAi,3,3);
+            auto N_der2     = Ef_der * reshape(mmBi,3,3);
+            auto N_der      = N_der1 + N_der2;
+            auto expr = 2 * N_der * N * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+    }
+    else if (m_goalFunction == GoalFunction::FlexuralStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Ef_der * Ef.tr() * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+        else
+        {
+            auto expr = Ef_der *  gismo::expr::uv(m_component,3) * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+    }
+    else if (m_goalFunction == GoalFunction::FlexuralStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Sf_der * S1 * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+        else
+        {
+            auto expr = Sf_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+    }
+    else if (m_goalFunction == GoalFunction::FlexuralMoment)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * M_der * M * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+        else
+        {
+            auto expr = M_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+    }
+    else
+        GISMO_ERROR("Goal function not known");
 }
 
-// template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-// gsVector<T> gsThinShellAssemblerDWR<d, T, bending, GF, comp>::_assembleDual_point(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMatrix<T> & tmp)
+
+template <short_t d, class T, bool bending>
+gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
+{
+    /* SINGLE PATCH IMPLEMENTATION */
+    index_t pIndex = 0;
+    gsVector<T> result;
+    gsMatrix<T> tmp;
+    gsMatrix<index_t> actives, globalActives;
+
+    GISMO_ASSERT(m_component < d || m_component==9,"Component is out of bounds");
+
+    // For the stretches
+    // ! Only works with Z=0 for now, since principal stresses and directions are implemented for Z=0
+    gsMatrix<T> Z(1,1);
+    Z.setZero();
+    ////
+
+    gsExprAssembler<T> exprAssembler = assembler->assembler();
+    exprAssembler.cleanUp();
+    exprAssembler.setOptions(assembler->options());
+
+    m_defpatches = m_patches;
+    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
+        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // Gdef points to mp_def, therefore updated
+
+    exprAssembler.getMap(m_patches);           // this map is used for integrals
+    exprAssembler.getMap(m_defpatches);
+
+    // Initialize vector
+    exprAssembler.initSystem(false);
+    exprAssembler.initVector(1,false);
+
+    // Space
+    space   space   = exprAssembler.trialSpace(0);
+
+    // Solution
+    variable usol   = exprAssembler.getCoeff(primal);
+
+    // Geometries
+    geometryMap Gori= exprAssembler.exprData()->getMap();
+    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
+
+    // Transformation for stretches
+    gsMaterialMatrixEval<T,MaterialOutput::CovTransform>  Tcovf(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),m_defpatches,Z);
+    variable Tcov = exprAssembler.getCoeff(Tcovf);
+    variable Tcon = exprAssembler.getCoeff(Tconf);
+
+    // Material tensors at Z
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixD> mmDf(assembler->material(),m_defpatches,Z);
+    variable mmA = exprAssembler.getCoeff(mmAf);
+    variable mmD = exprAssembler.getCoeff(mmDf);
+
+    // Material tensors integrated
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAfi(assembler->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBfi(assembler->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCfi(assembler->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDfi(assembler->material(),m_defpatches);
+    variable mmAi = exprAssembler.getCoeff(mmAfi);
+    variable mmBi = exprAssembler.getCoeff(mmBfi);
+    variable mmCi = exprAssembler.getCoeff(mmCfi);
+    variable mmDi = exprAssembler.getCoeff(mmDfi);
+
+    // Stress tensors
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(assembler->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S1f(assembler->material(),m_defpatches,Z);
+    variable S0 = exprAssembler.getCoeff(S0f);
+    variable S1 = exprAssembler.getCoeff(S1f);
+
+    // Principal stress tensors
+    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(assembler->material(),m_defpatches,Z);
+    variable P0  = exprAssembler.getCoeff(P0f);
+
+    // Force and moment tensors
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> Mf(m_assemblerL->material(),m_defpatches);
+    variable N = exprAssembler.getCoeff(Nf);
+    variable M = exprAssembler.getCoeff(Mf);
+
+    // Helper matrix for flexural components
+    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
+    variable m2 = exprAssembler.getCoeff(mult2t);
+
+    // Deformation gradient and its first variation
+        // To compensate for the flat, since flat does [E11,E22,2*E12]
+    gsFunctionExpr<> mult12t("1","0","0","0","1","0","0","0","0.5",2);
+    variable m12 = exprAssembler.getCoeff(mult2t);
+
+    auto Cm         = flat( jac(Gdef).tr() * jac(Gdef) ) * reshape(m12,3,3);
+    auto Cm_der     = 2* flat( jac(Gdef).tr() * jac(space) ) * reshape(m12,3,3);
+
+    // Principal stretch and its first variation
+    auto lambda     = Cm     * reshape(Tcov,3,3).tr();
+    auto lambda_der = Cm_der * reshape(Tcov,3,3).tr();
+
+    // Membrane strain and its first variation
+    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
+    auto Em_der = flat( jac(Gdef).tr() * jac(space) ) ;
+
+    // Principal membrane strain and its first variation
+    auto Emp    = Em * reshape(Tcon,3,3).tr();
+    auto Emp_der= Em_der * reshape(Tcon,3,3).tr();
+
+    // Membrane stress (its first variation)
+    auto Sm_der     = Em_der * reshape(mmA,3,3);
+
+    // Principal membrane stress (its first variation)
+    auto Smp_der     = Sm_der * reshape(Tcov,3,3).tr();
+
+    // Flexural strain and its first variation
+    auto Ef     = ( deriv2(Gori,sn(Gori).normalized().tr()) - deriv2(Gdef,sn(Gdef).normalized().tr()) ) * reshape(m2,3,3) ;
+    auto Ef_der = -( deriv2(space,sn(Gdef).normalized().tr() ) + deriv2(Gdef,var1(space,Gdef) ) ) * reshape(m2,3,3);
+
+    // Flexural stress (its first variation)
+    auto Sf_der     = Ef_der * reshape(mmD,3,3);
+
+    // Membrane force (its first variation)
+    // auto N_der    = Em_der * reshape(mmAi,3,3) + Ef_der * reshape(mmBi,3,3);
+    auto M_der    = Em_der * reshape(mmCi,3,3) + Ef_der * reshape(mmDi,3,3);
+
+
+    gsExprEvaluator<T> ev(exprAssembler);
+    gsVector<T> pt(2);
+    pt.setConstant(0.25);
+
+    result.resize(exprAssembler.numDofs());
+    result.setZero();
+    if (m_goalFunction == GoalFunction::Displacement)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * space * usol * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = space * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::Stretch)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2* lambda_der * lambda * meas(Gori);//<<<--------NOTE: Square missing?
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = lambda_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembraneStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Em_der * Em.tr() * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = Em_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembranePStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Emp_der * Emp.tr() * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = Emp_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembraneStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Sm_der * S0 * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = Sm_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembranePStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = Smp_der * P0 * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = Sm_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembraneForce)
+    {
+        if (m_component==9)
+        {
+            gsWarn<<"The MembraneForce goal function seems to be problematic (Nder)\n";
+            // remove N_der from this scipe
+            auto N_der    = Em_der * reshape(mmAi,3,3) + Ef_der * reshape(mmBi,3,3);
+            auto expr = 2 * N_der * N * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+        else
+        {
+            // remove N_der from this scipe
+            gsWarn<<"The MembraneForce goal function seems to be problematic (Nder)\n";
+            auto N_der    = Em_der * reshape(mmAi,3,3) + Ef_der * reshape(mmBi,3,3);
+            auto expr = N_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::FlexuralStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Ef_der * Ef.tr() * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = Ef_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::FlexuralStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Sf_der * S1 * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = Sf_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::FlexuralMoment)
+    {
+        if (m_component==9)
+        {
+            gsWarn<<"The FlexuralMoment goal function seems to be problematic (Mder)\n";
+            // remove N_der from this scipe
+            auto N_der    = Em_der * reshape(mmAi,3,3) + Ef_der * reshape(mmBi,3,3);
+            auto expr = 2 * M_der * M * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+        else
+        {
+            // remove N_der from this scipe
+            gsWarn<<"The FlexuralMoment goal function seems to be problematic (Mder)\n";
+            auto expr = M_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+    }
+    else
+        GISMO_ERROR("Goal function not known");
+
+
+};
+
+
+// template <short_t d, class T, bool bending>
+// gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual_point(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMatrix<T> & tmp)
 // {
 //     /* SINGLE PATCH IMPLEMENTATION */
 //     index_t pIndex = 0;
@@ -791,918 +987,56 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(gsThinShellA
 //     return result;
 // }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Displacement && _comp==9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    /* SINGLE PATCH IMPLEMENTATION */
-    index_t pIndex = 0;
-    gsVector<T> result;
-    gsMatrix<T> tmp;
-    gsMatrix<index_t> actives, globalActives;
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    space   space   = exprAssembler.trialSpace(0);
-    variable usol   = exprAssembler.getCoeff(primal);
-    geometryMap Gori= exprAssembler.exprData()->getMap();
-
-    auto expr = 2 * space * usol * meas(Gori);
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    result.resize(exprAssembler.numDofs());
-    result.setZero();
-
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval(expr,points.col(k));
-        exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-        for (index_t j = 0; j< space.dim(); ++j)
-        {
-            space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-            for (index_t i=0; i < globalActives.rows(); ++i)
-                if (space.mapper().is_free_index(globalActives(i,0)))
-                    result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-        }
-    }
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Displacement && _comp!=9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    /* SINGLE PATCH IMPLEMENTATION */
-    index_t pIndex = 0;
-    gsVector<T> result;
-    gsMatrix<T> tmp;
-    gsMatrix<index_t> actives, globalActives;
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-
-    auto expr = space * gismo::expr::uv(_comp,3) * meas(Gori);
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    result.resize(exprAssembler.numDofs());
-    result.setZero();
-
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval(expr,points.col(k));
-        exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-        for (index_t j = 0; j< space.dim(); ++j)
-        {
-            space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-            for (index_t i=0; i < globalActives.rows(); ++i)
-                if (space.mapper().is_free_index(globalActives(i,0)))
-                    result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-        }
-    }
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Stretch && _comp==9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    // ! Only works with Z=0 for now
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    /* SINGLE PATCH IMPLEMENTATION */
-    index_t pIndex = 0;
-    gsVector<T> result;
-    gsMatrix<T> tmp;
-    gsMatrix<index_t> actives, globalActives;
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    // To compensate for the flat, since flat does [E11,E22,2*E12]
-    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","0.5",2);
-    variable m2 = exprAssembler.getCoeff(mult2t);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    gsMaterialMatrixEval<T,MaterialOutput::Stretch>  lambdaf(m_assemblerL->material(),m_defpatches,Z);
-    variable lambda = exprAssembler.getCoeff(lambdaf);
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(m_assemblerL->material(),m_defpatches,Z);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    auto Cm_der     = 2*flat( jac(Gdef).tr() * jac(space) ) * reshape(m2,3,3);
-    auto lambda_der = Cm_der * reshape(Tmat,3,3).tr();
-
-    auto expr = 2* lambda_der * lambda * meas(Gori);//<<<--------NOTE: Square missing?
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    result.resize(exprAssembler.numDofs());
-    result.setZero();
-
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval(expr,points.col(k));
-        exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-        for (index_t j = 0; j< space.dim(); ++j)
-        {
-            space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-            for (index_t i=0; i < globalActives.rows(); ++i)
-                if (space.mapper().is_free_index(globalActives(i,0)))
-                    result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-        }
-    }
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Stretch && _comp!=9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-    GISMO_ASSERT(_comp!=2 ,"Not available for comp = 2");
-
-    // ! Only works with Z=0 for now
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    /* SINGLE PATCH IMPLEMENTATION */
-    index_t pIndex = 0;
-    gsVector<T> result;
-    gsMatrix<T> tmp;
-    gsMatrix<index_t> actives, globalActives;
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    // To compensate for the flat, since flat does [E11,E22,2*E12]
-    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","0.5",2);
-    variable m2 = exprAssembler.getCoeff(mult2t);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(m_assemblerL->material(),m_defpatches,Z);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    auto Cm_der     = 2*flat( jac(Gdef).tr() * jac(space) ) * reshape(m2,3,3);
-    auto lambda_der = Cm_der * reshape(Tmat,3,3).tr();
-
-    auto expr = lambda_der * gismo::expr::uv(_comp,3) * meas(Gori);
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    result.resize(exprAssembler.numDofs());
-    result.setZero();
-
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval(expr,points.col(k));
-        exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-        for (index_t j = 0; j< space.dim(); ++j)
-        {
-            space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-            for (index_t i=0; i < globalActives.rows(); ++i)
-                if (space.mapper().is_free_index(globalActives(i,0)))
-                    result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-        }
-    }
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStrain && _comp==9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    /* SINGLE PATCH IMPLEMENTATION */
-    index_t pIndex = 0;
-    gsVector<T> result;
-    gsMatrix<T> tmp;
-    gsMatrix<index_t> actives, globalActives;
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
-    auto Em_der = flat( jac(Gdef).tr() * jac(space) ) ;
-
-    auto expr = 2 * Em_der * Em.tr() * meas(Gori);
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    result.resize(exprAssembler.numDofs());
-    result.setZero();
-
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval(expr,points.col(k));
-        exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-        for (index_t j = 0; j< space.dim(); ++j)
-        {
-            space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-            for (index_t i=0; i < globalActives.rows(); ++i)
-                if (space.mapper().is_free_index(globalActives(i,0)))
-                    result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-        }
-    }
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStrain && _comp!=9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    /* SINGLE PATCH IMPLEMENTATION */
-    index_t pIndex = 0;
-    gsVector<T> result;
-    gsMatrix<T> tmp;
-    gsMatrix<index_t> actives, globalActives;
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
-    auto Em_der = flat( jac(Gdef).tr() * jac(space) ) ;
-
-    auto expr = Em_der * gismo::expr::uv(_comp,3) * meas(Gori);
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    result.resize(exprAssembler.numDofs());
-    result.setZero();
-
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval(expr,points.col(k));
-        exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-        for (index_t j = 0; j< space.dim(); ++j)
-        {
-            space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-            for (index_t i=0; i < globalActives.rows(); ++i)
-                if (space.mapper().is_free_index(globalActives(i,0)))
-                    result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-        }
-    }
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStrain && _comp==9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    /* SINGLE PATCH IMPLEMENTATION */
-    index_t pIndex = 0;
-    gsVector<T> result;
-    gsMatrix<T> tmp;
-    gsMatrix<index_t> actives, globalActives;
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(assembler->material(),m_defpatches,Z);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
-    auto Em_der = flat( jac(Gdef).tr() * jac(space) ) ;
-
-    auto Emp    = Em * reshape(Tmat,3,3).tr();
-    auto Emp_der= Em_der * reshape(Tmat,3,3).tr();
-
-    auto expr = 2 * Emp_der * Emp.tr() * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    result.resize(exprAssembler.numDofs());
-    result.setZero();
-
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval(expr,points.col(k));
-        exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-        for (index_t j = 0; j< space.dim(); ++j)
-        {
-            space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-            for (index_t i=0; i < globalActives.rows(); ++i)
-                if (space.mapper().is_free_index(globalActives(i,0)))
-                    result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-        }
-    }
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStrain && _comp!=9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    /* SINGLE PATCH IMPLEMENTATION */
-    index_t pIndex = 0;
-    gsVector<T> result;
-    gsMatrix<T> tmp;
-    gsMatrix<index_t> actives, globalActives;
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(assembler->material(),m_defpatches,Z);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
-    auto Em_der = flat( jac(Gdef).tr() * jac(space) ) ;
-
-    auto Emp    = Em * reshape(Tmat,3,3).tr();
-    auto Emp_der= Em_der * reshape(Tmat,3,3).tr();
-
-    // auto expr = 2 * Emp_der * Emp.tr() * meas(Gori);
-    auto expr = Emp_der * gismo::expr::uv(_comp,3) * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    result.resize(exprAssembler.numDofs());
-    result.setZero();
-
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval(expr,points.col(k));
-        exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-        for (index_t j = 0; j< space.dim(); ++j)
-        {
-            space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-            for (index_t i=0; i < globalActives.rows(); ++i)
-                if (space.mapper().is_free_index(globalActives(i,0)))
-                    result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-        }
-    }
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStress && _comp==9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    /* SINGLE PATCH IMPLEMENTATION */
-    index_t pIndex = 0;
-    gsVector<T> result;
-    gsMatrix<T> tmp;
-    gsMatrix<index_t> actives, globalActives;
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(assembler->material(),m_defpatches,Z);
-    variable mmA = exprAssembler.getCoeff(mmAf);
-    variable S0 = exprAssembler.getCoeff(S0f);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto Em_der   = flat( jac(Gdef).tr() * jac(space) ) ;
-    auto Sm_der    = Em_der * reshape(mmA,3,3);
-
-    auto expr = 2 * Sm_der * S0 * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    result.resize(exprAssembler.numDofs());
-    result.setZero();
-
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval(expr,points.col(k));
-        exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-        for (index_t j = 0; j< space.dim(); ++j)
-        {
-            space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-            for (index_t i=0; i < globalActives.rows(); ++i)
-                if (space.mapper().is_free_index(globalActives(i,0)))
-                    result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-        }
-    }
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStress && _comp!=9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    /* SINGLE PATCH IMPLEMENTATION */
-    index_t pIndex = 0;
-    gsVector<T> result;
-    gsMatrix<T> tmp;
-    gsMatrix<index_t> actives, globalActives;
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches,Z);
-    // gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(assembler->material(),m_defpatches,Z);
-    variable mmA = exprAssembler.getCoeff(mmAf);
-    // variable S0 = exprAssembler.getCoeff(S0f);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto Em_der   = flat( jac(Gdef).tr() * jac(space) ) ;
-    auto Sm_der    = Em_der * reshape(mmA,3,3);
-
-    // auto expr = 2 * Sm_der * S0 * meas(Gori);
-    auto expr = Sm_der * gismo::expr::uv(_comp,3) * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    result.resize(exprAssembler.numDofs());
-    result.setZero();
-
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval(expr,points.col(k));
-        exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-        for (index_t j = 0; j< space.dim(); ++j)
-        {
-            space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-            for (index_t i=0; i < globalActives.rows(); ++i)
-                if (space.mapper().is_free_index(globalActives(i,0)))
-                    result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-        }
-    }
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStress && _comp==9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    /* SINGLE PATCH IMPLEMENTATION */
-    index_t pIndex = 0;
-    gsVector<T> result;
-    gsMatrix<T> tmp;
-    gsMatrix<index_t> actives, globalActives;
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(assembler->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(assembler->material(),m_defpatches,Z);
-    variable mmA = exprAssembler.getCoeff(mmAf);
-    variable P0  = exprAssembler.getCoeff(P0f);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    // gsFunctionExpr<> Tmatf("1","0","0","0","2","0","0","0","3",2);
-    // variable Tmat = exprAssembler.getCoeff(Tmatf);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto Em_der   = flat( jac(Gdef).tr() * jac(space) ) ;
-    auto Sm_der    = Em_der * reshape(mmA,3,3);
-
-    auto expr = (Sm_der * reshape(Tmat,3,3).tr()) * P0 * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    result.resize(exprAssembler.numDofs());
-    result.setZero();
-
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval(expr,points.col(k));
-        exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-        for (index_t j = 0; j< space.dim(); ++j)
-        {
-            space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-            for (index_t i=0; i < globalActives.rows(); ++i)
-                if (space.mapper().is_free_index(globalActives(i,0)))
-                    result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-        }
-    }
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStress && _comp!=9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    /* SINGLE PATCH IMPLEMENTATION */
-    index_t pIndex = 0;
-    gsVector<T> result;
-    gsMatrix<T> tmp;
-    gsMatrix<index_t> actives, globalActives;
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(assembler->material(),m_defpatches,Z);
-    variable mmA = exprAssembler.getCoeff(mmAf);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    // gsFunctionExpr<> Tmatf("1","0","0","0","2","0","0","0","3",2);
-    // variable Tmat = exprAssembler.getCoeff(Tmatf);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto Em_der   = flat( jac(Gdef).tr() * jac(space) ) ;
-    auto Sm_der    = Em_der * reshape(mmA,3,3);
-
-    auto expr = (Sm_der * reshape(Tmat,3,3).tr()) * gismo::expr::uv(_comp,3) * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    result.resize(exprAssembler.numDofs());
-    result.setZero();
-
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval(expr,points.col(k));
-        exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-        for (index_t j = 0; j< space.dim(); ++j)
-        {
-            space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-            for (index_t i=0; i < globalActives.rows(); ++i)
-                if (space.mapper().is_free_index(globalActives(i,0)))
-                    result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-        }
-    }
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneForce && _comp==9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    /* SINGLE PATCH IMPLEMENTATION */
-    index_t pIndex = 0;
-    gsVector<T> result;
-    gsMatrix<T> tmp;
-    gsMatrix<index_t> actives, globalActives;
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBf(assembler->material(),m_defpatches);
-    variable mmA = exprAssembler.getCoeff(mmAf);
-    variable mmB = exprAssembler.getCoeff(mmBf);
-
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(assembler->material(),m_defpatches,Z);
-    variable S0 = exprAssembler.getCoeff(S0f);
-
-    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
-    variable m2 = exprAssembler.getCoeff(mult2t);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto Em_der   = flat( jac(Gdef).tr() * jac(space) ) ;
-    auto Ef_der   = -( deriv2(space,sn(Gdef).normalized().tr() ) + deriv2(Gdef,var1(space,Gdef) ) ) * reshape(m2,3,3);
-    auto N_der    = Em_der * reshape(mmA,3,3) + Ef_der * reshape(mmB,3,3);
-
-    auto expr = 2 * N_der * S0 * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    result.resize(exprAssembler.numDofs());
-    result.setZero();
-
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval(expr,points.col(k));
-        exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-        for (index_t j = 0; j< space.dim(); ++j)
-        {
-            space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-            for (index_t i=0; i < globalActives.rows(); ++i)
-                if (space.mapper().is_free_index(globalActives(i,0)))
-                    result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-        }
-    }
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneForce && _comp!=9, gsVector<T>>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::assembleDual_impl(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    /* SINGLE PATCH IMPLEMENTATION */
-    index_t pIndex = 0;
-    gsVector<T> result;
-    gsMatrix<T> tmp;
-    gsMatrix<index_t> actives, globalActives;
-
-    gsExprAssembler<T> exprAssembler = assembler->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(assembler->options());
-
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBf(assembler->material(),m_defpatches);
-    variable mmA = exprAssembler.getCoeff(mmAf);
-    variable mmB = exprAssembler.getCoeff(mmBf);
-
-    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
-    variable m2 = exprAssembler.getCoeff(mult2t);
-
-    space  space       = exprAssembler.trialSpace(0);
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto Em_der   = flat( jac(Gdef).tr() * jac(space) ) ;
-    auto Ef_der   = -( deriv2(space,sn(Gdef).normalized().tr() ) + deriv2(Gdef,var1(space,Gdef) ) ) * reshape(m2,3,3);
-    auto N_der    = Em_der * reshape(mmA,3,3) + Ef_der * reshape(mmB,3,3);
-
-    auto expr = N_der * gismo::expr::uv(_comp,3) * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    result.resize(exprAssembler.numDofs());
-    result.setZero();
-
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval(expr,points.col(k));
-        exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-        for (index_t j = 0; j< space.dim(); ++j)
-        {
-            space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-            for (index_t i=0; i < globalActives.rows(); ++i)
-                if (space.mapper().is_free_index(globalActives(i,0)))
-                    result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-        }
-    }
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-void gsThinShellAssemblerDWR<d, T, bending, GF, comp>::constructMultiPatchL(const gsMatrix<T> & solVector, gsMultiPatch<T> & result)
+template <short_t d, class T, bool bending>
+void gsThinShellAssemblerDWR<d, T, bending>::constructMultiPatchL(const gsMatrix<T> & solVector, gsMultiPatch<T> & result)
 {
     result = m_assemblerL->constructMultiPatch(solVector);
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-void gsThinShellAssemblerDWR<d, T, bending, GF, comp>::constructMultiPatchH(const gsMatrix<T> & solVector, gsMultiPatch<T> & result)
+template <short_t d, class T, bool bending>
+void gsThinShellAssemblerDWR<d, T, bending>::constructMultiPatchH(const gsMatrix<T> & solVector, gsMultiPatch<T> & result)
 {
     result = m_assemblerH->constructMultiPatch(solVector);
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-void gsThinShellAssemblerDWR<d, T, bending, GF, comp>::constructSolutionL(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed)
+template <short_t d, class T, bool bending>
+void gsThinShellAssemblerDWR<d, T, bending>::constructSolutionL(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed)
 {
     m_assemblerL->constructSolution(solVector,deformed);
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-void gsThinShellAssemblerDWR<d, T, bending, GF, comp>::constructSolutionH(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed)
+template <short_t d, class T, bool bending>
+void gsThinShellAssemblerDWR<d, T, bending>::constructSolutionH(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed)
 {
     m_assemblerH->constructSolution(solVector,deformed);
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-gsMultiPatch<T> gsThinShellAssemblerDWR<d, T, bending, GF, comp>::constructSolutionL(const gsMatrix<T> & solVector)
+template <short_t d, class T, bool bending>
+gsMultiPatch<T> gsThinShellAssemblerDWR<d, T, bending>::constructSolutionL(const gsMatrix<T> & solVector)
 {
     return m_assemblerL->constructSolution(solVector);
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-gsMultiPatch<T> gsThinShellAssemblerDWR<d, T, bending, GF, comp>::constructSolutionH(const gsMatrix<T> & solVector)
+template <short_t d, class T, bool bending>
+gsMultiPatch<T> gsThinShellAssemblerDWR<d, T, bending>::constructSolutionH(const gsMatrix<T> & solVector)
 {
     return m_assemblerH->constructSolution(solVector);
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-gsMultiPatch<T> gsThinShellAssemblerDWR<d, T, bending, GF, comp>::constructDisplacementL(const gsMatrix<T> & solVector)
+template <short_t d, class T, bool bending>
+gsMultiPatch<T> gsThinShellAssemblerDWR<d, T, bending>::constructDisplacementL(const gsMatrix<T> & solVector)
 {
     return m_assemblerL->constructDisplacement(solVector);
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-gsMultiPatch<T> gsThinShellAssemblerDWR<d, T, bending, GF, comp>::constructDisplacementH(const gsMatrix<T> & solVector)
+template <short_t d, class T, bool bending>
+gsMultiPatch<T> gsThinShellAssemblerDWR<d, T, bending>::constructDisplacementH(const gsMatrix<T> & solVector)
 {
     return m_assemblerH->constructDisplacement(solVector);
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-T gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH)
+template <short_t d, class T, bool bending>
+T gsThinShellAssemblerDWR<d, T, bending>::computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH)
 {
     gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
     exprAssembler.cleanUp();
@@ -1729,16 +1063,16 @@ T gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeError(const gsMultiPa
 }
 
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-T gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed)
+template <short_t d, class T, bool bending>
+T gsThinShellAssemblerDWR<d, T, bending>::computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed)
 {
     return computeError_impl<d,bending>(dualL,dualH,deformed);
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
+template <short_t d, class T, bool bending>
 template<int _d, bool _bending>
 typename std::enable_if<_d==3 && _bending, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed)
+gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed)
 {
     gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
     exprAssembler.cleanUp();
@@ -1779,8 +1113,8 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeError_impl(const gsMult
                     -  deriv2(zsolL,sn(Gdef).normalized().tr() ) + deriv2(Gdef,var1(zsolH,Gdef) )
                                                                  - deriv2(Gdef,var1(zsolL,Gdef) ) ) * reshape(m2,3,3);
 
-    auto Fext = (zsolH-zsolL).tr() * F * meas(Gori);
-    auto Fint = ( N * Em_der.tr() + M * Ef_der.tr() ) * meas(Gori);
+    auto Fext = (zsolH-zsolL).tr() * F;
+    auto Fint = ( N * Em_der.tr() + M * Ef_der.tr() );
 
     auto expr = ( Fext - Fint ) * meas(Gori);
 
@@ -1789,30 +1123,6 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeError_impl(const gsMult
 
     gsVector<T> pt(2);
     pt.setConstant(0.25);
-
-    gsDebugVar(ev.eval(Gori.tr(),pt));
-    gsDebugVar(ev.eval(Gdef.tr(),pt));
-    gsDebugVar(ev.eval(zsolL.tr(),pt));
-    gsDebugVar(ev.eval(zsolH.tr(),pt));
-
-    gsDebugVar(ev.eval(N.tr(),pt));
-    gsDebugVar(ev.eval(M.tr(),pt));
-
-    gsDebugVar(ev.eval(Em_der.tr(),pt));
-    gsDebugVar(ev.eval(Ef_der.tr(),pt));
-
-    real_t fint_m = ev.integral(( N * Em_der.tr() ) * meas(Gori) );
-    real_t fint_f = ev.integral(( M * Ef_der.tr() ) * meas(Gori) );
-    real_t fint = fint_m - fint_f;
-    real_t fext = ev.integral( Fext  );
-
-    gsDebugVar(fint_m);
-    gsDebugVar(fint_f);
-
-    gsDebugVar(fint);
-    gsDebugVar(fext);
-    real_t Res = fext-fint;
-    gsDebugVar(Res);
 
     if (m_foundInd)
     {
@@ -1833,10 +1143,10 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeError_impl(const gsMult
 
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
+template <short_t d, class T, bool bending>
 template<int _d, bool _bending>
 typename std::enable_if<!(_d==3 && _bending), T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed)
+gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed)
 {
     gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
     exprAssembler.cleanUp();
@@ -1867,8 +1177,8 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeError_impl(const gsMult
     // auto Em_der   = flat( jac(Gdef).tr() * jac(m_space) ) ;
     auto Em_der   = flat( jac(Gdef).tr() * (fjac(zsolH) - fjac(zsolL)) ) ;
 
-    auto Fext = (zsolH-zsolL).tr() * F * meas(Gori);
-    auto Fint = ( N * Em_der.tr() ) * meas(Gori);
+    auto Fext = (zsolH-zsolL).tr() * F;
+    auto Fint = ( N * Em_der.tr() );
 
     auto expr = ( Fext - Fint ) * meas(Gori);
 
@@ -1894,10 +1204,8 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeError_impl(const gsMult
 
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF>
-typename std::enable_if<(_GF==GoalFunction::Buckling), T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeErrorEig_impl( const T evPrimalL,
+template <short_t d, class T, bool bending>
+T gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig(         const T evPrimalL,
                                                                         const T evDualL,
                                                                         const T evDualH,
                                                                         const gsMultiPatch<T> & dualL,
@@ -1911,7 +1219,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeErrorEig_impl( const T 
 
     m_defpatches = deformed;
     // for ( size_t k =0; k!=deformed.nPatches(); ++k) // Deform the geometry
-    //     m_defpatches.patch(k).coefs() += deformed.patch(k).coefs();  // defG points to mp_def, therefore updated
+    //     m_defpatches.patch(k).coefs() += deformed.patch(k).coefs();  // Gdef points to mp_def, therefore updated
 
     exprAssembler.getMap(m_patches);           // this map is used for integrals
     exprAssembler.getMap(m_defpatches);
@@ -1940,10 +1248,10 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeErrorEig_impl( const T 
 
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),m_defpatches);
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::Density> rhof(m_assemblerL->material(),m_defpatches);
+    // gsMaterialMatrixIntegrate<T,MaterialOutput::Density> rhof(m_assemblerL->material(),m_defpatches);
     variable S0  = exprAssembler.getCoeff(S0f);
     variable S1  = exprAssembler.getCoeff(S1f);
-    variable rho  = exprAssembler.getCoeff(rhof);
+    // variable rho  = exprAssembler.getCoeff(rhof);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m2 = exprAssembler.getCoeff(mult2t);
@@ -1966,7 +1274,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeErrorEig_impl( const T 
     // auto N_der  = Em_der * reshape(mmA,3,3) + Ef_der * reshape(mmB,3,3);
     // auto M_der  = Em_der * reshape(mmC,3,3) + Ef_der * reshape(mmD,3,3);
 
-    // auto Fint   = ( N_der * Em_der.tr() + M_der * Ef_der.tr() ) * meas(Gori);
+    // auto Fint   = ( N_der * Em_der.tr() + M_der * Ef_der.tr() );
 
     // // Matrix K_NL
     // auto Em_der2  = flatdot( jac(Gdef),jac(zsolH), N ) - flatdot( jac(Gdef),jac(zsolL), N );
@@ -2000,7 +1308,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeErrorEig_impl( const T 
     auto N_derd_L   = Em_derd_L * reshape(mmA_L,3,3) + Ef_derd_L * reshape(mmB_L,3,3);
     auto M_derd_L   = Em_derd_L * reshape(mmC_L,3,3) + Ef_derd_L * reshape(mmD_L,3,3);
 
-    auto Fint_L     = ( N_derd_L * Em_derd_L.tr() + M_derd_L * Ef_derd_L.tr() ) * meas(Gori);
+    auto Fint_L     = ( N_derd_L * Em_derd_L.tr() + M_derd_L * Ef_derd_L.tr() );
 
     auto N_NL       = S0.tr();
     auto Em_der_NL  = flat(  jac(Gdef).tr() * ( fjac(usol )               ) ) ;
@@ -2035,12 +1343,12 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeErrorEig_impl( const T 
     auto N_derd_NL  = Em_derd_NL * reshape(mmA_NL,3,3) + Ef_derd_NL * reshape(mmB_NL,3,3);
     auto M_derd_NL  = Em_derd_NL * reshape(mmC_NL,3,3) + Ef_derd_NL * reshape(mmD_NL,3,3);
 
-    auto Fint_NL    = ( N_derd_NL * Em_der_NL.tr() + M_derd_NL * Ef_der_NL.tr() + Em_der2 + Ef_der2 ) * meas(Gori);
+    auto Fint_NL    = ( N_derd_NL * Em_der_NL.tr() + M_derd_NL * Ef_der_NL.tr() + Em_der2 + Ef_der2 );
 
-    auto K_L        = ( N_der_L   * Em_der_L.tr()  + M_der_L   * Ef_der_L.tr()                          ) * meas(Gori);
-    auto Kd_L       = ( N_derd_L  * Em_der_L.tr()  + M_derd_L  * Ef_der_L.tr()                          ) * meas(Gori);
-    auto K_NL       = ( N_der_NL  * Em_der_NL.tr() + M_der_NL  * Ef_der_NL.tr() + Em_der2  + Ef_der2    ) * meas(Gori);
-    auto Kd_NL      = ( N_derd_NL * Em_der_NL.tr() + M_derd_NL * Ef_der_NL.tr() + Emd_der2 + Efd_der2   ) * meas(Gori);
+    auto K_L        = ( N_der_L   * Em_der_L.tr()  + M_der_L   * Ef_der_L.tr()                          );
+    auto Kd_L       = ( N_derd_L  * Em_der_L.tr()  + M_derd_L  * Ef_der_L.tr()                          );
+    auto K_NL       = ( N_der_NL  * Em_der_NL.tr() + M_der_NL  * Ef_der_NL.tr() + Em_der2  + Ef_der2    );
+    auto Kd_NL      = ( N_derd_NL * Em_der_NL.tr() + M_derd_NL * Ef_der_NL.tr() + Emd_der2 + Efd_der2   );
 
     auto A          = Kd_L;
     auto Bdiff      = Kd_NL - Kd_L;
@@ -2111,11 +1419,11 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeErrorEig_impl( const T 
 
     // gsDebugVar(ev.eval(Fint_NL, pt));
 
-    // gsInfo << "Fint_m = " << ev.integral((N_der_L * Em_der_L.tr()) * meas(Gori)));
-    // gsInfo << "Fint_f = " << ev.integral((M_der_L * Ef_der_L.tr()) * meas(Gori)));
+    // gsInfo << "Fint_m = " << ev.integral((N_der_L * Em_der_L.tr())));
+    // gsInfo << "Fint_f = " << ev.integral((M_der_L * Ef_der_L.tr())));
 
-    // gsInfo << "Fint_m = " << ev.integral((N_der_NL * Em_der_NL.tr() + Em_der2) * meas(Gori)));
-    // gsInfo << "Fint_f = " << ev.integral((M_der_NL * Ef_der_NL.tr() + Ef_der2) * meas(Gori)));
+    // gsInfo << "Fint_m = " << ev.integral((N_der_NL * Em_der_NL.tr() + Em_der2)));
+    // gsInfo << "Fint_f = " << ev.integral((M_der_NL * Ef_der_NL.tr() + Ef_der2)));
 
 
 
@@ -2136,15 +1444,13 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeErrorEig_impl( const T 
     return integral;
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF>
-typename std::enable_if<(_GF==GoalFunction::Modal), T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeErrorEig_impl( const T evPrimalL,
-                                                                        const T evDualL,
-                                                                        const T evDualH,
-                                                                        const gsMultiPatch<T> & dualL,
-                                                                        const gsMultiPatch<T> & dualH,
-                                                                        const gsMultiPatch<T> & primal)
+template <short_t d, class T, bool bending>
+T gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig(  const T evPrimalL,
+                                                            const T evDualL,
+                                                            const T evDualH,
+                                                            const gsMultiPatch<T> & dualL,
+                                                            const gsMultiPatch<T> & dualH,
+                                                            const gsMultiPatch<T> & primal)
 {
     gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
     exprAssembler.cleanUp();
@@ -2152,7 +1458,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeErrorEig_impl( const T 
 
     m_defpatches = m_patches;
     for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // defG points to mp_def, therefore updated
+        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // Gdef points to mp_def, therefore updated
 
     exprAssembler.getMap(m_patches);           // this map is used for integrals
     exprAssembler.getMap(m_defpatches);
@@ -2185,7 +1491,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeErrorEig_impl( const T 
     variable zsolH  = exprAssembler.getCoeff(dualH);
 
     geometryMap Gori  = exprAssembler.exprData()->getMap();
-    geometryMap Gdef  = exprAssembler.exprData()->getMap2();
+    // geometryMap Gdef  = exprAssembler.exprData()->getMap2();
 
     auto N      = S0.tr();
     auto Em_derd= flat( jac(Gori).tr() * (fjac(zsolH) - fjac(zsolL)) ) ;
@@ -2198,7 +1504,7 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeErrorEig_impl( const T 
     auto N_der  = Em_derd * reshape(mmA,3,3) + Ef_derd * reshape(mmB,3,3);
     auto M_der  = Em_derd * reshape(mmC,3,3) + Ef_derd * reshape(mmD,3,3);
 
-    auto Fint   = ( N_der * Em_der.tr() + M_der * Ef_der.tr() ) * meas(Gori);
+    auto Fint   = ( N_der * Em_der.tr() + M_der * Ef_der.tr() );
 
     gsVector<T> pt(2);
     pt.setConstant(0.25);
@@ -2230,74 +1536,9 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeErrorEig_impl( const T 
 }
 
 //============================================================
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Displacement && _comp==9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMultiPatch<T> & deformed)
+template <short_t d, class T, bool bending>
+T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMultiPatch<T> & deformed)
 {
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto expr = (Gdef - Gori).tr() * (Gdef - Gori) * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    return ev.integral( expr  );
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Displacement && _comp!=9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMultiPatch<T> & deformed)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto expr = (Gdef-Gori).tr() * gismo::expr::uv(_comp,3)*meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    return ev.integral( expr  );
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Stretch && _comp==9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMultiPatch<T> & deformed)
-{
-    /*
-        NOTE:
-        - Cm * Transformation does only give the in-plane stretches, since C is constructed with the in-plane jacobians (Gdef) only. In fact, Cm should have a third entry with the Jacobian Determinant J0, but this one is hard to compute the variations for.
-     */
-
     gsMatrix<T> Z(1,1);
     Z.setZero();
 
@@ -2314,41 +1555,205 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMulti
     exprAssembler.initSystem(false);
     exprAssembler.initVector(1,false);
 
-    // To compensate for the flat, since flat does [E11,E22,2*E12]
-    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","0.5",2);
+    // Geometries
+    geometryMap Gori= exprAssembler.exprData()->getMap();
+    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
+
+    // Transformation for stretches
+    gsMaterialMatrixEval<T,MaterialOutput::CovTransform>  Tcovf(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),m_defpatches,Z);
+    variable Tcov = exprAssembler.getCoeff(Tcovf);
+    variable Tcon = exprAssembler.getCoeff(Tconf);
+
+    // Material tensors
+
+    // Stress tensors
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),m_defpatches,Z);
+    variable S0 = exprAssembler.getCoeff(S0f);
+    variable S1 = exprAssembler.getCoeff(S1f);
+
+    // Force tensors
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> Mf(m_assemblerL->material(),m_defpatches);
+    variable N  = exprAssembler.getCoeff(Nf);
+    variable M  = exprAssembler.getCoeff(Mf);
+
+    // Principal stress tensors
+    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_assemblerL->material(),m_defpatches,Z);
+    variable P0  = exprAssembler.getCoeff(P0f);
+
+    // Helper matrix for flexural components
+    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m2 = exprAssembler.getCoeff(mult2t);
 
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
+    // Deformation gradient
+        // To compensate for the flat, since flat does [E11,E22,2*E12]
+    gsFunctionExpr<> mult12t("1","0","0","0","1","0","0","0","0.5",2);
+    variable m12 = exprAssembler.getCoeff(mult12t);
 
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(m_assemblerL->material(),m_defpatches,Z);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
+    auto Cm         = flat( jac(Gdef).tr() * jac(Gdef) ) * reshape(m12,3,3);
 
-    auto cov_ori = jac(Gori).tr()*jac(Gori);
-    auto cov_def = jac(Gdef).tr()*jac(Gdef);
+    // Principal stretch
+    auto lambda     = Cm     * reshape(Tcov,3,3).tr();
 
-    auto Cm     = flat(jac(Gdef).tr()*jac(Gdef)) * reshape(m2,3,3);
-    auto stretch= reshape(Tmat,3,3) * Cm.tr();
+    // Membrane strain
+    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
 
-    auto expr = stretch.tr() * stretch * meas(Gori);
+    // Principal membrane strain
+    auto Emp    = Em * reshape(Tcon,3,3).tr();
 
-    // gsMaterialMatrixEval<T,MaterialOutput::Stretch>  lambdaf(m_assemblerL->material(),m_defpatches,Z);
-    // variable lambda = exprAssembler.getCoeff(lambdaf);
-    // auto expr1 = gismo::expr::pow(lambda.tr() * lambda,2) * meas(Gori);
+    // Flexural strain
+    auto Ef     = ( deriv2(Gori,sn(Gori).normalized().tr()) - deriv2(Gdef,sn(Gdef).normalized().tr()) ) * reshape(m2,3,3) ;
+
+
+    // Membrane force (its first variation)
+    // auto N_der    = Em_der * reshape(mmA,3,3) + Ef_der * reshape(mmB,3,3);
 
     gsExprEvaluator<T> ev(exprAssembler);
-    return ev.integral( expr  );
+    if (m_goalFunction == GoalFunction::Displacement)
+    {
+        if (m_component==9)
+        {
+           auto expr = (Gdef - Gori).tr() * (Gdef - Gori) * meas(Gori);
+           return ev.integral( expr  );
+        }
+        else
+        {
+            auto expr = (Gdef - Gori).tr() * gismo::expr::uv(m_component,3)*meas(Gori);
+            return ev.integral( expr  );
+        }
+    }
+    else if (m_goalFunction == GoalFunction::Stretch)
+    {
+        /*
+            NOTE:
+            - Cm * Transformation does only give the in-plane stretches, since C is constructed with the in-plane jacobians (Gdef) only. In fact, Cm should have a third entry with the Jacobian Determinant J0, but this one is hard to compute the variations for.
+         */
+        if (m_component==9)
+        {
+            // gsMaterialMatrixEval<T,MaterialOutput::Stretch>  lambdaf(m_assemblerL->material(),m_defpatches,Z);
+            // variable lambda = exprAssembler.getCoeff(lambdaf);
+            // auto expr1 = gismo::expr::pow(lambda.tr() * lambda,2) * meas(Gori);
+            auto expr = lambda.tr() * lambda * meas(Gori);
+            return ev.integral( expr  );
+        }
+        else
+        {
+            auto expr = (Gdef - Gori).tr() * gismo::expr::uv(m_component,3)*meas(Gori);
+            return ev.integral( expr  );
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembraneStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = Em * Em.tr() * meas(Gori);
+            return ev.integral( expr  );
+        }
+        else
+        {
+            auto expr = Em * gismo::expr::uv(m_component,3) * meas(Gori);
+            return ev.integral( expr  );
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembranePStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = Emp * Emp.tr() * meas(Gori);
+            return ev.integral( expr  );
+        }
+        else
+        {
+            auto expr = Emp * gismo::expr::uv(m_component,3) * meas(Gori);
+            return ev.integral( expr  );
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembraneStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = S0.tr() * S0 * meas(Gori);
+            return ev.integral( expr  );
+        }
+        else
+        {
+            auto expr = S0.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
+            return ev.integral( expr  );
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembranePStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = P0.tr() * P0 * meas(Gori);
+            return ev.integral( expr  );
+        }
+        else
+        {
+            auto expr = P0.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
+            return ev.integral( expr  );
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembraneForce)
+    {
+        if (m_component==9)
+        {
+            auto expr = N.tr() * N * meas(Gori);
+            return ev.integral( expr  );
+        }
+        else
+        {
+            auto expr = N.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
+            return ev.integral( expr  );
+        }
+    }
+    else if (m_goalFunction == GoalFunction::FlexuralStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = Ef * Ef.tr() * meas(Gori);
+            return ev.integral( expr  );
+        }
+        else
+        {
+            auto expr = Ef * gismo::expr::uv(m_component,3) * meas(Gori);
+            return ev.integral( expr  );
+        }
+    }
+    else if (m_goalFunction == GoalFunction::FlexuralStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = S1.tr() * S1 * meas(Gori);
+            return ev.integral( expr  );
+        }
+        else
+        {
+            auto expr = S1.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
+            return ev.integral( expr  );
+        }
+    }
+    else if (m_goalFunction == GoalFunction::FlexuralMoment)
+    {
+        if (m_component==9)
+        {
+            auto expr = M.tr() * M * meas(Gori);
+            return ev.integral( expr  );
+        }
+        else
+        {
+            auto expr = M.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
+            return ev.integral( expr  );
+        }
+    }
+    else
+        GISMO_ERROR("Goal function not known");
 }
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Stretch && _comp!=9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMultiPatch<T> & deformed)
+template <short_t d, class T, bool bending>
+T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
 {
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-    GISMO_ASSERT(_comp!=2 ,"Not available for comp = 2");
-
-    // ! Only works with Z=0 for now
     gsMatrix<T> Z(1,1);
     Z.setZero();
 
@@ -2365,982 +1770,329 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMulti
     exprAssembler.initSystem(false);
     exprAssembler.initVector(1,false);
 
-    // To compensate for the flat, since flat does [E11,E22,2*E12]
-    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","0.5",2);
+    // Geometries
+    geometryMap Gori= exprAssembler.exprData()->getMap();
+    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
+
+    // Transformation for stretches
+    gsMaterialMatrixEval<T,MaterialOutput::CovTransform>  Tcovf(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),m_defpatches,Z);
+    variable Tcov = exprAssembler.getCoeff(Tcovf);
+    variable Tcon = exprAssembler.getCoeff(Tconf);
+    // Material tensors
+
+    // Stress tensors
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),m_defpatches,Z);
+    variable S0 = exprAssembler.getCoeff(S0f);
+    variable S1 = exprAssembler.getCoeff(S1f);
+
+    // Force tensors
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> Mf(m_assemblerL->material(),m_defpatches);
+    variable N  = exprAssembler.getCoeff(Nf);
+    variable M  = exprAssembler.getCoeff(Mf);
+
+    // Principal stress tensors
+    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_assemblerL->material(),m_defpatches,Z);
+    variable P0 = exprAssembler.getCoeff(P0f);
+
+    // // Helper matrix for flexural components
+    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m2 = exprAssembler.getCoeff(mult2t);
 
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
+    // Deformation gradient
+        // To compensate for the flat, since flat does [E11,E22,2*E12]
+    gsFunctionExpr<> mult12t("1","0","0","0","1","0","0","0","0.5",2);
+    variable m12 = exprAssembler.getCoeff(mult12t);
 
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(m_assemblerL->material(),m_defpatches,Z);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
+    auto Cm      = flat( jac(Gdef).tr() * jac(Gdef) ) * reshape(m12,3,3);
 
-    auto Cm     = flat(jac(Gdef).tr()*jac(Gdef)) * reshape(m2,3,3);
-    auto stretch= reshape(Tmat,3,3) * Cm.tr();
+    // Principal stretch
+    auto lambda  = Cm * reshape(Tcov,3,3).tr();
 
-    auto expr = stretch.tr() * gismo::expr::uv(_comp,3) * meas(Gori);
-
-    // gsMaterialMatrixEval<T,MaterialOutput::Stretch>  lambdaf(m_assemblerL->material(),m_defpatches,Z);
-    // variable lambda = exprAssembler.getCoeff(lambdaf);
-    // auto expr = gismo::expr::pow(lambda.tr() * gismo::expr::uv(_comp,3),2) * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-    return ev.integral( expr  );
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStrain && _comp==9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMultiPatch<T> & deformed)
-{
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
+    // Membrane strain
     auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
 
-    auto expr = Em * Em.tr() * meas(Gori);
+    // Principal membrane strain
+    auto Emp    = Em * reshape(Tcon,3,3).tr();
 
-    gsExprEvaluator<T> ev(exprAssembler);
+    // Flexural strain
+    auto Ef     = ( deriv2(Gori,sn(Gori).normalized().tr()) - deriv2(Gdef,sn(Gdef).normalized().tr()) ) * reshape(m2,3,3) ;
 
-    return ev.integral( expr  );
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStrain && _comp!=9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMultiPatch<T> & deformed)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
-
-    auto expr = Em * gismo::expr::uv(_comp,3) * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    return ev.integral( expr  );
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStrain && _comp==9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMultiPatch<T> & deformed)
-{
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(m_assemblerL->material(),m_defpatches,Z);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
-    auto Emp    = Em * reshape(Tmat,3,3).tr();
-
-    // auto expr = Emp * Emp.tr() * meas(Gori);
-    auto expr = Emp * Emp.tr() * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    return ev.integral( expr  );
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStrain && _comp!=9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMultiPatch<T> & deformed)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(m_assemblerL->material(),m_defpatches,Z);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
-    auto Emp    = Em * reshape(Tmat,3,3).tr();
-
-    // auto expr = Emp * Emp.tr() * meas(Gori);
-    auto expr = Emp * gismo::expr::uv(_comp,3) * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    return ev.integral( expr  );
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStress && _comp==9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMultiPatch<T> & deformed)
-{
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),m_defpatches,Z);
-    variable S0  = exprAssembler.getCoeff(S0f);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-
-    auto expr = S0.tr() * S0 * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    return ev.integral( expr  );
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStress && _comp!=9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMultiPatch<T> & deformed)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),m_defpatches,Z);
-    variable S0  = exprAssembler.getCoeff(S0f);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-
-    auto expr = S0.tr() * gismo::expr::uv(_comp,3) * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    return ev.integral( expr  );
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStress && _comp==9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMultiPatch<T> & deformed)
-{
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_materialMat,m_defpatches,Z);
-    variable P0     = exprAssembler.getCoeff(P0f);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-
-    auto expr = P0.tr() * P0 * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    T result = ev.integral( expr  );
-
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStress && _comp!=9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMultiPatch<T> & deformed)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_materialMat,m_defpatches,Z);
-    variable P0     = exprAssembler.getCoeff(P0f);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-
-    auto expr = P0.tr() * gismo::expr::uv(_comp,3) * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    T result = ev.integral( expr  );
-
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneForce && _comp==9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMultiPatch<T> & deformed)
-{
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),m_defpatches);
-    variable N  = exprAssembler.getCoeff(Nf);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-
-    auto expr = N.tr() * N * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    return ev.integral( expr  );
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneForce && _comp!=9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMultiPatch<T> & deformed)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),m_defpatches);
-    variable N  = exprAssembler.getCoeff(Nf);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-
-    auto expr = N.tr() * gismo::expr::uv(_comp,3) * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    return ev.integral( expr  );
-}
-
-//============================================================
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Displacement && _comp==9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
-{
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto expr = (Gdef - Gori).tr() * (Gdef - Gori);
+    // Membrane force (its first variation)
+    // auto N_der    = Em_der * reshape(mmA,3,3) + Ef_der * reshape(mmB,3,3);
 
     gsExprEvaluator<T> ev(exprAssembler);
     T result = 0;
     gsMatrix<T> tmp;
-    for (index_t k = 0; k!=points.cols(); k++)
+    if (m_goalFunction == GoalFunction::Displacement)
     {
-        tmp = ev.eval( expr, points.col(k));
-        GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-        result += tmp(0,0);
+        if (m_component==9)
+        {
+           auto expr = (Gdef - Gori).tr() * (Gdef - Gori) * meas(Gori);
+           for (index_t k = 0; k!=points.cols(); k++)
+           {
+               tmp = ev.eval( expr, points.col(k));
+               GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+               result += tmp(0,0);
+           }
+           return result;
+        }
+        else
+        {
+            auto expr = (Gdef - Gori).tr() * gismo::expr::uv(m_component,3)*meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
     }
+    else if (m_goalFunction == GoalFunction::Stretch)
+    {
+        /*
+            NOTE:
+            - Cm * Transformation does only give the in-plane stretches, since C is constructed with the in-plane jacobians (Gdef) only. In fact, Cm should have a third entry with the Jacobian Determinant J0, but this one is hard to compute the variations for.
+         */
+        if (m_component==9)
+        {
+            // gsMaterialMatrixEval<T,MaterialOutput::Stretch>  lambdaf(m_assemblerL->material(),m_defpatches,Z);
+            // variable lambda = exprAssembler.getCoeff(lambdaf);
+            // auto expr1 = gismo::expr::pow(lambda.tr() * lambda,2) * meas(Gori);
+            auto expr = lambda.tr() * lambda * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = (Gdef - Gori).tr() * gismo::expr::uv(m_component,3)*meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembraneStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = Em * Em.tr() * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = Em * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembranePStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = Emp * Emp.tr() * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = Emp * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembraneStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = S0.tr() * S0 * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = S0.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembranePStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = P0.tr() * P0 * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = P0.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::MembraneForce)
+    {
+        if (m_component==9)
+        {
+            auto expr = N.tr() * N * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = N.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::FlexuralStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = Ef * Ef.tr() * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = Ef * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::FlexuralStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = S1.tr() * S1 * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = S1.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::FlexuralMoment)
+    {
+        if (m_component==9)
+        {
+            auto expr = M.tr() * M * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = M.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+    }
+    else
+        GISMO_ERROR("Goal function not known");
 
-    return result;
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Displacement && _comp!=9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
+template <short_t d, class T, bool bending>
+T gsThinShellAssemblerDWR<d, T, bending>::matrixNorm(const gsMultiPatch<T> &primal, const gsMultiPatch<T> &other) const
 {
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
+    GISMO_ASSERT(m_goalFunction==GoalFunction::Modal,"Only available for modal goal function");
 
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    auto expr = (Gdef-Gori).tr() * gismo::expr::uv(_comp,3);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-    T result = 0;
-    gsMatrix<T> tmp;
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval( expr, points.col(k));
-        GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-        result += tmp(0,0);
-    }
-
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Stretch && _comp==9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
-{
-    // ! Only works with Z=0 for now
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    // exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    // To compensate for the flat, since flat does [E11,E22,2*E12]
-    // gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","0.5",2);
-    // variable m2 = exprAssembler.getCoeff(mult2t);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    // geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    // gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(m_assemblerL->material(),m_defpatches,Z);
-    // variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    // auto Cm     = flat(jac(Gdef).tr()*jac(Gdef)) * reshape(m2,3,3);
-    // auto stretch= reshape(Tmat,3,3) * Cm.tr();
-
-    // auto expr = stretch.tr() * gismo::expr::uv(_comp,3) * meas(Gori);
-
-    gsMaterialMatrixEval<T,MaterialOutput::Stretch>  lambdaf(m_assemblerL->material(),m_defpatches,Z);
-    variable lambda = exprAssembler.getCoeff(lambdaf);
-    auto expr = gismo::expr::pow(lambda.tr() * lambda,2) * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-    T result = 0;
-    gsMatrix<T> tmp;
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval( expr, points.col(k));
-        GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-        result += tmp(0,0);
-    }
-
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::Stretch && _comp!=9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    // ! Only works with Z=0 for now
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    // exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    // To compensate for the flat, since flat does [E11,E22,2*E12]
-    // gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","0.5",2);
-    // variable m2 = exprAssembler.getCoeff(mult2t);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    // geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-
-    // gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(m_assemblerL->material(),m_defpatches,Z);
-    // variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    // auto Cm     = flat(jac(Gdef).tr()*jac(Gdef)) * reshape(m2,3,3);
-    // auto stretch= reshape(Tmat,3,3) * Cm.tr();
-
-    // auto expr = stretch.tr() * gismo::expr::uv(_comp,3) * meas(Gori);
-
-    gsMaterialMatrixEval<T,MaterialOutput::Stretch>  lambdaf(m_assemblerL->material(),m_defpatches,Z);
-    variable Lambda = exprAssembler.getCoeff(lambdaf);
-    auto expr = gismo::expr::pow(Lambda.tr() * gismo::expr::uv(_comp,3),2) * meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-    T result = 0;
-    gsMatrix<T> tmp;
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval( expr, points.col(k));
-        GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-        result += tmp(0,0);
-    }
-
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStrain && _comp==9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
-{
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
-
-    auto expr = Em.tr() * Em;
-
-    gsExprEvaluator<T> ev(exprAssembler);
-    T result = 0;
-    gsMatrix<T> tmp;
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval( expr, points.col(k));
-        GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-        result += tmp(0,0);
-    }
-
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStrain && _comp!=9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
-
-    auto expr = Em.tr() * gismo::expr::uv(_comp,3);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-    T result = 0;
-    gsMatrix<T> tmp;
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval( expr, points.col(k));
-        GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-        result += tmp(0,0);
-    }
-
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStrain && _comp==9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
-{
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(m_materialMat,m_defpatches,Z);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
-    auto Emp    = Em * reshape(Tmat,3,3).tr();
-
-    auto expr = Emp.tr() * Emp;
-
-    gsExprEvaluator<T> ev(exprAssembler);
-    T result = 0;
-    gsMatrix<T> tmp;
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval( expr, points.col(k));
-        GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-        result += tmp(0,0);
-    }
-
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStrain && _comp!=9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(m_materialMat,m_defpatches,Z);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    geometryMap Gori   = exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
-    auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
-    auto Emp    = Em * reshape(Tmat,3,3).tr();
-
-    // auto expr = Emp.tr() * Emp;
-    auto expr = Emp.tr() * gismo::expr::uv(_comp,3);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-    T result = 0;
-    gsMatrix<T> tmp;
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval( expr, points.col(k));
-        GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-        result += tmp(0,0);
-    }
-
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStress && _comp==9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
-{
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_materialMat,m_defpatches,Z);
-    variable S0  = exprAssembler.getCoeff(S0f);
-
-    auto expr = S0.tr() * S0;
-
-    gsExprEvaluator<T> ev(exprAssembler);
-    T result = 0;
-    gsMatrix<T> tmp;
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval( expr, points.col(k));
-        GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-        result += tmp(0,0);
-    }
-
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneStress && _comp!=9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_materialMat,m_defpatches,Z);
-    variable S0  = exprAssembler.getCoeff(S0f);
-
-    auto expr = S0.tr() * gismo::expr::uv(_comp,3);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-    T result = 0;
-    gsMatrix<T> tmp;
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval( expr, points.col(k));
-        GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-        result += tmp(0,0);
-    }
-
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStress && _comp==9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
-{
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_materialMat,m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_materialMat,m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(m_materialMat,m_defpatches,Z);
-    variable S0  = exprAssembler.getCoeff(S0f);
-    variable P0  = exprAssembler.getCoeff(P0f);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    // gsFunctionExpr<> Tmatf("1","0","0","0","2","0","0","0","3",2);
-    // variable Tmat = exprAssembler.getCoeff(Tmatf);
-
-    // auto expr = (S0.tr() * reshape(Tmat,3,3).tr()) * (S0.tr() * reshape(Tmat,3,3).tr()).tr();
-    auto expr = P0.tr() * P0;
-
-    gsExprEvaluator<T> ev(exprAssembler);
-    T result = 0;
-    gsMatrix<T> tmp;
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval( expr, points.col(k));
-        GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-        result += tmp(0,0);
-    }
-
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembranePStress && _comp!=9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsMatrix<T> Z(1,1);
-    Z.setZero();
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_materialMat,m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_materialMat,m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::Transformation>  Tmatf(m_materialMat,m_defpatches,Z);
-    variable S0  = exprAssembler.getCoeff(S0f);
-    variable P0  = exprAssembler.getCoeff(P0f);
-    variable Tmat   = exprAssembler.getCoeff(Tmatf);
-
-    // gsFunctionExpr<> Tmatf("1","0","0","0","2","0","0","0","3",2);
-    // variable Tmat = exprAssembler.getCoeff(Tmatf);
-
-    // auto expr = (S0.tr() * reshape(Tmat,3,3).tr()) * gismo::expr::uv(_comp,3);
-    auto expr = P0.tr() * gismo::expr::uv(_comp,3);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-    T result = 0;
-    gsMatrix<T> tmp;
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval( expr, points.col(k));
-        GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-        result += tmp(0,0);
-    }
-
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneForce && _comp==9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
-{
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),m_defpatches);
-    variable N  = exprAssembler.getCoeff(Nf);
-
-    auto expr = N.tr() * N;
-
-    gsExprEvaluator<T> ev(exprAssembler);
-    T result = 0;
-    gsMatrix<T> tmp;
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval( expr, points.col(k));
-        GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-        result += tmp(0,0);
-    }
-
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template<enum GoalFunction _GF, short_t _comp>
-typename std::enable_if<_GF==GoalFunction::MembraneForce && _comp!=9, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::computeGoal_impl(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed)
-{
-    GISMO_ASSERT(_comp < d,"Component is out of bounds");
-
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = deformed;
-
-    exprAssembler.getMap(m_patches);           // this map is used for integrals
-    exprAssembler.getMap(m_defpatches);
-
-    // Initialize vector
-    exprAssembler.initSystem(false);
-    exprAssembler.initVector(1,false);
-
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),m_defpatches);
-    variable N  = exprAssembler.getCoeff(Nf);
-
-    auto expr = N.tr() * gismo::expr::uv(_comp,3);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-    T result = 0;
-    gsMatrix<T> tmp;
-    for (index_t k = 0; k!=points.cols(); k++)
-    {
-        tmp = ev.eval( expr, points.col(k));
-        GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-        result += tmp(0,0);
-    }
-
-    return result;
-}
-
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template <enum GoalFunction _GF>
-typename std::enable_if<_GF == GoalFunction::Modal, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::matrixNorm_impl(const gsMultiPatch<T> &primal, const gsMultiPatch<T> &other) const
-{
     gsExprAssembler<T> exprAssembler = m_assemblerH->assembler();
     exprAssembler.cleanUp();
     exprAssembler.setOptions(m_assemblerH->options());
@@ -3363,11 +2115,10 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::matrixNorm_impl(const gsMultiP
     return ev.integral(rho.val() * usol.tr() * zsol * meas(Gori));
 }
 
-template <short_t d, class T, bool bending, enum GoalFunction GF, short_t comp>
-template <enum GoalFunction _GF>
-typename std::enable_if<_GF == GoalFunction::Buckling, T>::type
-gsThinShellAssemblerDWR<d, T, bending, GF, comp>::matrixNorm_impl(const gsMultiPatch<T> &primal, const gsMultiPatch<T> &other, const gsMultiPatch<T> &deformed) const
+template <short_t d, class T, bool bending>
+T gsThinShellAssemblerDWR<d, T, bending>::matrixNorm(const gsMultiPatch<T> &primal, const gsMultiPatch<T> &other, const gsMultiPatch<T> &deformed) const
 {
+    GISMO_ASSERT(m_goalFunction==GoalFunction::Buckling,"Only available for buckling goal function");
     gsExprAssembler<T> exprAssembler = m_assemblerH->assembler();
     exprAssembler.cleanUp();
     exprAssembler.setOptions(m_assemblerH->options());
@@ -3441,8 +2192,8 @@ gsThinShellAssemblerDWR<d, T, bending, GF, comp>::matrixNorm_impl(const gsMultiP
     auto N_der_NL   = Em_derd_NL  * reshape(mmA_NL,3,3) + Ef_derd_NL  * reshape(mmB_NL,3,3);
     auto M_der_NL   = Em_derd_NL  * reshape(mmC_NL,3,3) + Ef_derd_NL  * reshape(mmD_NL,3,3);
 
-    auto K_L        = ( N_der_L   * Em_der_L.tr()  + M_der_L   * Ef_der_L.tr()                          ) * meas(Gori);
-    auto K_NL       = ( N_der_NL  * Em_der_NL.tr() + M_der_NL  * Ef_der_NL.tr() + Em_der2  + Ef_der2    ) * meas(Gori);
+    auto K_L        = ( N_der_L   * Em_der_L.tr()  + M_der_L   * Ef_der_L.tr()                          );
+    auto K_NL       = ( N_der_NL  * Em_der_NL.tr() + M_der_NL  * Ef_der_NL.tr() + Em_der2  + Ef_der2    );
 
     auto Bprimal    = K_NL - K_L ;
 

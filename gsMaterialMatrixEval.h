@@ -88,7 +88,8 @@ private:
 
     /// Implementation of \ref targetDim for principal stress directions
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::Transformation, short_t>::type targetDim_impl() const { return 9; };
+    typename std::enable_if<_out==MaterialOutput::CovTransform ||
+                            _out==MaterialOutput::ConTransform, short_t>::type targetDim_impl() const { return 9; };
 
 
 public:
@@ -142,9 +143,14 @@ private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::StretchDir, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
-    /// Specialisation of \ref eval_into for the basis transformation
+    /// Specialisation of \ref eval_into for the covariant basis transformation
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::Transformation, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    typename std::enable_if<_out==MaterialOutput::CovTransform, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the contravariant basis transformation
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::ConTransform, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
 
 protected:
     gsMaterialMatrixBase<T> * m_materialMat;

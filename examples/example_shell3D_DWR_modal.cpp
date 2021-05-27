@@ -46,8 +46,7 @@ int main(int argc, char *argv[])
     bool plot = false;
     index_t numRefine = 1;
     index_t numElevate = 1;
-    index_t goal = 1;
-    bool nonlinear = false;
+    bool loop = false;
     std::string fn;
 
     real_t E_modulus = 1.0;
@@ -74,10 +73,9 @@ int main(int argc, char *argv[])
                 "Test case: 0: Beam - pinned-pinned, 1: Beam - fixed-fixed, 2: beam - fixed-free, 3: plate - fully pinned, 4: plate - fully fixed, 5: circle - fully pinned, 6: 5: circle - fully fixed",
                testCase);
     cmd.addReal("T", "thickness", "thickness", thickness);
-    cmd.addInt("g", "goal", "Goal function to use", goal);
     cmd.addString("f", "file", "Input XML file", fn);
-    cmd.addSwitch("nl", "Solve nonlinear problem", nonlinear);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
+    cmd.addSwitch("loop", "Uniform Refinemenct loop", loop);
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
@@ -118,22 +116,16 @@ int main(int argc, char *argv[])
         mp.degreeElevate(numElevate);
 
     // h-refine
-    for (int r = 0; r < numRefine; ++r)
-        mp.uniformRefine();
+    if (!loop)
+    {
+        for (index_t r =0; r < numRefine; ++r)
+            mp.uniformRefine();
+        numRefine = 0;
+    }
 
     gsMultiBasis<> dbasis(mp);
     gsInfo << "Patches: " << mp.nPatches() << ", degree: " << dbasis.minCwiseDegree() << "\n";
     gsInfo << dbasis.basis(0) << "\n";
-
-    // // Cast all patches of the mp object to THB splines
-    // gsTHBSpline<2,real_t> thb;
-    // for (index_t k=0; k!=mp.nPatches(); ++k)
-    // {
-    //     gsTensorBSpline<2,real_t> *geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k));
-    //     thb = gsTHBSpline<2,real_t>(*geo);
-    //     mp.patch(k) = thb;
-    // }
-
     mp_def = mp;
 
     gsMultiBasis<> basisL(mp);
@@ -190,7 +182,10 @@ int main(int argc, char *argv[])
     else
         GISMO_ERROR("TESTCASE UNKNOWN!");
 
-    //! [Refinement]
+    //   [Analytical solution]
+    real_t lambda_an = omegas[0];
+    // ! [Analytical solution]
+
 
     gsConstantFunction<> force(tmp, 3);
     gsFunctionExpr<> t(std::to_string(thickness), 3);
@@ -207,102 +202,168 @@ int main(int argc, char *argv[])
     options.addInt("Implementation", "Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral", 1);
     materialMatrix = getMaterialMatrix<3, real_t>(mp, t, parameters, rho, options);
 
-    gsThinShellAssemblerDWR<3, real_t, true, GoalFunction::Modal> DWR(mp, basisL, basisH, bc, force, materialMatrix);
-
-    gsSparseSolver<>::LU solver;
-    gsVector<> solVector, solVectorDualL, solVectorDualH;
-    gsMultiPatch<> primalL, dualL, dualH;
-
     gsMatrix<> points(2, 0);
     // points.col(0).setConstant(0.25);
     // points.col(1).setConstant(0.50);
     // points.col(2).setConstant(0.75);
 
-    gsInfo << "Assembling primal... " << std::flush;
-    DWR.assembleMatrixL();
-    DWR.assembleMassL();
-    gsInfo << "done\n";
+    // measures
+    real_t approx, exact;
+    std::vector<real_t> exacts(numRefine+1);
+    std::vector<real_t> approxs(numRefine+1);
+    std::vector<real_t> efficiencies(numRefine+1);
 
-    // Solve system
-    gsInfo << "Solving primal, size =" << DWR.matrixL().rows() << "," << DWR.matrixL().cols() << "... " << std::flush;
+    // solvers
+    gsSparseSolver<>::LU solver;
     Eigen::GeneralizedSelfAdjointEigenSolver<gsMatrix<real_t>::Base> eigSolver;
-    eigSolver.compute(DWR.matrixL(), DWR.massL());
-    gsDebugVar(math::sqrt(eigSolver.eigenvalues()[modeIdx]));
 
-    solVector = solVectorDualL = eigSolver.eigenvectors().col(modeIdx);
+    // solutions
+    gsMultiPatch<> primalL, dualL, dualH;
+    gsVector<> solVector, solVectorDualL, solVectorDualH;
+    real_t eigvalL, dualvalL, dualvalH;
 
-    real_t eigvalL, dualvalL;
-    eigvalL = dualvalL = eigSolver.eigenvalues()[modeIdx];
-
+    // matrix norm
     real_t Mnorm;
-    // Mass-normalize primal
-    solVector = 1 / (solVector.transpose() * DWR.massL() * solVector) * solVector;
-    DWR.constructMultiPatchL(solVector, primalL);
-    DWR.constructSolutionL(solVector, mp_def);
-    gsField<> primalLField(mp, primalL);
-    gsWriteParaview(primalLField, "primalL", 1000);
+
+    // matrices
+    gsSparseMatrix<> K_L, K_NL;
+    gsVector<> rhs;
+
+    // DWR assembler
+    gsThinShellAssemblerDWRBase<real_t> * DWR;
+    for (index_t r=0; r!=numRefine+1; r++)
+    {
+
+        // -----------------------------------------------------------------------------------------
+        // ----------------------------Prepare basis------------------------------------------------
+        // -----------------------------------------------------------------------------------------
+        gsMultiBasis<> dbasis(mp);
 
 
-    // mass-normalize w.r.t. primal
-    DWR.constructMultiPatchL(solVectorDualL, dualL);
-    Mnorm = DWR.matrixNorm(primalL, dualL);
-    solVectorDualL *= 1. / Mnorm;
-    DWR.constructMultiPatchL(solVectorDualL, dualL);
-    gsField<> dualLField(mp, dualL);
-    gsWriteParaview(dualLField, "dualL", 1000);
+        // // Cast all patches of the mp object to THB splines
+        // gsTHBSpline<2,real_t> thb;
+        // for (index_t k=0; k!=mp.nPatches(); ++k)
+        // {
+        //     gsTensorBSpline<2,real_t> *geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k));
+        //     thb = gsTHBSpline<2,real_t>(*geo);
+        //     mp.patch(k) = thb;
+        // }
 
-    // solVectorDualL = 1 / (solVectorDualL.transpose() * DWR.massL() * solVectorDualL) * solVectorDualL;
-    // DWR.constructMultiPatchL(solVectorDualL, dualL);
+        mp_def = mp;
 
-    gsInfo << "done.\n";
+        gsMultiBasis<> basisL(mp);
+        gsMultiBasis<> basisH = basisL;
+        basisH.degreeElevate(1);
 
-    gsInfo << "Assembling dual matrix (H)... " << std::flush;
-    DWR.assembleMatrixH();
-    DWR.assembleMassH();
-    gsInfo << "done.\n";
+        gsInfo<<"Basis Primal: "<<basisL.basis(0)<<"\n";
+        gsInfo<<"Basis Dual:   "<<basisH.basis(0)<<"\n";
 
-    gsInfo << "Solving dual (high), size = " << DWR.matrixH().rows() << "," << DWR.matrixH().cols() << "... " << std::flush;
-    eigSolver.compute(DWR.matrixH(), DWR.massH());
-    gsDebugVar(math::sqrt(eigSolver.eigenvalues()[modeIdx]));
-    solVectorDualH = eigSolver.eigenvectors().col(modeIdx);
-    real_t dualvalH = eigSolver.eigenvalues()[modeIdx];
+        // -----------------------------------------------------------------------------------------
+        // ----------------------------DWR method---------------------------------------------------
+        // -----------------------------------------------------------------------------------------
+        DWR = new gsThinShellAssemblerDWR<3, real_t, true>(mp, basisL, basisH, bc, force, materialMatrix);
+        DWR->setGoal(GoalFunction::Modal);
 
-    // mass-normalize w.r.t. primal
-    DWR.constructMultiPatchH(solVectorDualH, dualH);
-    gsField<> dualHField(mp, dualH);
-    gsWriteParaview(dualHField, "dualH", 1000);
-    Mnorm = DWR.matrixNorm(primalL, dualH);
-    gsDebugVar(Mnorm);
-    solVectorDualH *= 1. / Mnorm;
-    DWR.constructMultiPatchH(solVectorDualH, dualH);
 
-    // solVectorDualH = 1 / (solVectorDualH.transpose() * DWR.massH() * solVectorDualH) * solVectorDualH;
-    // DWR.constructMultiPatchH(solVectorDualH, dualH);
+        gsInfo << "Assembling primal... " << std::flush;
+        DWR->assembleMatrixL();
+        DWR->assembleMassL();
+        gsInfo << "done\n";
 
-    // // Swap multipatch
-    // solVectorDualH *= sgn(DWR.matrixNorm(dualL, dualH));
-    // DWR.constructMultiPatchH(solVectorDualH, dualH);
+        // Solve system
+        gsInfo << "Solving primal, size =" << DWR->matrixL().rows() << "," << DWR->matrixL().cols() << "... " << std::flush;
+        eigSolver.compute(DWR->matrixL(), DWR->massL());
+        gsDebugVar(math::sqrt(eigSolver.eigenvalues()[modeIdx]));
 
-    gsInfo << "done.\n";
+        solVector = solVectorDualL = eigSolver.eigenvectors().col(modeIdx);
 
-    gsField<> dualField(mp, dualH);
-    gsWriteParaview(dualField, "dualH", 1000);
+        eigvalL = dualvalL = eigSolver.eigenvalues()[modeIdx];
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Mass-normalize primal
+        solVector = 1 / (solVector.transpose() * DWR->massL() * solVector) * solVector;
+        DWR->constructMultiPatchL(solVector, primalL);
+        DWR->constructSolutionL(solVector, mp_def);
 
-    real_t approx = DWR.computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
+        // mass-normalize w.r.t. primal
+        DWR->constructMultiPatchL(solVectorDualL, dualL);
+        Mnorm = DWR->matrixNorm(primalL, dualL);
+        solVectorDualL *= 1. / Mnorm;
+        DWR->constructMultiPatchL(solVectorDualL, dualL);
 
-    real_t lambda_an = omegas[0];
-    gsDebugVar(math::pow(lambda_an, 2));
-    gsDebugVar(lambda_an);
-    gsDebugVar(eigvalL);
+        // solVectorDualL = 1 / (solVectorDualL.transpose() * DWR->massL() * solVectorDualL) * solVectorDualL;
+        // DWR->constructMultiPatchL(solVectorDualL, dualL);
 
-    real_t exact = math::pow(lambda_an, 2) - eigvalL;
+        gsInfo << "done.\n";
 
-    gsInfo << "approx = " << approx << "\n";
-    gsInfo << "Exact = " << exact << "\n";
-    gsInfo << "Efficiency = " << approx / exact << "\n";
+        gsInfo << "Assembling dual matrix (H)... " << std::flush;
+        DWR->assembleMatrixH();
+        DWR->assembleMassH();
+        gsInfo << "done.\n";
 
+        gsInfo << "Solving dual (high), size = " << DWR->matrixH().rows() << "," << DWR->matrixH().cols() << "... " << std::flush;
+        eigSolver.compute(DWR->matrixH(), DWR->massH());
+        gsDebugVar(math::sqrt(eigSolver.eigenvalues()[modeIdx]));
+        solVectorDualH = eigSolver.eigenvectors().col(modeIdx);
+        dualvalH = eigSolver.eigenvalues()[modeIdx];
+
+        // mass-normalize w.r.t. primal
+        DWR->constructMultiPatchH(solVectorDualH, dualH);
+        Mnorm = DWR->matrixNorm(primalL, dualH);
+        gsDebugVar(Mnorm);
+        solVectorDualH *= 1. / Mnorm;
+        DWR->constructMultiPatchH(solVectorDualH, dualH);
+
+        // solVectorDualH = 1 / (solVectorDualH.transpose() * DWR->massH() * solVectorDualH) * solVectorDualH;
+        // DWR->constructMultiPatchH(solVectorDualH, dualH);
+
+        // // Swap multipatch
+        // solVectorDualH *= sgn(DWR->matrixNorm(dualL, dualH));
+        // DWR->constructMultiPatchH(solVectorDualH, dualH);
+
+        gsInfo << "done.\n";
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        approx = DWR->computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
+
+        gsDebugVar(math::pow(lambda_an, 2));
+        gsDebugVar(lambda_an);
+        gsDebugVar(eigvalL);
+
+        exact = math::pow(lambda_an, 2) - eigvalL;
+
+        gsInfo << "approx = " << approx << "\n";
+        gsInfo << "Exact = " << exact << "\n";
+        gsInfo << "Efficiency = " << approx / exact << "\n";
+
+        exacts[r] = exact;
+        approxs[r] = approx;
+        efficiencies[r] = approx/exact;
+
+        mp.uniformRefine();
+
+    }
+
+    gsInfo<<"Ref.\tApprox\t\tExact\tEfficiency\n";
+    for(index_t r=0; r!=numRefine+1; r++)
+    {
+        gsInfo<<r<<"\t"<<approxs[r]<<"\t"<<exacts[r]<<"\t"<<efficiencies[r]<<"\n";
+    }
+
+    if (plot)
+    {
+        gsField<> fieldDL(mp, dualL);
+        gsField<> fieldDH(mp, dualH);
+
+        gsField<> fieldPL(mp, primalL);
+
+
+        gsWriteParaview<>( fieldDL, "dualL", 1000);
+        gsWriteParaview<>( fieldDH, "dualH", 1000);
+        gsWriteParaview<>( fieldPL, "primalL", 1000);
+    }
+
+    delete DWR;
     return EXIT_SUCCESS;
 
 } // end main

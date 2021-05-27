@@ -63,3 +63,4 @@ The template parameters of the class are the dimension of the geometry (`dim`) w
 
 #### To do:
 * Remove the SvK from gsMaterialMatrixNonlinear
+* Principal stresses and transformation available for all Z (also for flexural)

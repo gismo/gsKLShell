@@ -110,10 +110,18 @@ gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& r
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::Transformation, void>::type
+typename std::enable_if<_out==MaterialOutput::CovTransform, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->transform_into(m_pIndex,u,result);
+    m_materialMat->covtransform_into(m_pIndex,u,result);
+}
+
+template <class T, enum MaterialOutput out>
+template <enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::ConTransform, void>::type
+gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    m_materialMat->contransform_into(m_pIndex,u,result);
 }
 
 
