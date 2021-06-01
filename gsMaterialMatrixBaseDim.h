@@ -86,7 +86,7 @@ public:
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     gsMatrix<T> _transformation(const gsMatrix<T> & basis1, const gsMatrix<T> & basis2 ) const;
 
-    void setDeformed(const gsFunctionSet<T> & deformed) {this->setDeformed(deformed);}
+    // void setDeformed(const gsFunctionSet<T> & deformed) {this->setDeformed(deformed);}
 
 private:
     /// Implementation of \ref _computeMetricUndeformed for planar geometries

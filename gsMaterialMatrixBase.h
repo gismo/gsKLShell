@@ -34,7 +34,7 @@ class gsMaterialMatrixBase
 public:
 
     /// Destructor
-    virtual ~gsMaterialMatrixBase() {};
+    inline virtual ~gsMaterialMatrixBase() {};
 
     /**
      * @brief      Specifies how the matrix is integrated
@@ -47,7 +47,7 @@ public:
      *
      * @return     Return MatIntegration enumeration
      */
-    virtual enum MatIntegration isMatIntegrated() const {return MatIntegration::NotIntegrated; }
+    inline virtual enum MatIntegration isMatIntegrated() const {return MatIntegration::NotIntegrated; }
 
     /**
      * @brief      Specifies how the vector is integrated
@@ -60,20 +60,20 @@ public:
      *
      * @return     Return MatIntegration enumeration
      */
-    virtual enum MatIntegration isVecIntegrated() const {return MatIntegration::NotIntegrated; }
+    inline virtual enum MatIntegration isVecIntegrated() const {return MatIntegration::NotIntegrated; }
 
     /**
      * @brief      Returns the options
      *
      * @return     \ref gsOptionList
      */
-    virtual gsOptionList & options() = 0;
+    inline virtual gsOptionList & options() = 0;
     /**
      * @brief      Sets the options
      *
      * @param[in]  opt   @ref gsOptionList
      */
-    virtual void setOptions(gsOptionList opt) = 0;
+    inline virtual void setOptions(gsOptionList opt) = 0;
 
     /**
      * @brief      Evaluates the density multiplied by the thickness of the shell (scalar)
@@ -82,7 +82,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The resut
      */
-    virtual void    density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual void    density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
     /**
      * @brief      Evaluates the stretches in the shell (3x1 vector)
      *
@@ -90,7 +90,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The resut
      */
-    virtual void    stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual void    stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
     /**
      * @brief      Evaluates the directions of the stretches in the shell (3x1 vector per direction)
      *
@@ -98,7 +98,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The resut
      */
-    virtual void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
     /**
      * @brief      Evaluates the thickness of the shell (scalar)
      *
@@ -106,7 +106,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The resut
      */
-    virtual void  thickness_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual void  thickness_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
 
     /**
      * @brief      todo
@@ -115,7 +115,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The resut
      */
-    virtual void  covtransform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual void  covtransform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
 
     /**
      * @brief      todo
@@ -124,7 +124,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The resut
      */
-    virtual void  contransform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual void  contransform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
 
 
     /**
@@ -138,7 +138,7 @@ public:
      * @return     Matrix with the result (matrix) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual gsMatrix<T>  eval3D_matrix(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
+    inline virtual gsMatrix<T>  eval3D_matrix(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
     /**
      * @brief      Evaluates the vector on \a patch on in-plane points \a u with height \a z
      *
@@ -150,7 +150,7 @@ public:
      * @return     Matrix with the result (vector) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual gsMatrix<T>  eval3D_vector(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
+    inline virtual gsMatrix<T>  eval3D_vector(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
     /**
      * @brief      Evaluates the principal stress on \a patch on in-plane points \a u with height \a z
      *
@@ -162,21 +162,21 @@ public:
      * @return     Matrix with the result (principal stress) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
+    inline virtual gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
 
     /**
      * @brief      Sets the material parameters.
      *
      * @param[in]  pars  Function pointers for the parameters in a container
      */
-    virtual void setParameters(const std::vector<gsFunction<T>*> &pars) =0;
+    inline virtual void setParameters(const std::vector<gsFunction<T>*> &pars) =0;
 
     /**
      * @brief      Prints info
      */
-    virtual void info() const = 0;
+    inline virtual void info() const = 0;
 
-    virtual void setDeformed(const gsFunctionSet<T> & deformed) {m_defpatches = &deformed; }
+    inline virtual void setDeformed(const gsFunctionSet<T> & deformed) {m_defpatches = &deformed; }
 
 protected:
     const gsFunctionSet<T> * m_defpatches;
