@@ -286,7 +286,6 @@ private:
 
 protected:
     typedef gsExprAssembler<>::geometryMap geometryMap;
-    typedef gsExprAssembler<>::variable    variable;
     typedef gsExprAssembler<>::space       space;
     typedef gsExprAssembler<>::solution    solution;
 
