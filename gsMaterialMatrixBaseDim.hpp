@@ -294,6 +294,9 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(index_t k, T z, bool bas
     m_Acov_def = m_Acov_def_mat.reshapeCol(k,2,2);
     m_Acon_def = m_Acon_def_mat.reshapeCol(k,2,2);
     m_Bcov_def = m_Bcov_def_mat.reshapeCol(k,2,2);
+    if (basis)
+        m_ncov_def = m_ncov_def_mat.reshapeCol(k,3,2);
+
     // Compute full metric
     m_Gcov_def.setZero();
     m_Gcov_def.block(0,0,2,2)= m_Acov_def - 2.0 * z * m_Bcov_def + z*z * m_ncov_def.transpose()*m_ncov_def;
@@ -305,7 +308,6 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(index_t k, T z, bool bas
     // basis vectors
     m_acov_def = m_acov_def_mat.reshapeCol(k,3,2);
     m_acon_def = m_acon_def_mat.reshapeCol(k,3,2);
-    m_ncov_def = m_ncov_def_mat.reshapeCol(k,3,2);
     // g
     gsMatrix<T,3,1> normal = m_map_def.normal(k).normalized();
     m_gcov_def.leftCols(2) = m_acov_def + z * m_ncov_def;
@@ -398,6 +400,9 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(index_t k, T z, bool b
     m_Acov_ori = m_Acov_ori_mat.reshapeCol(k,2,2);
     m_Acon_ori = m_Acon_ori_mat.reshapeCol(k,2,2);
     m_Bcov_ori = m_Bcov_ori_mat.reshapeCol(k,2,2);
+    if (basis)
+        m_ncov_ori = m_ncov_ori_mat.reshapeCol(k,3,2);
+
     // Compute full metric
     m_Gcov_ori.setZero();
     m_Gcov_ori.block(0,0,2,2)= m_Acov_ori - 2.0 * z * m_Bcov_ori + z*z * m_ncov_ori.transpose()*m_ncov_ori;
@@ -409,7 +414,6 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(index_t k, T z, bool b
     // basis vectors
     m_acov_ori = m_acov_ori_mat.reshapeCol(k,3,2);
     m_acon_ori = m_acon_ori_mat.reshapeCol(k,3,2);
-    m_ncov_ori = m_ncov_ori_mat.reshapeCol(k,3,2);
     // g
     gsMatrix<T,3,1> normal = m_map.normal(k).normalized();
     m_gcov_ori.block(0,0,3,2) = m_acov_ori + z * m_ncov_ori;
