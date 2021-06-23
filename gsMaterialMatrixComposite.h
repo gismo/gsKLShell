@@ -135,19 +135,51 @@ protected:
     mutable gsMatrix<T>                 m_Tmat, m_E1mat, m_E2mat, m_G12mat, m_nu12mat, m_nu21mat, m_phiMat, m_rhoMat;
 
     // Geometric data point
-    using Base::m_map, Base::m_map_def;
+    using Base::m_map;
+    using Base::m_map_def;
 
-    using Base::m_Acov_ori, Base::m_Acon_ori, Base::m_Acov_def, Base::m_Acon_def, Base::m_Bcov_ori, Base::m_Bcon_ori, Base::m_Bcov_def, Base::m_Bcon_def;
-    using Base::m_acov_ori, Base::m_acon_ori, Base::m_acov_def, Base::m_acon_def;
-    using Base::m_ncov_ori, Base::m_ncov_def;
-    using Base::m_Gcov_ori, Base::m_Gcon_ori, Base::m_Gcov_def, Base::m_Gcon_def, Base::m_Gcov_ori_L, Base::m_Gcov_def_L;
-    using Base::m_gcov_ori, Base::m_gcov_def, Base::m_gcon_ori, Base::m_gcon_def;
-    using Base::m_Acov_ori_mat, Base::m_Acon_ori_mat, Base::m_Acov_def_mat, Base::m_Acon_def_mat, Base::m_Bcov_ori_mat, Base::m_Bcov_def_mat;
-    using Base::m_acov_ori_mat, Base::m_acon_ori_mat, Base::m_acov_def_mat, Base::m_acon_def_mat, Base::m_ncov_ori_mat, Base::m_ncov_def_mat;
+    using Base::m_Acov_ori;
+    using Base::m_Acon_ori;
+    using Base::m_Acov_def;
+    using Base::m_Acon_def;
+    using Base::m_Bcov_ori;
+    using Base::m_Bcon_ori;
+    using Base::m_Bcov_def;
+    using Base::m_Bcon_def;
+    using Base::m_acov_ori;
+    using Base::m_acon_ori;
+    using Base::m_acov_def;
+    using Base::m_acon_def;
+    using Base::m_ncov_ori;
+    using Base::m_ncov_def;
+    using Base::m_Gcov_ori;
+    using Base::m_Gcon_ori;
+    using Base::m_Gcov_def;
+    using Base::m_Gcon_def;
+    using Base::m_Gcov_ori_L;
+    using Base::m_Gcov_def_L;
+    using Base::m_gcov_ori;
+    using Base::m_gcov_def;
+    using Base::m_gcon_ori;
+    using Base::m_gcon_def;
+    using Base::m_Acov_ori_mat;
+    using Base::m_Acon_ori_mat;
+    using Base::m_Acov_def_mat;
+    using Base::m_Acon_def_mat;
+    using Base::m_Bcov_ori_mat;
+    using Base::m_Bcov_def_mat;
+    using Base::m_acov_ori_mat;
+    using Base::m_acon_ori_mat;
+    using Base::m_acov_def_mat;
+    using Base::m_acon_def_mat;
+    using Base::m_ncov_ori_mat;
+    using Base::m_ncov_def_mat;
 
-    using Base::m_stretches, Base::m_stretchvec;
+    using Base::m_stretches;
+    using Base::m_stretchvec;
 
-    using Base::m_J0_sq, Base::m_J_sq;
+    using Base::m_J0_sq;
+    using Base::m_J_sq;
 
     gsOptionList m_options;
 

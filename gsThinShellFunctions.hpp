@@ -60,7 +60,7 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     auto S_m    = S0.tr() * Ttilde;
     auto S_f    = S1.tr() * Ttilde;
 
-    gsExprEvaluator ev(m_assembler);
+    gsExprEvaluator<> ev(m_assembler);
     gsMatrix<T> tmp;
 
     switch (m_stress_type)
