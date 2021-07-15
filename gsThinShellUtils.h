@@ -152,8 +152,8 @@ public:
     void parse(gsExprHelper<Scalar> & evList) const
     {
         evList.add(_u);
+        _u.data().flags |= NEED_GRAD;
         evList.add(_G);
-        _u.data().flags |= NEED_GRAD | NEED_ACTIVE;
         _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_MEASURE;
     }
 
@@ -164,12 +164,11 @@ public:
     void print(std::ostream &os) const { os << "var1("; _u.print(os); os <<")"; }
 
 private:
-    // Specialisation for a space
     template<class U> inline
     typename util::enable_if< util::is_same<U,gsFeSpace<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k)  const
     {
-        const index_t A = _u.cardinality()/_u.targetDim();
+        const index_t A = _u.cardinality()/_u.dim(); // _u.data().actives.rows()
         res.resize(_u.cardinality(), cols()); // rows()*
 
         normal = _G.data().normal(k);// not normalized to unit length
@@ -227,7 +226,6 @@ public:
     typedef typename E1::Scalar Scalar;
 
 private:
-
     typename E1::Nested_t _u;
     typename E2::Nested_t _v;
     typename gsGeometryMap<Scalar>::Nested_t _G;
@@ -317,21 +315,21 @@ public:
 
     index_t rows() const
     {
-        return 0; // because the resulting matrix has scalar entries for every combination of active basis functions
+        return 1; // because the resulting matrix has scalar entries for every combination of active basis functions
     }
 
     index_t cols() const
     {
-        return 0; // because the resulting matrix has scalar entries for every combination of active basis functions
+        return 1; // because the resulting matrix has scalar entries for every combination of active basis functions
     }
 
     void parse(gsExprHelper<Scalar> & evList) const
     {
         evList.add(_u);
+        _u.data().flags |= NEED_VALUE | NEED_GRAD;
         evList.add(_G);
-        _u.data().flags |= NEED_GRAD;
         _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_2ND_DER | NEED_MEASURE;
-        evList.parse(_Ef);
+        _Ef.parse(evList);
     }
 
     const gsFeSpace<Scalar> & rowVar() const { return _u.rowVar(); }
@@ -341,7 +339,7 @@ public:
 };
 
 
-/// Product of the second derivative of a space or a map and a vector
+// vector v should be a row vector
 template<class E1, class E2>
 class deriv2dot_expr : public _expr<deriv2dot_expr<E1, E2> >
 {
@@ -350,6 +348,8 @@ class deriv2dot_expr : public _expr<deriv2dot_expr<E1, E2> >
 
 public:
     enum{ Space = E1::Space, ScalarValued= 0, ColBlocks= 0 };
+    // Note: what happens if E2 is a space? The following can fix it:
+    // enum{ Space = (E1::Space == 1 || E2::Space == 1) ? 1 : 0, ScalarValued= 0, ColBlocks= 0 };
 
     typedef typename E1::Scalar Scalar;
 
@@ -371,12 +371,37 @@ public:
 
     void parse(gsExprHelper<Scalar> & evList) const
     {
-        evList.add(_u);
-        _u.data().flags |= NEED_DERIV2;
+        evList.add(_u);   // We manage the flags of _u "manually" here (sets data)
+        _u.data().flags |= NEED_DERIV2; // define flags
+
+        _v.parse(evList); // We need to evaluate _v (_v.eval(.) is called)
+
+        // Note: evList.parse(.) is called only in exprAssembler for the global expression
     }
 
-    const gsFeSpace<Scalar> & rowVar() const { return _u.rowVar(); }
-    const gsFeSpace<Scalar> & colVar() const { return _v.rowVar(); }
+    const gsFeSpace<Scalar> & rowVar() const
+    {
+        // Note: what happens if E2 is a space? The following can fix it:
+        // if      (E1::Space == 1 && E2::Space == 0)
+        //     return _u.rowVar();
+        // else if (E1::Space == 0 && E2::Space == 1)
+        //     return _v.rowVar();
+        // else
+
+        return _u.rowVar();
+    }
+
+    const gsFeSpace<Scalar> & colVar() const
+    {
+        // Note: what happens if E2 is a space? The following can fix it:
+        // if      (E1::Space == 1 && E2::Space == 0)
+        //     return _v.rowVar();
+        // else if (E1::Space == 0 && E2::Space == 1)
+        //     return _u.rowVar();
+        // else
+
+        return _v.rowVar();
+    }
 
     void print(std::ostream &os) const { os << "deriv2("; _u.print(os); _v.print(os); os <<")"; }
 
@@ -470,9 +495,8 @@ private:
 };
 
 
-/**
- * @brief   Compute the hessian of a basis
-
+/*
+    The deriv2_expr computes the hessian of a basis.
     It assumes that the vector of basis functions is of the form v = u*e_i where u
     is the scalar basis function u: [0,1]^3 -> R^1 and e_i is the unit vector with a 1 on index i and a 0 elsewhere.
     Let us define the following blocks
@@ -715,8 +739,8 @@ public:
         return res;
     }
 
-    index_t rows() const { return 0; }
-    index_t cols() const { return 0; }
+    index_t rows() const { return 1; }
+    index_t cols() const { return 1; }
     void setFlag() const { _A.setFlag();_B.setFlag();_C.setFlag(); }
 
     void parse(gsExprHelper<Scalar> & evList) const
@@ -729,7 +753,11 @@ public:
     void print(std::ostream &os) const { os << "flatdot("; _A.print(os);_B.print(os);_C.print(os); os<<")"; }
 };
 
-/// ???
+/// ??
+/**
+   To Do:
+   *    Improve by inputting u instead of deriv2(u)
+ */
 template<class E1, class E2, class E3>
 class flatdot2_expr  : public _expr<flatdot2_expr<E1,E2,E3> >
 {
@@ -775,8 +803,8 @@ public:
         return res;
     }
 
-    index_t rows() const { return 0; }
-    index_t cols() const { return 0; }
+    index_t rows() const { return 1; }
+    index_t cols() const { return 1; }
 
     void parse(gsExprHelper<Scalar> & evList) const
     { _A.parse(evList);_B.parse(evList);_C.parse(evList); }
@@ -891,8 +919,6 @@ public:
 
     index_t cols() const { return 3; }
 
-    enum{rowSpan = 0, colSpan = 0};
-
     static const gsFeSpace<Scalar> & rowVar() { return gsNullExpr<Scalar>::get(); }
     static const gsFeSpace<Scalar> & colVar() { return gsNullExpr<Scalar>::get(); }
 
@@ -929,8 +955,6 @@ public:
     index_t rows() const { return 3; }
 
     index_t cols() const { return 3; }
-
-    enum{rowSpan = 0, colSpan = 0};
 
     static const gsFeSpace<Scalar> & rowVar() { return gsNullExpr<Scalar>::get(); }
     static const gsFeSpace<Scalar> & colVar() { return gsNullExpr<Scalar>::get(); }
@@ -1059,8 +1083,6 @@ public:
 
     index_t cols() const { return 3; }
 
-    enum{rowSpan = 0, colSpan = 0};
-
     static const gsFeSpace<Scalar> & rowVar() { return gsNullExpr<Scalar>::get(); }
     static const gsFeSpace<Scalar> & colVar() { return gsNullExpr<Scalar>::get(); }
 
@@ -1095,8 +1117,6 @@ public:
     index_t rows() const { return 3; }
 
     index_t cols() const { return 3; }
-
-    enum{rowSpan = 0, colSpan = 0};
 
     static const gsFeSpace<Scalar> & rowVar() { return gsNullExpr<Scalar>::get(); }
     static const gsFeSpace<Scalar> & colVar() { return gsNullExpr<Scalar>::get(); }
