@@ -37,8 +37,8 @@ gsMaterialMatrixEval<T,out>::gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * ma
                                                    )
 :
 m_materialMat(materialMatrix),
-m_z(z),
-m_piece(nullptr)
+m_piece(nullptr),
+m_z(z)
 {
     m_pIndex = 0;
     m_materialMat->setDeformed(deformed);
