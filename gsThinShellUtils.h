@@ -151,10 +151,7 @@ public:
 
     void parse(gsExprHelper<Scalar> & evList) const
     {
-        evList.add(_u);
-        _u.data().flags |= NEED_GRAD;
-        evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_MEASURE;
+        parse_impl<E>(evList);
     }
 
     const gsFeSpace<Scalar> & rowVar() const { return _u.rowVar(); }
@@ -164,6 +161,26 @@ public:
     void print(std::ostream &os) const { os << "var1("; _u.print(os); os <<")"; }
 
 private:
+    template<class U> inline
+    typename util::enable_if< !util::is_same<U,gsFeSolution<Scalar> >::value,void>::type
+    parse_impl(gsExprHelper<Scalar> & evList) const
+    {
+        evList.add(_u);
+        _u.data().flags |= NEED_GRAD;
+        evList.add(_G);
+        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_MEASURE;
+    }
+
+    template<class U> inline
+    typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value,void>::type
+    parse_impl(gsExprHelper<Scalar> & evList) const
+    {
+        evList.add(_G);
+        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_MEASURE;
+
+        _u.parse(evList);
+    }
+
     template<class U> inline
     typename util::enable_if< util::is_same<U,gsFeSpace<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k)  const
@@ -327,6 +344,8 @@ public:
     {
         evList.add(_u);
         _u.data().flags |= NEED_VALUE | NEED_GRAD;
+        evList.add(_v);
+        _v.data().flags |= NEED_VALUE | NEED_GRAD;
         evList.add(_G);
         _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_2ND_DER | NEED_MEASURE;
         _Ef.parse(evList);
@@ -371,12 +390,7 @@ public:
 
     void parse(gsExprHelper<Scalar> & evList) const
     {
-        evList.add(_u);   // We manage the flags of _u "manually" here (sets data)
-        _u.data().flags |= NEED_DERIV2; // define flags
-
-        _v.parse(evList); // We need to evaluate _v (_v.eval(.) is called)
-
-        // Note: evList.parse(.) is called only in exprAssembler for the global expression
+        parse_impl<E1>(evList);
     }
 
     const gsFeSpace<Scalar> & rowVar() const
@@ -406,6 +420,27 @@ public:
     void print(std::ostream &os) const { os << "deriv2("; _u.print(os); _v.print(os); os <<")"; }
 
 private:
+    template<class U> inline
+    typename util::enable_if< !util::is_same<U,gsFeSolution<Scalar> >::value,void>::type
+    parse_impl(gsExprHelper<Scalar> & evList) const
+    {
+        evList.add(_u);   // We manage the flags of _u "manually" here (sets data)
+        _u.data().flags |= NEED_DERIV2; // define flags
+
+        _v.parse(evList); // We need to evaluate _v (_v.eval(.) is called)
+
+        // Note: evList.parse(.) is called only in exprAssembler for the global expression
+    }
+
+    template<class U> inline
+    typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value,void>::type
+    parse_impl(gsExprHelper<Scalar> & evList) const
+    {
+        _u.parse(evList); // We need to evaluate _v (_v.eval(.) is called)
+        // evList.add(_u);   // We manage the flags of _u "manually" here (sets data)
+        _v.parse(evList); // We need to evaluate _v (_v.eval(.) is called)
+    }
+
     template<class U> inline
     typename util::enable_if< util::is_same<U,gsGeometryMap<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k)  const
@@ -465,7 +500,9 @@ private:
         */
 
         hess_expr<gsFeSolution<Scalar>> sHess = hess_expr<gsFeSolution<Scalar>>(_u);
+        gsDebugVar(sHess.eval(k));
         tmp = sHess.eval(k);
+        gsDebugVar(_v.eval(k));
         vEv = _v.eval(k);
         res = vEv * tmp;
         return res;
@@ -479,18 +516,18 @@ private:
     }
 
     template<class U> inline
-    typename util::enable_if<util::is_same<U,gsFeSpace<Scalar> >::value, index_t >::type
+    typename util::enable_if< !util::is_same<U,gsGeometryMap<Scalar>  >::value, index_t >::type
     cols_impl(const U & u) const
     {
         return _u.dim();
     }
 
-    template<class U> inline
-    typename util::enable_if<util::is_same<U,gsFeSolution<Scalar> >::value, index_t >::type
-    cols_impl(const U & u) const
-    {
-        return _u.dim();
-    }
+    // template<class U> inline
+    // typename util::enable_if<util::is_same<U,gsFeSolution<Scalar> >::value, index_t >::type
+    // cols_impl(const U & u) const
+    // {
+    //     return _u.dim();
+    // }
 
 };
 

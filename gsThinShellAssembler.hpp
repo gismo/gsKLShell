@@ -684,6 +684,134 @@ void gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsMatrix<T> & sol
 }
 
 template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update)
+{
+    assembleMatrix_impl<d, bending>(deformed, previous, update);
+}
+
+template<int d, typename T, bool bending>
+template<int _d, bool _bending>
+typename std::enable_if<_d==3 && _bending, void>::type
+gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update)
+{
+    m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
+    m_defpatches = deformed;
+    m_itpatches = previous;
+
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_def   = m_assembler.getMap(m_defpatches);
+    geometryMap m_prev  = m_assembler.getMap(m_itpatches);
+    // Initialize matrix
+    m_assembler.initMatrix();
+    // m_assembler.initSystem();
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMat,m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> m_mmB(m_materialMat,m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> m_mmC(m_materialMat,m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmD(m_materialMat,m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMat,m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMat,m_defpatches);
+    auto mmA = m_assembler.getCoeff(m_mmA);
+    auto mmB = m_assembler.getCoeff(m_mmB);
+    auto mmC = m_assembler.getCoeff(m_mmC);
+    auto mmD = m_assembler.getCoeff(m_mmD);
+    // auto S0  = m_assembler.getCoeff(m_S0);
+    // auto S1  = m_assembler.getCoeff(m_S1);
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmAd(m_materialMat,m_itpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> m_mmBd(m_materialMat,m_itpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> m_mmCd(m_materialMat,m_itpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmDd(m_materialMat,m_itpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0d(m_materialMat,m_itpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1d(m_materialMat,m_itpatches);
+    auto mmAp = m_assembler.getCoeff(m_mmAd);
+    auto mmBp = m_assembler.getCoeff(m_mmBd);
+    auto mmCp = m_assembler.getCoeff(m_mmCd);
+    auto mmDp = m_assembler.getCoeff(m_mmDd);
+    auto S0  = m_assembler.getCoeff(m_S0d);
+    auto S1  = m_assembler.getCoeff(m_S1d);
+
+    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
+    auto m_m2 = m_assembler.getCoeff(mult2t);
+
+    space       m_space = m_assembler.trialSpace(0);
+    solution    m_du = m_assembler.getSolution(m_space,update);
+
+    this->homogenizeDirichlet();
+
+    auto m_E_mc = flat( jac(m_prev).tr() * grad(m_du) ) ; //[checked]
+    auto m_E_fc = -( deriv2(m_du,sn(m_prev).normalized().tr() ) + deriv2(m_prev,var1(m_du,m_prev) ) ) * reshape(m_m2,3,3); //[checked]
+    auto m_N_c  = m_E_mc * reshape(mmAp,3,3) + m_E_fc * reshape(mmBp,3,3);
+    auto m_M_c  = m_E_mc * reshape(mmCp,3,3) + m_E_fc * reshape(mmDp,3,3);
+
+    auto m_N        = S0.tr() + m_N_c;
+    auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
+    auto m_Em_der2  = flatdot( jac(m_space),jac(m_space).tr(), m_N ); //[checked]
+
+    auto m_M        = S1.tr() + m_M_c; // output is a column
+    auto m_Ef_der   = -( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
+    auto m_Ef_der2  = -(flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_M ).symmetrize()
+                            + var2(m_space,m_space,m_def, m_M ));
+
+    auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
+    auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
+
+    if (m_foundInd)
+    {
+        auto m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
+        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
+
+        m_assembler.assemble(
+                m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
+            );
+    }
+    if (m_pressInd)
+    {
+        auto m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
+
+        m_assembler.assemble(
+                                -m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
+                            );
+    }
+        // Assemble matrix
+        m_assembler.assemble(
+                (
+                    m_N_der * m_Em_der.tr()
+                    +
+                    m_Em_der2
+                    +
+                    m_M_der * m_Ef_der.tr()
+                    +
+                    m_Ef_der2
+                ) * meas(m_ori)
+            );
+    this->_assembleWeakBCs(deformed);
+}
+
+// template<int d, typename T, bool bending>
+// template<int _d, bool _bending>
+// typename std::enable_if<!(_d==3 && _bending), void>::type
+// gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update)
+// {
+//     GISMO_NO_IMPLEMENTATION;
+// }
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsMatrix<T> & solVector, const gsMatrix<T> & prevVector)
+{
+    // gsMultiPatch<T> deformed;
+    // constructSolution(solVector, deformed);
+    // assembleMatrix(deformed);
+
+    constructSolution(solVector, m_defpatches);
+    constructSolution(prevVector, m_itpatches);
+    gsMatrix<T> update = solVector - prevVector;
+    assembleMatrix(m_defpatches,m_itpatches,update);
+}
+
+template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::assembleVector(const gsMultiPatch<T> & deformed)
 {
   assembleVector_impl<d, bending>(deformed);
@@ -1220,7 +1348,7 @@ gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructMultiPatch(const g
 
     // Solution vector and solution variable
     space m_space = m_assembler.trialSpace(0);
-    const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart() = m_ddofs;
+    const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart() = m_ddofs; //CHECK FIXEDPART
 
     solution m_solution = m_assembler.getSolution(m_space, m_solvector);
 

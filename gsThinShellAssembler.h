@@ -131,6 +131,12 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     void assembleMatrix(const gsMatrix<T>       & solVector );
 
+    /// See \ref gsThinShellAssemblerBase for details
+    void assembleMatrix(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void assembleMatrix(const gsMatrix<T> & solVector, const gsMatrix<T> & prevVector);
+
 private:
     /// Implementation of assembleMatrix for surfaces (3D)
     template<int _d, bool _bending>
@@ -141,6 +147,17 @@ private:
     template<int _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
     assembleMatrix_impl(const gsMultiPatch<T>   & deformed  );
+
+    /// Implementation of assembleMatrix for surfaces (3D)
+    template<int _d, bool _bending>
+    typename std::enable_if<_d==3 && _bending, void>::type
+    assembleMatrix_impl(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update);
+
+    /// Implementation of assembleMatrix for planar geometries (2D)
+    template<int _d, bool _bending>
+    typename std::enable_if<!(_d==3 && _bending), void>::type
+    assembleMatrix_impl(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update)
+    { GISMO_NO_IMPLEMENTATION; }
 
 public:
     /// See \ref gsThinShellAssemblerBase for details
@@ -299,6 +316,7 @@ protected:
 
     gsMultiPatch<T> m_patches;
     gsMultiPatch<T> m_defpatches;
+    gsMultiPatch<T> m_itpatches;
     mutable gsMultiBasis<T> m_basis;
     gsBoundaryConditions<T> m_bcs;
 
@@ -427,6 +445,20 @@ public:
      * @param[in]  deformed  The solution vector
      */
     virtual void assembleMatrix(const gsMatrix<T>       & solVector ) = 0;
+
+    /**
+     * @brief      Assembles the tangential stiffness matrix (nonlinear)
+     *
+     * @param[in]  deformed  The deformed geometry
+     */
+    virtual void assembleMatrix(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update) = 0;
+
+    /**
+     * @brief      Assembles the tangential stiffness matrix (nonlinear)
+     *
+     * @param[in]  deformed  The solution vector
+     */
+    virtual void assembleMatrix(const gsMatrix<T> & solVector, const gsMatrix<T> & prevVector) = 0;
 
     /**
      * @brief      Assembles the residual vector
