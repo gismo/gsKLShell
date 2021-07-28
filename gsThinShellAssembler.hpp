@@ -564,6 +564,10 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> &
 
     this->homogenizeDirichlet();
 
+    gsVector<T> pt(2);
+    pt.setConstant(0.25);
+    gsExprEvaluator<T> ev(m_assembler);
+
     auto m_N        = S0.tr();
     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
     auto m_Em_der2  = flatdot( jac(m_space),jac(m_space).tr(), m_N ); //[checked]
@@ -595,18 +599,26 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> &
                                 -m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
                             );
     }
-        // Assemble matrix
-        m_assembler.assemble(
-                (
-                    m_N_der * m_Em_der.tr()
-                    +
-                    m_Em_der2
-                    +
-                    m_M_der * m_Ef_der.tr()
-                    +
-                    m_Ef_der2
-                ) * meas(m_ori)
-            );
+
+    // // gsDebugVar(ev.eval(m_Em_der2,pt));
+    // // gsDebugVar(ev.eval(m_Ef_der2,pt));
+
+    // gsDebugVar(ev.eval(S0.tr(),pt));
+    // gsDebugVar(ev.eval(S1.tr(),pt));
+
+    // Assemble matrix
+    m_assembler.assemble(
+            (
+                m_N_der * m_Em_der.tr()
+                +
+                m_Em_der2
+                +
+                m_M_der * m_Ef_der.tr()
+                +
+                m_Ef_der2
+            ) * meas(m_ori)
+        );
+
     this->_assembleWeakBCs(deformed);
 }
 
@@ -740,6 +752,10 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> &
 
     this->homogenizeDirichlet();
 
+    gsVector<T> pt(2);
+    pt.setConstant(0.25);
+    gsExprEvaluator<T> ev(m_assembler);
+
     auto m_E_mc = flat( jac(m_prev).tr() * grad(m_du) ) ; //[checked]
     auto m_E_fc = -( deriv2(m_du,sn(m_prev).normalized().tr() ) + deriv2(m_prev,var1(m_du,m_prev) ) ) * reshape(m_m2,3,3); //[checked]
     auto m_N_c  = m_E_mc * reshape(mmAp,3,3) + m_E_fc * reshape(mmBp,3,3);
@@ -756,6 +772,16 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> &
 
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
+
+    // // gsDebugVar(ev.eval(m_Em_der2,pt));
+    // // gsDebugVar(ev.eval(m_Ef_der2,pt));
+
+    // gsDebugVar(ev.eval(m_N_c,pt));
+    // gsDebugVar(ev.eval(m_M_c,pt));
+
+    // gsDebugVar(ev.eval(S0.tr(),pt));
+    // gsDebugVar(ev.eval(S1.tr(),pt));
+
 
     if (m_foundInd)
     {
@@ -775,18 +801,18 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> &
                                 -m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
                             );
     }
-        // Assemble matrix
-        m_assembler.assemble(
-                (
-                    m_N_der * m_Em_der.tr()
-                    +
-                    m_Em_der2
-                    +
-                    m_M_der * m_Ef_der.tr()
-                    +
-                    m_Ef_der2
-                ) * meas(m_ori)
-            );
+    // Assemble matrix
+    m_assembler.assemble(
+            (
+                m_N_der * m_Em_der.tr()
+                +
+                m_Em_der2
+                +
+                m_M_der * m_Ef_der.tr()
+                +
+                m_Ef_der2
+            ) * meas(m_ori)
+        );
     this->_assembleWeakBCs(deformed);
 }
 

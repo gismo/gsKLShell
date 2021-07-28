@@ -178,6 +178,8 @@ private:
         evList.add(_G);
         _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_MEASURE;
 
+        grad(_u).parse(evList); //
+
         _u.parse(evList);
     }
 
@@ -436,7 +438,9 @@ private:
     typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value,void>::type
     parse_impl(gsExprHelper<Scalar> & evList) const
     {
-        _u.parse(evList); // We need to evaluate _v (_v.eval(.) is called)
+        _u.parse(evList); //
+        hess(_u).parse(evList); //
+
         // evList.add(_u);   // We manage the flags of _u "manually" here (sets data)
         _v.parse(evList); // We need to evaluate _v (_v.eval(.) is called)
     }
@@ -499,10 +503,8 @@ private:
             So we simply evaluate for every active basis function v_k the product hess(c).v_k
         */
 
-        hess_expr<gsFeSolution<Scalar>> sHess = hess_expr<gsFeSolution<Scalar>>(_u);
-        gsDebugVar(sHess.eval(k));
+        hess_expr<gsFeSolution<Scalar>> sHess = hess_expr<gsFeSolution<Scalar>>(_u); // NOTE: This does not parse automatically!
         tmp = sHess.eval(k);
-        gsDebugVar(_v.eval(k));
         vEv = _v.eval(k);
         res = vEv * tmp;
         return res;
@@ -736,7 +738,7 @@ private:
     mutable gsMatrix<Scalar> eA, eB, eC, tmp, res;
 
 public:
-    enum {Space = E1::Space, ScalarValued = 1, ColBlocks= 0};
+    enum {Space = E1::Space, ScalarValued = 0, ColBlocks = 0};
 
 public:
 
@@ -778,7 +780,6 @@ public:
 
     index_t rows() const { return 1; }
     index_t cols() const { return 1; }
-    void setFlag() const { _A.setFlag();_B.setFlag();_C.setFlag(); }
 
     void parse(gsExprHelper<Scalar> & evList) const
     { _A.parse(evList);_B.parse(evList);_C.parse(evList); }
@@ -808,7 +809,7 @@ private:
     mutable gsMatrix<Scalar> eA, eB, eC, res, tmp;
 
 public:
-    enum {Space = E1::Space, ScalarValued = 1, ColBlocks = 0};
+    enum {Space = E1::Space, ScalarValued = 0, ColBlocks = 0};
 
     flatdot2_expr(_expr<E1> const& A, _expr<E2> const& B, _expr<E3> const& C) : _A(A),_B(B),_C(C)
     {
