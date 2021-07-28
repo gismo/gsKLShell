@@ -15,7 +15,8 @@
 
 #pragma once
 
-#include <gsKLShell/gsThinShellFunctions.h>
+#include <gsAssembler/gsExprEvaluator.h>
+#include <gsAssembler/gsExprAssembler.h>
 
 namespace gismo
 {

@@ -14,7 +14,18 @@
 */
 
 //! [Include namespace]
-#include <gismo.h>
+#include <gsCore/gsLinearAlgebra.h>
+#include <gsCore/gsBasis.h>
+#include <gsCore/gsFuncData.h>
+#include <gsCore/gsDofMapper.h>
+
+#include <gsPde/gsBoundaryConditions.h>
+
+#include <gsUtils/gsPointGrid.h>
+
+#include <gsAssembler/gsAssemblerOptions.h>
+#include <gsAssembler/gsExpressions.h>
+
 
 #  define MatExprType  auto
 

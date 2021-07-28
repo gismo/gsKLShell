@@ -20,6 +20,8 @@
 
 #include <gsPde/gsPointLoads.h>
 
+#include <gsAssembler/gsExprAssembler.h>
+#include <gsAssembler/gsExprEvaluator.h>
 
 namespace gismo
 {

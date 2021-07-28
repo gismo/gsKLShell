@@ -20,6 +20,11 @@
 #include <gsKLShell/gsMaterialMatrixBase.h>
 #include <gsKLShell/gsMaterialMatrixIntegrate.h>
 
+#include <gsPde/gsBoundaryConditions.h>
+
+#include <gsCore/gsFunctionExpr.h>
+#include <gsCore/gsPiecewiseFunction.h>
+
 namespace gismo
 {
 

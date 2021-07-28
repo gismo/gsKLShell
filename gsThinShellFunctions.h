@@ -17,6 +17,9 @@
 
 #include <gsKLShell/gsMaterialMatrix.h>
 
+#include <gsAssembler/gsExprAssembler.h>
+
+
 namespace gismo
 {
 
