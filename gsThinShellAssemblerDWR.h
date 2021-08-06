@@ -148,6 +148,12 @@ public:
 
     void setGoal(enum GoalFunction GF, short_t component = 9) { m_goalFunction = GF; m_component = component; }
 
+    /// See \ref gsThinShellAssemblerBase for details
+    void constructStress(const gsMultiPatch<T> & deformed, gsPiecewiseFunction<T> & result, stress_type::type type)
+    {
+        m_assemblerL->constructStress(deformed,result,type);
+    }
+
 protected:
 
     void _setBasis(const gsMultiBasis<T> & basis);
@@ -208,7 +214,8 @@ protected:
     typedef gsExprAssembler<>::space       space;
     typedef gsExprAssembler<>::solution    solution;
 
-    // using Base::m_patches;
+    gsBoundaryConditions<T> m_bcs;
+    // using Base::m_bcs;
     // using Base::m_basis;
 
     using Base::m_patches;
@@ -233,7 +240,7 @@ protected:
  * @ingroup    KLShell
  */
 template <class T>
-class gsThinShellAssemblerDWRBase
+class gsThinShellAssemblerDWRBase //: public gsThinShellAssemblerBase<T>
 {
 public:
     /// Default empty constructor
@@ -302,6 +309,11 @@ public:
     virtual T matrixNorm(const gsMultiPatch<T> &dualL, const gsMultiPatch<T> &dualH, const gsMultiPatch<T> &deformed) const = 0;
 
     virtual void setGoal(enum GoalFunction GF, short_t component = 9) = 0;
+
+    /// See \ref gsThinShellAssemblerBase for details
+    virtual void constructStress(const gsMultiPatch<T> & deformed,
+                               gsPiecewiseFunction<T> & result,
+                               stress_type::type type) = 0;
 };
 
 } // namespace gismo

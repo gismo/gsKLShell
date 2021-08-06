@@ -99,6 +99,21 @@ void gsThinShellAssembler<d, T, bending>::_initialize()
 }
 
 template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::setUndeformed(const gsMultiPatch<T> & patches)
+{
+    m_patches = patches;
+    _initialize();
+}
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::setBasis(const gsMultiBasis<T> & basis)
+{
+    m_basis = basis;
+    _initialize();
+}
+
+
+template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_assembleNeumann()
 {
     _assembleNeumann_impl<d,bending>();
@@ -1227,20 +1242,36 @@ void gsThinShellAssembler<d, T, bending>::assemble(const gsMatrix<T> & solVector
 }
 
 template <short_t d, class T, bool bending>
-gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructSolution(const gsMatrix<T> & solVector) const
+gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::_constructSolution(const gsMatrix<T> & solVector, const gsMultiPatch<T> & undeformed) const
 {
-    gsMultiPatch<T> mp = m_patches;
+    gsMultiPatch<T> mp = undeformed;
     gsMultiPatch<T> displacement = constructDisplacement(solVector);
     for ( size_t k =0; k!=displacement.nPatches(); ++k) // Deform the geometry
-        mp.patch(k).coefs() += displacement.patch(k).coefs();;  // defG points to mp_def, therefore updated
+    {
+        GISMO_ENSURE(displacement.patch(k).coefs().cols()==mp.patch(k).coefs().cols() && displacement.patch(k).coefs().cols()==mp.patch(k).coefs().cols(),
+            "Sizes do not agree");
+        mp.patch(k).coefs() += displacement.patch(k).coefs();  // defG points to mp_def, therefore updated
+    }
 
     return mp;
 }
 
 template <short_t d, class T, bool bending>
+gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructSolution(const gsMatrix<T> & solVector) const
+{
+    return _constructSolution(solVector,m_patches);
+}
+
+template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::constructSolution(const gsMatrix<T> & solVector, gsMultiPatch<T> & deformed) const
 {
-    deformed = constructSolution(solVector);
+    deformed = _constructSolution(solVector,m_patches);
+}
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::updateMultiPatch(const gsMatrix<T> & solVector, gsMultiPatch<T> & mp) const
+{
+    mp = _constructSolution(solVector,mp);
 }
 
 template <short_t d, class T, bool bending>
@@ -1384,6 +1415,8 @@ void gsThinShellAssembler<d, T, bending>::constructStress(const gsMultiPatch<T> 
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & fun, gsMatrix<T>& result)
 {
+    /// todo: make a projection with BCs?
+    /// todo: test
     // this->_getOptions();
 
     m_assembler.cleanUp();
@@ -1391,10 +1424,11 @@ void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & f
 
     m_assembler.getMap(m_patches);           // this map is used for integrals
 
-    // Initialize stystem
-    m_assembler.initSystem(false);
+    space       m_space = m_assembler.getSpace(m_basis, d);
 
-    space       m_space = m_assembler.trialSpace(0);
+    // Initialize stystem
+    m_assembler.initSystem(true);
+
     geometryMap m_ori   = m_assembler.exprData()->getMap();
     variable    function = m_assembler.getCoeff(fun, m_ori);
     // variable    function = m_assembler.getCoeff(fun);
@@ -1408,11 +1442,14 @@ void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & f
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & fun, gsMultiPatch<T>& mp)
 {
+    /// todo: make a projection with BCs?
+    /// todo: test
     gsMatrix<T> tmp = projectL2(fun);
     mp = m_patches;
 
     // Solution vector and solution variable
-    space m_space = m_assembler.trialSpace(0);
+    space m_space = m_assembler.getSpace(m_basis, d);
+    m_assembler.initSystem(true);
     const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart() = m_ddofs;
 
     solution m_solution = m_assembler.getSolution(m_space, tmp);
@@ -1424,7 +1461,7 @@ void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & f
     {
         // // extract deformed geometry
         m_solution.extract(cc, k);
-        mp.patch(k).coefs() = cc;  // defG points to mp_def, therefore updated
+        mp.patch(k).coefs() += cc;  // defG points to mp_def, therefore updated
     }
 }
 
@@ -1432,6 +1469,8 @@ void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & f
 template <short_t d, class T, bool bending>
 gsMatrix<T> gsThinShellAssembler<d, T, bending>::projectL2(const gsFunction<T> & fun)
 {
+    /// todo: make a projection with BCs?
+    /// todo: test
     gsMatrix<T> result;
     this->projectL2_into(fun,result);
     return result;

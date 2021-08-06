@@ -11,6 +11,8 @@
     Author(s): H.M.Verhelst (2019 - ..., TU Delft)
 */
 
+#include <iostream>
+#include <fstream>
 #include <gismo.h>
 
 #include <gsKLShell/gsThinShellAssembler.h>
@@ -39,17 +41,23 @@ int main(int argc, char *argv[])
 
     //! [Parse command line]
     bool plot = false;
+    bool write = false;
     index_t numRefine  = 1;
     index_t numElevate = 1;
     index_t goal = 1;
     index_t component = 9;
     bool nonlinear = false;
     bool loop = false;
+    bool adaptive = false;
     std::string fn;
 
     real_t E_modulus = 1;
     real_t PoissonRatio = 0.3;
     real_t thickness = 0.01;
+
+    // real_t E_modulus = 1.0;
+    // real_t PoissonRatio = 0.3;
+    // real_t thickness = 1.0;
 
     refCriterion = GARU;
     refParameter = 0.85;
@@ -66,7 +74,9 @@ int main(int argc, char *argv[])
     cmd.addString( "f", "file", "Input XML file", fn );
     cmd.addSwitch("nl", "Solve nonlinear problem", nonlinear);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
+    cmd.addSwitch("write", "Write convergence to file", write);
     cmd.addSwitch("loop", "Uniform Refinement loop", loop);
+    cmd.addSwitch("adaptive", "Adaptive Refinemenct loop", adaptive);
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
@@ -79,7 +89,8 @@ int main(int argc, char *argv[])
     gsMultiPatch<> mp_def;
 
     // Unit square
-    real_t L = 2;
+    // real_t L = 2;
+    real_t L = 1;
     real_t B = 1;
     mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
     mp.patch(0).coefs().col(0) *= L;
@@ -99,12 +110,34 @@ int main(int argc, char *argv[])
         numRefine = 0;
     }
 
+    // Cast all patches of the mp object to THB splines
+    if (adaptive)
+    {
+        gsTHBSpline<2,real_t> thb;
+        for (index_t k=0; k!=mp.nPatches(); ++k)
+        {
+            gsTensorBSpline<2,real_t> *geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k));
+            thb = gsTHBSpline<2,real_t>(*geo);
+            mp.patch(k) = thb;
+        }
+    }
+
+    gsMultiPatch<> mp_ex = mp;
+    mp_ex.degreeElevate(2);
+    for (index_t r =0; r < numRefine; ++r)
+        mp_ex.uniformRefine();
+    gsMultiBasis<> basisR(mp_ex);
+
     gsBoundaryConditions<> bc;
     bc.setGeoMap(mp);
     gsVector<> tmp(3);
     tmp << 0, 0, 0;
 
-    real_t load = 1e-5;
+    // real_t load = 1e-5;
+    real_t load = 1.0;
+
+    // real_t D = E_modulus * math::pow(thickness,3) / ( 12 * ( 1- math::pow(PoissonRatio,2) ) );
+    // gsFunctionExpr<> exact( "x","y","w:= 0; for (u := 1; u < 100; u += 2) { for (v := 1; v < 100; v += 2) { w += -16.0 * " + std::to_string(load) + " / ( pi^6*" + std::to_string(D) + " ) * 1 / (v * u * ( v^2 + u^2 )^2 ) * sin( v * pi * x) * sin(u * pi * y) } }",2);
 
     for (index_t i=0; i!=3; ++i)
     {
@@ -113,10 +146,34 @@ int main(int argc, char *argv[])
         bc.addCondition(boundary::south,condition_type::dirichlet, 0, i );
         bc.addCondition(boundary::west, condition_type::dirichlet, 0, i );
     }
-    tmp << 0,0,-load;
+
+    bc.addCondition(boundary::north, condition_type::clamped, 0, 0, false, 2 ); // unknown 0 - x
+    bc.addCondition(boundary::east, condition_type::clamped, 0, 0, false, 2 ); // unknown 0 - x
+    bc.addCondition(boundary::south, condition_type::clamped, 0, 0, false, 2 ); // unknown 0 - x
+    bc.addCondition(boundary::west, condition_type::clamped, 0, 0, false, 2 ); // unknown 0 - x
+
+    real_t ampl = 1e2;
+
+    char buffer[2000];
+    std::string fx = "0";
+    std::string fy = "0";
+    // sprintf(buffer,"-%e^3*%e*%e*pi^4*sin(pi*x)*sin(pi*y)/(3*%e^2 - 3)",thickness,E_modulus,ampl,PoissonRatio);
+    // // sprintf(buffer,"-2*%e^3*%e*%e/(3*%e^2 - 3)",thickness,E_modulus,ampl,PoissonRatio);
+    sprintf(buffer,"-6*%e*%e^3*%e*(x^4 - 2*x^3 + 12*(-1/2 + y)^2*x^2 + (-12*y^2 + 12*y - 2)*x + y^4 - 2*y^3 + 3*y^2 - 2*y + 1/3)/(3*%e^2 - 3)",ampl,thickness,E_modulus,PoissonRatio);
+    std::string fz = buffer;
+
+    std::string ux = "0";
+    std::string uy = "0";
+    // sprintf(buffer,"%e*sin(pi*x)*sin(pi*y)",ampl);
+    // // sprintf(buffer,"%e*x*(x - 1)*y*(y - 1)",ampl);
+    sprintf(buffer,"%e*x^2*(x - 1)^2*y^2*(y - 1)^2",ampl);
+    std::string uz = buffer;
+
+    // tmp << 0,0,-load;
     //! [Refinement]
 
-    gsConstantFunction<> force(tmp,3);
+    // gsConstantFunction<> force(tmp,3);
+    gsFunctionExpr<> force(fx,fy,fz,3);
     gsFunctionExpr<> t(std::to_string(thickness), 3);
     gsFunctionExpr<> E(std::to_string(E_modulus),3);
     gsFunctionExpr<> nu(std::to_string(PoissonRatio),3);
@@ -138,12 +195,62 @@ int main(int argc, char *argv[])
     // points.col(2).setConstant(0.75);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
+    gsFunctionExpr<> exact(ux,uy,uz,3);
+    gsField<> u_ex(mp,exact);
+
+    gsWriteParaview(u_ex,"exact");
+
+    typedef gsExprAssembler<>::geometryMap geometryMap;
+    typedef gsExprAssembler<>::variable    variable;
+    typedef gsExprAssembler<>::space       space;
+    typedef gsExprAssembler<>::solution    solution;
+
+    gsExprAssembler<> A(1,1);
+    A.setIntegrationElements(basisR);
+    A.getMap(mp);
+    geometryMap G   = A.exprData()->getMap();
+
+    space u = A.getSpace(basisR, 3);
+    u.setup(bc,dirichlet::interpolation,0);
+    variable    function = A.getCoeff(exact, G);
+    A.initSystem(false);
+    A.assemble(u*u.tr()*meas(G),u * function*meas(G));
+
+    solver.compute(A.matrix());
+    gsMatrix<> result = solver.solve(A.rhs());
+
+    solution u_sol = A.getSolution(u, result);
+
+    gsMatrix<> cc;
+    for ( size_t k =0; k!=mp_ex.nPatches(); ++k) // Deform the geometry
+    {
+        // // extract deformed geometry
+        u_sol.extract(cc, k);
+        mp_ex.patch(k).coefs() += cc;  // defG points to mp_def, therefore updated
+    }
+
+    gsExprEvaluator<> ev(A);
+    gsDebugVar(ev.integral((u_sol-function).sqNorm()));
+
+
+    // gsThinShellAssembler<3,real_t,true> assembler(mp,basisR,bc,force,materialMatrix);
+    // gsMultiPatch<> mp_ex2 = mp;
+    // assembler.projectL2_into(exact,mp_ex2);
+
+    // gsMatrix<> coefs;
+    // gsQuasiInterpolate<real_t>::localIntpl(basisR.basis(0), exact, coefs);
+    // gsMultiPatch<> mp_ex;
+    // mp_ex.addPatch(*basisR.basis(0).makeGeometry(give(coefs)));
+
+    gsField<> ump_ex(mp,mp_ex);
+    gsWriteParaview(ump_ex,"mp_exact");
 
     gsThinShellAssemblerDWRBase<real_t> * DWR2;
 
-    gsMultiPatch<> mp_ex;
-    gsReadFile<>("deformed_plate.xml",mp_ex);
-    gsMultiBasis<> basisR(mp_ex);
+    // gsMultiPatch<> mp_ex;
+    // // gsReadFile<>("deformations/deformed_plate_r7e5.xml",mp_ex);
+    // gsReadFile<>("deformed_plate_lin_T=" + std::to_string(thickness) + ".xml",mp_ex);
+    // gsMultiBasis<> basisR(mp_ex);
 
     DWR2 = new gsThinShellAssemblerDWR<3,real_t,true>(mp,basisR,basisR,bc,force,materialMatrix);
     if (goal==1)
@@ -175,34 +282,44 @@ int main(int argc, char *argv[])
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-
-
     std::vector<real_t> exacts(numRefine+1);
     std::vector<real_t> approxs(numRefine+1);
     std::vector<real_t> efficiencies(numRefine+1);
+    std::vector<real_t> numGoal(numRefine+1);
+    std::vector<real_t> estGoal(numRefine+1);
+    std::vector<real_t> exGoal(numRefine+1);
 
     gsVector<> solVector, updateVector;
     gsMultiPatch<> primalL,dualL,dualH;
 
     gsThinShellAssemblerDWRBase<real_t> * DWR;
 
+    gsParaviewCollection collection("solution");
     for (index_t r=0; r!=numRefine+1; r++)
     {
-        gsMultiBasis<> dbasis(mp);
-        gsInfo << "Patches: "<< mp.nPatches() <<", degree: "<< dbasis.minCwiseDegree() <<"\n";
-        gsInfo << dbasis.basis(0)<<"\n";
+        if (adaptive)
+        {
+            // [Mark elements for refinement]
+            std::vector<index_t> bools(mp.basis(0).numElements());
+            std::vector<bool> refVec(mp.basis(0).numElements());
 
-        // // Cast all patches of the mp object to THB splines
-        // gsTHBSpline<2,real_t> thb;
-        // for (index_t k=0; k!=mp.nPatches(); ++k)
-        // {
-        //     gsTensorBSpline<2,real_t> *geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k));
-        //     thb = gsTHBSpline<2,real_t>(*geo);
-        //     mp.patch(k) = thb;
-        // }
+            //////// RANDOMLY
+            std::srand(std::time(nullptr)); // use current time as seed for random generator
+            std::generate(bools.begin(), bools.end(), rand);
+            for (index_t k = 0; k!=bools.size(); k++)
+                refVec[k] = static_cast<bool>(std::round(static_cast<real_t>(bools[k]) / ( RAND_MAX+1u )));
 
+            gsRefineMarkedElements(mp,refVec,0);
+            gsMultiPatch<> mp_def = mp;
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // ----------------------------Prepare basis------------------------------------------------
+        // -----------------------------------------------------------------------------------------
+        // Set deformed multipatch
         mp_def = mp;
 
+        // Set bases
         gsMultiBasis<> basisL(mp);
         gsMultiBasis<> basisH = basisL;
         basisH.degreeElevate(1);
@@ -262,7 +379,6 @@ int main(int argc, char *argv[])
         DWR->constructMultiPatchL(solVector,dualL);
         gsInfo << "done.\n";
 
-
         gsInfo << "Assembling dual matrix (H)... "<< std::flush;
         DWR->assembleMatrixH();
         gsInfo << "done.\n";
@@ -273,35 +389,79 @@ int main(int argc, char *argv[])
         gsInfo << "done.\n";
 
         gsInfo << "Solving dual (high), size = "<<DWR->matrixH().rows()<<","<<DWR->matrixH().cols()<<"... "<< std::flush;
-        solver.compute(DWR->matrixH());
-        solVector = solver.solve(DWR->dualH());
+
+        gsDebugVar(DWR->matrixH().toDense());
+        gsDebugVar(DWR->dualH().transpose());
+
+        // solver.compute(DWR->matrixH());
+        // solVector = solver.solve(DWR->dualH());
+        // DWR->constructMultiPatchH(solVector,dualH);
+        // gsInfo << "done.\n";
+
+        solVector = DWR->dualH();
         DWR->constructMultiPatchH(solVector,dualH);
-        gsInfo << "done.\n";
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        real_t approx, exact = 0;
+        if (plot)
+        {
+            gsField<> VMStress(mp,primalL, true);
+            std::string fileName = "solution" + util::to_string(r);
+            gsWriteParaview<>(VMStress, fileName, 5000, true);
+            fileName = "solution" + util::to_string(r) + "0";
+            collection.addTimestep(fileName,r,".vts");
+            collection.addTimestep(fileName,r,"_mesh.vtp");
+        }
 
-        exact += exactGoal;
-        exact -= DWR->computeGoal(mp_def);
-        exact -= DWR->computeGoal(points,mp_def);
-        approx = DWR->computeError(dualL,dualH);
+        exacts[r] = 0;
+        numGoal[r] = DWR->computeGoal(mp_def)+DWR->computeGoal(points,mp_def);
+        exGoal[r] = exactGoal;
 
-        gsInfo<<"approx = "<<approx<<"\n";
-        gsInfo<<"Exact = "<<exact<<"\n";
-        gsInfo<<"Efficiency = "<<approx/exact<<"\n";
+        exacts[r] += exactGoal;
+        exacts[r] -= numGoal[r];
+        approxs[r] = DWR->computeError(dualL,dualH);
 
-        exacts[r] = exact;
-        approxs[r] = approx;
-        efficiencies[r] = approx/exact;
+        estGoal[r] = numGoal[r]+approxs[r];
 
-        mp.uniformRefine();
+        efficiencies[r] = approxs[r]/exacts[r];
+
+        if (!adaptive)
+            mp.uniformRefine();
     }
 
-    gsInfo<<"Ref.\tApprox\t\tExact\tEfficiency\n";
+    if (plot) collection.save();
+
+    gsInfo<<"-------------------------------------------------------------------------------------------------\n";
+    gsInfo<<"Ref.\tApprox    \tExact     \tEfficiency\tNumGoal   \tEstGoal   \texGoal    \n";
+    gsInfo<<"-------------------------------------------------------------------------------------------------\n";
     for(index_t r=0; r!=numRefine+1; r++)
     {
-        gsInfo<<r<<"\t"<<approxs[r]<<"\t"<<exacts[r]<<"\t"<<efficiencies[r]<<"\n";
+        gsInfo  <<std::setw(4 )<<std::left<<r<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<approxs[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<exacts[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<efficiencies[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<numGoal[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<estGoal[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<exGoal[r]<<"\n";
+    }
+    gsInfo<<"-------------------------------------------------------------------------------------------------\n";
+
+
+    if (write)
+    {
+        std::string filename;
+        filename = "example_shell3D_DWR_r" + std::to_string(numRefine) + "_e" + std::to_string(numElevate) + "_g" + std::to_string(goal) + "_C" + std::to_string(component);
+        filename = filename + ".csv";
+        std::ofstream file_out;
+        file_out.open (filename);
+
+        file_out<<"Ref,Approx,Exact,Efficiency,NumGoal,EstGoal,exGoal\n";
+        for(index_t r=0; r!=numRefine+1; r++)
+        {
+            file_out<<r<<","<<approxs[r]<<","<<exacts[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<exGoal[r]<<"\n";
+        }
+
+        file_out.close();
     }
 
     if (plot)
@@ -320,6 +480,7 @@ int main(int argc, char *argv[])
 
     delete DWR;
     delete DWR2;
+    delete materialMatrix;
     return EXIT_SUCCESS;
 
 }// end main

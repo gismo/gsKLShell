@@ -893,9 +893,8 @@ private:
 };
 
 
-/**
- * @brief   Compute the hessian of a basis
-
+/*
+    The deriv2_expr computes the hessian of a basis.
     It assumes that the vector of basis functions is of the form v = u*e_i where u
     is the scalar basis function u: [0,1]^3 -> R^1 and e_i is the unit vector with a 1 on index i and a 0 elsewhere.
     Let us define the following blocks
@@ -942,9 +941,9 @@ public:
         return rows_impl(_u); // _u.dim() for space or targetDim() for geometry
     }
 
-    index_t cols() const
+    index_t cols() const // number of function components (targetiDim)
     {
-        return _u.source().domainDim() * ( _u.source().domainDim() + 1 ) / 2;
+        return 3;
     }
 
     void setFlag() const
@@ -968,7 +967,7 @@ public:
     void print(std::ostream &os) const { os << "deriv2("; _u.print(os); os <<")"; }
 
     private:
-        /// Spexialization for a geometry map
+        /// Specialization for a geometry map
         template<class U> inline
         typename util::enable_if< util::is_same<U,gsGeometryMap<Scalar> >::value, const gsMatrix<Scalar> & >::type
         eval_impl(const U & u, const index_t k)  const
@@ -1027,7 +1026,7 @@ public:
             return res;
         }
 
-        /// Spexialization for a space
+        /// Specialization for a space
         template<class U> inline
         typename util::enable_if<util::is_same<U,gsFeSpace<Scalar> >::value, const gsMatrix<Scalar> & >::type
         eval_impl(const U & u, const index_t k) const

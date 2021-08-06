@@ -78,15 +78,23 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
         // TO BE IMPLEMENTED
         // -------------------------------------
         case stress_type::von_mises :
+            GISMO_ERROR("stress_type::von_mises is not implemented");
             break;
 
         case stress_type::von_mises_membrane :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                tmp = ev.eval(S_m,u.col(k));
+                result(0,k) = sqrt( tmp(0,0)*tmp(0,0) + tmp(0,1)*tmp(0,1) - tmp(0,0)*tmp(0,1) + 3*tmp(0,2)*tmp(0,2) );
+            }
             break;
 
         case stress_type::von_mises_flexural :
+            GISMO_ERROR("stress_type::von_mises_flexural is not implemented");
             break;
 
         case stress_type::total :
+            GISMO_ERROR("stress_type::total is not implemented");
             break;
         // -------------------------------------
 

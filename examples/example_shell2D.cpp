@@ -66,6 +66,10 @@ int main(int argc, char *argv[])
     //! [Read input file]
     gsMultiPatch<> mp;
     gsMultiPatch<> mp_def;
+
+    real_t L = 1;
+    real_t B = 1;
+    bool nonlinear = true;
     if (testCase == 0)
     {
         real_t mu = 1.5e6;
@@ -75,6 +79,14 @@ int main(int argc, char *argv[])
         else
           PoissonRatio = 0.45;
         E_modulus = 2*mu*(1+PoissonRatio);
+
+        L = 1;
+        B = 1;
+
+        mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
+        mp.patch(0).coefs().col(0) *= L;
+        mp.patch(0).coefs().col(1) *= B;
+        mp.addAutoBoundaries();
     }
     else if (testCase == 1)
     {
@@ -84,9 +96,32 @@ int main(int argc, char *argv[])
           PoissonRatio = 0.499;
         else
           PoissonRatio = 0.45;
+
+      L = 1;
+      B = 1;
+
+      mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
+      mp.patch(0).coefs().col(0) *= L;
+      mp.patch(0).coefs().col(1) *= B;
+      mp.addAutoBoundaries();
     }
-    mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
-    mp.addAutoBoundaries();
+    else if (testCase == 2)
+    {
+        nonlinear = false;
+        E_modulus = 1;
+        thickness = 1;
+        PoissonRatio = 0.3;
+
+        L = 3;
+        B = 1;
+
+        mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
+        mp.patch(0).coefs().col(0) *= L;
+        mp.patch(0).coefs().col(1) *= B;
+        mp.patch(0).coefs()(0,0) = B;
+
+    }
+
 
     gsInfo<<"mu = "<<E_modulus / (2 * (1 + PoissonRatio))<<"\n";
     gsDebugVar(PoissonRatio);
@@ -117,16 +152,27 @@ int main(int argc, char *argv[])
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
 
     real_t pressure = 0.0;
+
+
+    std::string fx = "0";
+    std::string fy = "0";
+
+    if (testCase == 0)
+        fx = "2625";
+    else if (testCase == 2)
+    {
+        real_t sigmax = 1e-1;
+        char buffer[2000];
+        sprintf(buffer,"%e ( 1 - y/%e)",sigmax,B);
+        fx = buffer;
+    }
+
+    gsFunctionExpr<> neuData(fx,fy,2);
+
     if (testCase == 0) // Uniaxial tension; use with hyperelastic material model!
     {
-        gsVector<> neu(2);
-        neu << 2625, 0;
-        gsConstantFunction<> neuData(neu,2);
-
         bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 0 );
-
         bc.addCondition(boundary::east, condition_type::neumann, &neuData );
-
         bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1 );
     }
     else if (testCase == 1)
@@ -142,6 +188,13 @@ int main(int argc, char *argv[])
         gsVector<> point(2); point<< 1.0, 0.5 ;
         gsVector<> load (2); load << 0.25, 0.0 ;
         pLoads.addLoad(point, load, 0 );
+    }
+    else if (testCase == 2)
+    {
+        bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0 );
+        bc.addCondition(boundary::west, condition_type::dirichlet, 0, 1 );
+
+        bc.addCondition(boundary::east, condition_type::neumann, &neuData );
     }
     else
         GISMO_ERROR("Test case not known");
@@ -290,36 +343,38 @@ int main(int argc, char *argv[])
     solver.compute( matrix );
     solVector = solver.solve(vector);
 
-    real_t residual = vector.norm();
-    real_t residual0 = residual;
-    real_t residualOld = residual;
-    gsVector<real_t> updateVector = solVector;
-    gsVector<real_t> resVec = Residual(solVector);
-    gsSparseMatrix<real_t> jacMat;
-    for (index_t it = 0; it != 100; ++it)
+    if (nonlinear)
     {
-        jacMat = Jacobian(solVector);
-        solver.compute(jacMat);
-        updateVector = solver.solve(resVec); // this is the UPDATE
-        solVector += updateVector;
+        real_t residual = vector.norm();
+        real_t residual0 = residual;
+        real_t residualOld = residual;
+        gsVector<real_t> updateVector = solVector;
+        gsVector<real_t> resVec = Residual(solVector);
+        gsSparseMatrix<real_t> jacMat;
+        for (index_t it = 0; it != 100; ++it)
+        {
+            jacMat = Jacobian(solVector);
+            solver.compute(jacMat);
+            updateVector = solver.solve(resVec); // this is the UPDATE
+            solVector += updateVector;
 
-        resVec = Residual(solVector);
-        residual = resVec.norm();
+            resVec = Residual(solVector);
+            residual = resVec.norm();
 
-        gsInfo<<"Iteration: "<< it
-           <<", residue: "<< residual
-           <<", update norm: "<<updateVector.norm()
-           <<", log(Ri/R0): "<< math::log10(residualOld/residual0)
-           <<", log(Ri+1/R0): "<< math::log10(residual/residual0)
-           <<"\n";
+            gsInfo<<"Iteration: "<< it
+               <<", residue: "<< residual
+               <<", update norm: "<<updateVector.norm()
+               <<", log(Ri/R0): "<< math::log10(residualOld/residual0)
+               <<", log(Ri+1/R0): "<< math::log10(residual/residual0)
+               <<"\n";
 
-        residualOld = residual;
+            residualOld = residual;
 
-        if (updateVector.norm() < 1e-6)
-            break;
-        else if (it+1 == it)
-            gsWarn<<"Maximum iterations reached!\n";
-
+            if (updateVector.norm() < 1e-6)
+                break;
+            else if (it+1 == it)
+                gsWarn<<"Maximum iterations reached!\n";
+        }
     }
 
     totaltime += stopwatch2.stop();
@@ -377,16 +432,34 @@ int main(int argc, char *argv[])
         assembler->constructStress(mp_def,stretch3,stress_type::principal_stretch_dir3);
         gsField<> stretchDir3(mp_def,stretch3, true);
 
+        gsPiecewiseFunction<> VMStresses;
+        assembler->constructStress(mp_def,VMStresses,stress_type::von_mises_membrane);
+        gsField<> VMStress(mp_def,VMStresses, true);
 
-        gsWriteParaview(membraneStress,"MembraneStress");
-        gsWriteParaview(flexuralStress,"FlexuralStress");
-        gsWriteParaview(Stretches,"PrincipalStretch");
-        gsWriteParaview(pstressM,"PrincipalMembraneStress");
-        gsWriteParaview(pstressF,"PrincipalFlexuralStress");
-        gsWriteParaview(stretchDir1,"PrincipalDirection1");
-        gsWriteParaview(stretchDir1,"PrincipalDirection1");
-        gsWriteParaview(stretchDir2,"PrincipalDirection2");
-        gsWriteParaview(stretchDir3,"PrincipalDirection3");
+
+
+        gsWriteParaview(membraneStress,"MembraneStress",5000);
+        gsWriteParaview(VMStress,"MembraneStressVM",5000);
+        gsWriteParaview(flexuralStress,"FlexuralStress",5000);
+        gsWriteParaview(Stretches,"PrincipalStretch",5000);
+        gsWriteParaview(pstressM,"PrincipalMembraneStress",5000);
+        gsWriteParaview(pstressF,"PrincipalFlexuralStress",5000);
+        gsWriteParaview(stretchDir1,"PrincipalDirection1",5000);
+        gsWriteParaview(stretchDir1,"PrincipalDirection1",5000);
+        gsWriteParaview(stretchDir2,"PrincipalDirection2",5000);
+        gsWriteParaview(stretchDir3,"PrincipalDirection3",5000);
+
+
+    }
+
+    if (testCase==2)
+    {
+        gsPiecewiseFunction<> VMStresses;
+        assembler->constructStress(mp_def,VMStresses,stress_type::von_mises_membrane);
+        gsField<> VMStress(mp_def,VMStresses, true);
+        gsVector<> pt(2);
+        pt<<0,0;
+        gsInfo<<"Stress in corner: "<<VMStresses.piece(0).eval(pt)<<"\n";
     }
 
     gsInfo<<"Total ellapsed assembly time: \t\t"<<time<<" s\n";

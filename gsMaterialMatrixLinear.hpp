@@ -404,6 +404,7 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalPStress(c
     index_t zeroIdx = -1;
     real_t tol = 1e-14;
     real_t max = eigSolver.eigenvalues().array().abs().maxCoeff();
+    max = (max==0) ? 1 : max;
     for (index_t k=0; k!=3; k++)
         zeroIdx = std::abs(eigSolver.eigenvalues()[k] ) / max < 1e-14 ? k : zeroIdx;
 

@@ -36,7 +36,7 @@ int main (int argc, char** argv)
 
     gsMultiPatch<> mp, mp_def;
     gsReadFile<>("deformed_plate_lin_T=" + std::to_string(1.0) + ".xml",mp_def);
-    gsReadFile<>("deformed_plate_nl.xml",mp_def);
+    gsReadFile<>("deformations/deformed_plate_nl_r5e3.xml",mp_def);
 
 
 
@@ -227,11 +227,14 @@ int main (int argc, char** argv)
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","0.5",2);
     variable m2 = A.getCoeff(mult2t);
 
-    auto Em = 0.5 * ( flat(jac(def).tr()*jac(def)) - flat(jac(map).tr()* jac(map)) );
+    auto Em = 0.5 * ( flat(jac(def).tr()*jac(def)) - flat(jac(map).tr()* jac(map)) ) * reshape(m2,3,3);
     auto Cm = ( flat(jac(def).tr()*jac(def)) ) * reshape(m2,3,3);
     gsInfo<<"Em = \n"<<ev.eval(Em,pt)<<"\n";
     gsInfo<<"Sm = \n"<<ev.eval(Em * reshape(mmAp,3,3),pt)<<"\n";
-    gsInfo<<"Em = \n"<<ev.eval(Cm * reshape(transp1,3,3).tr(),pt)<<"\n";
+    gsInfo<<"Cm = \n"<<ev.eval(Cm * reshape(transp2,3,3).tr(),pt)<<"\n";
+
+    gsInfo<<"Em = \n"<<ev.eval(reshape(transp2,3,3) * Em.tr(),pt)<<"\n";
+    gsInfo<<"Em = \n"<<ev.eval(reshape(transp2,3,3).tr() * Em.tr(),pt)<<"\n";
 
     gsInfo<<"PStressN (transformed) = \n"<<ev.eval(reshape(transp1,3,3) * S0p,pt)<<"\n";
     gsInfo<<"PStressN (transformed) = \n"<<ev.eval(reshape(transp2,3,3) * S0p,pt)<<"\n";

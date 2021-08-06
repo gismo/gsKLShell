@@ -135,10 +135,10 @@ public:
                 return 3;
                 break;
             case stress_type::principal_stress_membrane :
-                return 2;
+                return 3;
                 break;
             case stress_type::principal_stress_flexural :
-                return 2;
+                return 3;
                 break;
             case stress_type::principal_stretch_dir1 :
                 return 3;

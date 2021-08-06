@@ -92,11 +92,11 @@ public:
     }
 
     /// See \ref gsThinShellAssemblerBase for details
-    void updateBasis(gsMultiBasis<T> & basis)
-    {
-        m_basis = basis;
-        this->_initialize();
-    }
+    void setBasis(const gsMultiBasis<T> & basis);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void setUndeformed(const gsMultiPatch<T> & patches);
+
 
     /// See \ref gsThinShellAssemblerBase for details
     void homogenizeDirichlet();
@@ -219,8 +219,13 @@ public:
 
     //--------------------- SOLUTION CONSTRUCTION ----------------------------------//
     gsMultiPatch<T> constructMultiPatch(const gsMatrix<T> & solVector) const;
+    void updateMultiPatch(const gsMatrix<T> & solVector, gsMultiPatch<T> & mp) const;
 
     /// See \ref gsThinShellAssemblerBase for details
+protected:
+    gsMultiPatch<T> _constructSolution(const gsMatrix<T> & solVector, const gsMultiPatch<T> & undeformed) const;
+public:
+    // gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector, const gsMultiPatch<T> & undeformed) const;
     gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const;
 
     /// See \ref gsThinShellAssemblerBase for details
@@ -392,7 +397,15 @@ public:
      *
      * @param[in]  bconditions  The basis
      */
-    virtual void updateBasis(gsMultiBasis<T> & basis) = 0;
+    virtual void setBasis(const gsMultiBasis<T> & basis) = 0;
+
+    /**
+     * @brief      Overwrites the undeformed geometry
+     *
+     * @param[in]  bconditions  The undeformed geometry
+     */
+    virtual void setUndeformed(const gsMultiPatch<T> & patches) = 0;
+
 
     /// Sets the Dirichlet BCs to zero
     virtual void homogenizeDirichlet() = 0;
@@ -493,7 +506,11 @@ public:
     /// Construct solution field from computed solution vector \a solVector and returns a multipatch
     virtual gsMultiPatch<T> constructMultiPatch(const gsMatrix<T> & solVector) const = 0;
 
+    /// Update geometry stored in \a mp computed solution vector \a solVector and returns a multipatch
+    virtual void updateMultiPatch(const gsMatrix<T> & solVector, gsMultiPatch<T> & mp) const = 0;
+
     /// Construct deformed shell geometry from computed solution vector \a solVector and returns a multipatch
+    // virtual gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector, const gsMultiPatch<T> & undeformed) const  = 0;
     virtual gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const  = 0;
 
     /// Construct deformed shell geometry from computed solution vector \a solVector and returns the result in \a deformed

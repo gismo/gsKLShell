@@ -13,6 +13,10 @@
 
 #include <gismo.h>
 
+#ifdef GISMO_WITH_SPECTRA
+#include <gsSpectra/gsSpectra.h>
+#endif
+
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/gsThinShellAssemblerDWR.h>
 #include <gsKLShell/gsThinShellUtils.h>
@@ -44,9 +48,11 @@ int main(int argc, char *argv[])
 
     //! [Parse command line]
     bool plot = false;
+    bool write = false;
     index_t numRefine = 1;
     index_t numElevate = 1;
     bool loop = false;
+    bool adaptive = false;
     std::string fn;
 
     real_t E_modulus = 1.0;
@@ -75,7 +81,9 @@ int main(int argc, char *argv[])
     cmd.addReal("T", "thickness", "thickness", thickness);
     cmd.addString("f", "file", "Input XML file", fn);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
+    cmd.addSwitch("write", "Write convergence to file", write);
     cmd.addSwitch("loop", "Uniform Refinemenct loop", loop);
+    cmd.addSwitch("adaptive", "Adaptive Refinemenct loop", adaptive);
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
@@ -106,6 +114,7 @@ int main(int argc, char *argv[])
         PoissonRatio = 0.3;
         E_modulus     = 1e0;
         Density = 1e0;
+        numElevate -= 1;
     }
 
 
@@ -121,6 +130,18 @@ int main(int argc, char *argv[])
         for (index_t r =0; r < numRefine; ++r)
             mp.uniformRefine();
         numRefine = 0;
+    }
+
+    // Cast all patches of the mp object to THB splines
+    if (adaptive)
+    {
+        gsTHBSpline<2,real_t> thb;
+        for (index_t k=0; k!=mp.nPatches(); ++k)
+        {
+            gsTensorBSpline<2,real_t> *geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k));
+            thb = gsTHBSpline<2,real_t>(*geo);
+            mp.patch(k) = thb;
+        }
     }
 
     gsMultiBasis<> dbasis(mp);
@@ -174,8 +195,8 @@ int main(int argc, char *argv[])
         bc.addCondition(boundary::east, condition_type::clamped,0,0,false,2);
         bc.addCondition(boundary::south, condition_type::clamped,0,0,false,2);
         bc.addCondition(boundary::west, condition_type::clamped,0,0,false,2);
-        gsVector<> gammas(10);
-        gammas<<3.1962206158252, 4.6108999, 5.9056782, 6.3064370, 7.1435310, 7.7992738, 8.3466059, 9.1968826, 9.4394991, 9.5257014;
+        gsVector<> gammas(8);
+        gammas<<3.1962206158252, 4.6108999, 4.6108999, 5.9056782, 5.9056782, 6.3064370, 7.1435310, 7.1435310;//, 7.7992738, 8.3466059, 9.1968826, 9.4394991, 9.5257014;
         for (index_t n=0; n!=gammas.size(); n++)
           omegas.push_back(math::pow(math::pow(gammas[n],4)*D/(Density*thickness),0.5));
     }
@@ -183,7 +204,7 @@ int main(int argc, char *argv[])
         GISMO_ERROR("TESTCASE UNKNOWN!");
 
     //   [Analytical solution]
-    real_t lambda_an = omegas[0];
+    real_t lambda_an = omegas[modeIdx];
     // ! [Analytical solution]
 
 
@@ -208,14 +229,15 @@ int main(int argc, char *argv[])
     // points.col(2).setConstant(0.75);
 
     // measures
-    real_t approx, exact;
     std::vector<real_t> exacts(numRefine+1);
     std::vector<real_t> approxs(numRefine+1);
     std::vector<real_t> efficiencies(numRefine+1);
+    std::vector<real_t> numGoal(numRefine+1);
+    std::vector<real_t> estGoal(numRefine+1);
+    std::vector<real_t> exGoal(numRefine+1);
 
     // solvers
     gsSparseSolver<>::LU solver;
-    Eigen::GeneralizedSelfAdjointEigenSolver<gsMatrix<real_t>::Base> eigSolver;
 
     // solutions
     gsMultiPatch<> primalL, dualL, dualH;
@@ -231,26 +253,33 @@ int main(int argc, char *argv[])
 
     // DWR assembler
     gsThinShellAssemblerDWRBase<real_t> * DWR;
+
+    gsParaviewCollection collection("solution");
     for (index_t r=0; r!=numRefine+1; r++)
     {
+        if (adaptive)
+        {
+            // [Mark elements for refinement]
+            std::vector<index_t> bools(mp.basis(0).numElements());
+            std::vector<bool> refVec(mp.basis(0).numElements());
+
+            //////// RANDOMLY
+            std::srand(std::time(nullptr)); // use current time as seed for random generator
+            std::generate(bools.begin(), bools.end(), rand);
+            for (index_t k = 0; k!=bools.size(); k++)
+                refVec[k] = static_cast<bool>(std::round(static_cast<real_t>(bools[k]) / ( RAND_MAX+1u )));
+
+            gsRefineMarkedElements(mp,refVec,0);
+            gsMultiPatch<> mp_def = mp;
+        }
 
         // -----------------------------------------------------------------------------------------
         // ----------------------------Prepare basis------------------------------------------------
         // -----------------------------------------------------------------------------------------
-        gsMultiBasis<> dbasis(mp);
-
-
-        // // Cast all patches of the mp object to THB splines
-        // gsTHBSpline<2,real_t> thb;
-        // for (index_t k=0; k!=mp.nPatches(); ++k)
-        // {
-        //     gsTensorBSpline<2,real_t> *geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k));
-        //     thb = gsTHBSpline<2,real_t>(*geo);
-        //     mp.patch(k) = thb;
-        // }
-
+        // Set deformed multipatch
         mp_def = mp;
 
+        // Set bases
         gsMultiBasis<> basisL(mp);
         gsMultiBasis<> basisH = basisL;
         basisH.degreeElevate(1);
@@ -272,12 +301,40 @@ int main(int argc, char *argv[])
 
         // Solve system
         gsInfo << "Solving primal, size =" << DWR->matrixL().rows() << "," << DWR->matrixL().cols() << "... " << std::flush;
-        eigSolver.compute(DWR->matrixL(), DWR->massL());
-        gsDebugVar(math::sqrt(eigSolver.eigenvalues()[modeIdx]));
 
-        solVector = solVectorDualL = eigSolver.eigenvectors().col(modeIdx);
+#ifdef GISMO_WITH_SPECTRA
+        index_t numL = std::min(DWR->matrixL().cols()-1,10);
+        gsSpectraGenSymShiftSolver<gsSparseMatrix<real_t>,Spectra::GEigsMode::ShiftInvert> eigsolverL(DWR->matrixL(),DWR->massL(),numL,2*numL,0);
+        eigsolverL.init();
+        eigsolverL.compute(Spectra::SortRule::LargestMagn,1000,1e-10,Spectra::SortRule::SmallestAlge);
+        if (eigsolverL.info()==Spectra::CompInfo::Successful)           { gsDebug<<"Spectra converged in "<<eigsolverL.num_iterations()<<" iterations and with "<<eigsolverL.num_operations()<<"operations. \n"; }
+        else if (eigsolverL.info()==Spectra::CompInfo::NumericalIssue)  { GISMO_ERROR("Spectra did not converge! Error code: NumericalIssue"); }
+        else if (eigsolverL.info()==Spectra::CompInfo::NotConverging)   { GISMO_ERROR("Spectra did not converge! Error code: NotConverging"); }
+        else if (eigsolverL.info()==Spectra::CompInfo::NotComputed)     { GISMO_ERROR("Spectra did not converge! Error code: NotComputed");   }
+        else                                                            { GISMO_ERROR("No error code known"); }
+#else
+        Eigen::GeneralizedSelfAdjointEigenSolver<gsMatrix<real_t>::Base> eigsolverL;
+        eigsolverL.compute(DWR->matrixL(), DWR->massL());
+#endif
 
-        eigvalL = dualvalL = eigSolver.eigenvalues()[modeIdx];
+        if (modeIdx > eigsolverL.eigenvalues().size()-1)
+        {
+            gsWarn<<"No error computed because mode does not exist (system size)!\n";
+            approxs[r] = 0;
+            exacts[r] = 0;
+            efficiencies[r] = 0;
+            numGoal[r] = 0;
+            estGoal[r] = 0;
+            exGoal[r] = 0;
+            mp.uniformRefine();
+            continue;
+        }
+
+        gsDebugVar(math::sqrt(eigsolverL.eigenvalues()[modeIdx]));
+
+        solVector = solVectorDualL = eigsolverL.eigenvectors().col(modeIdx);
+
+        eigvalL = dualvalL = eigsolverL.eigenvalues()[modeIdx];
 
         // Mass-normalize primal
         solVector = 1 / (solVector.transpose() * DWR->massL() * solVector) * solVector;
@@ -301,10 +358,25 @@ int main(int argc, char *argv[])
         gsInfo << "done.\n";
 
         gsInfo << "Solving dual (high), size = " << DWR->matrixH().rows() << "," << DWR->matrixH().cols() << "... " << std::flush;
-        eigSolver.compute(DWR->matrixH(), DWR->massH());
-        gsDebugVar(math::sqrt(eigSolver.eigenvalues()[modeIdx]));
-        solVectorDualH = eigSolver.eigenvectors().col(modeIdx);
-        dualvalH = eigSolver.eigenvalues()[modeIdx];
+
+#ifdef GISMO_WITH_SPECTRA
+        index_t numH = std::min(DWR->matrixH().cols()-1,10);
+        gsSpectraGenSymShiftSolver<gsSparseMatrix<real_t>,Spectra::GEigsMode::ShiftInvert> eigsolverH(DWR->matrixH(),DWR->massH(),numH,2*numH,0);
+        eigsolverH.init();
+        eigsolverH.compute(Spectra::SortRule::LargestMagn,1000,1e-10,Spectra::SortRule::SmallestAlge);
+        if (eigsolverH.info()==Spectra::CompInfo::Successful)           { gsDebug<<"Spectra converged in "<<eigsolverH.num_iterations()<<" iterations and with "<<eigsolverH.num_operations()<<"operations. \n"; }
+        else if (eigsolverH.info()==Spectra::CompInfo::NumericalIssue)  { GISMO_ERROR("Spectra did not converge! Error code: NumericalIssue"); }
+        else if (eigsolverH.info()==Spectra::CompInfo::NotConverging)   { GISMO_ERROR("Spectra did not converge! Error code: NotConverging"); }
+        else if (eigsolverH.info()==Spectra::CompInfo::NotComputed)     { GISMO_ERROR("Spectra did not converge! Error code: NotComputed");   }
+        else                                                            { GISMO_ERROR("No error code known"); }
+#else
+        Eigen::GeneralizedSelfAdjointEigenSolver<gsMatrix<real_t>::Base> eigsolverH;
+        eigsolverH.compute(DWR->matrixH(), DWR->massH());
+#endif
+
+        gsDebugVar(math::sqrt(eigsolverH.eigenvalues()[modeIdx]));
+        solVectorDualH = eigsolverH.eigenvectors().col(modeIdx);
+        dualvalH = eigsolverH.eigenvalues()[modeIdx];
 
         // mass-normalize w.r.t. primal
         DWR->constructMultiPatchH(solVectorDualH, dualH);
@@ -324,30 +396,68 @@ int main(int argc, char *argv[])
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        approx = DWR->computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
+        if (plot)
+        {
+            gsField<> VMStress(mp,primalL, true);
+            std::string fileName = "solution" + util::to_string(r);
+            gsWriteParaview<>(VMStress, fileName, 5000, true);
+            fileName = "solution" + util::to_string(r) + "0";
+            collection.addTimestep(fileName,r,".vts");
+            collection.addTimestep(fileName,r,"_mesh.vtp");
+        }
 
         gsDebugVar(math::pow(lambda_an, 2));
         gsDebugVar(lambda_an);
         gsDebugVar(eigvalL);
 
-        exact = math::pow(lambda_an, 2) - eigvalL;
+        exacts[r] = 0;
+        numGoal[r] = eigvalL;
+        exGoal[r] = math::pow(lambda_an, 2);
 
-        gsInfo << "approx = " << approx << "\n";
-        gsInfo << "Exact = " << exact << "\n";
-        gsInfo << "Efficiency = " << approx / exact << "\n";
+        exacts[r] += exGoal[r];
+        exacts[r] -= numGoal[r];
+        approxs[r] = DWR->computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
 
-        exacts[r] = exact;
-        approxs[r] = approx;
-        efficiencies[r] = approx/exact;
+        estGoal[r] = numGoal[r]+approxs[r];
 
-        mp.uniformRefine();
+        efficiencies[r] = approxs[r]/exacts[r];
 
+        if (!adaptive)
+            mp.uniformRefine();
     }
 
-    gsInfo<<"Ref.\tApprox\t\tExact\tEfficiency\n";
+    if (plot) collection.save();
+
+    gsInfo<<"-------------------------------------------------------------------------------------------------\n";
+    gsInfo<<"Ref.\tApprox    \tExact     \tEfficiency\tNumGoal   \tEstGoal   \texGoal    \n";
+    gsInfo<<"-------------------------------------------------------------------------------------------------\n";
     for(index_t r=0; r!=numRefine+1; r++)
     {
-        gsInfo<<r<<"\t"<<approxs[r]<<"\t"<<exacts[r]<<"\t"<<efficiencies[r]<<"\n";
+        gsInfo  <<std::setw(4 )<<std::left<<r<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<approxs[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<exacts[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<efficiencies[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<numGoal[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<estGoal[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<exGoal[r]<<"\n";
+    }
+    gsInfo<<"-------------------------------------------------------------------------------------------------\n";
+
+    if (write)
+    {
+        std::string filename;
+        filename = "example_shell3D_DWR_modal_r" + std::to_string(numRefine) + "_e" + std::to_string(numElevate) + "_I" + std::to_string(modeIdx);
+        filename = filename + ".csv";
+        std::ofstream file_out;
+        file_out.open (filename);
+
+        file_out<<"Ref,Approx,Exact,Efficiency,NumGoal,EstGoal,exGoal\n";
+        for(index_t r=0; r!=numRefine+1; r++)
+        {
+            file_out<<r<<","<<approxs[r]<<","<<exacts[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<exGoal[r]<<"\n";
+        }
+
+        file_out.close();
     }
 
     if (plot)

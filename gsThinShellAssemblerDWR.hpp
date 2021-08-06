@@ -36,7 +36,8 @@ gsThinShellAssemblerDWR<d, T, bending>::gsThinShellAssemblerDWR(
                                                             :
                                                             Base(patches,basisL,bconditions,surface_force,materialmatrix),
                                                             m_basisL(basisL),
-                                                            m_basisH(basisH)
+                                                            m_basisH(basisH),
+                                                            m_bcs(bconditions)
 {
     m_assemblerL = new gsThinShellAssembler<d,T,bending>(patches,basisL,bconditions,surface_force,materialmatrix);
     m_assemblerH = new gsThinShellAssembler<d,T,bending>(patches,basisH,bconditions,surface_force,materialmatrix);
@@ -168,13 +169,15 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
 
     // Space
     space   space   = exprAssembler.trialSpace(0);
+    // Homogenize Dirichlet
+    space.setup(m_bcs, dirichlet::homogeneous, 0);
 
     // Solution
     variable usol   = exprAssembler.getCoeff(primal);
 
     // Geometries
     geometryMap Gori= exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
+    geometryMap Gdef= exprAssembler.exprData()->getMap2();
 
     // Transformation for stretches
     gsMaterialMatrixEval<T,MaterialOutput::CovTransform>  Tcovf(m_assemblerL->material(),m_defpatches,Z);
@@ -221,22 +224,22 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
     // Deformation gradient and its first variation
         // To compensate for the flat, since flat does [E11,E22,2*E12]
     gsFunctionExpr<> mult12t("1","0","0","0","1","0","0","0","0.5",2);
-    variable m12 = exprAssembler.getCoeff(mult2t);
+    variable m12 = exprAssembler.getCoeff(mult12t);
 
     auto Cm         = flat( jac(Gdef).tr() * jac(Gdef) ) * reshape(m12,3,3);
     auto Cm_der     = 2* flat( jac(Gdef).tr() * jac(space) ) * reshape(m12,3,3);
 
     // Principal stretch and its first variation
-    auto lambda     = Cm     * reshape(Tcov,3,3).tr();
-    auto lambda_der = Cm_der * reshape(Tcov,3,3).tr();
+    auto lambda     = Cm     * reshape(Tcon,3,3).tr();
+    auto lambda_der = Cm_der * reshape(Tcon,3,3).tr();
 
     // Membrane strain and its first variation
     auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
     auto Em_der = flat( jac(Gdef).tr() * jac(space) ) ;
 
     // Principal membrane strain and its first variation
-    auto Emp    = Em * reshape(Tcon,3,3).tr();
-    auto Emp_der= Em_der * reshape(Tcon,3,3).tr();
+    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tcon,3,3).tr();
+    auto Emp_der= (Em_der * reshape(m12,3,3)) * reshape(Tcon,3,3).tr();
 
     // Flexural strain and its first variation
     auto Ef     = ( deriv2(Gori,sn(Gori).normalized().tr()) - deriv2(Gdef,sn(Gdef).normalized().tr()) ) * reshape(m2,3,3) ;
@@ -247,7 +250,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
     auto Sf_der     = Ef_der * reshape(mmD,3,3);
 
     // Membrane force (its first variation)
-    // auto N_der    = Em_der * reshape(mmAi,3,3) + Ef_der * reshape(mmBi,3,3);
+    auto N_der    = Em_der * reshape(mmAi,3,3) + Ef_der * reshape(mmBi,3,3);
     auto M_der    = Em_der * reshape(mmCi,3,3) + Ef_der * reshape(mmDi,3,3);
 
     gsExprEvaluator<T> ev(exprAssembler);
@@ -279,9 +282,6 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
         }
         else
         {
-            gsDebugVar(ev.eval(flat( jac(Gdef).tr() * jac(space) ),pt));
-            gsDebugVar(ev.eval(reshape(Tcov,3,3).tr(),pt));
-
             auto expr = lambda_der * gismo::expr::uv(m_component,3) * meas(Gori);
             exprAssembler.assemble(expr);
             return exprAssembler.rhs();
@@ -306,12 +306,14 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
     {
         if (m_component==9)
         {
+            gsDebugVar("PStrain C=9");
             auto expr = 2 * Emp_der * Emp.tr() * meas(Gori);
             exprAssembler.assemble(expr);
             return exprAssembler.rhs();
         }
         else
         {
+            gsDebugVar("PStrain C=" + std::to_string(m_component));
             auto expr = Emp_der * gismo::expr::uv(m_component,3) * meas(Gori);
             exprAssembler.assemble(expr);
             return exprAssembler.rhs();
@@ -351,33 +353,8 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
     {
         if (m_component==9)
         {
-            gsWarn<<"The MembraneForce goal function seems to be problematic (Nder)\n";
-            auto N_der1     = Em_der * reshape(mmAi,3,3);
-            auto N_der2     = Ef_der * reshape(mmBi,3,3);
-            auto N_der      = N_der1 + N_der2;
-
-            // auto expr = N_der * gismo::expr::uv(m_component,3) * meas(Gori);
-            auto expr = N_der * gismo::expr::uv(m_component,3) * meas(Gori);
-            auto expr1 = N_der1 * gismo::expr::uv(m_component,3) * meas(Gori);
-            auto expr2 = N_der2 * gismo::expr::uv(m_component,3) * meas(Gori);
+            auto expr = 2 * N_der * N * meas(Gori);
             exprAssembler.assemble(expr);
-
-
-            gsDebugVar(exprAssembler.rhs().rows());
-
-
-            gsDebugVar(ev.eval(Gdef,pt));
-            gsDebugVar(ev.eval(Em_der,pt));
-            gsDebugVar(ev.eval(Ef_der,pt));
-            gsDebugVar(ev.eval(Em_der * reshape(mmAi,3,3),pt));
-            gsDebugVar(ev.eval(Ef_der * reshape(mmBi,3,3),pt));
-            gsDebugVar(ev.eval(N_der,pt));
-            gsDebugVar(ev.eval(expr,pt));
-            gsDebugVar(ev.eval(expr1,pt));
-            gsDebugVar(ev.eval(expr2,pt));
-
-            gsDebugVar(exprAssembler.rhs());
-
             return exprAssembler.rhs();
         }
         else
@@ -385,9 +362,27 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
             gsWarn<<"The MembraneForce goal function seems to be problematic (Nder)\n";
             auto N_der1     = Em_der * reshape(mmAi,3,3);
             auto N_der2     = Ef_der * reshape(mmBi,3,3);
-            auto N_der      = N_der1 + N_der2;
-            auto expr = 2 * N_der * N * meas(Gori);
-            exprAssembler.assemble(expr);
+            auto N_der0a     = N_der1;// + N_der2; // -->> commenting the second term out will give correct results.
+            auto N_der0b     = N_der2;// + N_der2; // -->> commenting the second term out will give correct results.
+            auto N_der0c     = N_der1 + N_der2; // -->> commenting the second term out will give correct results.
+
+            auto expr0a = N_der0a * gismo::expr::uv(m_component,3) * meas(Gori);
+            auto expr0b = N_der0b * gismo::expr::uv(m_component,3) * meas(Gori);
+            auto expr0c = N_der0c * gismo::expr::uv(m_component,3) * meas(Gori);
+
+            exprAssembler.initVector(1,false);
+            exprAssembler.assemble(expr0a);
+            gsDebugVar(exprAssembler.rhs());
+
+            exprAssembler.initVector(1,false);
+            exprAssembler.assemble(expr0b);
+            gsDebugVar(exprAssembler.rhs());
+
+            exprAssembler.initVector(1,false);
+            exprAssembler.assemble(expr0c);
+            gsDebugVar(exprAssembler.rhs());
+
+
             return exprAssembler.rhs();
         }
     }
@@ -475,6 +470,8 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
 
     // Space
     space   space   = exprAssembler.trialSpace(0);
+    // Homogenize Dirichlet
+    space.setup(m_bcs, dirichlet::homogeneous, 0);
 
     // Solution
     variable usol   = exprAssembler.getCoeff(primal);
@@ -528,22 +525,22 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
     // Deformation gradient and its first variation
         // To compensate for the flat, since flat does [E11,E22,2*E12]
     gsFunctionExpr<> mult12t("1","0","0","0","1","0","0","0","0.5",2);
-    variable m12 = exprAssembler.getCoeff(mult2t);
+    variable m12 = exprAssembler.getCoeff(mult12t);
 
     auto Cm         = flat( jac(Gdef).tr() * jac(Gdef) ) * reshape(m12,3,3);
     auto Cm_der     = 2* flat( jac(Gdef).tr() * jac(space) ) * reshape(m12,3,3);
 
     // Principal stretch and its first variation
-    auto lambda     = Cm     * reshape(Tcov,3,3).tr();
-    auto lambda_der = Cm_der * reshape(Tcov,3,3).tr();
+    auto lambda     = Cm     * reshape(Tcon,3,3).tr();
+    auto lambda_der = Cm_der * reshape(Tcon,3,3).tr();
 
     // Membrane strain and its first variation
     auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
     auto Em_der = flat( jac(Gdef).tr() * jac(space) ) ;
 
     // Principal membrane strain and its first variation
-    auto Emp    = Em * reshape(Tcon,3,3).tr();
-    auto Emp_der= Em_der * reshape(Tcon,3,3).tr();
+    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tcon,3,3).tr();
+    auto Emp_der= (Em_der * reshape(m12,3,3)) * reshape(Tcon,3,3).tr();
 
     // Membrane stress (its first variation)
     auto Sm_der     = Em_der * reshape(mmA,3,3);
@@ -1053,11 +1050,16 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeError(const gsMultiPatch<T> & d
     variable zsolL  = exprAssembler.getCoeff(dualL);
     variable zsolH  = exprAssembler.getCoeff(dualH);
 
+    variable g_N = exprAssembler.getBdrFunction();
+
     auto expr = (zsolH-zsolL).tr() * F * meas(Gori);
+    auto bexpr= (zsolH-zsolL).tr() * g_N * tv(Gori).norm();
 
     gsExprEvaluator<T> ev(exprAssembler);
 
-    return ev.integral( expr  );
+    T integral = ev.integral( expr );
+    T bintegral= ev.integralBdr( bexpr, m_bcs.neumannSides() );
+    return integral + bintegral;
 
     // _assembleDual_expr(expr,deformed,basis);
 }
@@ -1101,7 +1103,7 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     variable zsolH  = exprAssembler.getCoeff(dualH);
         // variable m_thick = exprAssembler.getCoeff(*m_thickFun, m_ori);
 
-    this->homogenizeDirichlet();
+    Base::homogenizeDirichlet();
 
     auto N        = S0.tr();
     // auto Em_der   = flat( jac(Gdef).tr() * jac(m_space) ) ;
@@ -1171,8 +1173,6 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     variable zsolH  = exprAssembler.getCoeff(dualH);
         // variable m_thick = exprAssembler.getCoeff(*m_thickFun, m_ori);
 
-    this->homogenizeDirichlet();
-
     auto N        = S0.tr();
     // auto Em_der   = flat( jac(Gdef).tr() * jac(m_space) ) ;
     auto Em_der   = flat( jac(Gdef).tr() * (fjac(zsolH) - fjac(zsolL)) ) ;
@@ -1204,14 +1204,32 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
 
 }
 
+
+/**
+ * @brief      Computes the eigenvalue error estimate for Buckling Analysis
+ *
+ * @param[in]  evPrimalL  The primal eigenvalue on the low order basis
+ * @param[in]  evDualL    The dual eigenvalue on the low order basis
+ * @param[in]  evDualH    The dual eigenvalue on the high order basis
+ * @param[in]  dualL      The dual modeshape on the low order basis
+ * @param[in]  dualH      The dual modeshape on the high order basis
+ * @param[in]  primal     The physical mode shape
+ * @param[in]  deformed   The deformed geometry around which the buckling solver is linearized
+ *
+ * @tparam     d          Dimension
+ * @tparam     T          Real type
+ * @tparam     bending    Bending flag
+ *
+ * @return     The error estimate
+ */
 template <short_t d, class T, bool bending>
-T gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig(         const T evPrimalL,
-                                                                        const T evDualL,
-                                                                        const T evDualH,
-                                                                        const gsMultiPatch<T> & dualL,
-                                                                        const gsMultiPatch<T> & dualH,
-                                                                        const gsMultiPatch<T> & primal,
-                                                                        const gsMultiPatch<T> & deformed)
+T gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig(  const T evPrimalL,
+                                                            const T evDualL,
+                                                            const T evDualH,
+                                                            const gsMultiPatch<T> & dualL,
+                                                            const gsMultiPatch<T> & dualH,
+                                                            const gsMultiPatch<T> & primal,
+                                                            const gsMultiPatch<T> & deformed)
 {
     gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
     exprAssembler.cleanUp();
@@ -1354,96 +1372,33 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig(         const T evPri
     auto Bdiff      = Kd_NL - Kd_L;
     auto Bprimal    = K_NL  - K_L ;
 
-    // gsVector<T> pt(2);
-    // pt.setConstant(0.25);
-
     gsExprEvaluator<T> ev(exprAssembler);
 
-    // gsDebugVar(ev.eval(Gori.tr(), pt));
-    // gsDebugVar(ev.eval(Gdef.tr(), pt));
-
-    // gsDebug<<"E_mder_L:\n";
-    // gsDebugVar("\n"<<ev.eval(jac(Gori).tr(), pt));
-    // gsDebugVar("\n"<<ev.eval(fjac(usol), pt));
-    // gsDebugVar("\n"<<ev.eval(jac(Gori).tr() * fjac(usol), pt));
-    // gsDebugVar("\n"<<ev.eval(flat(jac(Gori).tr() * fjac(usol)), pt));
-
-    // gsDebug<<"E_mder_NL:\n";
-    // gsDebugVar("\n"<<ev.eval(jac(Gdef).tr(), pt));
-    // gsDebugVar("\n"<<ev.eval(fjac(usol), pt));
-    // gsDebugVar("\n"<<ev.eval(jac(Gdef).tr() * fjac(usol), pt));
-    // gsDebugVar("\n"<<ev.eval(flat(jac(Gdef).tr() * fjac(usol)), pt));
-
-    // gsDebug<<"E_fder_L:\n";
-    // gsDebugVar("\n"<<ev.eval(deriv2(usol, sn(Gori).normalized().tr()), pt));
-    // gsDebugVar("\n"<<ev.eval(deriv2(Gori, var1(usol, Gori)), pt));
-    // gsDebugVar("\n"<<ev.eval(-(deriv2(usol, sn(Gori).normalized().tr()) - deriv2(Gori, var1(usol, Gori))) * reshape(m2, 3, 3), pt));
-
-    // gsDebug<<"E_fder_NL:\n";
-    // gsDebugVar("\n"<<ev.eval(deriv2(usol, sn(Gdef).normalized().tr()), pt));
-    // gsDebugVar("\n"<<ev.eval(deriv2(Gdef, var1(usol, Gdef)), pt));
-    // gsDebugVar("\n"<<ev.eval(-(deriv2(usol, sn(Gdef).normalized().tr()) - deriv2(Gdef, var1(usol, Gdef))) * reshape(m2, 3, 3), pt));
-
-    // gsDebug<<"E_mder2:\n";
-    // gsDebugVar("\n"<<ev.eval(flat( fjac(usol).tr() * fjac(usol) ), pt));
-    // gsDebugVar("\n"<<ev.eval(N_NL.tr(), pt));
-    // gsDebugVar("\n"<<ev.eval(flat( fjac(usol).tr() * fjac(usol) ) * N_NL.tr(), pt));
-
-    // gsDebug<<"E_fder2:\n";
-    // gsDebugVar("\n"<<ev.eval((deriv2(usol) * var1(usol,Gdef).tr()).tr() * reshape(m2, 3, 3), pt));
-    // gsDebugVar("\n"<<ev.eval(N_NL, pt));
-    // gsDebugVar("\n"<<ev.eval((deriv2(usol) * var1(usol,Gdef).tr()).tr() * reshape(m2, 3, 3) * N_NL.tr(), pt));
-
-    // gsDebugVar("\n"<<ev.eval((deriv2(usol) * var2(usol,usol,Gdef) ).tr() * reshape(m2, 3, 3), pt));
-    // gsDebugVar("\n"<<ev.eval(M_NL.tr(), pt));
-    // gsDebugVar("\n"<<ev.eval((deriv2(usol) * var2(usol,usol,Gdef) ).tr() * reshape(m2, 3, 3) * M_NL.tr(), pt));
-
-    // gsDebugVar("Em_der_L = "<< ev.eval(Em_der_L, pt));
-    // gsDebugVar("Ef_der_L = "<< ev.eval(Ef_der_L, pt));
-
-    // gsDebugVar("Em_der_NL = "<< ev.eval(Em_der_NL, pt));
-    // gsDebugVar("Ef_der_NL = "<< ev.eval(Ef_der_NL, pt));
-
-    // gsDebugVar("N_der_L = "<< ev.eval(N_der_L, pt));
-    // gsDebugVar("M_der_L = "<< ev.eval(M_der_L, pt));
-
-    // gsDebugVar("N_der_NL = "<< ev.eval(N_der_NL, pt));
-    // gsDebugVar("M_der_NL = "<< ev.eval(M_der_NL, pt));
-
-    // gsDebugVar("Em_der2 = "<< ev.eval(Em_der2, pt));
-    // gsDebugVar("Ef_der2 = "<< ev.eval(Ef_der2, pt));
-
-    // gsDebugVar(ev.eval((deriv2(usol) * var2(usol,usol,Gdef) ).tr() * reshape(m2, 3, 3) * M_NL.tr(), pt));
-
-
-
-    // gsDebugVar(ev.eval(Fint_NL, pt));
-
-    // gsInfo << "Fint_m = " << ev.integral((N_der_L * Em_der_L.tr())));
-    // gsInfo << "Fint_f = " << ev.integral((M_der_L * Ef_der_L.tr())));
-
-    // gsInfo << "Fint_m = " << ev.integral((N_der_NL * Em_der_NL.tr() + Em_der2)));
-    // gsInfo << "Fint_f = " << ev.integral((M_der_NL * Ef_der_NL.tr() + Ef_der2)));
-
-
-
-    // gsInfo << "Fint_L  = " << ev.integral(Fint_L));
-    // gsInfo << "Fint_NL = " << ev.integral(Fint_NL));
-
-
-
-    // auto A      = Fint;
-    // auto Bdiff  = rho.val() * usol.tr() * (zsolH - zsolL);
-    // auto Bprimal= rho.val() * usol.tr() * usol;
-
     T integral = 0.0;
-    integral += evPrimalL * ev.integral( Bdiff * meas(Gori));
-    integral += -ev.integral( A  * meas(Gori) );
+    integral += ev.integral( A  * meas(Gori) );
+    integral += -evPrimalL * ev.integral( Bdiff * meas(Gori));
     integral += (evDualH - evDualL) * (ev.integral( Bprimal * meas(Gori)) - 1.0);
 
     return integral;
 }
 
+
+/**
+ * @brief      Computes the eigenvalue error estimate for Modal Analysis
+ *
+ * @param[in]  evPrimalL  The primal eigenvalue on the low order basis
+ * @param[in]  evDualL    The dual eigenvalue on the low order basis
+ * @param[in]  evDualH    The dual eigenvalue on the high order basis
+ * @param[in]  dualL      The dual modeshape on the low order basis
+ * @param[in]  dualH      The dual modeshape on the high order basis
+ * @param[in]  primal     The physical mode shape
+ *
+ * @tparam     d          Dimension
+ * @tparam     T          Real type
+ * @tparam     bending    Bending flag
+ *
+ * @return     The error estimate
+ */
 template <short_t d, class T, bool bending>
 T gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig(  const T evPrimalL,
                                                             const T evDualL,
@@ -1516,8 +1471,8 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig(  const T evPrimalL,
     auto Bprimal= rho.val() * usol.tr() * usol;
 
     T integral = 0.0;
-    integral += evPrimalL * ev.integral( Bdiff * meas(Gori));
-    integral += -ev.integral( A  * meas(Gori) );
+    integral += ev.integral( A  * meas(Gori) );
+    integral += -evPrimalL * ev.integral( Bdiff * meas(Gori));
     integral += (evDualH - evDualL) * (ev.integral( Bprimal * meas(Gori)) - 1.0);
 
     // gsDebugVar(ev.eval(Gori.tr(), pt));
@@ -1557,15 +1512,11 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMultiPatch<T> & de
 
     // Geometries
     geometryMap Gori= exprAssembler.exprData()->getMap();
-    geometryMap Gdef   = exprAssembler.exprData()->getMap2();
+    geometryMap Gdef= exprAssembler.exprData()->getMap2();
 
     // Transformation for stretches
-    gsMaterialMatrixEval<T,MaterialOutput::CovTransform>  Tcovf(m_assemblerL->material(),m_defpatches,Z);
     gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),m_defpatches,Z);
-    variable Tcov = exprAssembler.getCoeff(Tcovf);
     variable Tcon = exprAssembler.getCoeff(Tconf);
-
-    // Material tensors
 
     // Stress tensors
     gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),m_defpatches,Z);
@@ -1578,6 +1529,17 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMultiPatch<T> & de
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> Mf(m_assemblerL->material(),m_defpatches);
     variable N  = exprAssembler.getCoeff(Nf);
     variable M  = exprAssembler.getCoeff(Mf);
+
+    ///////// TEMPORARY
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0if(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1if(m_assemblerL->material(),m_defpatches);
+    variable S0i = exprAssembler.getCoeff(S0if);
+    variable S1i = exprAssembler.getCoeff(S1if);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmAfi(m_assemblerL->material(),m_defpatches);
+    variable mmAi = exprAssembler.getCoeff(mmAfi);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDfi(m_assemblerL->material(),m_defpatches);
+    variable mmDi = exprAssembler.getCoeff(mmDfi);
+    ///////// TEMPORARY
 
     // Principal stress tensors
     gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_assemblerL->material(),m_defpatches,Z);
@@ -1595,13 +1557,13 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMultiPatch<T> & de
     auto Cm         = flat( jac(Gdef).tr() * jac(Gdef) ) * reshape(m12,3,3);
 
     // Principal stretch
-    auto lambda     = Cm     * reshape(Tcov,3,3).tr();
+    auto lambda     = reshape(Tcon,3,3) * Cm.tr();
 
     // Membrane strain
     auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
 
     // Principal membrane strain
-    auto Emp    = Em * reshape(Tcon,3,3).tr();
+    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tcon,3,3).tr();
 
     // Flexural strain
     auto Ef     = ( deriv2(Gori,sn(Gori).normalized().tr()) - deriv2(Gdef,sn(Gdef).normalized().tr()) ) * reshape(m2,3,3) ;
@@ -1640,7 +1602,7 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMultiPatch<T> & de
         }
         else
         {
-            auto expr = (Gdef - Gori).tr() * gismo::expr::uv(m_component,3)*meas(Gori);
+            auto expr = lambda.tr() * gismo::expr::uv(m_component,3)*meas(Gori);
             return ev.integral( expr  );
         }
     }
@@ -1648,7 +1610,8 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMultiPatch<T> & de
     {
         if (m_component==9)
         {
-            auto expr = Em * Em.tr() * meas(Gori);
+            // auto expr = Em * Em.tr() * meas(Gori);
+            auto expr = Em.sqNorm() * meas(Gori);
             return ev.integral( expr  );
         }
         else
@@ -1718,6 +1681,16 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMultiPatch<T> & de
         }
         else
         {
+            gsVector<T> pt(2);
+            pt.setConstant(0.25);
+            gsDebugVar(ev.eval(Em,pt));
+            gsDebugVar(ev.eval(S0i,pt));
+            gsDebugVar(ev.eval(reshape(mmAi,3,3)*Em.tr(),pt));
+
+            gsDebugVar(ev.eval(Ef,pt));
+            gsDebugVar(ev.eval(S1i,pt));
+            gsDebugVar(ev.eval(reshape(mmDi,3,3)*Ef.tr(),pt));
+
             auto expr = Ef * gismo::expr::uv(m_component,3) * meas(Gori);
             return ev.integral( expr  );
         }
@@ -1775,9 +1748,7 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMatrix<T> & points
     geometryMap Gdef   = exprAssembler.exprData()->getMap2();
 
     // Transformation for stretches
-    gsMaterialMatrixEval<T,MaterialOutput::CovTransform>  Tcovf(m_assemblerL->material(),m_defpatches,Z);
     gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),m_defpatches,Z);
-    variable Tcov = exprAssembler.getCoeff(Tcovf);
     variable Tcon = exprAssembler.getCoeff(Tconf);
     // Material tensors
 
@@ -1809,13 +1780,13 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMatrix<T> & points
     auto Cm      = flat( jac(Gdef).tr() * jac(Gdef) ) * reshape(m12,3,3);
 
     // Principal stretch
-    auto lambda  = Cm * reshape(Tcov,3,3).tr();
+    auto lambda  = reshape(Tcon,3,3).tr() * Cm.tr();
 
     // Membrane strain
     auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
 
     // Principal membrane strain
-    auto Emp    = Em * reshape(Tcon,3,3).tr();
+    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tcon,3,3).tr();
 
     // Flexural strain
     auto Ef     = ( deriv2(Gori,sn(Gori).normalized().tr()) - deriv2(Gdef,sn(Gdef).normalized().tr()) ) * reshape(m2,3,3) ;
