@@ -105,6 +105,12 @@ public:
 
     void assemble();
 
+    void setSpaceBasis(const gsFunctionSet<T> & spaceBasis)
+    {
+        m_spaceBasis = &spaceBasis;
+        this->_initialize();
+    }
+
 private:
     /// Specialisation of assemble() for surfaces (3D)
     template<int _d, bool _bending>
@@ -265,6 +271,8 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     gsMatrix<T> projectL2(const gsFunction<T> &fun);
 
+    void plotSolution(std::string string, const gsMatrix<T> & solVector);
+
 protected:
     /// Initializes the method
     void _initialize();
@@ -320,6 +328,7 @@ protected:
     gsMultiPatch<T> m_defpatches;
     gsMultiPatch<T> m_itpatches;
     mutable gsMultiBasis<T> m_basis;
+    const gsFunctionSet<T> *  m_spaceBasis;
     gsBoundaryConditions<T> m_bcs;
 
     mutable gsMatrix<T> m_ddofs;
@@ -407,6 +416,8 @@ public:
 
     /// Assembles the linear system and corresponding right-hand side
     virtual void assemble() = 0;
+
+    virtual void setSpaceBasis(const gsFunctionSet<T> & spaceBasis) = 0;
 
     /// Assembles the mass matrix (including density and thickness!); if lumped=true, a lumped mass matrix will be constructed,
     virtual void assembleMass(bool lumped = false) = 0;
@@ -542,6 +553,9 @@ public:
 
     /// Projects function \a fun on the basis and geometry stored in the class and returns the coefficients as a matrix
     virtual gsMatrix<T> projectL2(const gsFunction<T> &fun) = 0;
+
+    virtual void plotSolution(std::string string, const gsMatrix<T> & solVector) = 0;;
+
 };
 
 

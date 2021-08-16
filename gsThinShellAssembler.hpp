@@ -25,6 +25,8 @@
 #include <gsCore/gsFunctionExpr.h>
 #include <gsCore/gsPiecewiseFunction.h>
 
+#include <gsIO/gsWriteParaview.h>
+
 namespace gismo
 {
 
@@ -38,6 +40,7 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
                                         :
                                         m_patches(patches),
                                         m_basis(basis),
+                                        m_spaceBasis(&basis),
                                         m_bcs(bconditions),
                                         m_forceFun(&surface_force),
                                         m_materialMat(materialmatrix)
@@ -88,7 +91,7 @@ void gsThinShellAssembler<d, T, bending>::_initialize()
     // geometryMap m_def   = m_assembler.getMap(m_defpatches);
 
     // Set the discretization space
-    space m_space = m_assembler.getSpace(m_basis, d, 0); // last argument is the space ID
+    space m_space = m_assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
 
     this->_assembleDirichlet();
 
@@ -299,15 +302,15 @@ void gsThinShellAssembler<d, T, bending>::_applyLoads()
         // Compute actives and values of basis functions on point load location.
         if ( m_pLoads[i].parametric )   // in parametric space
         {
-            m_basis.front().basis(m_pLoads[i].patch).active_into( m_pLoads[i].point, acts );
-            m_basis.front().basis(m_pLoads[i].patch).eval_into  ( m_pLoads[i].point, bVals);
+            m_basis.basis(m_pLoads[i].patch).active_into( m_pLoads[i].point, acts );
+            m_basis.basis(m_pLoads[i].patch).eval_into  ( m_pLoads[i].point, bVals);
         }
         else                            // in physical space
         {
             gsMatrix<T> forcePoint;
             m_patches.patch(m_pLoads[i].patch).invertPoints(m_pLoads[i].point,forcePoint);
-            m_basis.front().basis(m_pLoads[i].patch).active_into( forcePoint, acts );
-            m_basis.front().basis(m_pLoads[i].patch).eval_into  ( forcePoint, bVals);
+            m_basis.basis(m_pLoads[i].patch).active_into( forcePoint, acts );
+            m_basis.basis(m_pLoads[i].patch).eval_into  ( forcePoint, bVals);
         }
 
         // Add the point load values in the right entries in the global RHS
@@ -996,7 +999,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsMultiPatch<T> & 
 {
     gsExprAssembler<T> assembler;
     assembler.setIntegrationElements(m_basis);
-    space u = assembler.getSpace(m_basis, d, 0); // last argument is the space ID
+    space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
 
     assembler.initSystem();
 
@@ -1061,7 +1064,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsMultiPatch<T> & 
 {
     gsExprAssembler<T> assembler;
     assembler.setIntegrationElements(m_basis);
-    space u = assembler.getSpace(m_basis, d, 0); // last argument is the space ID
+    space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
 
     assembler.initSystem();
 
@@ -1123,7 +1126,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsMultiPatch
 {
     gsExprAssembler<T> assembler;
     assembler.setIntegrationElements(m_basis);
-    space u = assembler.getSpace(m_basis, d, 0); // last argument is the space ID
+    space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
 
     assembler.initSystem();
 
@@ -1224,7 +1227,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsMultiPatch
 {
     gsExprAssembler<T> assembler;
     assembler.setIntegrationElements(m_basis);
-    space u = assembler.getSpace(m_basis, d, 0); // last argument is the space ID
+    space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
 
     assembler.initSystem();
 
@@ -1370,28 +1373,72 @@ T gsThinShellAssembler<d, T, bending>::getArea(const gsMultiPatch<T> & geometry)
     return result;
 }
 
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::plotSolution(std::string string, const gsMatrix<T> & solVector)
+{
+    m_solvector = solVector;
+    space m_space = m_assembler.trialSpace(0);
+    solution m_solution = m_assembler.getSolution(m_space, m_solvector);
+    geometryMap G = m_assembler.getMap(m_patches);
+    gsExprEvaluator<> ev(m_assembler);
+    ev.options().setSwitch("plot.elements", false);
+    ev.options().setInt   ("plot.npts"    , 500);
+    ev.writeParaview( m_solution, G, string);
+}
 
 template <short_t d, class T, bool bending>
 gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructMultiPatch(const gsMatrix<T> & solVector) const
 {
     m_solvector = solVector;
-    gsMultiPatch<T> result;
-
-    // Solution vector and solution variable
     space m_space = m_assembler.trialSpace(0);
     const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart() = m_ddofs; //CHECK FIXEDPART
 
-    solution m_solution = m_assembler.getSolution(m_space, m_solvector);
-
-    gsMatrix<T> cc;
-    for ( size_t k =0; k!=m_defpatches.nPatches(); ++k) // Deform the geometry
+    if (const gsMappedBasis<2,T> * mbasis = dynamic_cast<const gsMappedBasis<2,T> * >(m_spaceBasis))
     {
-        // extract deformed geometry
-        m_solution.extract(cc, k);
-        result.addPatch(m_basis.basis(k).makeGeometry( give(cc) ));  // defG points to mp_def, therefore updated
-    }
+        gsMatrix<T> tmp;
+        const index_t dim = m_space.dim();
+        GISMO_ASSERT(static_cast<size_t>(dim*mbasis->size())==m_mapper.mapSize(),"Something is wrong in the sizes, basis size = "<<mbasis->size()<<" mapper size = "<<m_mapper.mapSize());
 
-    return result;
+        gsMatrix<T> cc(mbasis->size(),3);
+        cc.setZero();
+
+
+        for ( size_t p =0; p!=m_defpatches.nPatches(); ++p) // Deform the geometry
+        {
+            for (index_t c = 0; c!=dim; c++) // for all components
+            {
+                // loop over all basis functions (even the eliminated ones)
+                for (size_t i = 0; i < m_mapper.patchSize(p,c); ++i)
+                {
+                    const int ii = m_mapper.index(i, p, c);
+                    if ( m_mapper.is_free_index(ii) ) // DoF value is in the solVector
+                        cc(i,c) = m_solvector.at(ii);
+                    else // eliminated DoF: fill with Dirichlet data
+                    {
+                        cc(i,c) =  m_ddofs.at( m_mapper.global_to_bindex(ii) );
+                    }
+                }
+
+            }
+
+        }
+        mbasis->global_coef_to_local_coef(cc,tmp);
+        return mbasis->exportToPatches(tmp);
+    }
+    else
+    {
+        gsMultiPatch<T> result;
+        // Solution vector and solution variable
+        solution m_solution = m_assembler.getSolution(m_space, m_solvector);
+
+        gsMatrix<T> cc;
+        for ( size_t p =0; p!=m_defpatches.nPatches(); ++p) // Deform the geometry
+        {
+            m_solution.extract(cc, p);
+            result.addPatch(m_patches.basis(p).makeGeometry( give(cc) ));  // defG points to mp_def, therefore updated
+        }
+        return result;
+    }
 }
 
 template <short_t d, class T, bool bending>
