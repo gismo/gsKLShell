@@ -1057,8 +1057,14 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeError(const gsMultiPatch<T> & d
 
     gsExprEvaluator<T> ev(exprAssembler);
 
+    // Get neumann sides, put them in a container of patchSide s.
+    std::vector<patchSide> bContainer;
+    typename gsBoundaryConditions<T>::bcContainer bcContainer = m_bcs.neumannSides();
+    for (typename gsBoundaryConditions<T>::bcContainer::iterator it = bcContainer.begin(); it!=bcContainer.end(); ++it)
+        bContainer.push_back(patchSide(it->patch(),it->side()));
+
     T integral = ev.integral( expr );
-    T bintegral= ev.integralBdr( bexpr, m_bcs.neumannSides() );
+    T bintegral= ev.integralBdr( bexpr, bContainer);
     return integral + bintegral;
 
     // _assembleDual_expr(expr,deformed,basis);
