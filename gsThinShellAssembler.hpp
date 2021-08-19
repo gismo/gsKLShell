@@ -1001,6 +1001,9 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsMultiPatch<T> & 
     assembler.setIntegrationElements(m_basis);
     space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
 
+    gsBoundaryConditions<T> bc;
+    u.setup(bc, dirichlet::interpolation, 0);
+
     assembler.initSystem();
 
     m_defpatches = deformed;
