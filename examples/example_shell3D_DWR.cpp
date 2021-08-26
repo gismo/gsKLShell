@@ -201,19 +201,18 @@ int main(int argc, char *argv[])
     gsWriteParaview(u_ex,"exact");
 
     typedef gsExprAssembler<>::geometryMap geometryMap;
-    typedef gsExprAssembler<>::variable    variable;
     typedef gsExprAssembler<>::space       space;
     typedef gsExprAssembler<>::solution    solution;
 
     gsExprAssembler<> A(1,1);
     A.setIntegrationElements(basisR);
-    A.getMap(mp);
-    geometryMap G   = A.exprData()->getMap();
+
+    geometryMap G   = A.getMap(mp);
 
     space u = A.getSpace(basisR, 3);
     u.setup(bc,dirichlet::interpolation,0);
-    variable    function = A.getCoeff(exact, G);
-    A.initSystem(false);
+    auto    function = A.getCoeff(exact, G);
+    A.initSystem();
     A.assemble(u*u.tr()*meas(G),u * function*meas(G));
 
     solver.compute(A.matrix());
@@ -280,6 +279,8 @@ int main(int argc, char *argv[])
     exactGoal += DWR2->computeGoal(mp_ex);
     exactGoal += DWR2->computeGoal(points,mp_ex);
 
+    delete DWR2;
+
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     std::vector<real_t> exacts(numRefine+1);
@@ -291,8 +292,6 @@ int main(int argc, char *argv[])
 
     gsVector<> solVector, updateVector;
     gsMultiPatch<> primalL,dualL,dualH;
-
-    gsThinShellAssemblerDWRBase<real_t> * DWR;
 
     gsParaviewCollection collection("solution");
     for (index_t r=0; r!=numRefine+1; r++)
@@ -327,7 +326,7 @@ int main(int argc, char *argv[])
         gsInfo<<"Basis Primal: "<<basisL.basis(0)<<"\n";
         gsInfo<<"Basis Dual:   "<<basisH.basis(0)<<"\n";
 
-        DWR = new gsThinShellAssemblerDWR<3,real_t,true>(mp,basisL,basisH,bc,force,materialMatrix);
+        gsThinShellAssemblerDWRBase<real_t> * DWR = new gsThinShellAssemblerDWR<3,real_t,true>(mp,basisL,basisH,bc,force,materialMatrix);
         if (goal==1)
             DWR->setGoal(GoalFunction::Displacement,component);
         else if (goal==2)
@@ -390,16 +389,16 @@ int main(int argc, char *argv[])
 
         gsInfo << "Solving dual (high), size = "<<DWR->matrixH().rows()<<","<<DWR->matrixH().cols()<<"... "<< std::flush;
 
-        gsDebugVar(DWR->matrixH().toDense());
-        gsDebugVar(DWR->dualH().transpose());
+        // gsDebugVar(DWR->matrixH().toDense());
+        // gsDebugVar(DWR->dualH().transpose());
 
-        // solver.compute(DWR->matrixH());
-        // solVector = solver.solve(DWR->dualH());
-        // DWR->constructMultiPatchH(solVector,dualH);
-        // gsInfo << "done.\n";
-
-        solVector = DWR->dualH();
+        solver.compute(DWR->matrixH());
+        solVector = solver.solve(DWR->dualH());
         DWR->constructMultiPatchH(solVector,dualH);
+        gsInfo << "done.\n";
+
+        // solVector = DWR->dualH();
+        // DWR->constructMultiPatchH(solVector,dualH);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -421,12 +420,24 @@ int main(int argc, char *argv[])
         exacts[r] -= numGoal[r];
         approxs[r] = DWR->computeError(dualL,dualH);
 
+        std::vector<real_t> errorsEls = DWR->computeErrorElements(dualL,dualH);
+        for (std::vector<real_t>::const_iterator it = errorsEls.begin(); it != errorsEls.end(); it++)
+            gsDebug<<*it<<"\n";
+
+        std::vector<real_t> errorsDofs = DWR->computeErrorDofs(dualL,dualH);
+        for (std::vector<real_t>::const_iterator it = errorsDofs.begin(); it != errorsDofs.end(); it++)
+            gsDebug<<*it<<"\n";
+
+
         estGoal[r] = numGoal[r]+approxs[r];
 
         efficiencies[r] = approxs[r]/exacts[r];
 
         if (!adaptive)
             mp.uniformRefine();
+
+        delete DWR;
+
     }
 
     if (plot) collection.save();
@@ -478,8 +489,6 @@ int main(int argc, char *argv[])
     }
 
 
-    delete DWR;
-    delete DWR2;
     delete materialMatrix;
     return EXIT_SUCCESS;
 

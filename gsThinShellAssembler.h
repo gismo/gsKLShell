@@ -244,8 +244,13 @@ public:
 
     //--------------------- SOLUTION CONSTRUCTION ----------------------------------//
     gsMultiPatch<T> constructMultiPatch(const gsMatrix<T> & solVector) const;
+    void updateMultiPatch(const gsMatrix<T> & solVector, gsMultiPatch<T> & mp) const;
 
     /// See \ref gsThinShellAssemblerBase for details
+protected:
+    gsMultiPatch<T> _constructSolution(const gsMatrix<T> & solVector, const gsMultiPatch<T> & undeformed) const;
+public:
+    // gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector, const gsMultiPatch<T> & undeformed) const;
     gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const;
 
     /// See \ref gsThinShellAssemblerBase for details

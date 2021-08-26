@@ -399,21 +399,6 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::thickness_into(const index_t pa
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
-{
-    result.resize(9, u.cols());
-    gsMatrix<T> tmp, conbasis,sbasis;
-    this->stretchDir_into(patch,u,tmp);
-    for (index_t i=0; i!= u.cols(); i++)
-    {
-        this->_getMetric(i,0.0,true); // on point i, with height 0.0
-        sbasis = tmp.reshapeCol(i,3,3);
-        conbasis = m_gcon_ori;
-        result.col(i) = this->_transformation(conbasis,sbasis).reshape(9,1);
-    }
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
     result.resize(9, u.cols());

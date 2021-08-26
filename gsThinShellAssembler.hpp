@@ -791,7 +791,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> &
     auto m_M        = S1.tr() + m_M_c; // output is a column
     auto m_Ef_der   = -( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
     auto m_Ef_der2  = -(flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_M ).symmetrize()
-                            + var2(m_space,m_space,m_def, m_M ));
+                            + var2dot(m_space,m_space,m_def, m_M ));
 
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
@@ -1176,8 +1176,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsMultiPatch
 
     gsMatrix<T> Fint = assembler.rhs();
     gsMatrix<T> result;
-    const gsMultiBasis<T> & mbasis =
-        *dynamic_cast<const gsMultiBasis<T>*>(&u.source());
+    const gsMultiBasis<T> & mbasis = *dynamic_cast<const gsMultiBasis<T>*>(&u.source());
     gsMatrix<index_t> boundary;
 
     typedef gsBoundaryConditions<T> bcList;
@@ -1462,7 +1461,7 @@ gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructMultiPatch(const g
         for ( size_t p =0; p!=m_defpatches.nPatches(); ++p) // Deform the geometry
         {
             m_solution.extract(cc, p);
-            result.addPatch(m_patches.basis(p).makeGeometry( give(cc) ));  // defG points to mp_def, therefore updated
+            result.addPatch(m_basis.basis(p).makeGeometry( give(cc) ));  // defG points to mp_def, therefore updated
         }
         return result;
     }
@@ -1577,8 +1576,6 @@ void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & f
 
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
-    space       m_space = m_assembler.getSpace(m_basis, d);
-
     // Initialize stystem
     m_assembler.initSystem();
 
@@ -1601,8 +1598,7 @@ void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & f
     mp = m_patches;
 
     // Solution vector and solution variable
-    space m_space = m_assembler.getSpace(m_basis, d);
-    m_assembler.initSystem(true);
+    space m_space = m_assembler.trialSpace(0);
     const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart() = m_ddofs;
 
     solution m_solution = m_assembler.getSolution(m_space, tmp);

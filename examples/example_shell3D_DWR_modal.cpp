@@ -255,19 +255,18 @@ int main(int argc, char *argv[])
     gsThinShellAssemblerDWRBase<real_t> * DWR;
 
     gsParaviewCollection collection("solution");
+
+    std::vector<real_t> elErrors;
+    std::vector<bool> refVec;
+    MarkingStrategy adaptRefCrit = PUCA;
+    const real_t adaptRefParam = 0.8;
+
     for (index_t r=0; r!=numRefine+1; r++)
     {
-        if (adaptive)
+        if (adaptive && r!=0)
         {
             // [Mark elements for refinement]
-            std::vector<index_t> bools(mp.basis(0).numElements());
-            std::vector<bool> refVec(mp.basis(0).numElements());
-
-            //////// RANDOMLY
-            std::srand(std::time(nullptr)); // use current time as seed for random generator
-            std::generate(bools.begin(), bools.end(), rand);
-            for (index_t k = 0; k!=bools.size(); k++)
-                refVec[k] = static_cast<bool>(std::round(static_cast<real_t>(bools[k]) / ( RAND_MAX+1u )));
+            gsMarkElementsForRef( elErrors, adaptRefCrit, adaptRefParam, refVec);
 
             gsRefineMarkedElements(mp,refVec,0);
             gsMultiPatch<> mp_def = mp;
@@ -281,10 +280,11 @@ int main(int argc, char *argv[])
 
         // Set bases
         gsMultiBasis<> basisL(mp);
-        gsMultiBasis<> basisH = basisL;
+        gsMultiBasis<> basisH(mp);
         basisH.degreeElevate(1);
 
-        gsInfo<<"Basis Primal: "<<basisL.basis(0)<<"\n";
+        gsInfo<<"Basis Primal: "<<mp.basis(0)<<"\n";
+        gsInfo<<"Basis Primal: "<<basisL.basis(0)<<"\n"; //// different than the one above!!
         gsInfo<<"Basis Dual:   "<<basisH.basis(0)<<"\n";
 
         // -----------------------------------------------------------------------------------------
@@ -417,6 +417,10 @@ int main(int argc, char *argv[])
         exacts[r] += exGoal[r];
         exacts[r] -= numGoal[r];
         approxs[r] = DWR->computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
+
+        if (adaptive)
+            elErrors = DWR->computeErrorEigElements(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
+
 
         estGoal[r] = numGoal[r]+approxs[r];
 

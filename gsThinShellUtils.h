@@ -56,7 +56,7 @@ public:
 
     index_t rows() const { return _dim; }
     index_t cols() const { return  1; }
-    void parse(gsSortedVector<const gsFunctionSet<Scalar>*> & ) const {  }
+    void parse(gsExprHelper<Scalar> & ) const {  }
 
     const gsFeSpace<Scalar> & rowVar() const {return gsNullExpr<Scalar>::get();}
     const gsFeSpace<Scalar> & colVar() const {return gsNullExpr<Scalar>::get();}
@@ -110,7 +110,7 @@ public:
     const gsFeSpace<Scalar> & rowVar() const {return gsNullExpr<Scalar>::get();}
     const gsFeSpace<Scalar> & colVar() const {return gsNullExpr<Scalar>::get();}
 
-    void parse(gsSortedVector<const gsFunctionSet<Scalar>*> & evList) const
+    void parse(gsExprHelper<Scalar> & evList) const
     {
         //GISMO_ASSERT(NULL!=m_fd, "FeVariable: FuncData member not registered");
         evList.add(_G);
@@ -327,7 +327,7 @@ public:
 
     void parse(gsExprHelper<Scalar> & evList) const
     {
-        parse_impl<E>(evList);
+        parse_impl<E2>(evList);
     }
 
     const gsFeSpace<Scalar> & rowVar() const { return _u.rowVar(); }
@@ -337,8 +337,8 @@ public:
     void print(std::ostream &os) const { os << "var1("; _u.print(os); os <<")"; }
 
 private:
-    template<class U> inline
-    typename util::enable_if< !util::is_same<U,gsFeSolution<Scalar> >::value,void>::type
+    template<class V> inline
+    typename util::enable_if< !util::is_same<V,gsFeSolution<Scalar> >::value,void>::type
     parse_impl(gsExprHelper<Scalar> & evList) const
     {
         evList.add(_u);
@@ -349,16 +349,18 @@ private:
         _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_MEASURE;
     }
 
-    template<class U> inline
-    typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value,void>::type
+    template<class V> inline
+    typename util::enable_if< util::is_same<V,gsFeSolution<Scalar> >::value,void>::type
     parse_impl(gsExprHelper<Scalar> & evList) const
     {
+        evList.add(_u);
+        _u.data().flags |= NEED_GRAD | NEED_ACTIVE;
         evList.add(_G);
         _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_MEASURE;
 
-        grad(_u).parse(evList); //
+        grad(_v).parse(evList); //
 
-        _u.parse(evList);
+        _v.parse(evList);
     }
 
 private:
@@ -578,19 +580,11 @@ public:
         return 1;
     }
 
-    void setFlag() const
-    {
-        _u.data().flags |= NEED_GRAD;
-        _v.data().flags |= NEED_GRAD;
-        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_2ND_DER | NEED_MEASURE;
-    }
-
-    void parse(gsSortedVector<const gsFunctionSet<Scalar>*> & evList) const
+    void parse(gsExprHelper<Scalar> & evList) const
     {
         _u.parse(evList);
         _v.parse(evList);
         _G.parse(evList);
-        _Ef.parse(evList);
     }
 
     const gsFeSpace<Scalar> & rowVar() const { return _u.rowVar(); }
