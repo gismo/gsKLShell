@@ -20,6 +20,8 @@
 
 #include <gsPde/gsPointLoads.h>
 
+#include <gsAssembler/gsExprAssembler.h>
+#include <gsAssembler/gsExprEvaluator.h>
 
 namespace gismo
 {
@@ -110,6 +112,12 @@ public:
 
     void assemble();
 
+    void setSpaceBasis(const gsFunctionSet<T> & spaceBasis)
+    {
+        m_spaceBasis = &spaceBasis;
+        this->_initialize();
+    }
+
 private:
     /// Specialisation of assemble() for surfaces (3D)
     template<int _d, bool _bending>
@@ -138,6 +146,12 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     void assembleMatrix(const gsMatrix<T>       & solVector );
 
+    /// See \ref gsThinShellAssemblerBase for details
+    void assembleMatrix(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void assembleMatrix(const gsMatrix<T> & solVector, const gsMatrix<T> & prevVector);
+
 private:
     /// Implementation of assembleMatrix for surfaces (3D)
     template<int _d, bool _bending>
@@ -148,6 +162,17 @@ private:
     template<int _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
     assembleMatrix_impl(const gsMultiPatch<T>   & deformed  );
+
+    /// Implementation of assembleMatrix for surfaces (3D)
+    template<int _d, bool _bending>
+    typename std::enable_if<_d==3 && _bending, void>::type
+    assembleMatrix_impl(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update);
+
+    /// Implementation of assembleMatrix for planar geometries (2D)
+    template<int _d, bool _bending>
+    typename std::enable_if<!(_d==3 && _bending), void>::type
+    assembleMatrix_impl(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update)
+    { GISMO_NO_IMPLEMENTATION; }
 
 public:
     /// See \ref gsThinShellAssemblerBase for details
@@ -219,13 +244,8 @@ public:
 
     //--------------------- SOLUTION CONSTRUCTION ----------------------------------//
     gsMultiPatch<T> constructMultiPatch(const gsMatrix<T> & solVector) const;
-    void updateMultiPatch(const gsMatrix<T> & solVector, gsMultiPatch<T> & mp) const;
 
     /// See \ref gsThinShellAssemblerBase for details
-protected:
-    gsMultiPatch<T> _constructSolution(const gsMatrix<T> & solVector, const gsMultiPatch<T> & undeformed) const;
-public:
-    // gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector, const gsMultiPatch<T> & undeformed) const;
     gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const;
 
     /// See \ref gsThinShellAssemblerBase for details
@@ -257,6 +277,8 @@ public:
 
     /// See \ref gsThinShellAssemblerBase for details
     gsMatrix<T> projectL2(const gsFunction<T> &fun);
+
+    void plotSolution(std::string string, const gsMatrix<T> & solVector);
 
 protected:
     /// Initializes the method
@@ -298,7 +320,6 @@ private:
 
 protected:
     typedef gsExprAssembler<>::geometryMap geometryMap;
-    typedef gsExprAssembler<>::variable    variable;
     typedef gsExprAssembler<>::space       space;
     typedef gsExprAssembler<>::solution    solution;
 
@@ -312,7 +333,9 @@ protected:
 
     gsMultiPatch<T> m_patches;
     gsMultiPatch<T> m_defpatches;
+    gsMultiPatch<T> m_itpatches;
     mutable gsMultiBasis<T> m_basis;
+    const gsFunctionSet<T> *  m_spaceBasis;
     gsBoundaryConditions<T> m_bcs;
 
     mutable gsMatrix<T> m_ddofs;
@@ -416,6 +439,8 @@ public:
     /// Assembles the linear system and corresponding right-hand side
     virtual void assemble() = 0;
 
+    virtual void setSpaceBasis(const gsFunctionSet<T> & spaceBasis) = 0;
+
     /// Assembles the mass matrix (including density and thickness!); if lumped=true, a lumped mass matrix will be constructed,
     virtual void assembleMass(bool lumped = false) = 0;
 
@@ -455,6 +480,20 @@ public:
      * @param[in]  deformed  The solution vector
      */
     virtual void assembleMatrix(const gsMatrix<T>       & solVector ) = 0;
+
+    /**
+     * @brief      Assembles the tangential stiffness matrix (nonlinear)
+     *
+     * @param[in]  deformed  The deformed geometry
+     */
+    virtual void assembleMatrix(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update) = 0;
+
+    /**
+     * @brief      Assembles the tangential stiffness matrix (nonlinear)
+     *
+     * @param[in]  deformed  The solution vector
+     */
+    virtual void assembleMatrix(const gsMatrix<T> & solVector, const gsMatrix<T> & prevVector) = 0;
 
     /**
      * @brief      Assembles the residual vector
@@ -506,11 +545,7 @@ public:
     /// Construct solution field from computed solution vector \a solVector and returns a multipatch
     virtual gsMultiPatch<T> constructMultiPatch(const gsMatrix<T> & solVector) const = 0;
 
-    /// Update geometry stored in \a mp computed solution vector \a solVector and returns a multipatch
-    virtual void updateMultiPatch(const gsMatrix<T> & solVector, gsMultiPatch<T> & mp) const = 0;
-
     /// Construct deformed shell geometry from computed solution vector \a solVector and returns a multipatch
-    // virtual gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector, const gsMultiPatch<T> & undeformed) const  = 0;
     virtual gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const  = 0;
 
     /// Construct deformed shell geometry from computed solution vector \a solVector and returns the result in \a deformed
@@ -540,6 +575,9 @@ public:
 
     /// Projects function \a fun on the basis and geometry stored in the class and returns the coefficients as a matrix
     virtual gsMatrix<T> projectL2(const gsFunction<T> &fun) = 0;
+
+    virtual void plotSolution(std::string string, const gsMatrix<T> & solVector) = 0;;
+
 };
 
 
