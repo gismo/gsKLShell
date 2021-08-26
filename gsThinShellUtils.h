@@ -228,7 +228,7 @@ private:
     typename util::enable_if< util::is_same<U,gsFeVariable<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k)  const
     {
-        grad_expr<U> vGrad = grad_expr(u);
+        grad_expr<U> vGrad = grad_expr<U>(u);
         bGrads = vGrad.eval(k);
 
         return make_vector(k);
@@ -371,8 +371,8 @@ private:
         res.resize(rows(), cols()); // rows()*
         normal = _G.data().normal(k);// not normalized to unit length
         normal.normalize();
-        grad_expr<U> uGrad = grad_expr(_u);
-        grad_expr<V> vGrad = grad_expr(_v);
+        grad_expr<U> uGrad = grad_expr<U>(_u);
+        grad_expr<V> vGrad = grad_expr<V>(_v);
 
         bGrads = uGrad.eval(k) - vGrad.eval(k);
         cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
@@ -394,7 +394,7 @@ private:
     eval_impl(const U & u, const V & v, const index_t k)  const
     {
         GISMO_ASSERT(1==_v.data().actives.cols(), "Single actives expected");
-        grad_expr<U> uGrad = grad_expr(_u);
+        grad_expr<U> uGrad = grad_expr<U>(_u);
         grad_expr<gsFeSolution<Scalar>> vGrad =  grad_expr<gsFeSolution<Scalar>>(_v);
         res.resize(rows(), cols()); // rows()*
 
@@ -659,9 +659,9 @@ private:
     typename util::enable_if< util::is_same<U,gsFeVariable<Scalar> >::value && util::is_same<V,gsFeVariable<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const V & v, const index_t k)  const
     {
-        grad_expr<U> uGrad = grad_expr(u);
+        grad_expr<U> uGrad = grad_expr<U>(u);
         uGrads = uGrad.eval(k);
-        grad_expr<U> vGrad = grad_expr(u);
+        grad_expr<U> vGrad = grad_expr<U>(u);
         vGrads = vGrad.eval(k);
 
         res.resize(rows(), cols()); // rows()*
@@ -1049,7 +1049,7 @@ public:
                 The geometry map has components c=[c1,c2,c3]
             */
             // evaluate the geometry map of U
-            hess_expr<gsFeSolution<Scalar>> sHess = hess_expr(_u);
+            hess_expr<gsFeSolution<Scalar> > sHess = hess_expr<gsFeSolution<Scalar> >(_u);
             res = sHess.eval(k).transpose();
             return res;
         }

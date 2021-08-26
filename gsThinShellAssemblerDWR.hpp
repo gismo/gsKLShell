@@ -1713,7 +1713,7 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    
 
     auto Fint   = ( N_der * Em_der.tr() + M_der * Ef_der.tr() );
 
-    space   u   = exprAssembler.trialSpace(0);
+//    space   u   = exprAssembler.trialSpace(0);
     gsVector<T> pt(2);
     pt.setConstant(0.25);
 
