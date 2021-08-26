@@ -786,7 +786,7 @@ public:
         //     return _u.rowVar();
         // else
 
-        return _v.rowVar();
+        return gsNullExpr<Scalar>::get();
     }
 
     void print(std::ostream &os) const { os << "deriv2("; _u.print(os); _v.print(os); os <<")"; }
