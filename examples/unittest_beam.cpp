@@ -236,7 +236,7 @@ int main(int argc, char *argv[])
         mp_def = assembler->constructSolution(solVector);
         deformation = assembler->constructDisplacement(solVector);
 
-        solField = gsField(mp_def, deformation);
+        solField = gsField<>(mp_def, deformation);
 
         errors[r] = solField.distanceL2(exf);
 
@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
 
         mp.uniformRefine();
         mp_def.uniformRefine();
-        dbasis = gsMultiBasis(mp);
+        dbasis = gsMultiBasis<>(mp);
     }
 
 
@@ -257,7 +257,7 @@ int main(int argc, char *argv[])
     exA.setIntegrationElements(exBasis);
     space u = exA.getSpace(exBasis,3);
     geometryMap G = exA.getMap(mp);
-    variable ff = exA.getCoeff(ex, G);
+    auto ff = exA.getCoeff(ex, G);
 
     gsMatrix<> projection;
     solution u_sol = exA.getSolution(u, projection);
