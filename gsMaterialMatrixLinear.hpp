@@ -334,6 +334,98 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
 
 }
 
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+
+    this->_computePoints(patch,u,true);
+    gsMatrix<T> result(3, u.cols() * z.rows());
+    result.setZero();
+    gsMatrix<T,3,3> E;
+    std::pair<gsVector<T>,gsMatrix<T>> res;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        // Evaluate material properties on the quadrature point
+        for (index_t v=0; v!=m_parmat.rows(); v++)
+            m_parvals.at(v) = m_parmat(v,k);
+
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            // this->_getMetric(k, z(j, k), true); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
+
+            // E.setZero();
+            // E.block(0,0,2,2) = _E(0,out);
+            // E(2, 2) = 0;
+            // res = _evalPStrain(E);
+            // result.col(j * u.cols() + k) = res.first;
+            //
+            //
+            gsMatrix<> E = _E(0,out);
+            gsDebugVar("Temporary");
+            result(0,j*u.cols() + k) = E(0,0);
+            result(1,j*u.cols() + k) = E(1,1);
+            result(2,j*u.cols() + k) = E(0,1) + E(1,0);
+        }
+    }
+
+    return result;
+
+}
+
+
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    this->_computePoints(patch,u,true);
+    gsMatrix<T> result(1, u.cols() * z.rows());
+    result.setZero();
+    gsMatrix<T,3,3> S;
+    gsMatrix<T,3,3> E;
+    gsVector<T> Sp, Ep;
+    std::pair<gsVector<T>,gsMatrix<T>> res;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        // Evaluate material properties on the quadrature point
+        for (index_t v=0; v!=m_parmat.rows(); v++)
+            m_parvals.at(v) = m_parmat(v,k);
+
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            // this->_getMetric(k, z(j, k), true); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
+
+            S.setZero();
+            S(0, 0) = _Sij(0, 0, 0, out);
+            S(0, 1) = _Sij(0, 1, 0, out);
+            S(1, 0) = _Sij(1, 0, 0, out);
+            S(1, 1) = _Sij(1, 1, 0, out);
+            S(2, 2) = 0;
+            res = _evalPStress(S);
+            Sp = res.first;
+
+            E.setZero();
+            E.block(0,0,2,2) = _E(0,out);
+            E(2, 2) = 0;
+            res = _evalPStrain(E);
+            Ep = res.first;
+
+            // See Nakashino 2020
+            // Smin = Sp[0], Smax = Sp[1], S33 = Sp[2]
+            // Emin = Ep[0], Emax = Ep[1], E33 = Ep[2]
+            if (Sp[0] > 0) // taut
+                result.col(j * u.cols() + k) << 1;
+            else if (Ep[1] < 0) // slack
+                result.col(j * u.cols() + k) << -1;
+            else // wrinkled
+                result.col(j * u.cols() + k) << 0;
+        }
+    }
+
+    return result;
+
+}
+
 /*
     Available class members:
         - m_parvals
@@ -362,21 +454,27 @@ T gsMaterialMatrixLinear<dim,T>::_Cijkl(const index_t i, const index_t j, const 
 template <short_t dim, class T >
 T gsMaterialMatrixLinear<dim,T>::_Sij(const index_t i, const index_t j, const T z, enum MaterialOutput out) const
 {
-    gsMatrix<T> strain;
-    GISMO_ENSURE( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
-    if      (out == MaterialOutput::VectorN || out == MaterialOutput::PStressN) // To be used with multiplyZ_into
-        strain = 0.5*(m_Acov_def - m_Acov_ori);
-    else if (out == MaterialOutput::VectorM || out == MaterialOutput::PStressM) // To be used with multiplyZ_into
-        strain = (m_Bcov_ori - m_Bcov_def);
-    else if (out == MaterialOutput::Generic) // To be used with multiplyLinZ_into or integrateZ_into
-        strain = 0.5*(m_Acov_def - m_Acov_ori) + z*(m_Bcov_ori - m_Bcov_def);
-    else
-        GISMO_ERROR("Output type is not VectorN, PstressN, VectorM, PstressM or Generic!");
-
+    gsMatrix<T> strain = _E(z,out);
     T result =  _Cijkl(i,j,0,0) * strain(0,0) + _Cijkl(i,j,0,1) * strain(0,1)
                 + _Cijkl(i,j,1,0) * strain(1,0) + _Cijkl(i,j,1,1) * strain(1,1);
 
     return result;
+}
+
+template <short_t dim, class T >
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const T z, enum MaterialOutput out) const
+{
+    gsMatrix<T> strain;
+    if      (out == MaterialOutput::VectorN || out == MaterialOutput::PStrainN || out == MaterialOutput::PStressN || out == MaterialOutput::TensionField) // To be used with multiplyZ_into
+        strain = 0.5*(m_Acov_def - m_Acov_ori);
+    else if (out == MaterialOutput::VectorM || out == MaterialOutput::PStrainM || out == MaterialOutput::PStressM || out == MaterialOutput::TensionField) // To be used with multiplyZ_into
+        strain = (m_Bcov_ori - m_Bcov_def);
+    else if (out == MaterialOutput::Generic) // To be used with multiplyLinZ_into or integrateZ_into
+        strain = 0.5*(m_Acov_def - m_Acov_ori) + z*(m_Bcov_ori - m_Bcov_def);
+    else
+        GISMO_ERROR("Output type is not VectorN, PStrainN, PStressN, VectorM, PStrainM. PStressM, TensionField or Generic!");
+
+    return strain;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------
@@ -428,14 +526,68 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalPStress(c
     return result;
 }
 
+template <short_t dim, class T >
+std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalPStrain(const gsMatrix<T> & S) const
+{
+    gsVector<T> pstrains;
+    gsMatrix<T> pstrainvec;
+    std::pair<gsVector<T>,gsMatrix<T>> result;
+    pstrains.resize(3,1);    pstrains.setZero();
+    pstrainvec.resize(3,3);   pstrainvec.setZero();
+
+    Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
+
+    gsMatrix<T> B(3,3);
+    B.setZero();
+    for (index_t k = 0; k != 2; k++)
+        for (index_t l = 0; l != 2; l++)
+            B += S(k,l) * m_gcon_ori.col(k) * m_gcon_ori.col(l).transpose();
+
+    eigSolver.compute(B);
+
+    index_t zeroIdx = -1;
+    real_t tol = 1e-14;
+    real_t max = eigSolver.eigenvalues().array().abs().maxCoeff();
+    max = (max==0) ? 1 : max;
+    for (index_t k=0; k!=3; k++)
+        zeroIdx = std::abs(eigSolver.eigenvalues()[k] ) / max < 1e-14 ? k : zeroIdx;
+
+    GISMO_ASSERT(zeroIdx!=-1,"No zero found?");
+
+    index_t count = 0;
+    pstrainvec.col(2) = m_gcon_ori.col(2);
+    pstrains(2,0) = S(2,2);
+
+    for (index_t k=0; k!=3; k++)
+    {
+        if (k==zeroIdx) continue;
+        pstrainvec.col(count) = eigSolver.eigenvectors().col(k);
+        pstrains(count,0) = eigSolver.eigenvalues()(k,0);
+        count++;
+    }
+
+    result.first = pstrains;
+    result.second = pstrainvec;
+
+    return result;
+}
+
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::_computePStress(const gsMatrix<T> & C) const
+void gsMaterialMatrixLinear<dim,T>::_computePStress(const gsMatrix<T> & S) const
 {
-    std::pair<gsVector<T>,gsMatrix<T>> result = _evalPStress(C);
+    std::pair<gsVector<T>,gsMatrix<T>> result = _evalPStress(S);
     m_pstress = result.first;
     m_pstressvec = result.second;
+}
+
+template <short_t dim, class T >
+void gsMaterialMatrixLinear<dim,T>::_computePStrain(const gsMatrix<T> & E) const
+{
+    std::pair<gsVector<T>,gsMatrix<T>> result = _evalPStrain(E);
+    m_pstrain = result.first;
+    m_pstrainvec = result.second;
 }
 
 } // end namespace

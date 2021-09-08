@@ -126,7 +126,6 @@ public:
      */
     inline virtual void  contransform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
 
-
     /**
      * @brief      Evaluates the matrix on \a patch on in-plane points \a u with height \a z
      *
@@ -163,6 +162,36 @@ public:
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
     inline virtual gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
+
+    /**
+     * @brief      Evaluates the principal strain on \a patch on in-plane points \a u with height \a z
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     * @param[in]  out    (for classes with MatIntegration==Integrated, more details about \ref MaterialOutput can be found in \ref gsMaterialMatrixUtils)
+     *
+     * @return     Matrix with the result (principal strain) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
+    inline virtual gsMatrix<T> eval3D_pstrain(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
+    { GISMO_NO_IMPLEMENTATION; }
+
+
+    /**
+     * @brief      to do
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     * @param[in]  out    (for classes with MatIntegration==Integrated, more details about \ref MaterialOutput can be found in \ref gsMaterialMatrixUtils)
+     *
+     * @return     Matrix with the result (principal strain) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
+    inline virtual gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
+    { GISMO_NO_IMPLEMENTATION; }
+
 
     /**
      * @brief      Sets the material parameters.

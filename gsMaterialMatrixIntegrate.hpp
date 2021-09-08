@@ -128,6 +128,23 @@ gsMaterialMatrixIntegrate<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::PStrainN || _out==MaterialOutput::PStrainM, void>::type
+gsMaterialMatrixIntegrate<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    if (m_materialMat->isMatIntegrated() == MatIntegration::NotIntegrated)
+        this->integrateZ_into(u,getMoment(),result);
+    else if (m_materialMat->isMatIntegrated() == MatIntegration::Integrated)
+        result = this->eval(u);
+    else if (m_materialMat->isMatIntegrated() == MatIntegration::Constant)
+        this->multiplyZ_into(u,getMoment(),result);
+    else if (m_materialMat->isMatIntegrated() == MatIntegration::Linear)
+        this->multiplyLinZ_into(u,getMoment(),result);
+    else
+        GISMO_ERROR("Integration status unknown");
+}
+
+template <class T, enum MaterialOutput out>
+template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::Stretch, void>::type
 gsMaterialMatrixIntegrate<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {

@@ -94,6 +94,14 @@ gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& r
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::PStrainN || _out==MaterialOutput::PStrainM, void>::type
+gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    result = m_materialMat->eval3D_pstrain(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
+}
+
+template <class T, enum MaterialOutput out>
+template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::Stretch, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
@@ -122,6 +130,14 @@ typename std::enable_if<_out==MaterialOutput::ConTransform, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     m_materialMat->contransform_into(m_pIndex,u,result);
+}
+
+template <class T, enum MaterialOutput out>
+template <enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::TensionField, void>::type
+gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    result = m_materialMat->eval3D_tensionfield(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
 }
 
 

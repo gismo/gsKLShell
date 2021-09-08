@@ -74,7 +74,9 @@ private:
     /// Implementation of \ref targetDim for principal stress fields
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::PStressN ||
-                            _out==MaterialOutput::PStressM  , short_t>::type targetDim_impl() const { return 3; };
+                            _out==MaterialOutput::PStressM ||
+                            _out==MaterialOutput::PStrainN ||
+                            _out==MaterialOutput::PStrainM   , short_t>::type targetDim_impl() const { return 3; };
 
     /// Implementation of \ref targetDim for principal stretch fields
     template<enum MaterialOutput _out>
@@ -128,6 +130,11 @@ private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::PStressN ||
                             _out==MaterialOutput::PStressM  , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the membrane and flexural principle stresses
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::PStrainN ||
+                            _out==MaterialOutput::PStrainM  , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// Specialisation of \ref eval_into for the stretches
     template<enum MaterialOutput _out>

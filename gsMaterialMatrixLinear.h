@@ -110,6 +110,12 @@ public:
     gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+
+    /// See \ref gsMaterialMatrixBase for details
     void setParameters(const std::vector<gsFunction<T>*> &pars)
     {
         m_pars = pars;
@@ -154,7 +160,7 @@ protected:
     T _Cijkl  (const index_t i, const index_t j, const index_t k, const index_t l) const;
 
     /**
-     * @brief      Computes the linear force/moment entry with indices \a i \a j \a k \a l at height z
+     * @brief      Computes the linear force/moment entry with indices \a i \a j at height z
      *
      * Computes the thickness-integrated stress tensor, i.e. the normal force (0th thickness-moment) or the bending moment (1st thickness-moment).
      * Sij is computed as \f$ \mathcal{C}^{ijkl} : \mathbf{E}_{ij} \f$ where \f$\mathbf{E}_{ij} = a_{ij} z b_{ij}\f$ with \f$ a_{ij}\f$ the in-plane metric and \f$b_{ij}\f$ the curvature.
@@ -169,6 +175,17 @@ protected:
      */
     T _Sij    (const index_t i, const index_t j, const T z, enum MaterialOutput out) const;
 
+
+    /**
+     * @brief      Computes the strain tensor
+     *
+     * @param[in]  z     Through-thickness coordinate
+     * @param[in]  out   Output specification
+     *
+     * @return     E
+     */
+    gsMatrix<T> _E      (const T z, enum MaterialOutput out) const;
+
     /**
      * @brief      Computes the map, the metric quantities and the parameters on
      *             specified points.
@@ -181,8 +198,14 @@ protected:
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     void _computePStress(const gsMatrix<T> & C ) const;
 
+    /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
+    void _computePStrain(const gsMatrix<T> & C ) const;
+
     /// Computes the stretch given deformation tensor C, into a pair
     std::pair<gsVector<T>,gsMatrix<T>> _evalPStress(const gsMatrix<T> & C ) const;
+
+        /// Computes the stretch given deformation tensor C, into a pair
+    std::pair<gsVector<T>,gsMatrix<T>> _evalPStrain(const gsMatrix<T> & C ) const;
 
 protected:
     // general
@@ -201,7 +224,7 @@ protected:
     mutable gsMatrix<T>                 m_parmat;
     mutable gsVector<T>                 m_parvals;
 
-    mutable gsMatrix<T> m_pstress, m_pstressvec;
+    mutable gsMatrix<T> m_pstress, m_pstressvec, m_pstrain, m_pstrainvec;
 
     // Geometric data point
     using Base::m_map;
