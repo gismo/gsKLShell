@@ -978,7 +978,7 @@ public:
 
     index_t cols() const // number of function components (targetiDim)
     {
-        return 3;
+        return cols_impl(_u);
     }
 
     void parse(gsExprHelper<Scalar> & evList) const
@@ -1079,10 +1079,16 @@ public:
             const index_t numAct = u.data().values[0].rows();   // number of actives of a basis function
             const index_t cardinality = u.cardinality();        // total number of actives (=3*numAct)
 
+            gsDebugVar(numAct);
+            gsDebugVar(cardinality);
+            gsDebugVar(_u.dim());
+
             res.resize(rows(), _u.dim() *_u.cardinality()); // (3 x 3*cardinality)
             res.setZero();
 
             tmp = _u.data().values[2].reshapeCol(k, cols(), numAct );
+            gsDebugVar(tmp);
+            gsDebugVar(res);
             for (index_t d = 0; d != cols(); ++d)
             {
                 const index_t s = d*(cardinality + 1);
@@ -1103,6 +1109,21 @@ public:
         template<class U> inline
         typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value, index_t >::type
         rows_impl(const U & u) const
+        {
+            return _u.parDim() * ( _u.parDim() + 1 ) / 2;
+        }
+
+        ////////////
+        template<class U> inline
+        typename util::enable_if< util::is_same<U,gsFeVariable<Scalar> >::value || util::is_same<U,gsGeometryMap<Scalar> >::value, index_t >::type
+        cols_impl(const U & u)  const
+        {
+            return u.source().targetDim();
+        }
+
+        template<class U> inline
+        typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value || util::is_same<U,gsFeSpace<Scalar> >::value, index_t >::type
+        cols_impl(const U & u) const
         {
             return _u.dim();
         }

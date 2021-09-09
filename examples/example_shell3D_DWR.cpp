@@ -25,6 +25,58 @@
 
 using namespace gismo;
 
+template<typename T>
+class gsElementErrorPlotter : public gsFunction<T>
+{
+public:
+    gsElementErrorPlotter(const gsBasis<T>& mp, const std::vector<T>& errors ) : m_mp(mp),m_errors(errors)
+    {
+
+    }
+
+    virtual void eval_into(const gsMatrix<T>& u, gsMatrix<T>& res) const
+    {
+        // Initialize domain element iterator -- using unknown 0
+        res.setZero(1,u.cols());
+        for(index_t i=0; i<u.cols();++i)
+        {
+            int iter =0;
+            // Start iteration over elements
+
+            typename gsBasis<T>::domainIter domIt = m_mp.makeDomainIterator();
+            for (; domIt->good(); domIt->next() )
+            {
+                 bool flag = true;
+                const gsVector<T>& low = domIt->lowerCorner();
+                const gsVector<T>& upp = domIt->upperCorner();
+
+
+                for(int d=0; d<domainDim();++d )
+                {
+                    if(low(d)> u(d,i) || u(d,i) > upp(d))
+                    {
+                        flag = false;
+                        break;
+                    }
+                }
+                if(flag)
+                {
+                     res(0,i) = m_errors.at(iter);
+                     break;
+                }
+                iter++;
+            }
+        }
+    }
+
+    short_t domainDim() const { return m_mp.dim();}
+
+private:
+    const gsBasis<T>& m_mp;
+    const std::vector<T>& m_errors;
+};
+
+
 int main(int argc, char *argv[])
 {
     // Number of adaptive refinement loops
@@ -109,6 +161,18 @@ int main(int argc, char *argv[])
             mp.uniformRefine();
         numRefine = 0;
     }
+    else
+    {
+        for (index_t r =0; r < 2; ++r)
+            mp.uniformRefine();
+        numRefine -= 2;
+    }
+
+    gsMultiPatch<> mp_ex = mp;
+    mp_ex.degreeElevate(2);
+    for (index_t r =0; r < std::min(numRefine,5); ++r)
+        mp_ex.uniformRefine();
+    gsMultiBasis<> basisR(mp_ex);
 
     // Cast all patches of the mp object to THB splines
     if (adaptive)
@@ -122,11 +186,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    gsMultiPatch<> mp_ex = mp;
-    mp_ex.degreeElevate(2);
-    for (index_t r =0; r < numRefine; ++r)
-        mp_ex.uniformRefine();
-    gsMultiBasis<> basisR(mp_ex);
+
 
     gsBoundaryConditions<> bc;
     bc.setGeoMap(mp);
@@ -283,6 +343,16 @@ int main(int argc, char *argv[])
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
+    //! [adaptRefSettings]
+    // Specify cell-marking strategy...
+    MarkingStrategy adaptRefCrit = PUCA;
+    //MarkingStrategy adaptRefCrit = GARU;
+    //MarkingStrategy adaptRefCrit = errorFraction;
+
+    // ... and parameter.
+    const real_t adaptRefParam = 0.9;
+    //! [adaptRefSettings]
+
     std::vector<real_t> exacts(numRefine+1);
     std::vector<real_t> approxs(numRefine+1);
     std::vector<real_t> efficiencies(numRefine+1);
@@ -294,23 +364,9 @@ int main(int argc, char *argv[])
     gsMultiPatch<> primalL,dualL,dualH;
 
     gsParaviewCollection collection("solution");
+    gsParaviewCollection errors("error_elem_ref");
     for (index_t r=0; r!=numRefine+1; r++)
     {
-        if (adaptive)
-        {
-            // [Mark elements for refinement]
-            std::vector<index_t> bools(mp.basis(0).numElements());
-            std::vector<bool> refVec(mp.basis(0).numElements());
-
-            //////// RANDOMLY
-            std::srand(std::time(nullptr)); // use current time as seed for random generator
-            std::generate(bools.begin(), bools.end(), rand);
-            for (index_t k = 0; k!=bools.size(); k++)
-                refVec[k] = static_cast<bool>(std::round(static_cast<real_t>(bools[k]) / ( RAND_MAX+1u )));
-
-            gsRefineMarkedElements(mp,refVec,0);
-            gsMultiPatch<> mp_def = mp;
-        }
 
         // -----------------------------------------------------------------------------------------
         // ----------------------------Prepare basis------------------------------------------------
@@ -420,21 +476,74 @@ int main(int argc, char *argv[])
         exacts[r] -= numGoal[r];
         approxs[r] = DWR->computeError(dualL,dualH);
 
-        std::vector<real_t> errorsEls = DWR->computeErrorElements(dualL,dualH);
-        for (std::vector<real_t>::const_iterator it = errorsEls.begin(); it != errorsEls.end(); it++)
-            gsDebug<<*it<<"\n";
-
-        std::vector<real_t> errorsDofs = DWR->computeErrorDofs(dualL,dualH);
-        for (std::vector<real_t>::const_iterator it = errorsDofs.begin(); it != errorsDofs.end(); it++)
-            gsDebug<<*it<<"\n";
-
-
         estGoal[r] = numGoal[r]+approxs[r];
 
         efficiencies[r] = approxs[r]/exacts[r];
 
-        if (!adaptive)
-            mp.uniformRefine();
+        if (r < numRefine-1)
+        {
+            if (!adaptive)
+                mp.uniformRefine();
+            else
+            {
+                std::vector<real_t> errorsEls = DWR->computeErrorElements(dualL,dualH);
+                gsDebugVar("Hi");
+                for (std::vector<real_t>::const_iterator it = errorsEls.begin(); it != errorsEls.end(); it++)
+                    gsDebug<<*it<<"\n";
+
+                std::vector<real_t> errorsDofs = DWR->computeErrorDofs(dualL,dualH);
+                for (std::vector<real_t>::const_iterator it = errorsDofs.begin(); it != errorsDofs.end(); it++)
+                    gsDebug<<*it<<"\n";
+
+
+                // Mark elements for refinement, based on the computed local errors and
+                // the refinement-criterion and -parameter.
+                std::vector<bool> elMarked( errorsEls.size() );
+                gsMarkElementsForRef( errorsEls, adaptRefCrit, adaptRefParam, elMarked);
+
+                // Invert errors for coarsening marking
+                std::vector<real_t> errorsElsC = errorsEls;
+                for (index_t k=0; k!=errorsEls.size(); k++)
+                    errorsElsC[k] = -errorsEls[k];
+
+                std::vector<bool> elCMarked( errorsElsC.size() );
+                gsMarkElementsForRef( errorsElsC, adaptRefCrit, adaptRefParam, elCMarked);
+
+
+                gsElementErrorPlotter<real_t> err_eh(mp.basis(0),errorsEls);
+                const gsField<> elemError_eh( mp.patch(0), err_eh, true );
+                gsWriteParaview<>( elemError_eh, "error_elem_ref" + util::to_string(r), 1000, true);
+                collection.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
+                collection.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,"_mesh.vtp");
+
+                // gsProcessMarkedElements( mp, elMarked, elCMarked, 2, 0 );
+                gsRefineMarkedElements( mp, elMarked,2 );
+                gsMultiPatch<> mp_def = mp;
+
+                for (index_t k=0; k!=elCMarked.size(); k++)
+                {
+                    gsInfo<<errorsEls[k]<<"\t"<<elMarked[k]<<"\t"<<elCMarked[k]<<"\n";
+                    // elCMarked[k] = false;
+                }
+
+
+                //////////////////////////////////////
+
+
+                // // [Mark elements for refinement]
+                // std::vector<index_t> bools(mp.basis(0).numElements());
+                // std::vector<bool> refVec(mp.basis(0).numElements());
+
+                // //////// RANDOMLY
+                // std::srand(std::time(nullptr)); // use current time as seed for random generator
+                // std::generate(bools.begin(), bools.end(), rand);
+                // for (index_t k = 0; k!=bools.size(); k++)
+                //     refVec[k] = static_cast<bool>(std::round(static_cast<real_t>(bools[k]) / ( RAND_MAX+1u )));
+
+                // gsRefineMarkedElements(mp,refVec,0);
+                // gsMultiPatch<> mp_def = mp;
+            }
+        }
 
         delete DWR;
 

@@ -1702,6 +1702,9 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    
     auto Em_derd= flat( jac(Gori).tr() * (jac(zsolH) - jac(zsolL)) ) ;
     auto Em_der = flat( jac(Gori).tr() * (jac(usol) ) ) ;
 
+    auto Em_derdw= flat( jac(Gori).tr() * (jac(zsolH) - jac(zsolL)) ) ;
+
+
     auto M      = S1.tr(); // output is a column
     auto Ef_derd= -( deriv2(zsolH, sn(Gori).normalized().tr() )
                   -  deriv2(zsolL, sn(Gori).normalized().tr() ) + deriv2(Gori, var1(zsolH, Gori) )
@@ -1743,32 +1746,6 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    
         result.push_back(integral);
     else
         GISMO_ERROR("Unknown");
-
-
-    space   u2= exprAssembler.getSpace(m_basisL,d);
-    gsBoundaryConditions<> bc;
-    u2.setup(bc, dirichlet::interpolation, 0);
-
-    gsDebugVar(ev.integral( Gori.tr() * Gori));
-    gsDebugVar(ev.eval( Gori.tr() * Gori, pt));
-    gsDebugVar(ev.eval( u2.rowSum(), pt));
-
-    gsDebugVar((u2).rows());
-    gsDebugVar((u2).cols());
-    gsDebugVar((u2.rowSum()).rows());
-    gsDebugVar((u2.rowSum()).cols());
-    gsDebugVar(( Gori.tr() * Gori).rows());
-    gsDebugVar(( Gori.tr() * Gori).cols());
-
-
-    gsDebugVar(ev.eval( Gori.tr() * Gori* u2.rowSum(), pt));
-
-    exprAssembler.assemble(Gori.tr() * Gori * u2.rowSum());
-    gsDebugVar(exprAssembler.rhs().sum());
-
-
-
-
 
     return result;
 }

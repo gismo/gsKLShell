@@ -418,6 +418,157 @@ int main(int argc, char *argv[])
         exacts[r] -= numGoal[r];
         approxs[r] = DWR->computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
 
+        ///////////////////////////////
+
+        typedef gsExprAssembler<>::geometryMap geometryMap;
+        typedef gsExprAssembler<>::space       space;
+        typedef gsExprAssembler<>::solution    solution;
+
+        gsExprAssembler<> exprAssembler(1,1);
+        geometryMap Gori = exprAssembler.getMap(mp);           // this map is used for integrals
+        auto usol   = exprAssembler.getCoeff(primalL);
+        auto zsolL  = exprAssembler.getCoeff(dualL);
+        auto zsolH  = exprAssembler.getCoeff(dualH);
+
+        gsVector<> pt(2);
+        pt.setConstant(0.25);
+
+        gsExprEvaluator<> ev(exprAssembler);
+        exprAssembler.setIntegrationElements(basisL);
+
+        space   u= exprAssembler.getSpace(basisL,3);
+        u.setup(bc, dirichlet::interpolation, 0);
+        gsMatrix<> solMat = solVector;
+        solution sol = exprAssembler.getSolution(u,solMat);
+        space   u2= exprAssembler.getSpace(basisL,1);
+
+        ev.writeParaview(sol,Gori,"sol_expr");
+        ev.writeParaview(usol,Gori,"sol_var");
+
+        gsBoundaryConditions<> bc_tmp;
+
+        u2.setup(bc_tmp, dirichlet::interpolation, 0);
+
+
+        exprAssembler.initSystem();
+
+        gsDebugVar(ev.integral( Gori.tr() * Gori));
+
+        exprAssembler.assemble(u2 * Gori.tr() * Gori);
+        gsDebugVar(exprAssembler.rhs().sum());
+
+        auto u2x2 = replicate(u2.cb(),2,1).asDiag();
+
+        // gsDebug<<"Individual expressions\n";
+        // gsDebugVar(ev.eval( jac(Gori), pt));
+        // gsDebugVar(ev.eval( jac(zsolH) - jac(zsolL), pt));
+        // gsDebugVar(ev.eval( zsolH - zsolL, pt));
+        // gsDebugVar(ev.eval( u2, pt));
+        // gsDebugVar(ev.eval( jac(u2), pt));
+
+        // gsDebug<<"Compositions\n";
+        // gsDebugVar(ev.eval( jac(Gori).tr() * (jac(zsolH) - jac(zsolL)), pt));
+        // gsDebugVar(ev.eval( jac(Gori).tr() * (jac(zsolH) - jac(zsolL)) * u2x2 , pt));
+        // gsDebugVar(ev.eval( jac(Gori).tr() * (zsolH - zsolL) * jac(u2), pt));
+        // gsDebugVar(ev.eval( jac(u2) * jac(Gori).tr(), pt));
+        //
+        gsDebug<<"Individual expressions\n";
+        gsDebugVar(ev.eval( jac(zsolH), pt));
+        gsDebugVar(ev.eval( jac(zsolH) - jac(zsolL), pt));
+        gsDebugVar(ev.eval( zsolH - zsolL, pt));
+        gsDebugVar(ev.eval( u2, pt));
+        gsDebugVar(ev.eval( jac(u2), pt));
+
+        gsDebug<<"Compositions\n";
+        gsDebugVar(ev.eval( jac(zsolH).tr() * (jac(zsolH) - jac(zsolL)), pt));
+        gsDebugVar(ev.eval( jac(zsolH).tr() * (jac(zsolH) - jac(zsolL)) * u2x2 , pt));
+        gsDebugVar(ev.eval( jac(zsolH).tr() * (zsolH - zsolL) * jac(u2), pt));
+        gsDebugVar(ev.eval( jac(u2) * jac(zsolH).tr(), pt));
+
+        auto expr1 = flat(jac(zsolH).tr() * (jac(zsolH) - jac(zsolL)));
+        auto expr2 = flat(jac(zsolH).tr() * (zsolH - zsolL) * jac(u2) + jac(zsolH).tr() * (jac(zsolH) - jac(zsolL)) * u2x2 );
+
+////////////////////////////////////////////////////////
+
+
+        gsDebugVar(ev.eval( expr1 * expr1.tr(), pt));
+
+        gsDebugVar(ev.integral( expr1 * expr1.tr()));
+
+        exprAssembler.initVector(1);
+        exprAssembler.assemble( expr2 * expr1.tr() );
+        gsDebugVar(exprAssembler.rhs().sum());
+
+////////////////////////////////////////////////////////
+
+        auto Em_derdu = flat( ((jac(Gori).tr() * (jac(zsolH) - jac(zsolL)))) * replicate(u2.cb(),2,1).asDiag() );
+        auto Em_derd = flat( jac(Gori).tr() * (jac(zsolH) - jac(zsolL)) );
+
+        exprAssembler.initVector(1);
+
+        gsDebugVar(ev.eval( flat( ((jac(Gori).tr() * (jac(zsolH) - jac(zsolL)))) * u2x2 ), pt));
+
+
+        // auto Em_derdw=   flat( jac(Gori).tr() * (jac(zsolH) - jac(zsolL)) *  )
+                        // +flat( jac(Gori).tr() * (jac(zsolH) - jac(zsolL)) );
+
+
+
+        exprAssembler.assemble( Em_derdu * Em_derd.tr() );
+        gsDebugVar(exprAssembler.rhs().sum());
+
+
+////////////////////////////////////////////////////////
+
+
+        // auto Ef_derd= -( deriv2(zsolH, sn(Gori).normalized().tr() )
+        //               -  deriv2(zsolL, sn(Gori).normalized().tr() ) + deriv2(Gori, var1(zsolH, Gori) )
+        //                                                             - deriv2(Gori, var1(zsolL, Gori) ) ) * reshape(m2, 3, 3);
+
+        gsDebugVar(ev.eval( deriv2(zsolH), pt));
+
+        gsDebugVar(deriv2(sol).rows());
+        gsDebugVar(deriv2(sol).cols());
+        gsDebugVar(ev.eval( deriv2(sol), pt));
+
+        gsDebugVar(deriv2(usol).rows());
+        gsDebugVar(deriv2(usol).cols());
+        gsDebugVar(ev.eval( deriv2(usol), pt));
+
+        gsDebugVar(deriv2(Gori).rows());
+        gsDebugVar(deriv2(Gori).cols());
+        gsDebugVar(ev.eval( deriv2(Gori), pt));
+
+        gsDebugVar(deriv2(zsolH).rows());
+        gsDebugVar(deriv2(zsolH).cols());
+        gsDebugVar(ev.eval( deriv2(zsolH), pt));
+
+        gsDebugVar(ev.eval( deriv2(zsolH) * sn(Gori).normalized(), pt));
+        gsDebugVar(ev.eval( deriv2(zsolH, sn(Gori).normalized().tr()), pt));
+
+        gsDebugVar(ev.eval( replicate(u2.cb(),3,1).asDiag() * deriv2(zsolH), pt));
+        gsDebugVar(ev.eval( replicate(u2.cb(),3,1).asDiag() * (deriv2(zsolH) * sn(Gori).normalized()), pt));
+        gsDebugVar(ev.eval( deriv2(zsolH, sn(Gori).normalized().tr()) * replicate(u2.cb(),3,1).asDiag(), pt));
+
+        gsDebugVar(ev.eval( deriv2(u2), pt));
+        gsDebugVar(deriv2(u2).rows());
+        gsDebugVar(deriv2(u2).cols());
+        // gsDebugVar(ev.eval( deriv2(zsolH) * sn(Gori).normalized(), pt));
+        // gsDebugVar(ev.eval( deriv2(zsolH, sn(Gori).normalized().tr()), pt));
+
+
+
+
+
+
+////////////////////////////////////////////////////////
+
+
+
+
+
+
+
         if (adaptive)
             elErrors = DWR->computeErrorEigElements(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
 
