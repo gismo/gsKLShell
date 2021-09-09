@@ -27,6 +27,8 @@
 
 #include <gsIO/gsWriteParaview.h>
 
+#include <gsMSplines/gsWeightMapper.h>
+
 namespace gismo
 {
 
@@ -302,15 +304,36 @@ void gsThinShellAssembler<d, T, bending>::_applyLoads()
         // Compute actives and values of basis functions on point load location.
         if ( m_pLoads[i].parametric )   // in parametric space
         {
-            m_basis.basis(m_pLoads[i].patch).active_into( m_pLoads[i].point, acts );
-            m_basis.basis(m_pLoads[i].patch).eval_into  ( m_pLoads[i].point, bVals);
+            if (const gsMappedBasis<2,T> * mbasis = dynamic_cast<const gsMappedBasis<2,T> * >(m_spaceBasis))
+            {
+                mbasis->active_into(m_pLoads[i].patch,m_pLoads[i].point, acts );
+                mbasis->eval_into  (m_pLoads[i].patch,m_pLoads[i].point, bVals );
+            }
+            else if (const gsMultiBasis<T> * mbasis = dynamic_cast<const gsMultiBasis<T> * >(m_spaceBasis))
+            {
+                mbasis->basis(m_pLoads[i].patch).active_into( m_pLoads[i].point, acts);
+                mbasis->basis(m_pLoads[i].patch).eval_into  ( m_pLoads[i].point, bVals);
+            }
+            else
+                GISMO_ERROR("Basis type not understood");
         }
         else                            // in physical space
         {
             gsMatrix<T> forcePoint;
             m_patches.patch(m_pLoads[i].patch).invertPoints(m_pLoads[i].point,forcePoint);
-            m_basis.basis(m_pLoads[i].patch).active_into( forcePoint, acts );
-            m_basis.basis(m_pLoads[i].patch).eval_into  ( forcePoint, bVals);
+
+            if (const gsMappedBasis<2,T> * mbasis = dynamic_cast<const gsMappedBasis<2,T> * >(m_spaceBasis))
+            {
+                mbasis->active_into(m_pLoads[i].patch,forcePoint, acts );
+                mbasis->eval_into  (m_pLoads[i].patch,forcePoint, bVals );
+            }
+            else if (const gsMultiBasis<T> * mbasis = dynamic_cast<const gsMultiBasis<T> * >(m_spaceBasis))
+            {
+                mbasis->basis(m_pLoads[i].patch).active_into( forcePoint, acts);
+                mbasis->basis(m_pLoads[i].patch).eval_into  ( forcePoint, bVals);
+            }
+            else
+                GISMO_ERROR("Basis type not understood");
         }
 
         // Add the point load values in the right entries in the global RHS
@@ -564,7 +587,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> &
     auto S0  = m_assembler.getCoeff(m_S0);
     auto S1  = m_assembler.getCoeff(m_S1);
 
-    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
+    gsFunctionExpr<T> mult2t("1","0","0","0","1","0","0","0","2",2);
     auto m_m2 = m_assembler.getCoeff(mult2t);
 
     space       m_space = m_assembler.trialSpace(0);
@@ -1001,6 +1024,9 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsMultiPatch<T> & 
     assembler.setIntegrationElements(m_basis);
     space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
 
+    gsBoundaryConditions<T> bc;
+    u.setup(bc, dirichlet::interpolation, 0);
+
     assembler.initSystem();
 
     m_defpatches = deformed;
@@ -1034,27 +1060,32 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsMultiPatch<T> & 
 
     gsMatrix<T> Fint = assembler.rhs();
     gsVector<T> result(d);
-    const gsMultiBasis<T> & mbasis = *dynamic_cast<const gsMultiBasis<T>*>(&u.source());
     gsMatrix<index_t> boundary;
 
     gsBoundaryConditions<real_t>::bcContainer container;
     m_bcs.getConditionFromSide(ps,container);
 
-    for ( index_t com = 0; com!=d; com++)
+    if (const gsMultiBasis<T> * mbasis = dynamic_cast<const gsMultiBasis<T>*>(&u.source()))
     {
-        const gsBasis<T> & basis = mbasis[ps.patch];
-        boundary = basis.boundary(ps.side());
-
-        T offset = u.mapper().offset(ps.patch);
-        T size = u.mapper().size(com);
-        for (index_t l=0; l!= boundary.size(); ++l)
+        for ( index_t com = 0; com!=d; com++)
         {
-            index_t ii = offset + size*com + boundary.at(l);
-            result.at(com) += Fint.at(ii);
-        }
-    }
+            const gsBasis<T> & basis = mbasis->at(ps.patch);
+            boundary = basis.boundary(ps.side());
 
-    return result;
+            T offset = u.mapper().offset(ps.patch);
+            T size = u.mapper().size(com);
+            for (index_t l=0; l!= boundary.size(); ++l)
+            {
+                index_t ii = offset + size*com + boundary.at(l);
+                result.at(com) += Fint.at(ii);
+            }
+        }
+
+        return result;
+    }
+    else
+        GISMO_ERROR("The basis is not a gsMultiBasis!");
+
 }
 
 template<int d, typename T, bool bending>
@@ -1065,6 +1096,9 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsMultiPatch<T> & 
     gsExprAssembler<T> assembler;
     assembler.setIntegrationElements(m_basis);
     space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
+
+    gsBoundaryConditions<T> bc;
+    u.setup(bc, dirichlet::interpolation, 0);
 
     assembler.initSystem();
 
@@ -1127,6 +1161,9 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsMultiPatch
     gsExprAssembler<T> assembler;
     assembler.setIntegrationElements(m_basis);
     space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
+
+    gsBoundaryConditions<T> bc;
+    u.setup(bc, dirichlet::interpolation, 0);
 
     assembler.initSystem();
 
@@ -1228,6 +1265,9 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsMultiPatch
     gsExprAssembler<T> assembler;
     assembler.setIntegrationElements(m_basis);
     space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
+
+    gsBoundaryConditions<T> bc;
+    u.setup(bc, dirichlet::interpolation, 0);
 
     assembler.initSystem();
 
