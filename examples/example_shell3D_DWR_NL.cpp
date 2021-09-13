@@ -221,7 +221,7 @@ int main(int argc, char *argv[])
 
     space u = A.getSpace(basisR, 3);
     u.setup(bc,dirichlet::interpolation,0);
-    variable    function = A.getCoeff(exact, G);
+    auto function = A.getCoeff(exact, G);
     A.initSystem(false);
     A.assemble(u*u.tr()*meas(G),u * function*meas(G));
     solver.compute(A.matrix());

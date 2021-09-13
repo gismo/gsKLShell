@@ -113,7 +113,7 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_initialize()
     this->_defaultOptions();
 
     // set flags
-    m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
+    m_map.mine().flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
 
     // Initialize some parameters
     m_numPars = m_pars.size();
@@ -130,14 +130,14 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_computePoints(const index_t pa
     if (Base::m_defpatches->nPieces()!=0)
         this->_computeMetricDeformed(patch,u);
 
-    m_thickness->eval_into(m_map.values[0], m_Tmat);
+    m_thickness->eval_into(m_map.mine().values[0], m_Tmat);
 
-    m_parmat.resize(m_numPars,m_map.values[0].cols());
+    m_parmat.resize(m_numPars,m_map.mine().values[0].cols());
     m_parmat.setZero();
 
     for (size_t v=0; v!=m_pars.size(); v++)
     {
-        m_pars[v]->eval_into(m_map.values[0], tmp);
+        m_pars[v]->eval_into(m_map.mine().values[0], tmp);
         m_parmat.row(v) = tmp;
     }
 
@@ -185,13 +185,13 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_computePoints_impl(const gsMatrix<T
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_map.flags = NEED_VALUE;
-    m_map.points = u;
+    m_map.mine().flags = NEED_VALUE;
+    m_map.mine().points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
 
     result.resize(1, u.cols());
-    m_thickness->eval_into(m_map.values[0], m_Tmat);
-    m_density->eval_into(m_map.values[0], m_rhomat);
+    m_thickness->eval_into(m_map.mine().values[0], m_Tmat);
+    m_density->eval_into(m_map.mine().values[0], m_rhomat);
     for (index_t i = 0; i != u.cols(); ++i) // points
     {
         result(0,i) = m_Tmat(0,i)*m_rhomat(0,i);
@@ -202,7 +202,7 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::density_into(const index_t patc
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_map.points = u;
+    m_map.mine().points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
 
     this->_computePoints(patch,u);
@@ -298,7 +298,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_stretch_into_impl(const gsMatrix<T>
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_map.points = u;
+    m_map.mine().points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
 
     this->_computePoints(patch,u);
@@ -392,10 +392,10 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_stretchDir_into_impl(const gsMatrix
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
-    m_map.flags = NEED_VALUE;
-    m_map.points = u;
+    m_map.mine().flags = NEED_VALUE;
+    m_map.mine().points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-    m_thickness->eval_into(m_map.values[0], result);
+    m_thickness->eval_into(m_map.mine().values[0], result);
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >

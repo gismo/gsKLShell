@@ -102,7 +102,7 @@ void gsMaterialMatrixComposite<dim,T>::_initialize()
     this->_defaultOptions();
 
     // set flags
-    m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
+    m_map.mine().flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
 
     m_nLayers = m_Ts.size();
 
@@ -130,14 +130,14 @@ void gsMaterialMatrixComposite<dim,T>::_computePoints(const index_t patch, const
     gsMatrix<T> angles;
     for (size_t k=0; k!= m_Gs.size(); k++)
     {
-        m_Gcontainer[k] = m_Gs[k]->piece(patch).eval(m_map.values[0]);
-        m_Tcontainer[k] = m_Ts[k]->piece(patch).eval(m_map.values[0]);
-        angles = m_As[k]->piece(patch).eval(m_map.values[0]);
+        m_Gcontainer[k] = m_Gs[k]->piece(patch).eval(m_map.mine().values[0]);
+        m_Tcontainer[k] = m_Ts[k]->piece(patch).eval(m_map.mine().values[0]);
+        angles = m_As[k]->piece(patch).eval(m_map.mine().values[0]);
 
         GISMO_ASSERT(m_Gcontainer[k].rows()==9,"G has the wrong size, must be 3x3");
         GISMO_ASSERT(m_Tcontainer[k].rows()==1,"Thickness has the wrong size, must be scalar");
 
-        m_Acontainer[k] = _transformationMatrix(angles,m_map.values[0]);
+        m_Acontainer[k] = _transformationMatrix(angles,m_map.mine().values[0]);
     }
 }
 
@@ -146,16 +146,16 @@ void gsMaterialMatrixComposite<dim,T>::density_into(const index_t patch, const g
 {
     GISMO_ASSERT(m_Ts.size()==m_Rs.size(),"Size of vectors of thickness and densities is not equal: " << m_Ts.size()<<" & "<<m_Rs.size());
 
-    m_map.flags = NEED_VALUE;
-    m_map.points = u;
+    m_map.mine().flags = NEED_VALUE;
+    m_map.mine().points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
 
     result.resize(1, u.cols());
     result.setZero();
     for (size_t k=0; k!= m_Rs.size(); k++)
     {
-        m_Tcontainer[k] = m_Ts[k]->piece(patch).eval(m_map.values[0]);
-        m_Rcontainer[k] = m_Rs[k]->piece(patch).eval(m_map.values[0]);
+        m_Tcontainer[k] = m_Ts[k]->piece(patch).eval(m_map.mine().values[0]);
+        m_Rcontainer[k] = m_Rs[k]->piece(patch).eval(m_map.mine().values[0]);
 
         GISMO_ASSERT(m_Tcontainer[k].rows()==1,"Thickness has the wrong size, must be scalar");
         GISMO_ASSERT(m_Rcontainer[k].rows()==1,"Densities has the wrong size, must be scalar");
@@ -171,13 +171,13 @@ void gsMaterialMatrixComposite<dim,T>::density_into(const index_t patch, const g
 template <short_t dim, class T >
 void gsMaterialMatrixComposite<dim,T>::thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
-    m_map.flags = NEED_VALUE;
-    m_map.points = u;
+    m_map.mine().flags = NEED_VALUE;
+    m_map.mine().points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
 
     for (size_t k=0; k!= m_Rs.size(); k++)
     {
-        m_Tcontainer[k] = m_Ts[k]->eval(m_map.values[0]);
+        m_Tcontainer[k] = m_Ts[k]->eval(m_map.mine().values[0]);
         GISMO_ASSERT(m_Tcontainer[k].rows()==1,"Thickness has the wrong size, must be scalar");
     }
 

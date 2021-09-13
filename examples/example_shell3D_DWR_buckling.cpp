@@ -140,17 +140,21 @@ int main(int argc, char *argv[])
     gsBoundaryConditions<> bc;
     bc.setGeoMap(mp);
     gsVector<> tmp(3);
-    gsVector<> neu(3);
     tmp << 0, 0, 0;
-    neu << 0, 0, 0;
-    gsConstantFunction<> neuData(neu,3);
+
+    gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
+
 
     real_t D = E_modulus * math::pow(thickness, 3) / (12 * (1 - math::pow(PoissonRatio, 2)));
     real_t Load = 1e2;
-    neu << Load, 0, 0;
-    neuData.setValue(neu,3);
+
+    gsVector<> point(2);
+    gsVector<> load (3);
+    point<< 1.0, 0.0 ; load << Load, 0.0, 0.0 ;
+    pLoads.addLoad(point, load, 0 );
+
     // // Clamped-Clamped
-    bc.addCondition(boundary::east, condition_type::neumann, &neuData ); // unknown 0 - x
+    bc.addCondition(boundary::east, condition_type::collapsed, 0, 0, false, 0 ); // unknown 0 - x
 
     bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
     bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
@@ -224,19 +228,18 @@ int main(int argc, char *argv[])
     gsThinShellAssemblerDWRBase<real_t> * DWR;
 
     gsParaviewCollection collection("solution");
+
+    std::vector<real_t> elErrors;
+    std::vector<bool> refVec;
+    MarkingStrategy adaptRefCrit = PUCA;
+    const real_t adaptRefParam = 0.8;
+
     for (index_t r=0; r!=numRefine+1; r++)
     {
-        if (adaptive)
+        if (adaptive && r!=0)
         {
             // [Mark elements for refinement]
-            std::vector<index_t> bools(mp.basis(0).numElements());
-            std::vector<bool> refVec(mp.basis(0).numElements());
-
-            //////// RANDOMLY
-            std::srand(std::time(nullptr)); // use current time as seed for random generator
-            std::generate(bools.begin(), bools.end(), rand);
-            for (index_t k = 0; k!=bools.size(); k++)
-                refVec[k] = static_cast<bool>(std::round(static_cast<real_t>(bools[k]) / ( RAND_MAX+1u )));
+            gsMarkElementsForRef( elErrors, adaptRefCrit, adaptRefParam, refVec);
 
             gsRefineMarkedElements(mp,refVec,0);
             gsMultiPatch<> mp_def = mp;
@@ -250,16 +253,18 @@ int main(int argc, char *argv[])
 
         // Set bases
         gsMultiBasis<> basisL(mp);
-        gsMultiBasis<> basisH = basisL;
+        gsMultiBasis<> basisH(mp);
         basisH.degreeElevate(1);
 
-        gsInfo<<"Basis Primal: "<<basisL.basis(0)<<"\n";
+        gsInfo<<"Basis Primal: "<<mp.basis(0)<<"\n";
+        gsInfo<<"Basis Primal: "<<basisL.basis(0)<<"\n"; //// different than the one above!!
         gsInfo<<"Basis Dual:   "<<basisH.basis(0)<<"\n";
 
         // -----------------------------------------------------------------------------------------
         // ----------------------------DWR method---------------------------------------------------
         // -----------------------------------------------------------------------------------------
         DWR = new gsThinShellAssemblerDWR<3, real_t, true>(mp, basisL, basisH, bc, force, materialMatrix);
+        DWR->setPointLoads(pLoads);
         DWR->setGoal(GoalFunction::Buckling);
 
         gsInfo << "Computing load step... " << std::flush;
@@ -269,6 +274,7 @@ int main(int argc, char *argv[])
         rhs = DWR->primalL();
         solver.compute(K_L);
         solVectorLinear = solver.solve(rhs);
+
         DWR->constructSolutionL(solVectorLinear, mp_def);
         gsInfo << "done\n";
 
@@ -363,7 +369,7 @@ int main(int argc, char *argv[])
         else if (eigsolverH.info()==Spectra::CompInfo::NotComputed)   { GISMO_ERROR("Spectra did not converge! Error code: NotComputed");   }
         else
 #else
-        Eigen::GeneralizedSelfAdjointEigenSolver<gsMatrix<real_t>::Base> eigsolverL;
+        Eigen::GeneralizedSelfAdjointEigenSolver<gsMatrix<real_t>::Base> eigsolverH;
         eigsolverH.compute(K_L,K_NL-K_L);
 #endif
 
@@ -403,6 +409,10 @@ int main(int argc, char *argv[])
         exacts[r] += exGoal[r];
         exacts[r] -= numGoal[r];
         approxs[r] = DWR->computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL,mp_def);
+
+        if (adaptive)
+            elErrors = DWR->computeErrorEigElements(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
+
 
         estGoal[r] = numGoal[r]+approxs[r];
 

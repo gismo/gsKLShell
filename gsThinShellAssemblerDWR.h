@@ -19,9 +19,6 @@
 #include <gsKLShell/gsMaterialMatrix.h>
 #include <gsKLShell/gsThinShellFunctions.h>
 
-#include <gsPde/gsPointLoads.h>
-
-
 namespace gismo
 {
 
@@ -45,8 +42,9 @@ template<class T> class gsThinShellAssemblerDWRBase;
 
 
 template <short_t d, class T, bool bending>
-class gsThinShellAssemblerDWR : public gsThinShellAssemblerDWRBase<T>,
-                                public gsThinShellAssembler<d,T,bending>
+class gsThinShellAssemblerDWR : public gsThinShellAssembler<d,T,bending>,
+                                public gsThinShellAssemblerDWRBase<T>
+
 {
 public:
     typedef gsThinShellAssembler<d,T,bending> Base;
@@ -70,6 +68,52 @@ public:
                                 gsMaterialMatrixBase<T> * materialmatrix
                             );
 
+    /// See \ref gsThinShellAssemblerBase for details
+    gsOptionList & optionsL() {return m_assemblerL->options();}
+    /// See \ref gsThinShellAssemblerBase for details
+    gsOptionList & optionsH() {return m_assemblerH->options();}
+
+    /// See \ref gsThinShellAssemblerBase for details
+    gsExprAssembler<T> assemblerL() {return m_assemblerL->assembler(); }
+    /// See \ref gsThinShellAssemblerBase for details
+    gsExprAssembler<T> assemblerH() {return m_assemblerH->assembler(); }
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void setOptions(gsOptionList & options) { m_assemblerL->setOptions(options);  m_assemblerH->setOptions(options); }
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void setPointLoads(const gsPointLoads<T> & pLoads) { m_assemblerL->setPointLoads(pLoads);  m_assemblerH->setPointLoads(pLoads); }
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void setFoundation(const gsFunction<T> & foundation) { m_assemblerL->setFoundation(foundation);  m_assemblerH->setFoundation(foundation); }
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void setPressure(const gsFunction<T> & pressure) { m_assemblerL->setPressure(pressure);  m_assemblerH->setPressure(pressure); }
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void updateBCs(const gsBoundaryConditions<T> & bconditions) { m_assemblerL->updateBCs(bconditions);  m_assemblerH->updateBCs(bconditions); }
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void setBasisL(const gsMultiBasis<T> & basis) { m_assemblerL->setBasis(basis); }
+    void setBasisH(const gsMultiBasis<T> & basis) { m_assemblerL->setBasis(basis); }
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void setUndeformed(const gsMultiPatch<T> & patches) { m_assemblerL->setUndeformed(patches);  m_assemblerH->setUndeformed(patches); }
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void homogenizeDirichlet() { m_assemblerL->homogenizeDirichlet();  m_assemblerH->homogenizeDirichlet(); }
+
+    /// See \ref gsThinShellAssemblerBase for details
+    index_t numDofsL() const { return m_assemblerL->numDofs(); }
+    index_t numDofsH() const { return m_assemblerH->numDofs(); }
+
+    void setSpaceBasisL(const gsFunctionSet<T> & spaceBasis) { m_assemblerL->setSpaceBasis(spaceBasis); }
+    void setSpaceBasisH(const gsFunctionSet<T> & spaceBasis) { m_assemblerH->setSpaceBasis(spaceBasis); }
+
+
+    ////////////////////////////////////////////////////////////////////////////
+    //--------------------- SYSTEM ASSEMBLY ----------------------------------//
+    ////////////////////////////////////////////////////////////////////////////
 
     void assembleMassL(bool lumped = false)
     { m_massL = _assembleMass(m_assemblerL, lumped); }
@@ -125,18 +169,34 @@ public:
     gsMultiPatch<T> constructDisplacementL(const gsMatrix<T> & solVector);
     gsMultiPatch<T> constructDisplacementH(const gsMatrix<T> & solVector);
 
-    // Linear elasticity
+    // Linear elasticity ;
     T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH);
+    std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH);
+    std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH);
 
     // Nonlinear elasticity
     T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
+    std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
+    std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
 
     // Eigenvalues
     T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal);
+    std::vector<T> computeErrorEigElements(const T evPrimalL, const T evDualL, const T evDualH,
+                      const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
+                      const gsMultiPatch<T> & primal);
+    std::vector<T> computeErrorEigDofs(const T evPrimalL, const T evDualL, const T evDualH,
+                      const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
+                      const gsMultiPatch<T> & primal);
 
     T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
+                      const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
+                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
+    std::vector<T> computeErrorEigElements(const T evPrimalL, const T evDualL, const T evDualH,
+                      const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
+                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
+    std::vector<T> computeErrorEigDofs(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
 
@@ -185,15 +245,26 @@ protected:
      */
     gsVector<T>         _assembleDual(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & deformed);
 
-    template<int _d, bool _bending>
-    typename std::enable_if<(_d==3 && _bending), T>::type
+    template<int _elWise>
+    std::vector<T> computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH);
+
+    template<int _d, bool _bending, int _elWise>
+    typename std::enable_if<(_d==3 && _bending), std::vector<T>>::type
     computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
 
-
-    template<int _d, bool _bending>
-    typename std::enable_if<!(_d==3 && _bending), T>::type
+    template<int _d, bool _bending, int _elWise>
+    typename std::enable_if<!(_d==3 && _bending), std::vector<T>>::type
     computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
 
+    template<int _elWise>
+    std::vector<T> computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,
+                      const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
+                      const gsMultiPatch<T> & primal);
+
+    template<int _elWise>
+    std::vector<T> computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,
+                      const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
+                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
 
 protected:
     mutable gsThinShellAssemblerBase<T> * m_assemblerL;
@@ -210,7 +281,6 @@ protected:
     gsMultiBasis<T> m_basisL, m_basisH;
 
     typedef gsExprAssembler<>::geometryMap geometryMap;
-    typedef gsExprAssembler<>::variable    variable;
     typedef gsExprAssembler<>::space       space;
     typedef gsExprAssembler<>::solution    solution;
 
@@ -240,11 +310,39 @@ protected:
  * @ingroup    KLShell
  */
 template <class T>
-class gsThinShellAssemblerDWRBase //: public gsThinShellAssemblerBase<T>
+class gsThinShellAssemblerDWRBase //: public virtual gsThinShellAssemblerBase<T>
 {
 public:
     /// Default empty constructor
     virtual ~gsThinShellAssemblerDWRBase() {};
+
+
+    virtual gsOptionList & optionsL() =0;
+    virtual gsOptionList & optionsH() =0;
+
+    virtual gsExprAssembler<T> assemblerL() =0;
+    virtual gsExprAssembler<T> assemblerH() =0;
+
+    virtual void setOptions(gsOptionList & options) =0;
+    virtual void setPointLoads(const gsPointLoads<T> & pLoads) =0;
+
+    virtual void setFoundation(const gsFunction<T> & foundation) =0;
+    virtual void setPressure(const gsFunction<T> & pressure) =0;
+
+    virtual void updateBCs(const gsBoundaryConditions<T> & bconditions) =0;
+
+    virtual void setBasisL(const gsMultiBasis<T> & basis) =0;
+    virtual void setBasisH(const gsMultiBasis<T> & basis) =0;
+
+    virtual void setUndeformed(const gsMultiPatch<T> & patches) =0;
+
+    virtual void homogenizeDirichlet() =0;
+
+    virtual index_t numDofsL() const =0;
+    virtual index_t numDofsH() const =0;
+
+    virtual void setSpaceBasisL(const gsFunctionSet<T> & spaceBasis) =0;
+    virtual void setSpaceBasisH(const gsFunctionSet<T> & spaceBasis) =0;
 
     virtual void assembleMassL(bool lumped = false) =0;
     virtual void assembleMassH(bool lumped = false) =0;
@@ -289,15 +387,32 @@ public:
 
     // Linear elasticity ;
     virtual T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH) =0;
+    virtual std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH) =0;
+    virtual std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH) =0;
 
     // Nonlinear elasticity
     virtual T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed) =0;
+    virtual std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed) =0;
+    virtual std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed) =0;
 
     // Eigenvalues
     virtual T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal) =0;
+    virtual std::vector<T> computeErrorEigElements(const T evPrimalL, const T evDualL, const T evDualH,
+                      const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
+                      const gsMultiPatch<T> & primal) =0;
+    virtual std::vector<T> computeErrorEigDofs(const T evPrimalL, const T evDualL, const T evDualH,
+                      const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
+                      const gsMultiPatch<T> & primal) =0;
+
     virtual T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
+                      const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
+                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
+    virtual std::vector<T> computeErrorEigElements(const T evPrimalL, const T evDualL, const T evDualH,
+                      const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
+                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
+    virtual std::vector<T> computeErrorEigDofs(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
 

@@ -87,6 +87,7 @@ private:
     typename std::enable_if<_out==MaterialOutput::StretchDir, short_t>::type targetDim_impl() const { return 9; };
 
 public:
+    // FIX THIS (MEMORY ERROR)
     /// Implementation of piece, see \ref gsFunction
     const gsFunction<T> & piece(const index_t p) const
     {
