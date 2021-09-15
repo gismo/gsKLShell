@@ -216,13 +216,12 @@ int main(int argc, char *argv[])
 
     gsExprAssembler<> A(1,1);
     A.setIntegrationElements(basisR);
-    A.getMap(mp);
-    geometryMap G   = A.exprData()->getMap();
+    geometryMap G   = A.getMap(mp);
 
     space u = A.getSpace(basisR, 3);
     u.setup(bc,dirichlet::interpolation,0);
     auto function = A.getCoeff(exact, G);
-    A.initSystem(false);
+    A.initSystem();
     A.assemble(u*u.tr()*meas(G),u * function*meas(G));
     solver.compute(A.matrix());
     gsMatrix<> result = solver.solve(A.rhs());
@@ -407,12 +406,15 @@ int main(int argc, char *argv[])
         gsInfo << "done.\n";
 
         gsInfo << "Assembling dual vector (L)... "<< std::flush;
+        gsVector<> rhsL;
         DWR->assembleDualL(primalL);
+        rhsL = DWR->dualL();
         DWR->assembleDualL(points,primalL);
+        rhsL += DWR->dualL();
         gsInfo << "done.\n";
 
-        gsInfo << "Solving dual (low), size = "<<DWR->matrixL().rows()<<","<<DWR->matrixL().cols()<<"... "<< std::flush;
-        solVector = solver.solve(DWR->dualL());
+        gsInfo << "Solving dual (L), size = "<<DWR->matrixL().rows()<<","<<DWR->matrixL().cols()<<"... "<< std::flush;
+        solVector = solver.solve(rhsL);
 
         DWR->constructMultiPatchL(solVector,dualL);
         gsInfo << "done.\n";
@@ -424,13 +426,16 @@ int main(int argc, char *argv[])
         gsInfo << "done.\n";
 
         gsInfo << "Assembling dual vector (H)... "<< std::flush;
+        gsVector<> rhsH;
         DWR->assembleDualH(primalL);
+        rhsH = DWR->dualH();
         DWR->assembleDualH(points,primalL);
+        rhsH += DWR->dualH();
         gsInfo << "done.\n";
 
-        gsInfo << "Solving dual (high), size = "<<DWR->matrixH().rows()<<","<<DWR->matrixH().cols()<<"... "<< std::flush;
+        gsInfo << "Solving dual (H), size = "<<DWR->matrixH().rows()<<","<<DWR->matrixH().cols()<<"... "<< std::flush;
         solver.compute(DWR->matrixH());
-        solVector = solver.solve(DWR->dualH());
+        solVector = solver.solve(rhsH);
         DWR->constructMultiPatchH(solVector,dualH);
         gsInfo << "done.\n";
 

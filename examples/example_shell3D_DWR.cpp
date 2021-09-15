@@ -154,6 +154,12 @@ int main(int argc, char *argv[])
     if (numElevate!=0)
         mp.degreeElevate(numElevate);
 
+    gsMultiPatch<> mp_ex = mp;
+    mp_ex.degreeElevate(2);
+    for (index_t r =0; r < std::min(numRefine,5); ++r)
+        mp_ex.uniformRefine();
+    gsMultiBasis<> basisR(mp_ex);
+
     // h-refine
     if (!loop)
     {
@@ -163,16 +169,10 @@ int main(int argc, char *argv[])
     }
     else
     {
-        for (index_t r =0; r < 2; ++r)
+        for (index_t r =0; r < 3; ++r)
             mp.uniformRefine();
-        numRefine -= 2;
+        numRefine -= 3;
     }
-
-    gsMultiPatch<> mp_ex = mp;
-    mp_ex.degreeElevate(2);
-    for (index_t r =0; r < std::min(numRefine,5); ++r)
-        mp_ex.uniformRefine();
-    gsMultiBasis<> basisR(mp_ex);
 
     // Cast all patches of the mp object to THB splines
     if (adaptive)
@@ -350,7 +350,7 @@ int main(int argc, char *argv[])
     //MarkingStrategy adaptRefCrit = errorFraction;
 
     // ... and parameter.
-    const real_t adaptRefParam = 0.9;
+    const real_t adaptRefParam = 0.95;
     //! [adaptRefSettings]
 
     std::vector<real_t> exacts(numRefine+1);
@@ -425,12 +425,15 @@ int main(int argc, char *argv[])
 
 
         gsInfo << "Assembling dual vector (L)... "<< std::flush;
+        gsVector<> rhsL;
         DWR->assembleDualL(primalL);
+        rhsL = DWR->dualL();
         DWR->assembleDualL(points,primalL);
+        rhsL += DWR->dualL();
         gsInfo << "done.\n";
 
-        gsInfo << "Solving dual (low), size = "<<DWR->matrixL().rows()<<","<<DWR->matrixL().cols()<<"... "<< std::flush;
-        solVector = solver.solve(DWR->dualL());
+        gsInfo << "Solving dual (L), size = "<<DWR->matrixL().rows()<<","<<DWR->matrixL().cols()<<"... "<< std::flush;
+        solVector = solver.solve(rhsL);
         DWR->constructMultiPatchL(solVector,dualL);
         gsInfo << "done.\n";
 
@@ -439,22 +442,19 @@ int main(int argc, char *argv[])
         gsInfo << "done.\n";
 
         gsInfo << "Assembling dual vector (H)... "<< std::flush;
+        gsVector<> rhsH;
         DWR->assembleDualH(primalL);
+        rhsH = DWR->dualH();
         DWR->assembleDualH(points,primalL);
+        rhsH += DWR->dualH();
         gsInfo << "done.\n";
 
-        gsInfo << "Solving dual (high), size = "<<DWR->matrixH().rows()<<","<<DWR->matrixH().cols()<<"... "<< std::flush;
-
-        // gsDebugVar(DWR->matrixH().toDense());
-        // gsDebugVar(DWR->dualH().transpose());
+        gsInfo << "Solving dual (H), size = "<<DWR->matrixH().rows()<<","<<DWR->matrixH().cols()<<"... "<< std::flush;
 
         solver.compute(DWR->matrixH());
-        solVector = solver.solve(DWR->dualH());
+        solVector = solver.solve(rhsH);
         DWR->constructMultiPatchH(solVector,dualH);
         gsInfo << "done.\n";
-
-        // solVector = DWR->dualH();
-        // DWR->constructMultiPatchH(solVector,dualH);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -487,13 +487,12 @@ int main(int argc, char *argv[])
             else
             {
                 std::vector<real_t> errorsEls = DWR->computeErrorElements(dualL,dualH);
-                gsDebugVar("Hi");
                 for (std::vector<real_t>::const_iterator it = errorsEls.begin(); it != errorsEls.end(); it++)
                     gsDebug<<*it<<"\n";
 
-                std::vector<real_t> errorsDofs = DWR->computeErrorDofs(dualL,dualH);
-                for (std::vector<real_t>::const_iterator it = errorsDofs.begin(); it != errorsDofs.end(); it++)
-                    gsDebug<<*it<<"\n";
+                // std::vector<real_t> errorsDofs = DWR->computeErrorDofs(dualL,dualH);
+                // for (std::vector<real_t>::const_iterator it = errorsDofs.begin(); it != errorsDofs.end(); it++)
+                //     gsDebug<<*it<<"\n";
 
 
                 // Mark elements for refinement, based on the computed local errors and
@@ -513,11 +512,11 @@ int main(int argc, char *argv[])
                 gsElementErrorPlotter<real_t> err_eh(mp.basis(0),errorsEls);
                 const gsField<> elemError_eh( mp.patch(0), err_eh, true );
                 gsWriteParaview<>( elemError_eh, "error_elem_ref" + util::to_string(r), 1000, true);
-                collection.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
-                collection.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,"_mesh.vtp");
+                errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
+                errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,"_mesh.vtp");
 
-                // gsProcessMarkedElements( mp, elMarked, elCMarked, 2, 0 );
-                gsRefineMarkedElements( mp, elMarked,2 );
+                gsProcessMarkedElements( mp, elMarked, elCMarked, 2, 0 );
+                // gsRefineMarkedElements( mp, elMarked,1 );
                 gsMultiPatch<> mp_def = mp;
 
                 for (index_t k=0; k!=elCMarked.size(); k++)
@@ -525,7 +524,6 @@ int main(int argc, char *argv[])
                     gsInfo<<errorsEls[k]<<"\t"<<elMarked[k]<<"\t"<<elCMarked[k]<<"\n";
                     // elCMarked[k] = false;
                 }
-
 
                 //////////////////////////////////////
 
@@ -549,7 +547,11 @@ int main(int argc, char *argv[])
 
     }
 
-    if (plot) collection.save();
+    if (plot)
+    {
+        collection.save();
+        errors.save();
+    }
 
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
     gsInfo<<"Ref.\tApprox    \tExact     \tEfficiency\tNumGoal   \tEstGoal   \texGoal    \n";

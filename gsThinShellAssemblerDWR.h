@@ -95,10 +95,10 @@ public:
 
     /// See \ref gsThinShellAssemblerBase for details
     void setBasisL(const gsMultiBasis<T> & basis) { m_assemblerL->setBasis(basis); }
-    void setBasisH(const gsMultiBasis<T> & basis) { m_assemblerL->setBasis(basis); }
+    void setBasisH(const gsMultiBasis<T> & basis) { m_assemblerH->setBasis(basis); }
 
     /// See \ref gsThinShellAssemblerBase for details
-    void setUndeformed(const gsMultiPatch<T> & patches) { m_assemblerL->setUndeformed(patches);  m_assemblerH->setUndeformed(patches); }
+    void setUndeformed(const gsMultiPatch<T> & patches) { m_patches = patches; m_assemblerL->setUndeformed(patches);  m_assemblerH->setUndeformed(patches); }
 
     /// See \ref gsThinShellAssemblerBase for details
     void homogenizeDirichlet() { m_assemblerL->homogenizeDirichlet();  m_assemblerH->homogenizeDirichlet(); }
@@ -114,6 +114,8 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     //--------------------- SYSTEM ASSEMBLY ----------------------------------//
     ////////////////////////////////////////////////////////////////////////////
+    void assembleL();
+    void assembleH();
 
     void assembleMassL(bool lumped = false)
     { m_massL = _assembleMass(m_assemblerL, lumped); }
@@ -138,14 +140,14 @@ public:
     { m_pH = _assemblePrimal(m_assemblerH,deformed); }
 
     void assembleDualL(const gsMultiPatch<T> & primal)
-    { m_dL += _assembleDual(m_assemblerL,primal); }
+    { m_dL = _assembleDual(m_assemblerL,primal); }
     void assembleDualH(const gsMultiPatch<T> & primal)
-    { m_dH += _assembleDual(m_assemblerH,primal); }
+    { m_dH = _assembleDual(m_assemblerH,primal); }
 
     void assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal)
-    { m_dL += _assembleDual(points,m_assemblerL,primal); }
+    { m_dL = _assembleDual(points,m_assemblerL,primal); }
     void assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal)
-    { m_dH += _assembleDual(points,m_assemblerH,primal); }
+    { m_dH = _assembleDual(points,m_assemblerH,primal); }
 
     const gsSparseMatrix<T> & matrixL() const { return m_matrixL; }
     const gsSparseMatrix<T> & matrixH() const { return m_matrixH; }
@@ -159,6 +161,9 @@ public:
     const gsMatrix<T> dualL() const { return m_dL; }
     const gsMatrix<T> dualH() const { return m_dH; }
 
+    void updateMultiPatchL(const gsMatrix<T> & solVector, gsMultiPatch<T> & result);
+    void updateMultiPatchH(const gsMatrix<T> & solVector, gsMultiPatch<T> & result);
+
     void constructMultiPatchL(const gsMatrix<T> & solVector, gsMultiPatch<T> & result);
     void constructMultiPatchH(const gsMatrix<T> & solVector, gsMultiPatch<T> & result);
 
@@ -168,6 +173,11 @@ public:
     gsMultiPatch<T> constructSolutionH(const gsMatrix<T> & solVector);
     gsMultiPatch<T> constructDisplacementL(const gsMatrix<T> & solVector);
     gsMultiPatch<T> constructDisplacementH(const gsMatrix<T> & solVector);
+    gsVector<T> constructSolutionVectorL(const gsMultiPatch<T> & deformed);
+    gsVector<T> constructSolutionVectorH(const gsMultiPatch<T> & deformed);
+
+    gsMatrix<T> projectL2_L(const gsFunction<T> &fun);
+    gsMatrix<T> projectL2_H(const gsFunction<T> &fun);
 
     // Linear elasticity ;
     T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH);
@@ -178,6 +188,11 @@ public:
     T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
     std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
     std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
+
+    // Inertia
+    T computeErrorInertia(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations);
+    std::vector<T> computeErrorInertiaElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations);
+    std::vector<T> computeErrorInertiaDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations);
 
     // Eigenvalues
     T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
@@ -216,9 +231,9 @@ public:
 
 protected:
 
-    void _setBasis(const gsMultiBasis<T> & basis);
-
     gsSparseMatrix<T>   _assembleMass(gsThinShellAssemblerBase<T> * assembler, bool lumped = false);
+
+    std::pair<gsSparseMatrix<T>,gsVector<T>>   _assemble(gsThinShellAssemblerBase<T> * assembler);
 
     gsSparseMatrix<T>   _assembleMatrix(gsThinShellAssemblerBase<T> * assembler);
     gsSparseMatrix<T>   _assembleMatrix(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & deformed);
@@ -247,6 +262,10 @@ protected:
 
     template<int _elWise>
     std::vector<T> computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH);
+
+    template<int _elWise>
+    std::vector<T> computeErrorInertia_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations);
+
 
     template<int _d, bool _bending, int _elWise>
     typename std::enable_if<(_d==3 && _bending), std::vector<T>>::type
@@ -344,6 +363,9 @@ public:
     virtual void setSpaceBasisL(const gsFunctionSet<T> & spaceBasis) =0;
     virtual void setSpaceBasisH(const gsFunctionSet<T> & spaceBasis) =0;
 
+    virtual void assembleL() =0;
+    virtual void assembleH() =0;
+
     virtual void assembleMassL(bool lumped = false) =0;
     virtual void assembleMassH(bool lumped = false) =0;
     virtual void assembleMatrixL() =0;
@@ -375,6 +397,9 @@ public:
     virtual const gsMatrix<T> dualL() const =0;
     virtual const gsMatrix<T> dualH() const =0;
 
+    virtual void updateMultiPatchL(const gsMatrix<T> & solVector, gsMultiPatch<T> & result) =0;
+    virtual void updateMultiPatchH(const gsMatrix<T> & solVector, gsMultiPatch<T> & result) =0;
+
     virtual void constructMultiPatchL(const gsMatrix<T> & solVector, gsMultiPatch<T> & result) =0;
     virtual void constructMultiPatchH(const gsMatrix<T> & solVector, gsMultiPatch<T> & result) =0;
 
@@ -384,6 +409,11 @@ public:
     virtual gsMultiPatch<T> constructSolutionH(const gsMatrix<T> & solVector) =0;
     virtual gsMultiPatch<T> constructDisplacementL(const gsMatrix<T> & solVector) =0;
     virtual gsMultiPatch<T> constructDisplacementH(const gsMatrix<T> & solVector) =0;
+    virtual gsVector<T> constructSolutionVectorL(const gsMultiPatch<T> & deformed) =0;
+    virtual gsVector<T> constructSolutionVectorH(const gsMultiPatch<T> & deformed) =0;
+
+    virtual gsMatrix<T> projectL2_L(const gsFunction<T> &fun) =0;
+    virtual gsMatrix<T> projectL2_H(const gsFunction<T> &fun) =0;
 
     // Linear elasticity ;
     virtual T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH) =0;
@@ -394,6 +424,12 @@ public:
     virtual T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed) =0;
     virtual std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed) =0;
     virtual std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed) =0;
+
+    // Inertia
+    virtual T computeErrorInertia(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations) =0;
+    virtual std::vector<T> computeErrorInertiaElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations) =0;
+    virtual std::vector<T> computeErrorInertiaDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations) =0;
+
 
     // Eigenvalues
     virtual T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,

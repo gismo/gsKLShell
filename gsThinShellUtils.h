@@ -1079,16 +1079,10 @@ public:
             const index_t numAct = u.data().values[0].rows();   // number of actives of a basis function
             const index_t cardinality = u.cardinality();        // total number of actives (=3*numAct)
 
-            gsDebugVar(numAct);
-            gsDebugVar(cardinality);
-            gsDebugVar(_u.dim());
-
             res.resize(rows(), _u.dim() *_u.cardinality()); // (3 x 3*cardinality)
             res.setZero();
 
             tmp = _u.data().values[2].reshapeCol(k, cols(), numAct );
-            gsDebugVar(tmp);
-            gsDebugVar(res);
             for (index_t d = 0; d != cols(); ++d)
             {
                 const index_t s = d*(cardinality + 1);

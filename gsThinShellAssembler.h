@@ -549,6 +549,7 @@ public:
 
     /// Construct solution field from computed solution vector \a solVector and returns a multipatch
     virtual gsMultiPatch<T> constructMultiPatch(const gsMatrix<T> & solVector) const = 0;
+    virtual void updateMultiPatch(const gsMatrix<T> & solVector, gsMultiPatch<T> & mp) const =0;
 
     /// Construct deformed shell geometry from computed solution vector \a solVector and returns a multipatch
     virtual gsMultiPatch<T> constructSolution(const gsMatrix<T> & solVector) const  = 0;
