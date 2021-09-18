@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
     bool adaptive = false;
     std::string fn;
 
-    real_t E_modulus = 200e9;
+    real_t E_modulus = 1e6;
     real_t PoissonRatio = 0.3;
     real_t thickness = 1e-2;
 
@@ -65,6 +65,8 @@ int main(int argc, char *argv[])
     refParameter = 0.85;
     RefineLoopMax = 1;
 
+    int testCase = 0;
+
     gsCmdLine cmd("Tutorial on solving a Poisson problem.");
     cmd.addInt("i", "index", "index of mode", modeIdx);
     cmd.addInt("e", "degreeElevation",
@@ -72,6 +74,9 @@ int main(int argc, char *argv[])
     cmd.addInt("r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving", numRefine);
     cmd.addInt("R", "refine", "Maximum number of adaptive refinement steps to perform",
                RefineLoopMax);
+    cmd.addInt("t", "testcase",
+                "Test case: 0: Beam - pinned-pinned, 1: Beam - fixed-fixed, 2: beam - fixed-free, 3: plate - fully pinned, 4: plate - fully fixed, 5: circle - fully pinned, 6: 5: circle - fully fixed",
+               testCase);
     cmd.addReal("T", "thickness", "thickness", thickness);
 
     cmd.addReal("a","adim", "dimension a", aDim);
@@ -93,12 +98,38 @@ int main(int argc, char *argv[])
     }
     //! [Parse command line]
 
+    gsMultiPatch<> mp;
+    gsMultiPatch<> mp_def;
+
     gsVector<> pts(2);
     pts.setConstant(0.25);
 
-    //! [Read input file]
-    gsMultiPatch<> mp;
-    gsMultiPatch<> mp_def;
+    if (testCase==0)
+    {
+        // Unit square
+        mp.addPatch(gsNurbsCreator<>::BSplineSquare(1)); // degree
+        mp.addAutoBoundaries();
+        mp.embed(3);
+        mp.patch(0).coefs().col(0) *= aDim;
+        mp.patch(0).coefs().col(1) *= bDim;
+        E_modulus = 1e6;
+        PoissonRatio = 0.3;
+        thickness = 1e-2;
+    }
+    else if (testCase==1)
+    {
+        // Unit square
+        mp.addPatch(gsNurbsCreator<>::BSplineSquare(1)); // degree
+        mp.addAutoBoundaries();
+        mp.embed(3);
+        mp.patch(0).coefs().col(0) *= aDim;
+        mp.patch(0).coefs().col(1) *= bDim;
+        E_modulus = 1e6;
+        PoissonRatio = 0.3;
+        thickness = 1e-2;
+    }
+    else
+        GISMO_ERROR("Test case" << testCase<<" unknown!");
 
     // Unit square
     mp = Rectangle(aDim,bDim);
@@ -146,40 +177,63 @@ int main(int argc, char *argv[])
 
 
     real_t D = E_modulus * math::pow(thickness, 3) / (12 * (1 - math::pow(PoissonRatio, 2)));
-    real_t Load = 1e2;
+    std::vector<real_t> gammas;
+    real_t Load = 0;
+    real_t lambda_an = 0;
+    if (testCase==0)
+    {
+        Load = 1e-1;
+        gsVector<> point(2);
+        gsVector<> load (3);
+        point<< 1.0, 0.0 ; load << Load, 0.0, 0.0 ;
+        pLoads.addLoad(point, load, 0 );
 
-    gsVector<> point(2);
-    gsVector<> load (3);
-    point<< 1.0, 0.0 ; load << Load, 0.0, 0.0 ;
-    pLoads.addLoad(point, load, 0 );
+        // // Clamped-Clamped
+        bc.addCondition(boundary::east, condition_type::collapsed, 0, 0, false, 0 ); // unknown 0 - x
 
-    // // Clamped-Clamped
-    bc.addCondition(boundary::east, condition_type::collapsed, 0, 0, false, 0 ); // unknown 0 - x
+        bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
+        bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
 
-    bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
-    bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
+        // bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false,0 ); // unknown 0 - x
+        bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
+        bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
 
-    // bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false,0 ); // unknown 0 - x
-    bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
-    bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
+        // bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false,0 ); // unknown 0 - x
+        bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
+        bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
 
-    // bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false,0 ); // unknown 0 - x
-    bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
-    bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
+        bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 0); // unknown 0 - x
+        bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false,1 ); // unknown 1 - y
+        bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false,2 ); // unknown 2 - z
 
-    bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 0); // unknown 0 - x
-    bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false,1 ); // unknown 1 - y
-    bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false,2 ); // unknown 2 - z
+        //   [Analytical solution]
+        gammas.resize(4);
+        gammas[0] = 0.7692307692;
+        gammas[1] = 1.453488372;
+        gammas[2] = 2.688172043;
+        gammas[3] = 4.432515337;
+        real_t sigma1 = 3.61523970735874E+02;
+        lambda_an = gammas[modeIdx]*sigma1*thickness / (Load);
+        // ! [Analytical solution]
+    }
+    else if (testCase==1)
+    {
+        real_t Load = 1e3;
 
-    //   [Analytical solution]
-    std::vector<real_t> gammas(4);
-    gammas[0] = 0.7692307692;
-    gammas[1] = 1.453488372;
-    gammas[2] = 2.688172043;
-    gammas[3] = 4.432515337;
-    real_t sigma1 = 7.230479E+07;
-    real_t lambda_an = gammas[modeIdx]*sigma1*thickness / (Load);
-    // ! [Analytical solution]
+        gsVector<> point(2);
+        gsVector<> load (3);
+        point<< 0.5, 1.0 ; load << Load, 0.0, 0.0 ;
+        pLoads.addLoad(point, load, 0 );
+
+        bc.addCondition(boundary::north, condition_type::collapsed, 0, 0, false, 0); // unknown 0 - x
+        bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
+        bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
+
+        bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 0); // unknown 0 - x
+        bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
+        bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
+        lambda_an = 0;
+    }
 
     gsConstantFunction<> force(tmp, 3);
     gsFunctionExpr<> t(std::to_string(thickness), 3);
@@ -207,6 +261,7 @@ int main(int argc, char *argv[])
     std::vector<real_t> numGoal(numRefine+1);
     std::vector<real_t> estGoal(numRefine+1);
     std::vector<real_t> exGoal(numRefine+1);
+    std::vector<real_t> DoFs(numRefine+1);
 
     // solvers
     gsSparseSolver<>::LU solver;
@@ -278,6 +333,11 @@ int main(int argc, char *argv[])
         DWR->constructSolutionL(solVectorLinear, mp_def);
         gsInfo << "done\n";
 
+        gsMultiPatch<> deformed = mp_def;
+        deformed.patch(0).coefs() -= mp.patch(0).coefs();
+        gsField<> fielddef(mp, deformed);
+        gsWriteParaview(fielddef,"deformed");
+
         gsInfo << "Assembling primal... " << std::flush;
         DWR->assembleMatrixL(mp_def);
         K_NL = DWR->matrixL();
@@ -312,6 +372,7 @@ int main(int argc, char *argv[])
             numGoal[r] = 0;
             estGoal[r] = 0;
             exGoal[r] = 0;
+            DoFs[r] = 0;
             mp.uniformRefine();
             continue;
         }
@@ -405,6 +466,7 @@ int main(int argc, char *argv[])
         exacts[r] = 0;
         numGoal[r] = eigvalL;
         exGoal[r] = lambda_an;
+        DoFs[r] = basisL.basis(0).numElements();
 
         exacts[r] += exGoal[r];
         exacts[r] -= numGoal[r];
@@ -425,7 +487,7 @@ int main(int argc, char *argv[])
     if (plot) collection.save();
 
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
-    gsInfo<<"Ref.\tApprox    \tExact     \tEfficiency\tNumGoal   \tEstGoal   \texGoal    \n";
+    gsInfo<<"Ref.\tApprox    \tExact     \tEfficiency\tNumGoal   \tEstGoal   \texGoal    \t#elements \n";
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
     for(index_t r=0; r!=numRefine+1; r++)
     {
@@ -435,7 +497,8 @@ int main(int argc, char *argv[])
         gsInfo  <<std::setw(10)<<std::left<<efficiencies[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<numGoal[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<estGoal[r]<<"\t";
-        gsInfo  <<std::setw(10)<<std::left<<exGoal[r]<<"\n";
+        gsInfo  <<std::setw(10)<<std::left<<exGoal[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<DoFs[r]<<"\n";
     }
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
 
@@ -447,10 +510,10 @@ int main(int argc, char *argv[])
         std::ofstream file_out;
         file_out.open (filename);
 
-        file_out<<"Ref,Approx,Exact,Efficiency,NumGoal,EstGoal,exGoal\n";
+        file_out<<"Ref,Approx,Exact,Efficiency,NumGoal,EstGoal,exGoal,DoFs\n";
         for(index_t r=0; r!=numRefine+1; r++)
         {
-            file_out<<r<<","<<approxs[r]<<","<<exacts[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<exGoal[r]<<"\n";
+            file_out<<r<<","<<approxs[r]<<","<<exacts[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<exGoal[r]<<","<<DoFs[r]<<"\n";
         }
 
         file_out.close();

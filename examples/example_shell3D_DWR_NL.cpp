@@ -295,6 +295,7 @@ int main(int argc, char *argv[])
     std::vector<real_t> numGoal(numRefine+1);
     std::vector<real_t> estGoal(numRefine+1);
     std::vector<real_t> exGoal(numRefine+1);
+    std::vector<real_t> DoFs(numRefine+1);
 
     gsVector<> solVector, updateVector;
     gsMultiPatch<> primalL,dualL,dualH;
@@ -444,6 +445,7 @@ int main(int argc, char *argv[])
         exacts[r] = 0;
         numGoal[r] = DWR->computeGoal(mp_def)+DWR->computeGoal(points,mp_def);
         exGoal[r] = exactGoal;
+        DoFs[r] = basisL.basis(0).numElements();
 
         exacts[r] += exactGoal;
         exacts[r] -= numGoal[r];
@@ -460,7 +462,7 @@ int main(int argc, char *argv[])
     if (plot) collection.save();
 
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
-    gsInfo<<"Ref.\tApprox    \tExact     \tEfficiency\tNumGoal   \tEstGoal   \texGoal    \n";
+    gsInfo<<"Ref.\tApprox    \tExact     \tEfficiency\tNumGoal   \tEstGoal   \texGoal    \t#elements \n";
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
     for(index_t r=0; r!=numRefine+1; r++)
     {
@@ -470,7 +472,8 @@ int main(int argc, char *argv[])
         gsInfo  <<std::setw(10)<<std::left<<efficiencies[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<numGoal[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<estGoal[r]<<"\t";
-        gsInfo  <<std::setw(10)<<std::left<<exGoal[r]<<"\n";
+        gsInfo  <<std::setw(10)<<std::left<<exGoal[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<DoFs[r]<<"\n";
     }
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
 
@@ -483,10 +486,10 @@ int main(int argc, char *argv[])
         std::ofstream file_out;
         file_out.open (filename);
 
-        file_out<<"Ref,Approx,Exact,Efficiency,NumGoal,EstGoal,exGoal\n";
+        file_out<<"Ref,Approx,Exact,Efficiency,NumGoal,EstGoal,exGoal,DoFs\n";
         for(index_t r=0; r!=numRefine+1; r++)
         {
-            file_out<<r<<","<<approxs[r]<<","<<exacts[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<exGoal[r]<<"\n";
+            file_out<<r<<","<<approxs[r]<<","<<exacts[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<exGoal[r]<<","<<DoFs[r]<<"\n";
         }
 
         file_out.close();

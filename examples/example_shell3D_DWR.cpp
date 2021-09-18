@@ -79,8 +79,6 @@ private:
 
 int main(int argc, char *argv[])
 {
-    // Number of adaptive refinement loops
-    index_t RefineLoopMax;
     // Flag for refinemet criterion
     // (see doxygen documentation of the free function
     // gsMarkElementsForRef explanation)
@@ -113,14 +111,11 @@ int main(int argc, char *argv[])
 
     refCriterion = GARU;
     refParameter = 0.85;
-    RefineLoopMax = 1;
 
     gsCmdLine cmd("Tutorial on solving a Poisson problem.");
     cmd.addInt( "e", "degreeElevation",
                 "Number of degree elevation steps to perform before solving (0: equalize degree in all directions)", numElevate );
     cmd.addInt( "r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
-    cmd.addInt("R", "refine", "Maximum number of adaptive refinement steps to perform",
-        RefineLoopMax);
     cmd.addInt( "g", "goal", "Goal function to use", goal );
     cmd.addInt( "C", "comp", "Component", component );
     cmd.addString( "f", "file", "Input XML file", fn );
@@ -166,12 +161,6 @@ int main(int argc, char *argv[])
         for (index_t r =0; r < numRefine; ++r)
             mp.uniformRefine();
         numRefine = 0;
-    }
-    else
-    {
-        for (index_t r =0; r < 3; ++r)
-            mp.uniformRefine();
-        numRefine -= 3;
     }
 
     // Cast all patches of the mp object to THB splines
@@ -359,6 +348,7 @@ int main(int argc, char *argv[])
     std::vector<real_t> numGoal(numRefine+1);
     std::vector<real_t> estGoal(numRefine+1);
     std::vector<real_t> exGoal(numRefine+1);
+    std::vector<real_t> DoFs(numRefine+1);
 
     gsVector<> solVector, updateVector;
     gsMultiPatch<> primalL,dualL,dualH;
@@ -480,6 +470,8 @@ int main(int argc, char *argv[])
 
         efficiencies[r] = approxs[r]/exacts[r];
 
+        DoFs[r] = basisL.basis(0).numElements();
+
         if (r < numRefine-1)
         {
             if (!adaptive)
@@ -554,7 +546,7 @@ int main(int argc, char *argv[])
     }
 
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
-    gsInfo<<"Ref.\tApprox    \tExact     \tEfficiency\tNumGoal   \tEstGoal   \texGoal    \n";
+    gsInfo<<"Ref.\tApprox    \tExact     \tEfficiency\tNumGoal   \tEstGoal   \texGoal    \t#elements \n";
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
     for(index_t r=0; r!=numRefine+1; r++)
     {
@@ -564,7 +556,8 @@ int main(int argc, char *argv[])
         gsInfo  <<std::setw(10)<<std::left<<efficiencies[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<numGoal[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<estGoal[r]<<"\t";
-        gsInfo  <<std::setw(10)<<std::left<<exGoal[r]<<"\n";
+        gsInfo  <<std::setw(10)<<std::left<<exGoal[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<DoFs[r]<<"\n";
     }
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
 
@@ -577,10 +570,10 @@ int main(int argc, char *argv[])
         std::ofstream file_out;
         file_out.open (filename);
 
-        file_out<<"Ref,Approx,Exact,Efficiency,NumGoal,EstGoal,exGoal\n";
+        file_out<<"Ref,Approx,Exact,Efficiency,NumGoal,EstGoal,exGoal,DoFs\n";
         for(index_t r=0; r!=numRefine+1; r++)
         {
-            file_out<<r<<","<<approxs[r]<<","<<exacts[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<exGoal[r]<<"\n";
+            file_out<<r<<","<<approxs[r]<<","<<exacts[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<exGoal[r]<<","<<DoFs[r]<<"\n";
         }
 
         file_out.close();

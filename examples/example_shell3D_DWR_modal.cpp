@@ -211,29 +211,29 @@ int main(int argc, char *argv[])
         }
         else
         {
-            // gsMultiPatch<> mp_thb;
-            // gsTHBSpline<2,real_t> thb;
-            // gsTHBSplineBasis<2,real_t> thbBasis;
-            // gsMatrix<> coefs;
-            // for (index_t k=0; k!=mp.nPatches(); ++k)
-            // {
-            //     if(gsTensorNurbs<2,real_t> *geo = dynamic_cast< gsTensorNurbs<2,real_t> * > (&mp.patch(k)))
-            //     {
-            //         thbBasis = gsTHBSplineBasis<2,real_t>(geo->basis().source());
-            //         gsQuasiInterpolate<real_t>::localIntpl(thbBasis, mp.patch(k), coefs);
-            //         thb = gsTHBSpline<2,real_t>(thbBasis,coefs);
-            //         mp_thb.addPatch(thb);
-            //     }
-            // }
+            gsMultiPatch<> mp_thb;
+            gsTHBSpline<2,real_t> thb;
+            gsTHBSplineBasis<2,real_t> thbBasis;
+            gsMatrix<> coefs;
+            for (index_t k=0; k!=mp.nPatches(); ++k)
+            {
+                if(gsTensorNurbs<2,real_t> *geo = dynamic_cast< gsTensorNurbs<2,real_t> * > (&mp.patch(k)))
+                {
+                    thbBasis = gsTHBSplineBasis<2,real_t>(geo->basis().source());
+                    gsQuasiInterpolate<real_t>::localIntpl(thbBasis, mp.patch(k), coefs);
+                    thb = gsTHBSpline<2,real_t>(thbBasis,coefs);
+                    mp_thb.addPatch(thb);
+                }
+            }
 
-            // gsField<> field1(mp,mp);
-            // gsField<> field2(mp,mp_thb);
+            gsField<> field1(mp,mp);
+            gsField<> field2(mp,mp_thb);
 
-            // gsInfo<<"THB Approximation error: "<<field1.distanceL2(field2)<<"\n";
-            // gsWriteParaview<>(mp_thb,"mp_thb",10000,true);
+            gsInfo<<"THB Approximation error: "<<field1.distanceL2(field2)<<"\n";
+            gsWriteParaview<>(mp_thb,"mp_thb",10000,true);
 
-            // mp = mp_thb;
-            GISMO_ERROR("Adaptivity not available for NURBS");
+            mp = mp_thb;
+            // GISMO_ERROR("Adaptivity not available for NURBS");
         }
     }
 
@@ -593,10 +593,10 @@ int main(int argc, char *argv[])
         std::ofstream file_out;
         file_out.open (filename);
 
-        file_out<<"Ref,Approx,Exact,Efficiency,NumGoal,EstGoal,exGoal\n";
+        file_out<<"Ref,Approx,Exact,Efficiency,NumGoal,EstGoal,exGoal,DoFs\n";
         for(index_t r=0; r!=numRefine+1; r++)
         {
-            file_out<<r<<","<<approxs[r]<<","<<exacts[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<exGoal[r]<<"\n";
+            file_out<<r<<","<<approxs[r]<<","<<exacts[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<exGoal[r]<<","<<DoFs[r]<<"\n";
         }
 
         file_out.close();
