@@ -536,13 +536,13 @@ int main(int argc, char *argv[])
             std::vector<bool> elMarked( elErrors.size() );
             gsMarkElementsForRef( elErrors, adaptRefCrit, adaptRefParam, elMarked);
 
-            // // Invert errors for coarsening marking
-            // std::vector<real_t> elErrorsC = elErrors;
-            // for (index_t k=0; k!=elErrors.size(); k++)
-            //     elErrorsC[k] = -elErrors[k];
+            // Invert errors for coarsening marking
+            std::vector<real_t> elErrorsC = elErrors;
+            for (index_t k=0; k!=elErrors.size(); k++)
+                elErrorsC[k] = -elErrors[k];
 
-            // std::vector<bool> elCMarked( elErrorsC.size() );
-            // gsMarkElementsForRef( elErrorsC, adaptRefCrit, adaptRefParam, elCMarked);
+            std::vector<bool> elCMarked( elErrorsC.size() );
+            gsMarkElementsForRef( elErrorsC, adaptRefCrit, adaptRefParam, elCMarked);
 
 
             gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
@@ -551,8 +551,8 @@ int main(int argc, char *argv[])
             errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
             errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,"_mesh.vtp");
 
-            // gsProcessMarkedElements( mp, elMarked, elCMarked, 2, 0 );
-            gsRefineMarkedElements( mp, elMarked,1 );
+            gsProcessMarkedElements( mp, elMarked, elCMarked, 1, 0 );
+            // gsRefineMarkedElements( mp, elMarked,1 );
             mp_def = mp;
 
             for (index_t k=0; k!=elMarked.size(); k++)
