@@ -207,12 +207,16 @@ int main(int argc, char *argv[])
         bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false,2 ); // unknown 2 - z
 
         //   [Analytical solution]
-        gammas.resize(4);
+        gammas.resize(8);
         gammas[0] = 0.7692307692;
         gammas[1] = 1.453488372;
         gammas[2] = 2.688172043;
         gammas[3] = 4.432515337;
-        real_t sigma1 = 3.61523970735874E+02;
+       	gammas[4] = 4.432515337;
+	gammas[5] = 4.432515337;
+	gammas[6] = 4.432515337;
+	gammas[7] = 4.432515337;
+	real_t sigma1 = 3.61523970735874E+02;
         lambda_an = gammas[modeIdx]*sigma1*thickness / (Load);
         // ! [Analytical solution]
     }
