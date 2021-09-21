@@ -104,7 +104,6 @@ int main(int argc, char *argv[])
     index_t numRefineIni = 0;
     index_t numElevate = 1;
     bool loop = false;
-    bool adaptive = false;
     std::string fn;
 
     real_t E_modulus = 1.0;
@@ -119,6 +118,9 @@ int main(int argc, char *argv[])
 
     int testCase = 0;
 
+    int refExt = -1;
+    int crsExt = -1;
+
     gsCmdLine cmd("Tutorial on solving a Poisson problem.");
     cmd.addInt("i", "index", "index of mode", modeIdx);
     cmd.addInt("e", "degreeElevation",
@@ -129,12 +131,13 @@ int main(int argc, char *argv[])
     cmd.addInt("t", "testcase",
                 "Test case: 0: Beam - pinned-pinned, 1: Beam - fixed-fixed, 2: beam - fixed-free, 3: plate - fully pinned, 4: plate - fully fixed, 5: circle - fully pinned, 6: 5: circle - fully fixed",
                testCase);
+    cmd.addInt("E", "refExt", "Refinement extension", refExt);
+    cmd.addInt("C", "crsExt", "Coarsening extension", crsExt);
     cmd.addReal("T", "thickness", "thickness", thickness);
     cmd.addString("f", "file", "Input XML file", fn);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
     cmd.addSwitch("write", "Write convergence to file", write);
     cmd.addSwitch("loop", "Uniform Refinemenct loop", loop);
-    cmd.addSwitch("adaptive", "Adaptive Refinemenct loop", adaptive);
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
@@ -185,19 +188,8 @@ int main(int argc, char *argv[])
     if (numElevate != 0)
         mp.degreeElevate(numElevate);
 
-    for (index_t r =0; r < numRefineIni; ++r)
-        mp.uniformRefine();
-
-    // h-refine
-    if (!loop)
-    {
-        for (index_t r =0; r < numRefine; ++r)
-            mp.uniformRefine();
-        numRefine = 0;
-    }
-
     // Cast all patches of the mp object to THB splines
-    if (adaptive)
+    if (refExt!=-1 || crsExt!=-1)
     {
         if (testCase!=1)
         {
@@ -209,7 +201,7 @@ int main(int argc, char *argv[])
                 mp.patch(k) = thb;
             }
         }
-        else
+        else // Quasi-interpolate NURBS geometry
         {
             gsMultiPatch<> mp_thb;
             gsTHBSpline<2,real_t> thb;
@@ -235,6 +227,23 @@ int main(int argc, char *argv[])
             mp = mp_thb;
             // GISMO_ERROR("Adaptivity not available for NURBS");
         }
+    }
+
+    for (index_t r =0; r < numRefineIni; ++r)
+    {
+        gsMatrix<> boxes(2,2);
+        boxes.col(0)<<0,0;
+        boxes.col(1)<<1,1;
+        std::vector<index_t> elements = mp.basis(0).asElements(boxes);
+        mp.patch(0).refineElements(elements);
+    }
+
+    // h-refine
+    if (!loop)
+    {
+        for (index_t r =0; r < numRefine; ++r)
+            mp.uniformRefine();
+        numRefine = 0;
     }
 
     gsMultiBasis<> dbasis(mp);
@@ -369,8 +378,8 @@ int main(int argc, char *argv[])
 
     std::vector<real_t> elErrors;
     std::vector<bool> refVec;
-    MarkingStrategy adaptRefCrit = PUCA;
-    const real_t adaptRefParam = 0.8;
+    MarkingStrategy adaptRefCrit = BULK;
+    real_t adaptRefParam;
 
     for (index_t r=0; r!=numRefine+1; r++)
     {
@@ -518,32 +527,18 @@ int main(int argc, char *argv[])
 
         efficiencies[r] = approxs[r]/exacts[r];
 
-        if (!adaptive)
+        if (refExt==-1 && crsExt==-1)
+        {
             mp.uniformRefine();
+        }
         else
         {
             elErrors = DWR->computeErrorEigElements(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
-            for (std::vector<real_t>::const_iterator it = elErrors.begin(); it != elErrors.end(); it++)
-                gsDebug<<*it<<"\n";
-
-            // std::vector<real_t> errorsDofs = DWR->computeErrorDofs(dualL,dualH);
-            // for (std::vector<real_t>::const_iterator it = errorsDofs.begin(); it != errorsDofs.end(); it++)
-            //     gsDebug<<*it<<"\n";
-
-
-            // Mark elements for refinement, based on the computed local errors and
-            // the refinement-criterion and -parameter.
-            std::vector<bool> elMarked( elErrors.size() );
-            gsMarkElementsForRef( elErrors, adaptRefCrit, adaptRefParam, elMarked);
-
-            // Invert errors for coarsening marking
-            std::vector<real_t> elErrorsC = elErrors;
-            for (index_t k=0; k!=elErrors.size(); k++)
-                elErrorsC[k] = -elErrors[k];
-
-            std::vector<bool> elCMarked( elErrorsC.size() );
-            gsMarkElementsForRef( elErrorsC, adaptRefCrit, adaptRefParam, elCMarked);
-
+            for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
+            {
+                *it = std::abs(*it);
+                gsDebugVar(*it);
+            }
 
             gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
             const gsField<> elemError_eh( mp.patch(0), err_eh, true );
@@ -551,16 +546,36 @@ int main(int argc, char *argv[])
             errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
             errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,"_mesh.vtp");
 
-            gsProcessMarkedElements( mp, elMarked, elCMarked, 1, 0 );
-            // gsRefineMarkedElements( mp, elMarked,1 );
-            mp_def = mp;
+            adaptRefParam = 0.25;
+            std::vector<bool> elMarked( elErrors.size() );
+            gsMarkElementsForRef( elErrors, adaptRefCrit, adaptRefParam, elMarked);
 
-            for (index_t k=0; k!=elMarked.size(); k++)
+            if (refExt!=-1 && crsExt==-1)
             {
-                gsInfo<<elErrors[k]<<"\t"<<elMarked[k]<<"\n";
-                // gsInfo<<elErrors[k]<<"\t"<<elMarked[k]<<"\t"<<elCMarked[k]<<"\n";
+                gsRefineMarkedElements( mp, elMarked,refExt );
+
+                gsInfo<<"Error\tRefined?\n";
+                for (index_t k=0; k!=elMarked.size(); k++)
+                    gsInfo<<elErrors[k]<<"\t"<<elMarked[k]<<"\n";
+            }
+            else if (refExt!=-1 && crsExt!=-1)
+            {
+                adaptRefParam = 0.1;
+                // Invert errors for coarsening marking
+                std::vector<real_t> elErrorsC = elErrors;
+                for (index_t k=0; k!=elErrors.size(); k++)
+                    elErrorsC[k] = -elErrors[k];
+
+                std::vector<bool> elCMarked( elErrorsC.size() );
+                gsMarkElementsForRef( elErrorsC, adaptRefCrit, adaptRefParam, elCMarked);
+                gsProcessMarkedElements( mp, elMarked, elCMarked, 1, 0 );
+
+                gsInfo<<"Error\tRefined?\tCoarsened?\n";
+                for (index_t k=0; k!=elMarked.size(); k++)
+                    gsInfo<<elErrors[k]<<"\t"<<elMarked[k]<<"\t"<<elCMarked[k]<<"\n";
             }
         }
+        mp_def = mp;
     }
 
     if (plot)

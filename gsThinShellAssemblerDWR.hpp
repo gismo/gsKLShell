@@ -1254,23 +1254,23 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     }
     else if (_elWise == 2) // function-wise
     {
-        gsVector<T> pt(2);
-        pt.setConstant(0.25);
+        // gsVector<T> pt(2);
+        // pt.setConstant(0.25);
 
-        space   space   = exprAssembler.trialSpace(0);
-        auto Em_der_u = flat( jac(Gdef).tr() * ( (jac(zsolH) - jac(zsolL)) ) * space + jac(space) * (zsolH - zsolL) );
-        // auto Ef_der_u = -( deriv2(zsolH,sn(Gdef).normalized().tr() )
-        //                 -  deriv2(zsolL,sn(Gdef).normalized().tr() ) + deriv2(Gdef,var1(zsolH,Gdef) )
-        //                                                          - deriv2(Gdef,var1(zsolL,Gdef) ) ) * reshape(m2,3,3);
+        // space   space   = exprAssembler.trialSpace(0);
+        // auto Em_der_u = flat( jac(Gdef).tr() * ( (jac(zsolH) - jac(zsolL)) ) * space + jac(space) * (zsolH - zsolL) );
+        // // auto Ef_der_u = -( deriv2(zsolH,sn(Gdef).normalized().tr() )
+        // //                 -  deriv2(zsolL,sn(Gdef).normalized().tr() ) + deriv2(Gdef,var1(zsolH,Gdef) )
+        // //                                                          - deriv2(Gdef,var1(zsolL,Gdef) ) ) * reshape(m2,3,3);
 
 
 
-        gsDebugVar(ev.eval(Em_der_u,pt));
-        gsDebugVar(ev.eval(zsolL * space,pt));
+        // gsDebugVar(ev.eval(Em_der_u,pt));
+        // gsDebugVar(ev.eval(zsolL * space,pt));
 
-        exprAssembler.assemble( ( Fext - Fint ) * meas(Gori));
-        std::vector<T> vec( exprAssembler.rhs().data(),
-                            exprAssembler.rhs().data() + exprAssembler.rhs().rows() * exprAssembler.rhs().cols());
+        // exprAssembler.assemble( ( Fext - Fint ) * meas(Gori));
+        // std::vector<T> vec( exprAssembler.rhs().data(),
+        //                     exprAssembler.rhs().data() + exprAssembler.rhs().rows() * exprAssembler.rhs().cols());
         integral = 0;
     }
     else
@@ -1577,14 +1577,12 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    
                                                                                 const gsMultiPatch<T> & primal,
                                                                                 const gsMultiPatch<T> & deformed)
 {
+    // Everything is evaluated in the lower basis L
     gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
     exprAssembler.cleanUp();
     exprAssembler.setOptions(m_assemblerL->options());
 
     m_defpatches = deformed;
-    // for ( size_t k =0; k!=deformed.nPatches(); ++k) // Deform the geometry
-    //     m_defpatches.patch(k).coefs() += deformed.patch(k).coefs();  // Gdef points to mp_def, therefore updated
-
     // Geometries
     geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
     geometryMap Gdef = exprAssembler.getMap(m_defpatches);
@@ -1704,8 +1702,6 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    
     auto N_derd_NL  = Em_derd_NL * reshape(mmA_NL,3,3) + Ef_derd_NL * reshape(mmB_NL,3,3);
     auto M_derd_NL  = Em_derd_NL * reshape(mmC_NL,3,3) + Ef_derd_NL * reshape(mmD_NL,3,3);
 
-    auto Fint_NL    = ( N_derd_NL * Em_der_NL.tr() + M_derd_NL * Ef_der_NL.tr() + Em_der2 + Ef_der2 );
-
     auto K_L        = ( N_der_L   * Em_der_L.tr()  + M_der_L   * Ef_der_L.tr()                          );
     auto Kd_L       = ( N_derd_L  * Em_der_L.tr()  + M_derd_L  * Ef_der_L.tr()                          );
     auto K_NL       = ( N_der_NL  * Em_der_NL.tr() + M_der_NL  * Ef_der_NL.tr() + Em_der2  + Ef_der2    );
@@ -1715,19 +1711,27 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    
     auto Bdiff      = Kd_NL - Kd_L;
     auto Bprimal    = K_NL  - K_L ;
 
+    gsConstantFunction<T> onefun(1,2);
+    auto one    = exprAssembler.getCoeff(onefun);
+
+    auto expr   =  A  * meas(Gori) - evPrimalL * Bdiff * meas(Gori) + (evDualH - evDualL) * ( Bprimal * meas(Gori)  - one);
+
+
     gsExprEvaluator<T> ev(exprAssembler);
 
+    T integral = 0;
     std::vector<T> result;
 
-    T integral = 0.0;
-    integral += ev.integral( A  * meas(Gori) );
-    integral += -evPrimalL * ev.integral( Bdiff * meas(Gori));
-    integral += (evDualH - evDualL) * (ev.integral( Bprimal * meas(Gori)) - 1.0);
-
     if (_elWise == 0)
+    {
+        integral = ev.integral(expr);
         result.push_back(integral);
+    }
     else if (_elWise == 1)
-        result.push_back(integral);
+    {
+        integral = ev.integralElWise(expr);
+        result = ev.elementwise();
+    }
     else if (_elWise == 2)
         result.push_back(integral);
     else
@@ -1736,6 +1740,25 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    
     return result;
 }
 
+// template <short_t d, class T, bool bending>
+// gsMatrix<T> gsThinShellAssemblerDWR<d, T, bending>::evalErrorEig(   gsMatrix<T> & u,
+//                                                                     const T evPrimalL,
+//                                                                     const T evDualL,
+//                                                                     const T evDualH,
+//                                                                     const gsMultiPatch<T> & dualL,
+//                                                                     const gsMultiPatch<T> & dualH,
+//                                                                     const gsMultiPatch<T> & primal,
+//                                                                     const gsMultiPatch<T> & deformed)
+// {
+//     gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
+//     exprAssembler.cleanUp();
+//     exprAssembler.setOptions(m_assemblerL->options());
+
+//     m_defpatches = deformed;
+//     gsExprEvaluator<T> ev(exprAssembler);
+
+//     return ev.eval(expr,u);
+// }
 
 /**
  * @brief      Computes the eigenvalue error estimate for Modal Analysis
