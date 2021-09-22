@@ -91,11 +91,11 @@ int main(int argc, char *argv[])
     // Flag for refinemet criterion
     // (see doxygen documentation of the free function
     // gsMarkElementsForRef explanation)
-    index_t refCriterion;
+    index_t markstrat = 2;
     // Parameter for computing adaptive refinement threshold
     // (see doxygen documentation of the free function
     // gsMarkElementsForRef explanation)
-    real_t refParameter; // ...specified below with the examples
+    real_t adaptRefParam = 0.9;
 
     //! [Parse command line]
     bool plot = false;
@@ -112,9 +112,6 @@ int main(int argc, char *argv[])
     real_t thickness = 0.01;
 
     index_t modeIdx = 0;
-
-    refCriterion = GARU;
-    refParameter = 0.85;
 
     int testCase = 0;
 
@@ -133,6 +130,9 @@ int main(int argc, char *argv[])
                testCase);
     cmd.addInt("E", "refExt", "Refinement extension", refExt);
     cmd.addInt("C", "crsExt", "Coarsening extension", crsExt);
+    cmd.addReal("a", "refparam", "Controls the adaptive refinement parameter", adaptRefParam);
+    cmd.addInt("u","rule", "Adaptive refinement rule; 1: ... ; 2: PUCA; 3: BULK", markstrat);
+
     cmd.addReal("T", "thickness", "thickness", thickness);
     cmd.addString("f", "file", "Input XML file", fn);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
@@ -141,6 +141,17 @@ int main(int argc, char *argv[])
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
+
+    MarkingStrategy adaptRefCrit;
+    if (markstrat==1)
+        adaptRefCrit = GARU;
+    else if (markstrat==2)
+        adaptRefCrit = PUCA;
+    else if (markstrat==3)
+        adaptRefCrit = BULK;
+    else
+        GISMO_ERROR("MarkingStrategy Unknown");
+
 
     gsVector<> pts(2);
     pts.setConstant(0.25);
@@ -378,8 +389,6 @@ int main(int argc, char *argv[])
 
     std::vector<real_t> elErrors;
     std::vector<bool> refVec;
-    MarkingStrategy adaptRefCrit = BULK;
-    real_t adaptRefParam;
 
     for (index_t r=0; r!=numRefine+1; r++)
     {
@@ -517,7 +526,7 @@ int main(int argc, char *argv[])
         exacts[r] = 0;
         numGoal[r] = eigvalL;
         exGoal[r] = math::pow(lambda_an, 2);
-        DoFs[r] = basisL.basis(0).numElements();
+        DoFs[r] = DWR->numDofsL();
 
         exacts[r] += exGoal[r];
         exacts[r] -= numGoal[r];
@@ -534,11 +543,10 @@ int main(int argc, char *argv[])
         else
         {
             elErrors = DWR->computeErrorEigElements(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
-            for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
-            {
-                *it = std::abs(*it);
-                gsDebugVar(*it);
-            }
+            // for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
+            // {
+            //     *it = std::abs(*it);
+            // }
 
             gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
             const gsField<> elemError_eh( mp.patch(0), err_eh, true );
@@ -546,7 +554,6 @@ int main(int argc, char *argv[])
             errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
             errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,"_mesh.vtp");
 
-            adaptRefParam = 0.25;
             std::vector<bool> elMarked( elErrors.size() );
             gsMarkElementsForRef( elErrors, adaptRefCrit, adaptRefParam, elMarked);
 
@@ -560,7 +567,6 @@ int main(int argc, char *argv[])
             }
             else if (refExt!=-1 && crsExt!=-1)
             {
-                adaptRefParam = 0.1;
                 // Invert errors for coarsening marking
                 std::vector<real_t> elErrorsC = elErrors;
                 for (index_t k=0; k!=elErrors.size(); k++)
@@ -568,7 +574,7 @@ int main(int argc, char *argv[])
 
                 std::vector<bool> elCMarked( elErrorsC.size() );
                 gsMarkElementsForRef( elErrorsC, adaptRefCrit, adaptRefParam, elCMarked);
-                gsProcessMarkedElements( mp, elMarked, elCMarked, 1, 0 );
+                gsProcessMarkedElements( mp, elMarked, elCMarked, refExt, crsExt );
 
                 gsInfo<<"Error\tRefined?\tCoarsened?\n";
                 for (index_t k=0; k!=elMarked.size(); k++)
