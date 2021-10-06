@@ -48,6 +48,7 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
                                         m_materialMat(materialmatrix)
 {
     this->_defaultOptions();
+    this->_getOptions();
     this->_initialize();
 }
 
@@ -56,7 +57,7 @@ void gsThinShellAssembler<d, T, bending>::_defaultOptions()
 {
     m_options.addReal("WeakDirichlet","Penalty parameter weak dirichlet conditions",1e3);
     m_options.addReal("WeakClamped","Penalty parameter weak clamped conditions",1e3);
-    m_options.addReal("Continuity","Set the continuity for the space",0);
+    m_options.addInt("Continuity","Set the continuity for the space",0);
 
     // Assembler options
     m_options.addInt("DirichletStrategy","Method for enforcement of Dirichlet BCs [11..14]",11);
