@@ -1439,7 +1439,7 @@ gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructMultiPatch(const g
         const index_t dim = m_space.dim();
         GISMO_ASSERT(static_cast<size_t>(dim*mbasis->size())==m_mapper.mapSize(),"Something is wrong in the sizes, basis size = "<<mbasis->size()<<" mapper size = "<<m_mapper.mapSize());
 
-        gsMatrix<T> cc(mbasis->size(),3);
+        gsMatrix<T> cc(mbasis->size(),d);
         cc.setZero();
 
 
@@ -1485,6 +1485,17 @@ template <short_t d, class T, bool bending>
 gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructDisplacement(const gsMatrix<T> & solVector) const
 {
     return constructMultiPatch(solVector);
+}
+
+template <short_t d, class T, bool bending>
+gsMatrix<T> gsThinShellAssembler<d, T, bending>::fullSolutionVector(const gsMatrix<T> & vector) const
+{
+    gsMatrix<T> solVector = vector;
+    space m_space = m_assembler.trialSpace(0);
+    solution m_solution = m_assembler.getSolution(m_space, solVector);
+    gsMatrix<T> result;
+    m_solution.extractFull(result);
+    return result.col(0);
 }
 
 template <short_t d, class T, bool bending>
