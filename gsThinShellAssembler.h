@@ -358,6 +358,8 @@ protected:
 
     mutable index_t m_type; // shell_type
 
+    mutable index_t m_continuity;
+
     mutable T m_alpha_d,m_alpha_r; // shell_type
 
 };
