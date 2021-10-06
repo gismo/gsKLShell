@@ -108,6 +108,7 @@ public:
     void setSpaceBasis(const gsFunctionSet<T> & spaceBasis)
     {
         m_spaceBasis = &spaceBasis;
+        this->_getOptions();
         this->_initialize();
     }
 
