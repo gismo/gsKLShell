@@ -56,6 +56,7 @@ void gsThinShellAssembler<d, T, bending>::_defaultOptions()
 {
     m_options.addReal("WeakDirichlet","Penalty parameter weak dirichlet conditions",1e3);
     m_options.addReal("WeakClamped","Penalty parameter weak clamped conditions",1e3);
+    m_options.addReal("Continuity","Set the continuity for the space",0);
 
     // Assembler options
     m_options.addInt("DirichletStrategy","Method for enforcement of Dirichlet BCs [11..14]",11);
@@ -75,6 +76,7 @@ void gsThinShellAssembler<d, T, bending>::_getOptions() const
 {
     m_alpha_d = m_options.getReal("WeakDirichlet");
     m_alpha_r = m_options.getReal("WeakClamped");
+    m_continuity = m_options.getInt("Continuity");
 }
 
 
@@ -276,14 +278,14 @@ void gsThinShellAssembler<d, T, bending>::_assembleDirichlet()
 {
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // if statement
-    m_space.setup(m_bcs, dirichlet::interpolation, 0);
+    m_space.setup(m_bcs, dirichlet::interpolation, m_continuity);
 }
 
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::homogenizeDirichlet()
 {
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    m_space.setup(m_bcs, dirichlet::homogeneous, 0);
+    m_space.setup(m_bcs, dirichlet::homogeneous, m_continuity);
     // space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart().setZero();
 }
@@ -1025,7 +1027,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsMultiPatch<T> & 
     space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
 
     gsBoundaryConditions<T> bc;
-    u.setup(bc, dirichlet::interpolation, 0);
+    u.setup(bc, dirichlet::interpolation, m_continuity);
 
     assembler.initSystem();
 
@@ -1098,7 +1100,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsMultiPatch<T> & 
     space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
 
     gsBoundaryConditions<T> bc;
-    u.setup(bc, dirichlet::interpolation, 0);
+    u.setup(bc, dirichlet::interpolation, m_continuity);
 
     assembler.initSystem();
 
@@ -1163,7 +1165,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsMultiPatch
     space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
 
     gsBoundaryConditions<T> bc;
-    u.setup(bc, dirichlet::interpolation, 0);
+    u.setup(bc, dirichlet::interpolation, m_continuity);
 
     assembler.initSystem();
 
@@ -1267,7 +1269,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsMultiPatch
     space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
 
     gsBoundaryConditions<T> bc;
-    u.setup(bc, dirichlet::interpolation, 0);
+    u.setup(bc, dirichlet::interpolation, m_continuity);
 
     assembler.initSystem();
 
