@@ -277,6 +277,8 @@ public:
 
     void plotSolution(std::string string, const gsMatrix<T> & solVector);
 
+    gsDofMapper getMapper() { return m_mapper; };
+
 protected:
     /// Initializes the method
     void _initialize();
@@ -552,6 +554,24 @@ public:
 
     /// Compute the principal stretches in \a points given a \a deformed geometry. Optionally, the stretches can be computed on through-thickness coordinate \a z
     virtual gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed, const T z=0) = 0;
+
+
+
+
+    // Pascal
+virtual   gsDofMapper getMapper() = 0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     /// Projects function \a fun on the basis and geometry stored in the class and returns the coefficients in \a result
