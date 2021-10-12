@@ -74,14 +74,14 @@ public:
      * @param[in]  assembler  The shell assembler
      */
     gsShellStressFunction(const gsMultiPatch<T> & geometry,
-                           const gsMultiPatch<T> & deformed,
+                           const gsFunctionSet<T> & deformed,
                            gsMaterialMatrixBase<T> * mm,
                            index_t patch,
                            stress_type::type type,
                            const gsExprAssembler<T> & assembler
                            )
         : m_patches(geometry),
-          m_defpatches(deformed),
+          m_defpatches(&deformed),
           m_materialMat(mm),
           m_patchID(patch),
           m_stress_type(type),
@@ -182,8 +182,8 @@ protected:
     typedef gsExprAssembler<>::space       space;
     typedef gsExprAssembler<>::solution    solution;
 
-    const gsMultiPatch<T>& m_patches;
-    const gsMultiPatch<T>& m_defpatches;
+    const gsMultiPatch<T> & m_patches;
+    const gsFunctionSet<T> * m_defpatches;
     mutable gsMaterialMatrixBase<T> * m_materialMat;
     index_t m_patchID;
     stress_type::type m_stress_type;

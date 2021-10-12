@@ -129,19 +129,19 @@ public:
     void assembleFoundation();
 
     /// See \ref gsThinShellAssemblerBase for details
-    void assemble(const gsMultiPatch<T> & deformed,     bool Matrix = true);
+    void assemble(const gsFunctionSet<T> & deformed,     bool Matrix = true);
 
     /// See \ref gsThinShellAssemblerBase for details
     void assemble(const gsMatrix<T>     & solVector,    bool Matrix = true);
 
     /// See \ref gsThinShellAssemblerBase for details
-    void assembleMatrix(const gsMultiPatch<T>   & deformed  );
+    void assembleMatrix(const gsFunctionSet<T>   & deformed  );
 
     /// See \ref gsThinShellAssemblerBase for details
     void assembleMatrix(const gsMatrix<T>       & solVector );
 
     /// See \ref gsThinShellAssemblerBase for details
-    void assembleMatrix(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update);
+    void assembleMatrix(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update);
 
     /// See \ref gsThinShellAssemblerBase for details
     void assembleMatrix(const gsMatrix<T> & solVector, const gsMatrix<T> & prevVector);
@@ -150,27 +150,27 @@ private:
     /// Implementation of assembleMatrix for surfaces (3D)
     template<int _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, void>::type
-    assembleMatrix_impl(const gsMultiPatch<T>   & deformed  );
+    assembleMatrix_impl(const gsFunctionSet<T>   & deformed  );
 
     /// Implementation of assembleMatrix for planar geometries (2D)
     template<int _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
-    assembleMatrix_impl(const gsMultiPatch<T>   & deformed  );
+    assembleMatrix_impl(const gsFunctionSet<T>   & deformed  );
 
     /// Implementation of assembleMatrix for surfaces (3D)
     template<int _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, void>::type
-    assembleMatrix_impl(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update);
+    assembleMatrix_impl(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update);
 
     /// Implementation of assembleMatrix for planar geometries (2D)
     template<int _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
-    assembleMatrix_impl(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update)
+    assembleMatrix_impl(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update)
     { GISMO_NO_IMPLEMENTATION; }
 
 public:
     /// See \ref gsThinShellAssemblerBase for details
-    void assembleVector(const gsMultiPatch<T>   & deformed  );
+    void assembleVector(const gsFunctionSet<T>   & deformed  );
 
     /// See \ref gsThinShellAssemblerBase for details
     void assembleVector(const gsMatrix<T>       & solVector );
@@ -179,40 +179,40 @@ private:
     /// Implementation of assembleVector for surfaces (3D)
     template<int _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, void>::type
-    assembleVector_impl(const gsMultiPatch<T>   & deformed  );
+    assembleVector_impl(const gsFunctionSet<T>   & deformed  );
 
     /// Implementation of assembleVector for planar geometries (2D)
     template<int _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
-    assembleVector_impl(const gsMultiPatch<T>   & deformed  );
+    assembleVector_impl(const gsFunctionSet<T>   & deformed  );
 
 public:
     /// See \ref gsThinShellAssemblerBase for details
-    gsMatrix<T> boundaryForceVector(const gsMultiPatch<T>   & deformed , patchSide& ps, index_t com );
+    gsMatrix<T> boundaryForceVector(const gsFunctionSet<T>   & deformed , patchSide& ps, index_t com );
 
-    gsMatrix<T> boundaryForce(const gsMultiPatch<T>   & deformed , patchSide& ps);
+    gsMatrix<T> boundaryForce(const gsFunctionSet<T>   & deformed , patchSide& ps);
 
 
 private:
     /// Implementation of the boundary force vector for surfaces (3D)
     template<int _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
-    boundaryForceVector_impl(const gsMultiPatch<T>   & deformed , patchSide& ps, index_t com );
+    boundaryForceVector_impl(const gsFunctionSet<T>   & deformed , patchSide& ps, index_t com );
 
     /// Implementation of the boundary force vector for planar geometries (2D)
     template<int _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
-    boundaryForceVector_impl(const gsMultiPatch<T>   & deformed , patchSide& ps, index_t com );
+    boundaryForceVector_impl(const gsFunctionSet<T>   & deformed , patchSide& ps, index_t com );
 
     /// Implementation of the boundary force vector for surfaces (3D)
     template<int _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
-    boundaryForce_impl(const gsMultiPatch<T>   & deformed , patchSide& ps);
+    boundaryForce_impl(const gsFunctionSet<T>   & deformed , patchSide& ps);
 
     /// Implementation of the boundary force vector for planar geometries (2D)
     template<int _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
-    boundaryForce_impl(const gsMultiPatch<T>   & deformed , patchSide& ps);
+    boundaryForce_impl(const gsFunctionSet<T>   & deformed , patchSide& ps);
 
 public:
 
@@ -220,11 +220,11 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     const gsMultiPatch<T> & geometry()      const  {return m_patches;}
 
-    /// See \ref gsThinShellAssemblerBase for details
-    const gsMultiPatch<T> & defGeometry()   const  {return m_defpatches;}
+    // / See \ref gsThinShellAssemblerBase for details
+    // const gsFunctionSet<T> & defGeometry()   const  {return *m_defpatches;}
 
     /// See \ref gsThinShellAssemblerBase for details
-    T getArea(const gsMultiPatch<T> & geometry);
+    T getArea(const gsFunctionSet<T> & geometry);
 
     //--------------------- MATERIAL ACCESS --------------------------------//
     gsMaterialMatrixBase<T> * material()    const  {return m_materialMat;}
@@ -259,12 +259,12 @@ public:
 
     //--------------------- SPECIALS ----------------------------------//
     /// See \ref gsThinShellAssemblerBase for details
-    void constructStress(const gsMultiPatch<T> & deformed,
+    void constructStress(const gsFunctionSet<T> & deformed,
                                gsPiecewiseFunction<T> & result,
                                stress_type::type type);
 
     /// See \ref gsThinShellAssemblerBase for details
-    gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed, const T z=0);
+    gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsFunctionSet<T> & deformed, const T z=0);
 
     /// See \ref gsThinShellAssemblerBase for details
     void projectL2_into(const gsFunction<T> &fun, gsMatrix<T> & result);
@@ -287,7 +287,7 @@ protected:
 
     void _assembleNeumann();
     void _assembleWeakBCs();
-    void _assembleWeakBCs(const gsMultiPatch<T> & deformed);
+    void _assembleWeakBCs(const gsFunctionSet<T> & deformed);
     void _assembleDirichlet();
 
     void _applyLoads();
@@ -311,11 +311,11 @@ private:
 
     template<int _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, void>::type
-    _assembleWeakBCs_impl(const gsMultiPatch<T> & deformed);
+    _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
 
     template<int _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
-    _assembleWeakBCs_impl(const gsMultiPatch<T> & deformed);
+    _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
 
 protected:
     typedef gsExprAssembler<>::geometryMap geometryMap;
@@ -331,8 +331,8 @@ protected:
     gsExprEvaluator<> m_evaluator;
 
     gsMultiPatch<T> m_patches;
-    gsMultiPatch<T> m_defpatches;
-    gsMultiPatch<T> m_itpatches;
+    // const gsFunctionSet<T> * m_defpatches;
+    const gsFunctionSet<T> * m_itpatches;
     mutable gsMultiBasis<T> m_basis;
     const gsFunctionSet<T> *  m_spaceBasis;
     gsBoundaryConditions<T> m_bcs;
@@ -441,7 +441,7 @@ public:
      * @param[in]  deformed  The deformed multipatch
      * @param[in]  Matrix    True if the matrix should be assembled
      */
-    virtual void assemble(const gsMultiPatch<T> & deformed,     bool Matrix = true) = 0;
+    virtual void assemble(const gsFunctionSet<T> & deformed,     bool Matrix = true) = 0;
 
     /**
      * @brief      Assembles the tangential stiffness matrix and the residual for an iteration of Newton's method
@@ -458,7 +458,7 @@ public:
      *
      * @param[in]  deformed  The deformed geometry
      */
-    virtual void assembleMatrix(const gsMultiPatch<T>   & deformed  ) = 0;
+    virtual void assembleMatrix(const gsFunctionSet<T>   & deformed  ) = 0;
 
     /**
      * @brief      Assembles the tangential stiffness matrix (nonlinear)
@@ -472,7 +472,7 @@ public:
      *
      * @param[in]  deformed  The deformed geometry
      */
-    virtual void assembleMatrix(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update) = 0;
+    virtual void assembleMatrix(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update) = 0;
 
     /**
      * @brief      Assembles the tangential stiffness matrix (nonlinear)
@@ -486,7 +486,7 @@ public:
      *
      * @param[in]  deformed  The deformed geometry
      */
-    virtual void assembleVector(const gsMultiPatch<T>   & deformed  ) = 0;
+    virtual void assembleVector(const gsFunctionSet<T>   & deformed  ) = 0;
 
     /**
      * @brief      Assembles the residual vector
@@ -506,21 +506,21 @@ public:
      *
      * @return     The loads on the control points. The sum is the total load on the boundary
      */
-    virtual gsMatrix<T> boundaryForceVector(const gsMultiPatch<T>   & deformed , patchSide& ps, int com ) = 0;
+    virtual gsMatrix<T> boundaryForceVector(const gsFunctionSet<T>   & deformed , patchSide& ps, int com ) = 0;
 
-    virtual gsMatrix<T> boundaryForce(const gsMultiPatch<T>   & deformed , patchSide& ps) = 0;
+    virtual gsMatrix<T> boundaryForce(const gsFunctionSet<T>   & deformed , patchSide& ps) = 0;
 
     /// Returns the undeformed geometry
     virtual const gsMultiPatch<T> & geometry()    const = 0;
 
-    /// Returns the deformed geometry
-    virtual const gsMultiPatch<T> & defGeometry() const = 0;
+    // /// Returns the deformed geometry
+    // virtual const gsFunctionSet<T> & defGeometry() const = 0;
 
     /// Returns the material matrix used in the class
     virtual gsMaterialMatrixBase<T> * material()          const = 0;
 
     /// Returns the area of \a geometry
-    virtual T getArea(const gsMultiPatch<T> & geometry) = 0;
+    virtual T getArea(const gsFunctionSet<T> & geometry) = 0;
 
     /// Returns a reference to the system matrix that is assembled
     virtual const gsSparseMatrix<T> & matrix()  const  = 0;
@@ -550,10 +550,10 @@ public:
     virtual gsVector<T> constructSolutionVector(const gsMultiPatch<T> & deformed) const = 0;
 
     /// Construct Cauchy stress tensor for visualization
-    virtual void constructStress(const gsMultiPatch<T> & deformed,gsPiecewiseFunction<T> & result,stress_type::type type) = 0;
+    virtual void constructStress(const gsFunctionSet<T> & deformed,gsPiecewiseFunction<T> & result,stress_type::type type) = 0;
 
     /// Compute the principal stretches in \a points given a \a deformed geometry. Optionally, the stretches can be computed on through-thickness coordinate \a z
-    virtual gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed, const T z=0) = 0;
+    virtual gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsFunctionSet<T> & deformed, const T z=0) = 0;
 
 
 
@@ -586,7 +586,6 @@ virtual   gsDofMapper getMapper() = 0;
     virtual void plotSolution(std::string string, const gsMatrix<T> & solVector) = 0;;
 
 };
-
 
 } // namespace gismo
 

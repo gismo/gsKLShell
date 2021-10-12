@@ -54,7 +54,7 @@ public:
     m_patches(&mp)
     {
         membersSetZero();
-        this->setDeformed(mp_def);
+        this->setDeformed(&mp_def);
     }
 
 

@@ -39,7 +39,7 @@ public:
 
     /// Constructor
     gsMaterialMatrixIntegrate(  gsMaterialMatrixBase<T> * materialMatrix,
-                                const gsFunctionSet<T> & deformed);
+                                const gsFunctionSet<T> * deformed);
 
     /// Domain dimension, always 2 for shells
     short_t domainDim() const {return 2;}

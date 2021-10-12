@@ -39,7 +39,7 @@ public:
 
     /// Constructor
     gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * materialMatrix,
-                                const gsFunctionSet<T> & deformed,
+                                const gsFunctionSet<T> * deformed,
                                 const gsMatrix<T> z);
 
     /// Domain dimension, always 2 for shells

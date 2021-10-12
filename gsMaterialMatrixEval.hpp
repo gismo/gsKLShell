@@ -32,7 +32,7 @@ namespace gismo
 // Linear material models
 template <class T, enum MaterialOutput out>
 gsMaterialMatrixEval<T,out>::gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * materialMatrix, //??
-                                                    const gsFunctionSet<T> & deformed,
+                                                    const gsFunctionSet<T> * deformed,
                                                     const gsMatrix<T> z
                                                    )
 :
