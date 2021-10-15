@@ -76,7 +76,7 @@ private:
             GISMO_ASSERT(functions[p-1]->targetDim()==functions[p]->targetDim(),"Target dimension does not match for function "<<p-1<<" and "<<p<<"!");
         }
 
-        for (index_t p = 0; p!=m_size; p++)
+        for (index_t p = 0; p!=functions[0]->nPieces(); p++)
             m_pieces.push_back(gsFunctionPieceSum<T>(this,p));
     }
 
