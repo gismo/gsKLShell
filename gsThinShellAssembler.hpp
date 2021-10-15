@@ -57,7 +57,7 @@ void gsThinShellAssembler<d, T, bending>::_defaultOptions()
 {
     m_options.addReal("WeakDirichlet","Penalty parameter weak dirichlet conditions",1e3);
     m_options.addReal("WeakClamped","Penalty parameter weak clamped conditions",1e3);
-    m_options.addInt("Continuity","Set the continuity for the space",0);
+    m_options.addInt("Continuity","Set the continuity for the space",-1);
 
     // Assembler options
     m_options.addInt("DirichletStrategy","Method for enforcement of Dirichlet BCs [11..14]",11);
@@ -274,6 +274,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_assembleDirichlet()
 {
+    this->_getOptions();
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // if statement
     m_space.setup(m_bcs, dirichlet::interpolation, m_continuity);
@@ -282,6 +283,7 @@ void gsThinShellAssembler<d, T, bending>::_assembleDirichlet()
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::homogenizeDirichlet()
 {
+    this->_getOptions();
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     m_space.setup(m_bcs, dirichlet::homogeneous, m_continuity);
     // space m_space = m_assembler.trialSpace(0); // last argument is the space ID
