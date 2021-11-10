@@ -12,6 +12,7 @@
 */
 
 #include <gismo.h>
+#include <typeinfo>
 
 #ifdef GISMO_WITH_SPECTRA
 #include <gsSpectra/gsSpectra.h>
@@ -22,6 +23,7 @@
 #include <gsKLShell/gsThinShellUtils.h>
 #include <gsKLShell/getMaterialMatrix.h>
 #include <gsAssembler/gsAdaptiveRefUtils.h>
+// #include <gsAssembler/gsAdaptiveMeshing.h>
 
 //#include <gsThinShell/gsNewtonIterator.h>
 
@@ -194,6 +196,38 @@ int main(int argc, char *argv[])
         Density = 1e0;
         numElevate -= 1;
     }
+    else if (testCase==3)
+    {
+        gsMultiPatch<> mp_tmp;
+        std::string fn = "planar/weirdShape.xml";
+        gsReadFile<>(fn, mp_tmp);
+        mp.addAutoBoundaries();
+
+        gsKnotVector<> kv1(0,1,8,3);
+        gsKnotVector<> kv2(0,1,0,3);
+        gsTensorBSplineBasis<2,real_t> basis(kv2,kv1);
+        gsMatrix<> coefs;
+        gsQuasiInterpolate<real_t>::localIntpl(basis, mp_tmp.patch(0), coefs);
+        gsTensorBSpline<2,real_t> bspline(kv2,kv1,coefs);
+
+        gsDebugVar(mp_tmp.patch(0).coefs());
+        gsDebugVar(coefs);
+        gsDebugVar(bspline);
+
+        mp.addPatch(bspline);
+        mp.embed(3);
+        mp.degreeElevate(1);
+
+        thickness = 0.01;
+        PoissonRatio = 0.3;
+        E_modulus     = 1e0;
+        Density = 1e0;
+
+        gsTensorBSpline<2,real_t> *geo;
+        gsDebug<<(geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(0)))<<"\n";
+
+        gsDebug<<(geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&bspline))<<"\n";
+    }
 
     // p-refine
     if (numElevate != 0)
@@ -207,9 +241,17 @@ int main(int argc, char *argv[])
             gsTHBSpline<2,real_t> thb;
             for (index_t k=0; k!=mp.nPatches(); ++k)
             {
-                gsTensorBSpline<2,real_t> *geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k));
-                thb = gsTHBSpline<2,real_t>(*geo);
-                mp.patch(k) = thb;
+                gsTensorBSpline<2,real_t> *geo;
+                if (geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k)))
+                {
+                    thb = gsTHBSpline<2,real_t>(*geo);
+                    mp.patch(k) = thb;
+                }
+                else
+                {
+                    std::cout<<typeid(geo).name();
+                    // GISMO_ERROR("Cannot cast to THB spline");
+                }
             }
         }
         else // Quasi-interpolate NURBS geometry
@@ -326,6 +368,16 @@ int main(int argc, char *argv[])
         bc.addCondition(boundary::east, condition_type::clamped,0,0,false,2);
         bc.addCondition(boundary::south, condition_type::clamped,0,0,false,2);
         bc.addCondition(boundary::west, condition_type::clamped,0,0,false,2);
+
+        omegas.push_back(0);
+    }
+    else if (testCase==3)
+    {
+        for (index_t i = 0; i != 3; ++i)
+        {
+            bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, i);
+        }
+        bc.addCondition(boundary::south, condition_type::clamped,0,0,false,2);
 
         omegas.push_back(0);
     }
@@ -543,10 +595,15 @@ int main(int argc, char *argv[])
         else
         {
             elErrors = DWR->computeErrorEigElements(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
-            // for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
-            // {
-            //     *it = std::abs(*it);
-            // }
+            for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
+            {
+                *it = std::abs(*it);
+            }
+
+
+            // gsAdaptiveMeshing(basisL);
+
+
 
             gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
             const gsField<> elemError_eh( mp.patch(0), err_eh, true );

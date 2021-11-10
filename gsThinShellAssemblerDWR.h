@@ -82,7 +82,7 @@ public:
     void setOptions(gsOptionList & options) { m_assemblerL->setOptions(options);  m_assemblerH->setOptions(options); }
 
     /// See \ref gsThinShellAssemblerBase for details
-    void setPointLoads(const gsPointLoads<T> & pLoads) { m_assemblerL->setPointLoads(pLoads);  m_assemblerH->setPointLoads(pLoads); }
+    void setPointLoads(const gsPointLoads<T> & pLoads) { m_pLoads = pLoads; m_assemblerL->setPointLoads(pLoads);  m_assemblerH->setPointLoads(pLoads); }
 
     /// See \ref gsThinShellAssemblerBase for details
     void setFoundation(const gsFunction<T> & foundation) { m_assemblerL->setFoundation(foundation);  m_assemblerH->setFoundation(foundation); }
@@ -148,6 +148,16 @@ public:
     { m_dL = _assembleDual(points,m_assemblerL,primal); }
     void assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal)
     { m_dH = _assembleDual(points,m_assemblerH,primal); }
+
+    void assembleDualL(const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
+    { m_dL = _assembleDual(m_assemblerL,primal,deformed); }
+    void assembleDualH(const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
+    { m_dH = _assembleDual(m_assemblerH,primal,deformed); }
+
+    void assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
+    { m_dL = _assembleDual(points,m_assemblerL,primal,deformed); }
+    void assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
+    { m_dH = _assembleDual(points,m_assemblerH,primal,deformed); }
 
     const gsSparseMatrix<T> & matrixL() const { return m_matrixL; }
     const gsSparseMatrix<T> & matrixH() const { return m_matrixH; }
@@ -229,6 +239,16 @@ public:
         m_assemblerL->constructStress(deformed,result,type);
     }
 
+    T error() const { return m_error; }
+    std::vector<T> errors() const { return m_errors; }
+    std::vector<T> absErrors() const
+    {
+        std::vector<T> result = m_errors;
+        for (typename std::vector<T>::iterator it = result.begin(); it!=result.end(); it++)
+            *it = std::abs(*it);
+        return result;
+    }
+
 protected:
 
     gsSparseMatrix<T>   _assembleMass(gsThinShellAssemblerBase<T> * assembler, bool lumped = false);
@@ -248,7 +268,15 @@ protected:
      *
      * @return     RHS vector
      */
-    gsVector<T>         _assembleDual(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & deformed);
+    gsVector<T>         _assembleDual(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
+    {
+        gsMultiPatch<T> deformed = m_patches;
+        for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
+            deformed.patch(k).coefs() += primal.patch(k).coefs();  // Gdef points to mp_def, therefore updated
+
+        return _assembleDual(assembler,primal,deformed);
+    }
+    gsVector<T>         _assembleDual(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
 
     /**
      * @brief      Assembles the dual as a domain integral
@@ -258,32 +286,44 @@ protected:
      *
      * @return     RHS vector
      */
-    gsVector<T>         _assembleDual(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & deformed);
+    gsVector<T>         _assembleDual(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
+    {
+        gsMultiPatch<T> deformed = m_patches;
+        for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
+            deformed.patch(k).coefs() += primal.patch(k).coefs();  // Gdef points to mp_def, therefore updated
+
+        return _assembleDual(points,assembler,primal,deformed);
+    }
+    gsVector<T>         _assembleDual(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
 
     template<int _elWise>
-    std::vector<T> computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH);
+    void computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH);
 
     template<int _elWise>
-    std::vector<T> computeErrorInertia_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations);
+    void  computeErrorInertia_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations);
 
 
     template<int _d, bool _bending, int _elWise>
-    typename std::enable_if<(_d==3 && _bending), std::vector<T>>::type
+    typename std::enable_if<(_d==3 && _bending), void>::type
     computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
 
     template<int _d, bool _bending, int _elWise>
-    typename std::enable_if<!(_d==3 && _bending), std::vector<T>>::type
+    typename std::enable_if<!(_d==3 && _bending), void>::type
     computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
 
     template<int _elWise>
-    std::vector<T> computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,
+    void computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal);
 
     template<int _elWise>
-    std::vector<T> computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,
+    void computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
+
+    void _applyLoadsToElWiseError(const gsMultiPatch<T> &dualL, const gsMultiPatch<T> &dualH, std::vector<T> & errors) const;
+    void _applyLoadsToError(const gsMultiPatch<T> &dualL, const gsMultiPatch<T> &dualH, T & error) const;
+
 
 protected:
     mutable gsThinShellAssemblerBase<T> * m_assemblerL;
@@ -297,7 +337,12 @@ protected:
     gsSparseMatrix<T> m_massL;
     gsSparseMatrix<T> m_massH;
 
+    gsPointLoads<T> m_pLoads;
+
     gsMultiBasis<T> m_basisL, m_basisH;
+
+    T m_error;
+    std::vector<T> m_errors;
 
     typedef gsExprAssembler<>::geometryMap geometryMap;
     typedef gsExprAssembler<>::space       space;
@@ -385,6 +430,13 @@ public:
     virtual void assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal) =0;
     virtual void assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal) =0;
 
+    virtual void assembleDualL(const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
+    virtual void assembleDualH(const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
+
+    virtual void assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
+    virtual void assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
+
+
     virtual const gsSparseMatrix<T> & matrixL() const =0;
     virtual const gsSparseMatrix<T> & matrixH() const =0;
 
@@ -465,6 +517,10 @@ public:
     virtual void constructStress(const gsMultiPatch<T> & deformed,
                                gsPiecewiseFunction<T> & result,
                                stress_type::type type) = 0;
+
+    virtual T error() const =0;
+    virtual std::vector<T> errors() const =0;
+    virtual std::vector<T> absErrors() const =0;
 };
 
 } // namespace gismo

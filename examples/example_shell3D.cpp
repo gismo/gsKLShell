@@ -92,6 +92,19 @@ int main(int argc, char *argv[])
         thickness = 1e-2;
         PoissonRatio = 0.3;
     }
+    else if (testCase == 5)
+    {
+        real_t L = 1;
+        real_t B = 1;
+        mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
+        mp.patch(0).coefs().col(0) *= L;
+        mp.patch(0).coefs().col(1) *= B;
+        mp.embed(3);
+        mp.addAutoBoundaries();
+        E_modulus = 1;
+        thickness = 1e-2;
+        PoissonRatio = 0.3;
+    }
     else
         GISMO_ERROR("Testcase "<<testCase<<" unknown");
     //! [Read input file]
@@ -207,7 +220,7 @@ int main(int argc, char *argv[])
 
         refPoint = point;
     }
-    if (testCase == 4)
+    else if (testCase == 4)
     {
         for (index_t i=0; i!=3; ++i)
         {
@@ -221,6 +234,20 @@ int main(int argc, char *argv[])
         refPoint<<0.5,0.5;
         tmp << 0,0,-1e-5;
 
+    }
+    else if (testCase == 5)
+    {
+        for (index_t i=0; i!=3; ++i)
+        {
+            bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0 ,false,i);
+            bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0 ,false,i);
+            bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0 ,false,i);
+            bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0 ,false,i);
+        }
+
+        gsVector<> point(2); point<< 0.5, 0.5 ;
+        gsVector<> load (3); load << 0.0, 0.0, -1e-6 ;
+        pLoads.addLoad(point, load, 0 );
     }
     else
         GISMO_ERROR("Testcase "<<testCase<<" unknown");
@@ -408,7 +435,7 @@ int main(int argc, char *argv[])
     gsInfo<<"Total ellapsed assembly time: \t\t"<<time<<" s\n";
     gsInfo<<"Total ellapsed solution time (incl. assembly): \t"<<totaltime<<" s\n";
 
-    if (testCase==4)
+    if (testCase==4 || testCase==5)
     {
         if (nonlinear)
             gsWrite(mp_def,"deformed_plate_nl");

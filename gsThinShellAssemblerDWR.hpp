@@ -151,7 +151,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assemblePrimal(gsThinShellA
 }
 
 template <short_t d, class T, bool bending>
-gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
+gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
 {
     GISMO_ASSERT(m_component < d || m_component==9,"Component is out of bounds");
 
@@ -165,10 +165,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
     exprAssembler.cleanUp();
     exprAssembler.setOptions(assembler->options());
 
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // Gdef points to mp_def, therefore updated
-
+    m_defpatches = deformed;
     // Geometries
     geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
     geometryMap Gdef = exprAssembler.getMap(m_defpatches);
@@ -253,6 +250,11 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
 
     // Membrane stress (its first variation)
     auto Sm_der     = Em_der * reshape(mmA,3,3);
+
+    // Principal membrane stress (its first variation)
+    auto Smp_der     = Sm_der * reshape(Tcov,3,3).tr();
+
+    // Flexural stress (its first variation)
     auto Sf_der     = Ef_der * reshape(mmD,3,3);
 
     // Membrane force (its first variation)
@@ -342,13 +344,13 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
     {
         if (m_component==9)
         {
-            auto expr = 2 * (Sm_der * reshape(Tcov,3,3).tr()) * P0 * meas(Gori);
+            auto expr = 2 * Smp_der * P0 * meas(Gori);
             exprAssembler.assemble(expr);
             return exprAssembler.rhs();
         }
         else
         {
-            auto expr = (Sm_der * reshape(Tcov,3,3).tr()) * gismo::expr::uv(m_component,3) * meas(Gori);
+            auto expr = Smp_der * gismo::expr::uv(m_component,3) * meas(Gori);
             exprAssembler.assemble(expr);
             return exprAssembler.rhs();
         }
@@ -364,27 +366,31 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
         else
         {
             gsWarn<<"The MembraneForce goal function seems to be problematic (Nder)\n";
-            auto N_der1     = Em_der * reshape(mmAi,3,3);
-            auto N_der2     = Ef_der * reshape(mmBi,3,3);
-            auto N_der0a     = N_der1;// + N_der2; // -->> commenting the second term out will give correct results.
-            auto N_der0b     = N_der2;// + N_der2; // -->> commenting the second term out will give correct results.
-            auto N_der0c     = N_der1 + N_der2; // -->> commenting the second term out will give correct results.
+            auto expr = 2 * N_der * N * meas(Gori);
+            exprAssembler.assemble(expr);
 
-            auto expr0a = N_der0a * gismo::expr::uv(m_component,3) * meas(Gori);
-            auto expr0b = N_der0b * gismo::expr::uv(m_component,3) * meas(Gori);
-            auto expr0c = N_der0c * gismo::expr::uv(m_component,3) * meas(Gori);
+            // auto N_der1     = Em_der * reshape(mmAi,3,3);
+            // auto N_der2     = Ef_der * reshape(mmBi,3,3);
+            // auto N_der0a     = N_der1;// + N_der2; // -->> commenting the second term out will give correct results.
+            // auto N_der0b     = N_der2;// + N_der2; // -->> commenting the second term out will give correct results.
+            // auto N_der0c     = N_der1 + N_der2; // -->> commenting the second term out will give correct results.
 
-            exprAssembler.initVector(1);
-            exprAssembler.assemble(expr0a);
-            gsDebugVar(exprAssembler.rhs());
+            // auto expr0a = N_der0a * gismo::expr::uv(m_component,3) * meas(Gori);
+            // auto expr0b = N_der0b * gismo::expr::uv(m_component,3) * meas(Gori);
+            // auto expr0c = N_der0c * gismo::expr::uv(m_component,3) * meas(Gori);
 
-            exprAssembler.initVector(1);
-            exprAssembler.assemble(expr0b);
-            gsDebugVar(exprAssembler.rhs());
+            // exprAssembler.initVector(1);
+            // exprAssembler.assemble(expr0a);
+            // gsDebugVar(exprAssembler.rhs());
 
-            exprAssembler.initVector(1);
-            exprAssembler.assemble(expr0c);
-            gsDebugVar(exprAssembler.rhs());
+            // exprAssembler.initVector(1);
+            // exprAssembler.assemble(expr0b);
+            // gsDebugVar(exprAssembler.rhs());
+
+            // exprAssembler.initVector(1);
+            // exprAssembler.assemble(expr0c);
+            // gsDebugVar(exprAssembler.rhs());
+
 
 
             return exprAssembler.rhs();
@@ -441,7 +447,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
 
 
 template <short_t d, class T, bool bending>
-gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
+gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
 {
     /* SINGLE PATCH IMPLEMENTATION */
     index_t pIndex = 0;
@@ -461,10 +467,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
     exprAssembler.cleanUp();
     exprAssembler.setOptions(assembler->options());
 
-    m_defpatches = m_patches;
-    for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // Gdef points to mp_def, therefore updated
-
+    m_defpatches = deformed;
     // Geometries
     geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
     geometryMap Gdef = exprAssembler.getMap(m_defpatches);
@@ -557,7 +560,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
     auto Sf_der     = Ef_der * reshape(mmD,3,3);
 
     // Membrane force (its first variation)
-    // auto N_der    = Em_der * reshape(mmAi,3,3) + Ef_der * reshape(mmBi,3,3);
+    auto N_der    = Em_der * reshape(mmAi,3,3) + Ef_der * reshape(mmBi,3,3);
     auto M_der    = Em_der * reshape(mmCi,3,3) + Ef_der * reshape(mmDi,3,3);
 
 
@@ -608,7 +611,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
     {
         if (m_component==9)
         {
-            auto expr = 2* lambda_der * lambda * meas(Gori);//<<<--------NOTE: Square missing?
+            auto expr = 2* lambda_der * lambda.tr() * meas(Gori);//<<<--------NOTE: Square missing?
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
@@ -756,7 +759,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
     {
         if (m_component==9)
         {
-            auto expr = Smp_der * P0 * meas(Gori);
+            auto expr = 2 * Smp_der * P0 * meas(Gori);
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
@@ -773,7 +776,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
         }
         else
         {
-            auto expr = Sm_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            auto expr = Smp_der * gismo::expr::uv(m_component,3) * meas(Gori);
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
@@ -794,8 +797,6 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
         if (m_component==9)
         {
             gsWarn<<"The MembraneForce goal function seems to be problematic (Nder)\n";
-            // remove N_der from this scipe
-            auto N_der    = Em_der * reshape(mmAi,3,3) + Ef_der * reshape(mmBi,3,3);
             auto expr = 2 * N_der * N * meas(Gori);
             for (index_t k = 0; k!=points.cols(); k++)
             {
@@ -911,8 +912,6 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
         if (m_component==9)
         {
             gsWarn<<"The FlexuralMoment goal function seems to be problematic (Mder)\n";
-            // remove N_der from this scipe
-            auto N_der    = Em_der * reshape(mmAi,3,3) + Ef_der * reshape(mmBi,3,3);
             auto expr = 2 * M_der * M * meas(Gori);
             for (index_t k = 0; k!=points.cols(); k++)
             {
@@ -1073,26 +1072,27 @@ gsMatrix<T> gsThinShellAssemblerDWR<d, T, bending>::projectL2_H(const gsFunction
 template <short_t d, class T, bool bending>
 T gsThinShellAssemblerDWR<d, T, bending>::computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH)
 {
-    std::vector<T> result = computeError_impl<0>(dualL,dualH);
-    GISMO_ASSERT(result.size()==1,"Must be scalar!");
-    return result[0];
+    computeError_impl<0>(dualL,dualH);
+    return m_error;
 }
 
 template <short_t d, class T, bool bending>
 std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH)
 {
-    return computeError_impl<1>(dualL,dualH);
+    computeError_impl<1>(dualL,dualH);
+    return m_errors;
 }
 
 template <short_t d, class T, bool bending>
 std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH)
 {
-    return computeError_impl<2>(dualL,dualH);
+    computeError_impl<2>(dualL,dualH);
+    return m_errors;
 }
 
 template <short_t d, class T, bool bending>
 template <int _elWise>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH)
+void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH)
 {
     gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
     exprAssembler.cleanUp();
@@ -1117,7 +1117,6 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const g
     gsExprEvaluator<T> ev(exprAssembler);
 
     T integral, bintegral;
-    std::vector<T> result;
     if (_elWise == 0)
     {
         // Get neumann sides, put them in a container of patchSide s.
@@ -1128,13 +1127,19 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const g
 
         bintegral = ev.integralBdr( bexpr, bContainer);
         integral = ev.integral(expr);
+        if (m_pLoads.numLoads()!=0)
+            _applyLoadsToError(dualL,dualH,integral);
 
-        result.push_back(integral+bintegral);
+        m_error = integral+bintegral;
+        return;
     }
     else if (_elWise == 1) // element-wise
     {
-        integral = ev.integralElWise(expr);
-        result = ev.elementwise();
+        m_error = ev.integralElWise(expr);
+        m_errors = ev.elementwise();
+        if (m_pLoads.numLoads()!=0)
+            _applyLoadsToElWiseError(dualL,dualH,m_errors);
+        return;
     }
     else if (_elWise == 2) // function-wise
     {
@@ -1150,36 +1155,36 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const g
         // gsDebugVar(ev.eval( space * zsolL,pt));
 
         // result =
+        return;
     }
     else
         GISMO_ERROR("Unknown");
-
-    return result;
 }
 
 template <short_t d, class T, bool bending>
 T gsThinShellAssemblerDWR<d, T, bending>::computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed)
 {
-    std::vector<T> result = computeError_impl<d,bending,0>(dualL,dualH,deformed);
-    GISMO_ASSERT(result.size()==1,"Must be scalar!");
-    return result[0];
+    computeError_impl<d,bending,0>(dualL,dualH,deformed);
+    return m_error;
 }
 
 template <short_t d, class T, bool bending>
 std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed)
 {
-    return computeError_impl<d,bending,1>(dualL,dualH,deformed);
+    computeError_impl<d,bending,1>(dualL,dualH,deformed);
+    return m_errors;
 }
 
 template <short_t d, class T, bool bending>
 std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed)
 {
-    return computeError_impl<d,bending,2>(dualL,dualH,deformed);
+    computeError_impl<d,bending,2>(dualL,dualH,deformed);
+    return m_errors;
 }
 
 template <short_t d, class T, bool bending>
 template<int _d, bool _bending, int _elWise>
-typename std::enable_if<_d==3 && _bending, std::vector<T>>::type
+typename std::enable_if<_d==3 && _bending, void>::type
 gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed)
 {
     gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
@@ -1231,7 +1236,6 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     gsExprEvaluator<T> ev(exprAssembler);
 
     T integral, bintegral;
-    std::vector<T> result;
     if (_elWise == 0)
     {
         // Get neumann sides, put them in a container of patchSide s.
@@ -1242,10 +1246,19 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
 
         bintegral = ev.integralBdr( bexpr, bContainer);
         integral = ev.integral(expr);
+        if (m_pLoads.numLoads()!=0)
+            _applyLoadsToError(dualL,dualH,integral);
+
+        m_error = integral+bintegral;
+        return;
     }
     else if (_elWise == 1) // element-wise
     {
-        integral = ev.integralElWise(expr);
+        m_error = ev.integralElWise(expr);
+        m_errors = ev.elementwise();
+        if (m_pLoads.numLoads()!=0)
+            _applyLoadsToElWiseError(dualL,dualH,m_errors);
+        return;
     }
     else if (_elWise == 2) // function-wise
     {
@@ -1267,6 +1280,7 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
         // std::vector<T> vec( exprAssembler.rhs().data(),
         //                     exprAssembler.rhs().data() + exprAssembler.rhs().rows() * exprAssembler.rhs().cols());
         integral = 0;
+        return;
     }
     else
         GISMO_ERROR("Unknown");
@@ -1285,26 +1299,11 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
 
     //     integral += ev.integral( pressure.val() * ( zsolH - zsolL ) * sn(Gdef).normalized() * meas(Gori) );
     // }
-
-    if (_elWise == 0)
-        result.push_back(integral+bintegral);
-    else if (_elWise == 1)
-        result = ev.elementwise();
-    else if (_elWise == 2)
-    {
-
-        // result =
-    }
-    else
-        GISMO_ERROR("Unknown");
-
-    return result;
-
 }
 
 template <short_t d, class T, bool bending>
 template<int _d, bool _bending, int _elWise>
-typename std::enable_if<!(_d==3 && _bending), std::vector<T>>::type
+typename std::enable_if<!(_d==3 && _bending), void>::type
 gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed)
 {
     gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
@@ -1344,7 +1343,6 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     gsExprEvaluator<T> ev(exprAssembler);
 
     T integral, bintegral;
-    std::vector<T> result;
     if (_elWise == 0)
     {
         // Get neumann sides, put them in a container of patchSide s.
@@ -1355,10 +1353,13 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
 
         bintegral = ev.integralBdr( bexpr, bContainer);
         integral = ev.integral(expr);
+        m_error = bintegral+integral;
     }
     else if (_elWise == 1) // element-wise
     {
-        integral = ev.integralElWise(expr);
+        m_error = ev.integralElWise(expr);
+        m_errors = ev.elementwise();
+        return;
     }
     else if (_elWise == 2) // function-wise
     {
@@ -1380,6 +1381,7 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
         // std::vector<T> vec( exprAssembler.rhs().data(),
         //                     exprAssembler.rhs().data() + exprAssembler.rhs().rows() * exprAssembler.rhs().cols());
         integral = 0;
+        return;
     }
     else
         GISMO_ERROR("Unknown");
@@ -1397,45 +1399,32 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
 
     //     integral += ev.integral( pressure.val() * ( zsolH - zsolL ) * sn(Gdef).normalized() * meas(Gori) );
     // }
-
-    if (_elWise == 0)
-        result.push_back(integral+bintegral);
-    else if (_elWise == 1)
-        result = ev.elementwise();
-    else if (_elWise == 2)
-    {
-
-        // result =
-    }
-    else
-        GISMO_ERROR("Unknown");
-
-    return result;
 }
 
 template <short_t d, class T, bool bending>
 T gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertia(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations)
 {
-    std::vector<T> result = computeErrorInertia_impl<0>(dualL,dualH,accelerations);
-    GISMO_ASSERT(result.size()==1,"Must be scalar!");
-    return result[0];
+    computeErrorInertia_impl<0>(dualL,dualH,accelerations);
+    return m_error;
 }
 
 template <short_t d, class T, bool bending>
 std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertiaElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations)
 {
-    return computeErrorInertia_impl<1>(dualL,dualH,accelerations);
+    computeErrorInertia_impl<1>(dualL,dualH,accelerations);
+    return m_errors;
 }
 
 template <short_t d, class T, bool bending>
 std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertiaDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations)
 {
-    return computeErrorInertia_impl<2>(dualL,dualH,accelerations);
+    computeErrorInertia_impl<2>(dualL,dualH,accelerations);
+    return m_errors;
 }
 
 template <short_t d, class T, bool bending>
 template<int _elWise>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertia_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations)
+void gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertia_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations)
 {
     gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
     exprAssembler.cleanUp();
@@ -1461,18 +1450,21 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertia_impl(
     gsExprEvaluator<T> ev(exprAssembler);
 
     T integral, bintegral;
-    std::vector<T> result;
     if (_elWise == 0)
     {
-        integral = ev.integral(expr);
+        m_error = ev.integral(expr);
+        return;
     }
     else if (_elWise == 1) // element-wise
     {
-        integral = ev.integralElWise(expr);
+        m_error = ev.integralElWise(expr);
+        m_errors = ev.elementwise();
+        return;
     }
     else if (_elWise == 2) // function-wise
     {
         integral = 0;
+        return;
     }
     else
         GISMO_ERROR("Unknown");
@@ -1490,20 +1482,6 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertia_impl(
 
     //     integral += ev.integral( pressure.val() * ( zsolH - zsolL ) * sn(Gdef).normalized() * meas(Gori) );
     // }
-
-    if (_elWise == 0)
-        result.push_back(integral+bintegral);
-    else if (_elWise == 1)
-        result = ev.elementwise();
-    else if (_elWise == 2)
-    {
-
-        // result =
-    }
-    else
-        GISMO_ERROR("Unknown");
-
-    return result;
 }
 
 /**
@@ -1532,9 +1510,8 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig(         const T evPri
                                                                                 const gsMultiPatch<T> & primal,
                                                                                 const gsMultiPatch<T> & deformed)
 {
-    std::vector<T> result = computeErrorEig_impl<0>(evPrimalL, evDualL, evDualH, dualL, dualH, primal, deformed);
-    GISMO_ASSERT(result.size()==1,"Must be scalar!");
-    return result[0];
+    computeErrorEig_impl<0>(evPrimalL, evDualL, evDualH, dualL, dualH, primal, deformed);
+    return m_error;
 }
 
 template <short_t d, class T, bool bending>
@@ -1546,7 +1523,8 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEigElements( 
                                                                                 const gsMultiPatch<T> & primal,
                                                                                 const gsMultiPatch<T> & deformed)
 {
-    return computeErrorEig_impl<1>(evPrimalL, evDualL, evDualH, dualL, dualH, primal, deformed);
+    computeErrorEig_impl<1>(evPrimalL, evDualL, evDualH, dualL, dualH, primal, deformed);
+    return m_errors;
 }
 
 template <short_t d, class T, bool bending>
@@ -1558,13 +1536,14 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEigDofs( cons
                                                                                 const gsMultiPatch<T> & primal,
                                                                                 const gsMultiPatch<T> & deformed)
 {
-    return computeErrorEig_impl<2>(evPrimalL, evDualL, evDualH, dualL, dualH, primal, deformed);
+    computeErrorEig_impl<2>(evPrimalL, evDualL, evDualH, dualL, dualH, primal, deformed);
+    return m_errors;
 }
 
 
 template <short_t d, class T, bool bending>
 template <int _elWise>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T evPrimalL,
+void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T evPrimalL,
                                                                                 const T evDualL,
                                                                                 const T evDualH,
                                                                                 const gsMultiPatch<T> & dualL,
@@ -1715,24 +1694,24 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    
     gsExprEvaluator<T> ev(exprAssembler);
 
     T integral = 0;
-    std::vector<T> result;
-
     if (_elWise == 0)
     {
-        integral = ev.integral(expr);
-        result.push_back(integral);
+        m_error = ev.integral(expr);
+        return;
     }
     else if (_elWise == 1)
     {
-        integral = ev.integralElWise(expr);
-        result = ev.elementwise();
+        m_error = ev.integralElWise(expr);
+        m_errors = ev.elementwise();
+        return;
     }
     else if (_elWise == 2)
-        result.push_back(integral);
+    {
+        integral = 0;
+        return;
+    }
     else
         GISMO_ERROR("Unknown");
-
-    return result;
 }
 
 // template <short_t d, class T, bool bending>
@@ -1779,9 +1758,8 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig(                 const
                                                                                 const gsMultiPatch<T> & dualH,
                                                                                 const gsMultiPatch<T> & primal)
 {
-    std::vector<T> result = computeErrorEig_impl<0>(evPrimalL, evDualL, evDualH, dualL, dualH, primal);
-    GISMO_ASSERT(result.size()==1,"Must be scalar!");
-    return result[0];
+    computeErrorEig_impl<0>(evPrimalL, evDualL, evDualH, dualL, dualH, primal);
+    return m_error;
 }
 
 template <short_t d, class T, bool bending>
@@ -1792,7 +1770,8 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEigElements( 
                                                                                 const gsMultiPatch<T> & dualH,
                                                                                 const gsMultiPatch<T> & primal)
 {
-    return computeErrorEig_impl<1>(evPrimalL, evDualL, evDualH, dualL, dualH, primal);
+    computeErrorEig_impl<1>(evPrimalL, evDualL, evDualH, dualL, dualH, primal);
+    return m_errors;
 }
 
 template <short_t d, class T, bool bending>
@@ -1803,12 +1782,13 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEigDofs(    c
                                                                                 const gsMultiPatch<T> & dualH,
                                                                                 const gsMultiPatch<T> & primal)
 {
-    return computeErrorEig_impl<2>(evPrimalL, evDualL, evDualH, dualL, dualH, primal);
+    computeErrorEig_impl<2>(evPrimalL, evDualL, evDualH, dualL, dualH, primal);
+    return m_errors;
 }
 
 template <short_t d, class T, bool bending>
 template <int _elWise>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T evPrimalL,
+void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T evPrimalL,
                                                                                 const T evDualL,
                                                                                 const T evDualH,
                                                                                 const gsMultiPatch<T> & dualL,
@@ -1878,8 +1858,6 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    
 
     gsExprEvaluator<T> ev(exprAssembler);
 
-    std::vector<T> result;
-
     auto A      = Fint;
     auto Bdiff  = rho.val() * usol.tr() * (zsolH - zsolL);
     auto Bprimal= rho.val() * usol.tr() * usol;
@@ -1890,20 +1868,22 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    
 
     if (_elWise == 0)
     {
-        integral = ev.integral( A  * meas(Gori) - evPrimalL * Bdiff * meas(Gori) + (evDualH - evDualL) * ( Bprimal * meas(Gori)  - one) );
-        result.push_back(integral);
+        m_error = ev.integral( A  * meas(Gori) - evPrimalL * Bdiff * meas(Gori) + (evDualH - evDualL) * ( Bprimal * meas(Gori)  - one) );
+        return;
     }
     else if (_elWise == 1)
     {
-        integral = ev.integralElWise( A  * meas(Gori) - evPrimalL * Bdiff * meas(Gori) + (evDualH - evDualL) * ( Bprimal * meas(Gori)  - one) );
-        result = ev.elementwise();
+        m_error = ev.integralElWise( A  * meas(Gori) - evPrimalL * Bdiff * meas(Gori) + (evDualH - evDualL) * ( Bprimal * meas(Gori)  - one) );
+        m_errors = ev.elementwise();
+        return;
     }
     else if (_elWise == 2)
-        result.push_back(integral);
+    {
+        integral = 0;
+        return;
+    }
     else
         GISMO_ERROR("Unknown");
-
-    return result;
 }
 
 //============================================================
@@ -2598,5 +2578,102 @@ T gsThinShellAssemblerDWR<d, T, bending>::matrixNorm(const gsMultiPatch<T> &prim
 
     return integral;
 }
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssemblerDWR<d, T, bending>::_applyLoadsToElWiseError(const gsMultiPatch<T> &dualL, const gsMultiPatch<T> &dualH, std::vector<T> & errors) const
+{
+
+    for (size_t i = 0; i<m_pLoads.numLoads(); ++i )
+    {
+        if (m_pLoads[i].value.size()!=d)
+            gsWarn<<"Point load has wrong dimension "<<m_pLoads[i].value.size()<<" instead of "<<d<<"\n";
+        // Compute actives and values of basis functions on point load location.
+        gsMatrix<T> forcePoint;
+        if ( m_pLoads[i].parametric )   // in parametric space
+            forcePoint = m_pLoads[i].point;
+        else                            // in physical space
+            m_patches.patch(m_pLoads[i].patch).invertPoints(m_pLoads[i].point,forcePoint);
+
+        std::vector<T> elements;
+
+        #pragma omp parallel
+        {
+            std::vector<T> elements_private;
+#ifdef _OPENMP
+            const int tid = omp_get_thread_num();
+            const int nt  = omp_get_num_threads();
+            index_t patch_cnt = 0;
+#endif
+
+            index_t c = 0;
+            for (unsigned patchInd=0; patchInd < m_basisL.nBases(); ++patchInd)
+            {
+                // Initialize domain element iterator
+                typename gsBasis<T>::domainIter domIt =
+                    m_basisL.piece(patchInd).makeDomainIterator();
+
+#ifdef _OPENMP
+                c = patch_cnt + tid;
+                patch_cnt += domIt->numElements();// a bit costy
+                for ( domIt->next(tid); domIt->good(); domIt->next(nt) )
+#else
+                for (; domIt->good(); domIt->next() )
+#endif
+                {
+                    bool test = !(((((forcePoint - domIt->lowerCorner()).array() >= 0) &&
+                                    (domIt->upperCorner() - forcePoint).array() >= 0)   ).array() == 0).any();
+                    if (test)
+                        elements_private.push_back(c);
+                    #ifdef _OPENMP
+                                    c += nt;
+                    #else
+                                    c++;
+                    #endif
+                }
+#pragma omp critical
+                elements.insert(elements.end(), elements_private.begin(), elements_private.end());
+            }
+        }
+
+        // Compute load value on the point
+        gsMatrix<T> Lres, Hres;
+        dualL.patch(m_pLoads[i].patch).eval_into(forcePoint,Lres);
+        dualH.patch(m_pLoads[i].patch).eval_into(forcePoint,Hres);
+        gsMatrix<T> result = (Hres-Lres).transpose() * m_pLoads[i].value;
+        // Distribute load over all the elements
+        GISMO_ASSERT(result.rows()==result.cols() && result.rows()==1,"Result must be scalar");
+        for (index_t k=0; k!=elements.size(); k++)
+            errors.at(elements.at(k)) = result(0,0)/elements.size();
+
+        for (index_t k=0; k!=elements.size(); k++)
+            gsDebugVar(elements[k]);
+    }
+}
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssemblerDWR<d, T, bending>::_applyLoadsToError(const gsMultiPatch<T> &dualL, const gsMultiPatch<T> &dualH, T & error) const
+{
+
+    for (size_t i = 0; i< m_pLoads.numLoads(); ++i )
+    {
+        if (m_pLoads[i].value.size()!=d)
+            gsWarn<<"Point load has wrong dimension "<<m_pLoads[i].value.size()<<" instead of "<<d<<"\n";
+        // Compute actives and values of basis functions on point load location.
+        gsMatrix<T> forcePoint;
+        if ( m_pLoads[i].parametric )   // in parametric space
+            forcePoint = m_pLoads[i].point;
+        else                            // in physical space
+            m_patches.patch(m_pLoads[i].patch).invertPoints(m_pLoads[i].point,forcePoint);
+
+        // Compute load value on the point
+        gsMatrix<T> Lres, Hres;
+        dualL.patch(m_pLoads[i].patch).eval_into(forcePoint,Lres);
+        dualH.patch(m_pLoads[i].patch).eval_into(forcePoint,Hres);
+        gsMatrix<T> result = (Hres-Lres).transpose() * m_pLoads[i].value;
+        // Add load tot total error
+        error += result(0,0);
+    }
+}
+
 
 } // namespace gismo
