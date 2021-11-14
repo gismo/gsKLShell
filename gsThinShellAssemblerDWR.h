@@ -249,6 +249,9 @@ public:
         return result;
     }
 
+    gsDofMapper getMapperL() { return m_assemblerL->getMapper(); };
+    gsDofMapper getMapperH() { return m_assemblerH->getMapper(); };
+
 protected:
 
     gsSparseMatrix<T>   _assembleMass(gsThinShellAssemblerBase<T> * assembler, bool lumped = false);
@@ -521,6 +524,11 @@ public:
     virtual T error() const =0;
     virtual std::vector<T> errors() const =0;
     virtual std::vector<T> absErrors() const =0;
+
+    virtual gsDofMapper getMapperL()=0;
+    virtual gsDofMapper getMapperH()=0;
+
+
 };
 
 } // namespace gismo
