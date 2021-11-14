@@ -11,49 +11,33 @@
   <!-- Density -->
   <Function type="FunctionExpr" id="13" tag="Material" dim="3">0.0</Function>
 
-  <!-- Mooney-Rivlin -->
-    <!-- Ratio -->
-    <Function type="FunctionExpr" id="14" tag="Material" dim="3">7</Function>
-
-  <!-- Ogden -->
-    <!-- Alpha1 -->
-    <Function type="FunctionExpr" id="15" tag="Material" dim="3">2.0</Function>
-    <!-- Mu1 -->
-    <Function type="FunctionExpr" id="16" tag="Material" dim="3">0.4375</Function>
-    <!-- Alpha2 -->
-    <Function type="FunctionExpr" id="17" tag="Material" dim="3">-2.0</Function>
-    <!-- Mu2 -->
-    <Function type="FunctionExpr" id="18" tag="Material" dim="3">-0.0625</Function>
-
 <!-- Boundary conditions and loads -->
 <boundaryConditions id="20" multipatch="1">
   <Function type="FunctionExpr" dim="3" index="0">0</Function>
   <Function type="FunctionExpr" dim="3" index="1">0</Function>
-  <bc type="Dirichlet" function="0" unknown="0" component="0">
+  <bc type="Dirichlet" function="0" unknown="0" component="0" patch="0">
     0 1
+    0 2
     0 3
     0 4
-    1 2
-    1 3
-    1 4
   </bc>
-  <bc type="Dirichlet" function="0" unknown="0" component="1">
+  <bc type="Dirichlet" function="0" unknown="0" component="1" patch="0">
     0 1
+    0 2
     0 3
     0 4
-    1 2
-    1 3
-    1 4
   </bc>
-  <bc type="Dirichlet" function="0" unknown="0" component="2">
+  <bc type="Dirichlet" function="0" unknown="0" component="2" patch="0">
     0 1
+    0 2
     0 3
     0 4
-    1 2
-    1 3
-    1 4
   </bc>
   <bc type="Clamped" function="0" unknown="0" component="2">
+    0 1
+    0 2
+    0 3
+    0 4
   </bc>
 
   <bc type="Collapsed" function="0" unknown="0" component="2">
