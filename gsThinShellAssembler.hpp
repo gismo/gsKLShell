@@ -277,7 +277,7 @@ void gsThinShellAssembler<d, T, bending>::_assembleDirichlet()
     this->_getOptions();
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // if statement
-    m_space.setup(m_bcs, dirichlet::interpolation, m_continuity);
+    m_space.setup(m_bcs, dirichlet::l2Projection, m_continuity);
 }
 
 template <short_t d, class T, bool bending>
@@ -1023,7 +1023,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsFunctionSet<T> &
     space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
 
     gsBoundaryConditions<T> bc;
-    u.setup(bc, dirichlet::interpolation, m_continuity);
+    u.setup(bc, dirichlet::l2Projection, m_continuity);
 
     assembler.initSystem();
 
@@ -1094,7 +1094,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsFunctionSet<T> &
     space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
 
     gsBoundaryConditions<T> bc;
-    u.setup(bc, dirichlet::interpolation, m_continuity);
+    u.setup(bc, dirichlet::l2Projection, m_continuity);
 
     assembler.initSystem();
 
@@ -1157,7 +1157,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsFunctionSe
     space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
 
     gsBoundaryConditions<T> bc;
-    u.setup(bc, dirichlet::interpolation, m_continuity);
+    u.setup(bc, dirichlet::l2Projection, m_continuity);
 
     assembler.initSystem();
 
@@ -1259,7 +1259,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsFunctionSe
     space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
 
     gsBoundaryConditions<T> bc;
-    u.setup(bc, dirichlet::interpolation, m_continuity);
+    u.setup(bc, dirichlet::l2Projection, m_continuity);
 
     assembler.initSystem();
 

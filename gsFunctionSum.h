@@ -58,6 +58,7 @@ public:
     {
         for (index_t p = 1; p!=m_size; p++)
             gsInfo<<"Piece "<<p<<":\n"<<m_pieces[p]<<"\n";
+        return os;
     }
 
 
@@ -171,6 +172,7 @@ public:
     {
         for (index_t p = 0; p!= m_geom->funcSize(); p++)
             gsInfo<<" function "<<p<<":\n"<<m_geom->func(p)->piece(m_index)<<"\n";
+        return os;
     }
 
 protected:
