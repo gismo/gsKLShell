@@ -3,11 +3,11 @@
 
 <!-- Material properties -->
   <!-- Thickness -->
-  <Function type="FunctionExpr" id="10" tag="Material" dim="3">1</Function>
+  <Function type="FunctionExpr" id="10" tag="Material" dim="3">0.01</Function>
   <!-- E modulus -->
   <Function type="FunctionExpr" id="11" tag="Material" dim="3">1</Function>
   <!-- Poisson ratio -->
-  <Function type="FunctionExpr" id="12" tag="Material" dim="3">0.0</Function>
+  <Function type="FunctionExpr" id="12" tag="Material" dim="3">0.3</Function>
   <!-- Density -->
   <Function type="FunctionExpr" id="13" tag="Material" dim="3">0.0</Function>
 
@@ -103,10 +103,16 @@
 </boundaryConditions>
 
 <!-- Distributed load function -->
+<!-- 4*A*D*pi*pi*pi*pi*sin(pi*x)*sin(pi*y)
+     Where
+     A is the amplitude of the deformation
+     D is the flexural rigidity, D = Et^3/(12(1-nu^2))
+     E, t and nu are the material properties defined above
+-->
 <Function type="FunctionExpr" id="21" tag="Loads" dim="3">
   <c> 0 </c>
   <c> 0 </c>
-  <c> -1 </c>
+  <c> 4*1*(1*0.01^3 / (12 * (1-0.3^2)))*pi*pi*pi*pi*sin(pi*x)*sin(pi*y)</c>
 </Function>
 <!-- Distributed pressure function -->
 <!-- <Function type="FunctionExpr" id="22" tag="Loads" dim="3">0</Function> -->
@@ -117,6 +123,13 @@
 <!-- Point load forces -->
 <Matrix rows="3" cols="0" id="31" tag="Loads" >
 </Matrix>
+
+<!-- Manufactured solution -->
+<Function type="FunctionExpr" id="41" tag="Loads" dim="3">
+  <c> 0 </c>
+  <c> 0 </c>
+  <c> 1*sin(pi*x)*sin(pi*y)</c>
+</Function>
 
 <!-- Assembler options -->
 <OptionList id="90">

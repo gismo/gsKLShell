@@ -63,6 +63,27 @@ public:
     /// Default empty constructor
     gsThinShellAssembler() { }
 
+    /// Copy constructor (makes deep copy)
+    gsThinShellAssembler( const gsThinShellAssembler& other )
+    {
+        operator=(other);
+    }
+
+    /// Move constructor
+    gsThinShellAssembler( gsThinShellAssembler&& other )
+    {
+        operator=(give(other));
+    }
+
+    /// Assignment operator
+    gsThinShellAssembler& operator= ( const gsThinShellAssembler& other );
+
+    /// Move assignment operator
+    gsThinShellAssembler& operator= ( gsThinShellAssembler&& other );
+
+
+
+
     /// See \ref gsThinShellAssemblerBase for details
     gsOptionList & options() {return m_options;}
 

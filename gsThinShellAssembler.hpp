@@ -53,6 +53,59 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
 }
 
 template <short_t d, class T, bool bending>
+gsThinShellAssembler<d, T, bending>& gsThinShellAssembler<d, T, bending>::operator=( const gsThinShellAssembler& other )
+{
+    if (this!=&other)
+    {
+        m_patches=other.m_patches;
+        m_basis=other.m_basis;
+        m_spaceBasis=other.m_spaceBasis;
+        m_bcs=other.m_bcs;
+        m_forceFun=other.m_forceFun;
+        m_materialMat=other.m_materialMat;
+        m_options=other.m_options;
+        m_alpha_d=other.m_alpha_d;
+        m_alpha_r=other.m_alpha_r;
+        m_continuity=other.m_continuity;
+        // m_assembler=other.m_assembler;
+        m_ddofs=other.m_ddofs;
+        m_mapper=other.m_mapper;
+        m_foundInd=other.m_foundInd;
+        m_pressInd=other.m_pressInd;
+
+        // To do: make copy constructor for the gsExprAssembler
+        m_assembler.setIntegrationElements(m_basis);
+        m_assembler.setOptions(m_options);
+    }
+    return *this;
+}
+
+template <short_t d, class T, bool bending>
+gsThinShellAssembler<d, T, bending>& gsThinShellAssembler<d, T, bending>::operator=( gsThinShellAssembler&& other )
+{
+    m_patches=give(other.m_patches);
+    m_basis=give(other.m_basis);
+    m_spaceBasis=give(other.m_spaceBasis);
+    m_bcs=give(other.m_bcs);
+    m_forceFun=give(other.m_forceFun);
+    m_materialMat=give(other.m_materialMat);
+    m_options=give(other.m_options);
+    m_alpha_d=give(other.m_alpha_d);
+    m_alpha_r=give(other.m_alpha_r);
+    m_continuity=give(other.m_continuity);
+    // m_assembler=give(other.m_assembler);
+    m_ddofs=give(other.m_ddofs);
+    m_mapper=give(other.m_mapper);
+    m_foundInd=give(other.m_foundInd);
+    m_pressInd=give(other.m_pressInd);
+
+    // To do: make copy constructor for the gsExprAssembler
+    m_assembler.setIntegrationElements(m_basis);
+    m_assembler.setOptions(m_options);
+    return *this;
+}
+
+template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_defaultOptions()
 {
     m_options.addReal("WeakDirichlet","Penalty parameter weak dirichlet conditions",1e3);

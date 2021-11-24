@@ -10,10 +10,10 @@
     <KnotVector degree="1">0 0 1 1 </KnotVector>
    </Basis>
   </Basis>
-  <coefs geoDim="2">1 1 
-2 1 
-1 2 
-2 2 
+  <coefs geoDim="2">0 0
+1 0
+0 1
+1 1
 </coefs>
  </Geometry>
  <MultiPatch parDim="2" id="1">
