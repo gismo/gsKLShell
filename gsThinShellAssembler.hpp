@@ -177,7 +177,7 @@ gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    auto g_N = m_assembler.getBdrFunction();
+    auto g_N = m_assembler.getBdrFunction(m_ori);
     m_assembler.assemble(m_bcs.get("Neumann"),m_space * g_N * tv(m_ori).norm());
 }
 
@@ -189,7 +189,7 @@ gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    auto g_N = m_assembler.getBdrFunction();
+    auto g_N = m_assembler.getBdrFunction(m_ori);
     m_assembler.assemble(m_bcs.get("Neumann"), m_space * g_N * tv(m_ori).norm());
 }
 
@@ -209,7 +209,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    auto g_N = m_assembler.getBdrFunction();
+    auto g_N = m_assembler.getBdrFunction(m_ori);
 
     // Weak BCs
     m_assembler.assemble
@@ -218,22 +218,17 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
         ,
         -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
         ,
-        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * meas(m_ori)
+        -(m_alpha_d * m_space * g_N         ) * meas(m_ori)
     );
 
     // for weak clamped
     m_assembler.assemble
     (
         (
-            m_bcs.get("Weak Dirichlet")
+            m_bcs.get("Weak Clamped")
             ,
-            m_alpha_r * ( sn(m_ori).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_ori,nv(m_ori).tr()) )
-            +
             m_alpha_r * ( ( var1(m_space,m_ori) * nv(m_ori) ) * ( var1(m_space,m_ori) * nv(m_ori) ).tr() )
         ) * meas(m_ori)
-        ,
-        // THIS LINE SHOULD BE ZERO!
-        ( m_alpha_r * ( sn(m_ori).tr()*sn(m_ori) - sn(m_ori).tr()*sn(m_ori) ).val() * ( var1(m_space,m_ori) * sn(m_ori) ) ) * meas(m_ori)
     );
 }
 
@@ -245,7 +240,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    auto g_N = m_assembler.getBdrFunction();
+    auto g_N = m_assembler.getBdrFunction(m_ori);
 
     // Weak BCs
     m_assembler.assemble
@@ -257,7 +252,6 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
         (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * meas(m_ori)
     );
 }
-
 
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_assembleWeakBCs(const gsFunctionSet<T> & deformed)
@@ -275,7 +269,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     geometryMap m_def   = m_assembler.getMap(deformed);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    auto g_N = m_assembler.getBdrFunction();
+    auto g_N = m_assembler.getBdrFunction(m_ori);
 
     // Weak BCs
     m_assembler.assemble
@@ -287,19 +281,24 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
         m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
     );
 
-    // for weak clamped
-    m_assembler.assemble
-    (
-        m_bcs.get("Weak Clamped")
-        ,
-        (
-            m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_def,nv(m_ori).tr()) )
-            +
-            m_alpha_r * ( ( var1(m_space,m_def) * nv(m_ori) ) * ( var1(m_space,m_def) * nv(m_ori) ).tr() )
-        ) * meas(m_ori)
-        ,
-        ( m_alpha_r * ( sn(m_def).tr()*sn(m_ori) - sn(m_ori).tr()*sn(m_ori) ).val() * ( var1(m_space,m_def) * sn(m_ori) ) ) * meas(m_ori)
-    );
+    // // for weak clamped
+    // m_assembler.assemble
+    // (
+    //     m_bcs.get("Weak Clamped")
+    //     ,
+    //     (
+    //         m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_def,nv(m_ori).tr()) )
+    //         +
+    //         m_alpha_r * ( ( var1(m_space,m_def) * nv(m_ori) ) * ( var1(m_space,m_def) * nv(m_ori) ).tr() )
+    //     ) * meas(m_ori)
+    //     ,
+    //     (
+    //         m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var1(m_space,m_def) * sn(m_ori) )
+    //         +
+    //         // to be implemented: tvar1
+    //         // m_alpha_r * ( nv(m_def).tr()*nv(m_ori) - nv(m_ori).tr()*nv(m_ori) ).val() * ( tvar1(m_space,m_def) * sn(m_ori) )
+    //     ) * meas(m_ori)
+    // );
 }
 
 template <short_t d, class T, bool bending>
@@ -311,7 +310,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     geometryMap m_def   = m_assembler.getMap(deformed);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    auto g_N = m_assembler.getBdrFunction();
+    auto g_N = m_assembler.getBdrFunction(m_ori);
 
     // Weak BCs
     m_assembler.assemble
