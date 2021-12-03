@@ -152,7 +152,9 @@ gsVector<real_t> numerical(bool composite)
     values = values.cwiseSqrt();
     values = values.col(0).head(10);
 
+    delete materialMatrix;
     delete assembler;
+
     return values;
 }
 
