@@ -29,6 +29,7 @@ int main(int argc, char *argv[])
     index_t numRefine  = 1;
     index_t numElevate = 1;
     index_t testCase = 1;
+    bool nonlinear = false;
 
     bool membrane = false;
     bool composite = false;
@@ -47,6 +48,7 @@ int main(int argc, char *argv[])
     cmd.addSwitch("stress", "Create a ParaView visualization file with the stresses", stress);
     cmd.addSwitch("membrane", "Use membrane model (no bending)", membrane);
     cmd.addSwitch("composite", "Composite material", composite);
+    cmd.addSwitch( "nl", "Print information", nonlinear );
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
@@ -55,7 +57,6 @@ int main(int argc, char *argv[])
     gsMultiPatch<> mp;
     gsMultiPatch<> mp_def;
     std::string fn;
-    bool nonlinear = false;
     if (testCase == 1 )
     {
         thickness = 0.25;
@@ -87,7 +88,6 @@ int main(int argc, char *argv[])
         E_modulus = 1e0;
         thickness = 1e0;
         PoissonRatio = 0.3;
-        nonlinear = true;
     }
     //! [Read input file]
     // p-refine
