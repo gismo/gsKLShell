@@ -198,8 +198,8 @@ template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_assembleWeakBCs()
 {
     gsWarn<<"Weak boundary conditions are currently disabled.\n";
-    // this->_getOptions();
-    // _assembleWeakBCs_impl<d,bending>();
+    this->_getOptions();
+    _assembleWeakBCs_impl<d,bending>();
 }
 
 template <short_t d, class T, bool bending>
@@ -207,20 +207,20 @@ template<int _d, bool _bending>
 typename std::enable_if<_d==3 && _bending, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 {
-    // geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
 
-    // space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    // auto g_N = m_assembler.getBdrFunction(m_ori);
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    auto g_N = m_assembler.getBdrFunction(m_ori);
 
-    // // Weak BCs
-    // m_assembler.assemble
-    // (
-    //     m_bcs.get("Weak Dirichlet")
-    //     ,
-    //     -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
-    //     ,
-    //     -(m_alpha_d * m_space * g_N         ) * meas(m_ori)
-    // );
+    // Weak BCs
+    m_assembler.assemble
+    (
+        m_bcs.get("Weak Dirichlet")
+        ,
+        -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        ,
+        -(m_alpha_d * m_space * g_N         ) * meas(m_ori)
+    );
 
     // // for weak clamped
     // m_assembler.assemble
@@ -238,20 +238,20 @@ template<int _d, bool _bending>
 typename std::enable_if<!(_d==3 && _bending), void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 {
-    // geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
 
-    // space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    // auto g_N = m_assembler.getBdrFunction(m_ori);
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    auto g_N = m_assembler.getBdrFunction(m_ori);
 
-    // // Weak BCs
-    // m_assembler.assemble
-    // (
-    //     m_bcs.get("Weak Dirichlet")
-    //     ,
-    //     -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
-    //     ,
-    //     (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * meas(m_ori)
-    // );
+    // Weak BCs
+    m_assembler.assemble
+    (
+        m_bcs.get("Weak Dirichlet")
+        ,
+        -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        ,
+        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * meas(m_ori)
+    );
 }
 
 template <short_t d, class T, bool bending>
@@ -267,40 +267,40 @@ template<int _d, bool _bending>
 typename std::enable_if<_d==3 && _bending, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T> & deformed)
 {
-    // geometryMap m_ori   = m_assembler.getMap(m_patches);
-    // geometryMap m_def   = m_assembler.getMap(deformed);
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_def   = m_assembler.getMap(deformed);
 
-    // space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    // auto g_N = m_assembler.getBdrFunction(m_ori);
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    auto g_N = m_assembler.getBdrFunction(m_ori);
 
-    // // Weak BCs
+    // Weak BCs
+    m_assembler.assemble
+    (
+        m_bcs.get("Weak Dirichlet")
+        ,
+        -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
+        ,
+        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
+    );
+
+    // // for weak clamped
     // m_assembler.assemble
     // (
-    //     m_bcs.get("Weak Dirichlet")
+    //     m_bcs.get("Weak Clamped")
     //     ,
-    //     -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
+    //     (
+    //         m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_def,nv(m_ori).tr()) )
+    //         +
+    //         m_alpha_r * ( ( var1(m_space,m_def) * nv(m_ori) ) * ( var1(m_space,m_def) * nv(m_ori) ).tr() )
+    //     ) * meas(m_ori)
     //     ,
-    //     m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
+    //     (
+    //         m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var1(m_space,m_def) * sn(m_ori) )
+    //         +
+    //         // to be implemented: tvar1
+    //         // m_alpha_r * ( nv(m_def).tr()*nv(m_ori) - nv(m_ori).tr()*nv(m_ori) ).val() * ( tvar1(m_space,m_def) * sn(m_ori) )
+    //     ) * meas(m_ori)
     // );
-
-    // // // for weak clamped
-    // // m_assembler.assemble
-    // // (
-    // //     m_bcs.get("Weak Clamped")
-    // //     ,
-    // //     (
-    // //         m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_def,nv(m_ori).tr()) )
-    // //         +
-    // //         m_alpha_r * ( ( var1(m_space,m_def) * nv(m_ori) ) * ( var1(m_space,m_def) * nv(m_ori) ).tr() )
-    // //     ) * meas(m_ori)
-    // //     ,
-    // //     (
-    // //         m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var1(m_space,m_def) * sn(m_ori) )
-    // //         +
-    // //         // to be implemented: tvar1
-    // //         // m_alpha_r * ( nv(m_def).tr()*nv(m_ori) - nv(m_ori).tr()*nv(m_ori) ).val() * ( tvar1(m_space,m_def) * sn(m_ori) )
-    // //     ) * meas(m_ori)
-    // // );
 }
 
 template <short_t d, class T, bool bending>
@@ -308,21 +308,21 @@ template<int _d, bool _bending>
 typename std::enable_if<!(_d==3 && _bending), void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T> & deformed)
 {
-    // geometryMap m_ori   = m_assembler.getMap(m_patches);
-    // geometryMap m_def   = m_assembler.getMap(deformed);
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_def   = m_assembler.getMap(deformed);
 
-    // space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    // auto g_N = m_assembler.getBdrFunction(m_ori);
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    auto g_N = m_assembler.getBdrFunction(m_ori);
 
-    // // Weak BCs
-    // m_assembler.assemble
-    // (
-    //     m_bcs.get("Weak Dirichlet")
-    //     ,
-    //     -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
-    //     ,
-    //     m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
-    // );
+    // Weak BCs
+    m_assembler.assemble
+    (
+        m_bcs.get("Weak Dirichlet")
+        ,
+        -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
+        ,
+        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
+    );
 }
 
 template <short_t d, class T, bool bending>
