@@ -24,6 +24,11 @@ template<class T>
 class gsFunctionSum : public gsFunctionSet<T>
 {
 public:
+    gsFunctionSum()
+    :
+    m_size(0)
+    {}
+
     gsFunctionSum(const std::vector<const gsFunctionSet<T> * > & functions)
     :
     m_functions(functions),
@@ -159,7 +164,7 @@ public:
         for (index_t p = 1; p!=m_geom->funcSize(); p++)
         {
             m_geom->func(p)->piece(m_index).evalAllDers_into(u,n,tmp);
-            for (index_t k = 0; result.size(); k++)
+            for (size_t k = 0; k!=result.size(); k++)
             {
                 result[k] += tmp[k];
             }
