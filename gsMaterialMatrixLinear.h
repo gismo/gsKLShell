@@ -200,7 +200,6 @@ protected:
 
     mutable gsMatrix<T> m_pstress, m_pstressvec;
 
-
     // Geometric data point
     using Base::m_map;
     using Base::m_map_def;
@@ -213,34 +212,28 @@ protected:
     using Base::m_Bcon_ori;
     using Base::m_Bcov_def;
     using Base::m_Bcon_def;
-
     using Base::m_acov_ori;
     using Base::m_acon_ori;
     using Base::m_acov_def;
     using Base::m_acon_def;
-
     using Base::m_ncov_ori;
     using Base::m_ncov_def;
-
     using Base::m_Gcov_ori;
     using Base::m_Gcon_ori;
     using Base::m_Gcov_def;
     using Base::m_Gcon_def;
     using Base::m_Gcov_ori_L;
     using Base::m_Gcov_def_L;
-
     using Base::m_gcov_ori;
     using Base::m_gcov_def;
     using Base::m_gcon_ori;
     using Base::m_gcon_def;
-
     using Base::m_Acov_ori_mat;
     using Base::m_Acon_ori_mat;
     using Base::m_Acov_def_mat;
     using Base::m_Acon_def_mat;
     using Base::m_Bcov_ori_mat;
     using Base::m_Bcov_def_mat;
-
     using Base::m_acov_ori_mat;
     using Base::m_acon_ori_mat;
     using Base::m_acov_def_mat;

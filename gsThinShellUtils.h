@@ -626,6 +626,47 @@ public:
         }
 
         template<class U> inline
+        typename util::enable_if< util::is_same<U,gsFeVariable<Scalar> >::value, const gsMatrix<Scalar> & >::type
+        eval_impl(const U & u, const index_t k)  const
+        {
+            /*
+                Here, we compute the hessian of the geometry map.
+                The hessian of the geometry map c has the form: hess(c)
+                [d11 c1, d11 c2, d11 c3]
+                [d22 c1, d22 c2, d22 c3]
+                [d12 c1, d12 c2, d12 c3]
+
+                The geometry map has components c=[c1,c2,c3]
+            */
+            // evaluate the geometry map of U
+            tmp =  _u.data().values[2];
+            res.resize(rows(),cols());
+            for (index_t comp = 0; comp != _u.source().targetDim(); comp++)
+                res.col(comp) = tmp.block(comp*rows(),0,rows(),1); //star,length
+            return res;
+        }
+
+        template<class U> inline
+        typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value, const gsMatrix<Scalar> & >::type
+        eval_impl(const U & u, const index_t k)  const
+        {
+            /*
+                Here, we compute the hessian of the geometry map.
+                The hessian of the geometry map c has the form: hess(c)
+                [d11 c1, d11 c2, d11 c3]
+                [d22 c1, d22 c2, d22 c3]
+                [d12 c1, d12 c2, d12 c3]
+
+                The geometry map has components c=[c1,c2,c3]
+            */
+            // evaluate the geometry map of U
+            hess_expr<gsFeSolution<Scalar>> sHess = hess_expr<gsFeSolution<Scalar>>(_u);
+            res = sHess.eval(k).transpose();
+            return res;
+        }
+
+        /// Spexialization for a space
+        template<class U> inline
         typename util::enable_if<util::is_same<U,gsFeSpace<Scalar> >::value, const gsMatrix<Scalar> & >::type
         eval_impl(const U & u, const index_t k) const
         {
