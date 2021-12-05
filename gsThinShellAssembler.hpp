@@ -178,7 +178,7 @@ gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     auto g_N = m_assembler.getBdrFunction(m_ori);
-    m_assembler.assemble(m_bcs.get("Neumann"),m_space * g_N * tv(m_ori).norm());
+    m_assembler.assembleBdr(m_bcs.get("Neumann"),m_space * g_N * tv(m_ori).norm());
 }
 
 template <short_t d, class T, bool bending>
@@ -190,7 +190,7 @@ gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     auto g_N = m_assembler.getBdrFunction(m_ori);
-    m_assembler.assemble(m_bcs.get("Neumann"), m_space * g_N * tv(m_ori).norm());
+    m_assembler.assembleBdr(m_bcs.get("Neumann"), m_space * g_N * tv(m_ori).norm());
 }
 
 
@@ -213,7 +213,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     auto g_N = m_assembler.getBdrFunction(m_ori);
 
     // Weak BCs
-    m_assembler.assemble
+    m_assembler.assembleBdr
     (
         m_bcs.get("Weak Dirichlet")
         ,
@@ -223,7 +223,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     );
 
     // // for weak clamped
-    // m_assembler.assemble
+    // m_assembler.assembleBdr
     // (
     //     (
     //         m_bcs.get("Weak Clamped")
@@ -244,7 +244,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     auto g_N = m_assembler.getBdrFunction(m_ori);
 
     // Weak BCs
-    m_assembler.assemble
+    m_assembler.assembleBdr
     (
         m_bcs.get("Weak Dirichlet")
         ,
@@ -274,7 +274,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     auto g_N = m_assembler.getBdrFunction(m_ori);
 
     // Weak BCs
-    m_assembler.assemble
+    m_assembler.assembleBdr
     (
         m_bcs.get("Weak Dirichlet")
         ,
@@ -284,7 +284,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     );
 
     // // for weak clamped
-    // m_assembler.assemble
+    // m_assembler.assembleBdr
     // (
     //     m_bcs.get("Weak Clamped")
     //     ,
@@ -315,7 +315,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     auto g_N = m_assembler.getBdrFunction(m_ori);
 
     // Weak BCs
-    m_assembler.assemble
+    m_assembler.assembleBdr
     (
         m_bcs.get("Weak Dirichlet")
         ,
