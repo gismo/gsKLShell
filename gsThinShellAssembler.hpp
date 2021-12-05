@@ -257,9 +257,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_assembleWeakBCs(const gsFunctionSet<T> & deformed)
 {
-    gsWarn<<"Weak boundary conditions are currently disabled.\n";
-    // this->_getOptions();
-    // _assembleWeakBCs_impl<d,bending>(deformed);
+    // gsWarn<<"Weak boundary conditions are currently disabled.\n";
+    this->_getOptions();
+    _assembleWeakBCs_impl<d,bending>(deformed);
 }
 
 template <short_t d, class T, bool bending>
