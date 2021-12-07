@@ -7,8 +7,13 @@
 #include <gsKLShell/gsThinShellFunctions.h>
 #include <gsKLShell/gsThinShellFunctions.hpp>
 
+#include <gsKLShell/gsFunctionSum.h>
+
+
 namespace gismo
 {
+  CLASS_TEMPLATE_INST gsFunctionSum<real_t>;
+
   CLASS_TEMPLATE_INST gsShellStressFunction<real_t>;
 
   // Shell assembler <dimension, real_t, bending terms>
