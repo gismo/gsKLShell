@@ -25,12 +25,12 @@ namespace gismo
 
 
 /**
- * @brief      This class serves as the evaluator of material matrices, based on \ref gsMaterialMatrixBase
+ * @brief      This class serves as the integrator of material matrices, based on \ref gsMaterialMatrixBase
  *
- * @tparam     T     Real tyoe
+ * @tparam     T     Real type
  * @tparam     out   Output type (see \ref MaterialOutput)
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  */
 template <class T, enum MaterialOutput out>
 class gsMaterialMatrixIntegrate : public gsFunction<T>

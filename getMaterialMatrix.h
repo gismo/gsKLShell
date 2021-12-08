@@ -110,7 +110,7 @@ gsMatrix<T> gsCompositeMatrixRaw(   const T G11,
  *
  * @return     The material matrix.
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  *
  */
 template<short_t d, class T>
@@ -274,7 +274,7 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
  *
  * @return     The material matrix.
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  *
  */
 template<short_t d, class T>

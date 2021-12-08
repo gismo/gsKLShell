@@ -30,7 +30,7 @@ namespace gismo
  * @tparam     T     Real tyoe
  * @tparam     out   Output type (see \ref MaterialOutput)
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  */
 template <class T, enum MaterialOutput out>
 class gsMaterialMatrixEval : public gsFunction<T>

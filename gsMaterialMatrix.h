@@ -35,7 +35,7 @@ namespace gismo
  * @tparam     mat    Material flag (see \ref Material)
  * @tparam     imp    Implementation flag (see \ref Implementation)
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  */
 template <  short_t dim,
             class T,

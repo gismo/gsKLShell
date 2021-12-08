@@ -1,6 +1,6 @@
 /** @file gsMaterialMatrix_test.cpp
 
-    @brief Code for the arc-length method of a shell based on loads
+    @brief Simple example for material matrix evaluations
 
     This file is part of the G+Smo library.
 
@@ -21,7 +21,6 @@ using namespace gismo;
 
 int main (int argc, char** argv)
 {
-
     int material = 0;
 	int impl = 1;
 	int Compressibility = 0;
@@ -33,28 +32,14 @@ int main (int argc, char** argv)
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
 
-
+    // Make geometry
     gsMultiPatch<> mp, mp_def;
-    gsReadFile<>("deformed_plate_lin_T=" + std::to_string(1.0) + ".xml",mp_def);
-
-
-
     mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
     mp.addAutoBoundaries();
     mp.embed(3);
 
-
-    // gsMatrix<> ones;
-    // // translate second patch up
-    // ones = gsMatrix<>::Ones(mp.patch(0).coefs().rows(),1); // patch 1
-    // // mp_def.patch(0).coefs().col(1) += ones; // patch 1
-    // mp_def.patch(0).scale(4,0); // patch 1
-    // mp_def.patch(0).scale(2,1); // patch 1
-    // mp_def.patch(0).rotate(3.141592/4.); // patch 1
-
-    // mp.embed(3);
-    // mp_def.embed(3);
-
+    mp_def = mp;
+    mp_def.patch(0).coefs().col(0) *= 2;
 
     real_t thickness = 1.0;
     real_t E_modulus = 1.0;
@@ -222,30 +207,6 @@ int main (int argc, char** argv)
     gsInfo<<"PStressN (transformed) = \n"<<ev.eval(reshape(transp,3,3) * S0p,pt)<<"\n";
     gsInfo<<"PStressM (transformed) = \n"<<ev.eval(reshape(transp,3,3) * S1p,pt)<<"\n";
     gsInfo<<"PStressM (transformed) = \n"<<ev.eval(reshape(transp,3,3) * Stp,pt)<<"\n";
-
-
-
-    //////////////////////////////////////////////////////////////////////////////////////////////
-
-    gsMatrix<> Tmats;
-    gsMatrix<> Stretches;
-    gsMatrix<> Stresses;
-    gsMatrix<> PStresses;
-    trans_p.eval_into(pts,Tmats);
-    lambda_p.eval_into(pts,Stretches);
-    S0_p.eval_into(pts,Stresses);
-    P0_p.eval_into(pts,PStresses);
-    for (index_t k=0; k!=pts.cols(); k++)
-    {
-        gsMatrix<> Tmat = Tmats.reshapeCol(k,3,3);
-        gsMatrix<> Stretch = Stretches.reshapeCol(k,3,1);
-        gsMatrix<> Stress = Stresses.reshapeCol(k,3,1);
-        gsMatrix<> PStress = PStresses.reshapeCol(k,3,1);
-
-        gsDebugVar((PStress - Tmat * Stress).norm());
-        gsDebugVar((PStress.transpose() - Stress.transpose() * Tmat.transpose()).norm());
-    }
-
 
     gsWriteParaview(mp,"mp",1000);
     gsWriteParaview(mp_def,"mp_def",1000);

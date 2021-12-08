@@ -31,7 +31,7 @@ namespace gismo
  * @tparam     dim   The dimension of the problem (2 = planar, 3 = surface)
  * @tparam     T     Real type
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  *
  */
 template <  short_t dim,

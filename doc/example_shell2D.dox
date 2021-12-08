@@ -3,9 +3,7 @@ namespace gismo {
 
 \page example_shell2D example_shell2D.cpp
 
-
-<!-- more info on the file examples/example_shell2D.cpp goes here -->
-
+Simple 2D examples for the shell class
 
 \section example_shell2D_Annotated Annotated source file
 

@@ -1,0 +1,17 @@
+namespace gismo {
+/**
+
+\page gsMaterialMatrix_test gsMaterialMatrix_test.cpp
+
+Simple example for material matrix evaluations
+
+\section gsMaterialMatrix_test_Annotated Annotated source file
+
+Here is the full file \c examples/gsMaterialMatrix_test.cpp. Clicking on a function
+or class name will lead you to its reference documentation.
+
+\include gsMaterialMatrix_test.cpp
+
+*/
+
+}

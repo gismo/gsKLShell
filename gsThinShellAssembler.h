@@ -124,8 +124,10 @@ public:
     //--------------------- SYSTEM ASSEMBLY ----------------------------------//
     ////////////////////////////////////////////////////////////////////////////
 
+    /// See \ref gsThinShellAssemblerBase for details
     void assemble();
 
+    /// See \ref gsThinShellAssemblerBase for details
     void setSpaceBasis(const gsFunctionSet<T> & spaceBasis)
     {
         m_spaceBasis = &spaceBasis;
@@ -446,6 +448,7 @@ public:
     /// Assembles the linear system and corresponding right-hand side
     virtual void assemble() = 0;
 
+    /// Set the basis that is used for assembly (but not for quadrature!)
     virtual void setSpaceBasis(const gsFunctionSet<T> & spaceBasis) = 0;
 
     /// Assembles the mass matrix (including density and thickness!); if lumped=true, a lumped mass matrix will be constructed,

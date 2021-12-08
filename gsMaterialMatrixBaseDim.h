@@ -26,7 +26,7 @@ namespace gismo
  *
  * @tparam     T     Real type
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  */
 template <short_t dim, class T>
 class gsMaterialMatrixBaseDim : public gsMaterialMatrixBase<T>
