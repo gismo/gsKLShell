@@ -1,3 +1,12 @@
+# To Do
+
+# Changelog
+
+## v21.12:
+  - Compatibility with the new `gsExprAssembler` in `gismo/gsAssembler`
+## v21.6:
+  - Initial version!
+
 # gsKLShell
 
 Module for the isogeometric Kirchhoff-Love shell element. The module is based on `gismo`'s Expression Assembler `gsExprAssembler`.
