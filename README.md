@@ -67,8 +67,4 @@ The template parameters of the class are the dimension of the geometry (`dim`) w
 
 #### Not (yet) supported:
 * Multipatch coupling
-* Laminates with ply angles and various thicknesses
 * Error estimation via DWR
-
-#### To do:
-* Remove the SvK from gsMaterialMatrixNonlinear
