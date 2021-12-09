@@ -145,8 +145,17 @@ int main(int argc, char *argv[])
         mp.degreeElevate(numElevate);
 
     // h-refine
+    if(smoothing!=3)
+    {
     for (int r =0; r < numRefine; ++r)
         mp.uniformRefine();
+    }
+    else
+    {
+    for (int r =0; r < numRefine; ++r)
+        mp.uniformRefine(1, mp.patch(0).degree(0) -1);
+    }
+
 
     if (plot) gsWriteParaview(mp,"mp",1000,true,false);
     // for (size_t p = 0; p!=mp.nPatches(); ++p)

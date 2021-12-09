@@ -167,6 +167,17 @@ int main(int argc, char *argv[])
     if (numElevate!=0)
         mp.degreeElevate(numElevate);
 
+    if(smoothing!=3)
+    {
+        for (int r =0; r < numRefine; ++r)
+            mp.uniformRefine();
+    }
+    else
+    {
+        for (int r =0; r < numRefine; ++r)
+            mp.uniformRefine(1, mp.patch(0).degree(0)-1);
+    }
+
     if (last)
     {
         // h-refine
