@@ -177,7 +177,6 @@ public:
     inline virtual gsMatrix<T> eval3D_pstrain(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
     { GISMO_NO_IMPLEMENTATION; }
 
-
     /**
      * @brief      to do
      *

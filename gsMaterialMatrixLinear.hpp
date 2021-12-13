@@ -359,8 +359,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstrain(const index_t patch, c
             // E(2, 2) = 0;
             // res = _evalPStrain(E);
             // result.col(j * u.cols() + k) = res.first;
-            //
-            //
+
             gsMatrix<> E = _E(0,out);
             gsDebugVar("Temporary");
             result(0,j*u.cols() + k) = E(0,0);
@@ -373,6 +372,37 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstrain(const index_t patch, c
 
 }
 
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+
+    this->_computePoints(patch,u,true);
+    gsMatrix<T> result(3, u.cols() * z.rows());
+    result.setZero();
+    gsMatrix<T,2,2> E;
+    std::pair<gsVector<T>,gsMatrix<T>> res;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        // Evaluate material properties on the quadrature point
+        for (index_t v=0; v!=m_parmat.rows(); v++)
+            m_parvals.at(v) = m_parmat(v,k);
+
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            // this->_getMetric(k, z(j, k), true); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
+
+            // E.setZero();
+            E.block(0,0,2,2) = _E(0,out);
+            result(0,j*u.cols() + k) = E(0,0);
+            result(1,j*u.cols() + k) = E(1,1);
+            result(2,j*u.cols() + k) = E(0,1) + E(1,0);
+        }
+    }
+
+    return result;
+
+}
 
 template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const

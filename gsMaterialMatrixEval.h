@@ -93,7 +93,7 @@ private:
     typename std::enable_if<_out==MaterialOutput::CovTransform ||
                             _out==MaterialOutput::ConTransform, short_t>::type targetDim_impl() const { return 9; };
 
-    /// Implementation of \ref targetDim for principal stress directions
+    /// Implementation of \ref targetDim for the tension field
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::TensionField, short_t>::type targetDim_impl() const { return 1; };
 
@@ -163,7 +163,7 @@ private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::ConTransform, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
-    /// Specialisation of \ref eval_into for the contravariant basis transformation
+    /// Specialisation of \ref eval_into for tension
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::TensionField, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 

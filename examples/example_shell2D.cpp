@@ -17,6 +17,9 @@
 #include <gsKLShell/getMaterialMatrix.h>
 #include <gsKLShell/gsMaterialMatrixEval.h>
 
+#include <gsKLShell/gsMaterialMatrixTFT.h>
+#include <gsKLShell/gsMaterialMatrixLinear.h>
+
 #ifdef GISMO_WITH_IPOPT
 #include <gsIpopt/gsOptProblem.h>
 #endif
@@ -374,8 +377,8 @@ int main(int argc, char *argv[])
     gsMultiPatch<> mp;
     gsMultiPatch<> mp_def;
 
-    real_t L = 1;
-    real_t B = 1;
+    real_t length = 1;
+    real_t width = 1;
     bool nonlinear = true;
     if (testCase == 0)
     {
@@ -387,12 +390,12 @@ int main(int argc, char *argv[])
           PoissonRatio = 0.45;
         E_modulus = 2*mu*(1+PoissonRatio);
 
-        L = 1;
-        B = 1;
+        length= 1;
+        width = 1;
 
         mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
-        mp.patch(0).coefs().col(0) *= L;
-        mp.patch(0).coefs().col(1) *= B;
+        mp.patch(0).coefs().col(0) *= length;
+        mp.patch(0).coefs().col(1) *= width;
         mp.addAutoBoundaries();
     }
     else if (testCase == 1)
@@ -404,12 +407,12 @@ int main(int argc, char *argv[])
         else
           PoissonRatio = 0.45;
 
-      L = 1;
-      B = 1;
+      length = 2;
+      width = 1;
 
       mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
-      mp.patch(0).coefs().col(0) *= L;
-      mp.patch(0).coefs().col(1) *= B;
+      mp.patch(0).coefs().col(0) *= length;
+      mp.patch(0).coefs().col(1) *= width;
       mp.addAutoBoundaries();
     }
     else if (testCase == 2)
@@ -419,13 +422,13 @@ int main(int argc, char *argv[])
         thickness = 1;
         PoissonRatio = 0.3;
 
-        L = 3;
-        B = 1;
+        length = 3;
+        width = 1;
 
         mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
-        mp.patch(0).coefs().col(0) *= L;
-        mp.patch(0).coefs().col(1) *= B;
-        mp.patch(0).coefs()(0,0) = B;
+        mp.patch(0).coefs().col(0) *= length;
+        mp.patch(0).coefs().col(1) *= width;
+        mp.patch(0).coefs()(0,0) = width;
 
     }
     else if (testCase == 3)
@@ -435,12 +438,21 @@ int main(int argc, char *argv[])
         thickness = 1;
         PoissonRatio = 0.3;
 
-        L = 3;
-        B = 1;
+        length = 3;
+        width = 1;
 
         mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
-        mp.patch(0).coefs().col(0) *= L;
-        mp.patch(0).coefs().col(1) *= B;
+        mp.patch(0).coefs().col(0) *= length;
+        mp.patch(0).coefs().col(1) *= width;
+    }
+    else if (testCase == 4)
+    {
+        mp.addPatch( gsNurbsCreator<>::NurbsAnnulus(1,2) ); // degree
+        mp.patch(0).coefs().col(0) *= length;
+        mp.patch(0).coefs().col(1) *= width;
+
+        mp.addInterface(0,boundary::east, 0, boundary::west);
+
     }
 
 
@@ -456,7 +468,8 @@ int main(int argc, char *argv[])
         mp.uniformRefine();
 
     mp_def = mp;
-    gsWriteParaview<>( mp_def    , "mp", 1000, true);
+    gsWriteParaview<>( mp_def    , "mp", 1000, true,true);
+    gsWrite(mp_def,"mp");
 
     //! [Refinement]
     gsMultiBasis<> dbasis(mp);
@@ -484,7 +497,7 @@ int main(int argc, char *argv[])
     {
         real_t sigmax = 1e-1;
         char buffer[2000];
-        sprintf(buffer,"%e ( 1 - y/%e)",sigmax,B);
+        sprintf(buffer,"%e ( 1 - y/%e)",sigmax,width);
         fx = buffer;
     }
     else if (testCase == 3)
@@ -526,7 +539,34 @@ int main(int argc, char *argv[])
 
         bc.addCondition(boundary::north, condition_type::collapsed, 0, 0 ,false, 0);
         bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 1 );
-        bc.addCondition(boundary::north, condition_type::neumann, &neuData );
+
+        gsVector<> point(2); point<< 0.5,1.0;
+        gsVector<> load (2); load << 0.25, 0.0 ;
+        pLoads.addLoad(point, load, 0 );
+    }
+    else if (testCase == 4)
+    {
+        bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0 ,false, 0);
+        bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 1 );
+
+        gsVector<> point(2);
+        gsVector<> load (2);
+
+        point<< 0.0,0.0;
+        load << 0.0, 1.0 ;
+        pLoads.addLoad(point, load, 0 );
+
+        point<< 0.25,0.0;
+        load << -1.0, 0.0 ;
+        pLoads.addLoad(point, load, 0 );
+
+        point<< 0.5,0.0;
+        load << 0.0,-1.0 ;
+        pLoads.addLoad(point, load, 0 );
+
+        point<< 0.75,0.0;
+        load << 1.0, 0.0 ;
+        pLoads.addLoad(point, load, 0 );
     }
     else
         GISMO_ERROR("Test case not known");
@@ -801,166 +841,247 @@ int main(int argc, char *argv[])
     ///////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////
 
+
+
+    gsMaterialMatrixLinear<2,real_t> * materialMatrixLinear = new gsMaterialMatrixLinear<2,real_t>(mp,t,parameters,rho);
+    gsMaterialMatrixTFT<2,real_t> * materialMatrixTFT = new gsMaterialMatrixTFT<2,real_t>(materialMatrixLinear);
+
     gsMatrix<> z(1,1);
     z.setZero();
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> mat(materialMatrix,mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> vec(materialMatrix,mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::StretchDir> pdir(materialMatrix,mp_def,z);
-
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> matA(materialMatrixTFT,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB> matB(materialMatrixTFT,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC> matC(materialMatrixTFT,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD> matD(materialMatrixTFT,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> vecN(materialMatrixTFT,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::VectorM> vecM(materialMatrixTFT,mp_def,z);
     gsMaterialMatrixEval<real_t,MaterialOutput::PStrainN> pstrain(materialMatrix,mp_def,z);
     gsMaterialMatrixEval<real_t,MaterialOutput::PStressN> pstress(materialMatrix,mp_def,z);
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::TensionField> tensionfield(materialMatrix,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> matAL(materialMatrixLinear,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB> matBL(materialMatrixLinear,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC> matCL(materialMatrixLinear,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD> matDL(materialMatrixLinear,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> vecNL(materialMatrixLinear,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::VectorM> vecML(materialMatrixLinear,mp_def,z);
+
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::TensionField> tensionfield(materialMatrixLinear,mp_def,z);
+
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> mat(materialMatrixLinear,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::StretchDir> pdir(materialMatrixLinear,mp_def,z);
+
+
 
     gsField<> tensionField(mp_def, tensionfield, true);
     gsInfo<<"Plotting in Paraview...\n";
-    gsWriteParaview<>( tensionField, "TensionField", 1000, true);
+    gsWriteParaview<>( tensionField, "TensionField", 10000, true);
+
 
     gsVector<> pt(2);
-
-    pt.setConstant(0.25);
-
+    pt<<0.5,0.5;
 
     gsMatrix<> result;
-    mat.eval_into(pt,result);
-    gsMatrix<real_t,3,3> C = result.reshape(3,3);
-    gsDebugVar(C);
 
-    pstrain.eval_into(pt,result);
-    gsDebugVar(result);
+    matA.eval_into(pt,result);
+    gsMatrix<real_t,3,3> Amat = result.reshape(3,3);
+    gsDebugVar(Amat);
 
+    matB.eval_into(pt,result);
+    gsMatrix<real_t,3,3> Bmat = result.reshape(3,3);
+    gsDebugVar(Bmat);
 
-    pstress.eval_into(pt,result);
-    gsDebugVar(result);
+    matC.eval_into(pt,result);
+    gsMatrix<real_t,3,3> Cmat = result.reshape(3,3);
+    gsDebugVar(Cmat);
 
-    tensionfield.eval_into(pt,result);
-    gsDebugVar(result);
+    matD.eval_into(pt,result);
+    gsMatrix<real_t,3,3> Dmat = result.reshape(3,3);
+    gsDebugVar(Dmat);
 
-    gsWarn<<"This should not be pstrain.\n";
-    pstrain.eval_into(pt,result);
-    gsMatrix<real_t,3> e = result; // THIS IS ACTUALLY S!!
-    gsDebugVar(e);
+    vecN.eval_into(pt,result);
+    gsMatrix<real_t,3,1> Nvec = result;
+    gsDebugVar(Nvec);
 
-    pdir.eval_into(pt,result);
-    gsMatrix<> dir = result;
-    gsDebugVar(dir.reshape(3,3));
+    vecM.eval_into(pt,result);
+    gsMatrix<real_t,3,1> Mvec = result;
+    gsDebugVar(Mvec);
 
-    typedef std::function < real_t ( real_t const &) > function_t;
-    function_t f_fun = [&C,&e](real_t const & theta)
-    {
-        real_t n1 = math::cos(theta);
-        real_t n2 = math::sin(theta);
-        real_t m1 = -math::sin(theta);
-        real_t m2 = math::cos(theta);
+///////////////////////
 
-        gsVector<real_t,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-        gsVector<real_t,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-        gsVector<real_t,3> n3_vec; n3_vec<<m1*m1-n1*n1, m2*m2-n2*n2, 2*(m1*m2-n1*n2);
-        gsVector<real_t,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
+    matAL.eval_into(pt,result);
+    gsMatrix<real_t,3,3> AmatL = result.reshape(3,3);
+    gsDebugVar(AmatL);
 
-        gsMatrix<real_t,1,1> gamma = - ( n1_vec.transpose() * C * e ) / ( n1_vec.transpose() * C * n1_vec );
-        gsMatrix<real_t,1,1> result = n2_vec.transpose() * C * e + gamma * n2_vec.transpose() * C * n1_vec;
-        GISMO_ASSERT(result.rows()==1 && result.cols() ==1,"f is not scalar!");
-        return result(0,0);
-    };
+    matBL.eval_into(pt,result);
+    gsMatrix<real_t,3,3> BmatL = result.reshape(3,3);
+    gsDebugVar(BmatL);
 
-    typedef std::function < real_t ( real_t const &) > function_t;
-    function_t gamma_fun = [&C,&e](real_t const & theta)
-    {
-        real_t n1 = math::cos(theta);
-        real_t n2 = math::sin(theta);
-        real_t m1 = -math::sin(theta);
-        real_t m2 = math::cos(theta);
+    matCL.eval_into(pt,result);
+    gsMatrix<real_t,3,3> CmatL = result.reshape(3,3);
+    gsDebugVar(CmatL);
 
-        gsVector<real_t,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-        gsVector<real_t,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-        gsVector<real_t,3> n3_vec; n3_vec<<m1*m1-n1*n1, m2*m2-n2*n2, 2*(m1*m2-n1*n2);
-        gsVector<real_t,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
+    matDL.eval_into(pt,result);
+    gsMatrix<real_t,3,3> DmatL = result.reshape(3,3);
+    gsDebugVar(DmatL);
 
-        gsMatrix<real_t,1,1> gamma = - ( n1_vec.transpose() * C * e ) / ( n1_vec.transpose() * C * n1_vec );
-        return gamma(0,0);
-    };
+    vecNL.eval_into(pt,result);
+    gsMatrix<real_t,3,1> NvecL = result;
+    gsDebugVar(NvecL);
+
+    vecML.eval_into(pt,result);
+    gsMatrix<real_t,3,1> MvecL = result;
+    gsDebugVar(MvecL);
 
 
-    gsVector<> x = gsVector<>::LinSpaced(100,-0.5 * M_PI,0.5 * M_PI);
-
-#ifdef GISMO_WITH_IPOPT
-    gsOptProblemExample<real_t> opt(C,e);
-
-    // for (index_t k = 0; k!=x.size(); k++)
-    // {
-    //     std::vector<real_t> X,dX,C,dC;
-    //     X.push_back(x[k]);
-    //     dX.resize(1);
-    //     gsAsVector<> der(dX);
-
-    //     C.resize(1);
-    //     gsAsVector<> con(C);
-
-    //     dC.resize(1);
-    //     gsAsVector<> dcon(dC);
+// //     pstrain.eval_into(pt,result);
+// //     gsDebugVar(result);
 
 
-    //     opt.gradObj_into(gsAsConstVector<>(X),der);
-    //     opt.evalCon_into(gsAsConstVector<>(X),con);
-    //     opt.jacobCon_into(gsAsConstVector<>(X),dcon);
-    //     gsInfo<<x[k]<<","<<opt.evalObj(gsAsConstVector<>(X))<<","<<der<<","<<con<<","<<dcon<<"\n";
-    // }
+//     pdir.eval_into(pt,result);
+//     gsDebugVar(result);
+
+//     mp_def.patch(0).eval_into(pt,result);
+//     gsDebugVar(result);
+
+//     tensionfield.eval_into(pt,result);
+//     gsDebugVar(result);
+
+//     gsWarn<<"This should not be pstrain.\n";
+//     pstrain.eval_into(pt,result);
+//     gsMatrix<real_t,3> e = result; // THIS IS ACTUALLY S!!
+//     gsDebugVar(e);
+
+//     mat.eval_into(pt,result);
+//     gsMatrix<real_t,3,3> C = result.reshape(3,3);
+//     gsDebugVar(Amat);
 
 
-    // Run optimizer
-    opt.solve();
+//     typedef std::function < real_t ( real_t const &) > function_t;
+//     function_t f_fun = [&C,&e](real_t const & theta)
+//     {
+//         real_t n1 = math::cos(theta);
+//         real_t n2 = math::sin(theta);
+//         real_t m1 = -math::sin(theta);
+//         real_t m2 = math::cos(theta);
 
-    // Print some details in the output
-    gsDebugVar(opt.objective());
-    gsDebugVar(opt.iterations());
-    gsDebugVar(opt.currentDesign());
-    real_t theta = opt.currentDesign()(0,0);
+//         gsVector<real_t,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+//         gsVector<real_t,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
+//         gsVector<real_t,3> n3_vec; n3_vec<<m1*m1-n1*n1, m2*m2-n2*n2, 2*(m1*m2-n1*n2);
+//         gsVector<real_t,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
 
-    // gsScalarRootFinder<real_t> rf(0.5*M_PI,0.99*M_PI,f_fun);
-    // rf.compute();
-    // real_t theta = rf.result();
-    // gsDebugVar(rf.result());
-    // gsDebugVar(rf.error());
+//         gsMatrix<real_t,1,1> gamma = - ( n1_vec.transpose() * C * e ) / ( n1_vec.transpose() * C * n1_vec );
+//         gsMatrix<real_t,1,1> result = n2_vec.transpose() * C * e + gamma * n2_vec.transpose() * C * n1_vec;
+//         GISMO_ASSERT(result.rows()==1 && result.cols() ==1,"f is not scalar!");
+//         return result(0,0);
+//     };
 
-    real_t n1 = math::cos(theta);
-    real_t n2 = math::sin(theta);
-    real_t m1 = -math::sin(theta);
-    real_t m2 = math::cos(theta);
-    gsVector<real_t,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-    gsVector<real_t,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-    gsVector<real_t,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
+//     typedef std::function < real_t ( real_t const &) > function_t;
+//     function_t gamma_fun = [&C,&e](real_t const & theta)
+//     {
+//         real_t n1 = math::cos(theta);
+//         real_t n2 = math::sin(theta);
+//         real_t m1 = -math::sin(theta);
+//         real_t m2 = math::cos(theta);
 
-    gsMatrix<real_t,1,1> denum = n1_vec.transpose() * C * n1_vec;
+//         gsVector<real_t,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+//         gsVector<real_t,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
+//         gsVector<real_t,3> n3_vec; n3_vec<<m1*m1-n1*n1, m2*m2-n2*n2, 2*(m1*m2-n1*n2);
+//         gsVector<real_t,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
 
-    gsMatrix<real_t,3,3> C_I = C - 1 / (  n1_vec.transpose() * C * n1_vec ) * C * ( n1_vec * n1_vec.transpose() ) * C;
-
-
-    gsDebugVar(C_I * e);
-
-    gsMatrix<real_t,1,1> gamma = - ( n1_vec.transpose() * C * e ) / ( n1_vec.transpose() * C * n1_vec );
-
-    gsMatrix<real_t,1,1> tmp2 = (n1_vec.transpose() * C * n2_vec);
-
-    GISMO_ASSERT(tmp2.rows()==1 && tmp2.cols()==1,"Must be scalar");
-
-    gsMatrix<real_t,1,1> df = n4_vec.transpose() * C * (e + gamma(0,0) * n1_vec)
-                            + 2 * gamma * ( n2_vec.transpose() * C * n2_vec
-                            - math::pow(tmp2(0,0),2) / (n1_vec.transpose() * C * n1_vec) );
+//         gsMatrix<real_t,1,1> gamma = - ( n1_vec.transpose() * C * e ) / ( n1_vec.transpose() * C * n1_vec );
+//         return gamma(0,0);
+//     };
 
 
-    gsMatrix<real_t,3,1> b = n2_vec - ( (n1_vec.transpose() * C * n2_vec)(0,0) / ( n1_vec.transpose() * C * n1_vec )(0,0)) * n1_vec;
+//     gsVector<> x = gsVector<>::LinSpaced(100,-0.5 * M_PI,0.5 * M_PI);
+
+// #ifdef GISMO_WITH_IPOPT
+//     gsOptProblemExample<real_t> opt(C,e);
+
+//     for (index_t k = 0; k!=x.size(); k++)
+//     {
+//         std::vector<real_t> X,dX,C,dC;
+//         X.push_back(x[k]);
+//         dX.resize(1);
+//         gsAsVector<> der(dX);
+
+//         C.resize(1);
+//         gsAsVector<> con(C);
+
+//         dC.resize(1);
+//         gsAsVector<> dcon(dC);
 
 
-    gsMatrix<real_t,3,3> C_II = C_I + 2 * gamma(0,0) / df(0,0) * (C * b * b.transpose() * C);
+//         opt.gradObj_into(gsAsConstVector<>(X),der);
+//         opt.evalCon_into(gsAsConstVector<>(X),con);
+//         opt.jacobCon_into(gsAsConstVector<>(X),dcon);
+//         gsInfo<<x[k]<<","<<opt.evalObj(gsAsConstVector<>(X))<<","<<der<<","<<con<<","<<dcon<<"\n";
+//     }
 
-    gsDebugVar(C_II);
 
-    gsDebugVar(C);
-    gsDebugVar(gamma);
-#else
-    gsInfo<<"GISMO_WITH_IPOPT is not enabled\n";
-#endif
+//     // Run optimizer
+//     opt.solve();
+
+//     // Print some details in the output
+//     gsDebugVar(opt.objective());
+//     gsDebugVar(opt.iterations());
+//     gsDebugVar(opt.currentDesign());
+//     real_t theta = opt.currentDesign()(0,0);
+
+//     // gsScalarRootFinder<real_t> rf(0.5*M_PI,0.99*M_PI,f_fun);
+//     // rf.compute();
+//     // real_t theta = rf.result();
+//     // gsDebugVar(rf.result());
+//     // gsDebugVar(rf.error());
+
+//     real_t n1 = math::cos(theta);
+//     real_t n2 = math::sin(theta);
+//     real_t m1 = -math::sin(theta);
+//     real_t m2 = math::cos(theta);
+//     gsVector<real_t,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+//     gsVector<real_t,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
+//     gsVector<real_t,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
+
+//     gsMatrix<real_t,1,1> denum = n1_vec.transpose() * C * n1_vec;
+
+//     gsMatrix<real_t,3,3> C_I = C - 1 / (  n1_vec.transpose() * C * n1_vec ) * C * ( n1_vec * n1_vec.transpose() ) * C;
+
+
+
+//     gsMatrix<real_t,1,1> gamma = - ( n1_vec.transpose() * C * e ) / ( n1_vec.transpose() * C * n1_vec );
+
+//     gsMatrix<real_t,1,1> tmp2 = (n1_vec.transpose() * C * n2_vec);
+
+//     GISMO_ASSERT(tmp2.rows()==1 && tmp2.cols()==1,"Must be scalar");
+
+//     gsMatrix<real_t,1,1> df = n4_vec.transpose() * C * (e + gamma(0,0) * n1_vec)
+//                             + 2 * gamma * ( n2_vec.transpose() * C * n2_vec
+//                             - math::pow(tmp2(0,0),2) / (n1_vec.transpose() * C * n1_vec) );
+
+
+//     gsMatrix<real_t,3,1> b = n2_vec - ( (n1_vec.transpose() * C * n2_vec)(0,0) / ( n1_vec.transpose() * C * n1_vec )(0,0)) * n1_vec;
+
+
+//     gsMatrix<real_t,3,3> C_II = C_I + 2 * gamma(0,0) / df(0,0) * (C * b * b.transpose() * C);
+
+//     gsDebugVar(C_I);
+//     gsDebugVar(C_II);
+//     gsDebugVar(C);
+
+//     gsDebugVar(C_I * e);
+//     gsDebugVar(C_II*e);
+
+//     gsDebugVar(n1_vec.transpose() * C_I * e);
+//     gsDebugVar(n1_vec.transpose() * C_II* e);
+//     gsDebugVar(n2_vec.transpose() * C_I * e);
+//     gsDebugVar(n2_vec.transpose() * C_II* e);
+
+
+//     gsDebugVar(gamma);
+// #else
+//     gsInfo<<"GISMO_WITH_IPOPT is not enabled\n";
+// #endif
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////

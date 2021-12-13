@@ -113,6 +113,9 @@ public:
     gsMatrix<T> eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const;
+
+    /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     /// See \ref gsMaterialMatrixBase for details
