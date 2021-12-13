@@ -149,8 +149,8 @@ int main(int argc, char *argv[])
         mp.uniformRefine();
 
     if (plot) gsWriteParaview(mp,"mp",1000,true,false);
-    for (size_t p = 0; p!=mp.nPatches(); ++p)
-        gsDebugVar(mp.patch(p));
+    // for (size_t p = 0; p!=mp.nPatches(); ++p)
+    //     gsDebugVar(mp.patch(p));
 
     std::vector<gsFunction<>*> parameters(2);
     parameters[0] = &E;
@@ -254,17 +254,17 @@ int main(int argc, char *argv[])
     gsSparseMatrix<> matrix = assembler.matrix();
     gsVector<> vector = assembler.rhs();
 
-    gsDebugVar(matrix.toDense());
-    gsDebugVar(vector.transpose());
+    // gsDebugVar(matrix.toDense());
+    // gsDebugVar(vector.transpose());
 
 
     // Nonlinear
     // Function for the Jacobian
     typedef std::function<gsSparseMatrix<real_t> (gsVector<real_t> const &)>    Jacobian_t;
     typedef std::function<gsVector<real_t> (gsVector<real_t> const &) >         Residual_t;
-    Jacobian_t Jacobian = [&mp,&bb2,&solVector,&assembler](gsVector<real_t> const &x)
+    Jacobian_t Jacobian = [&mp,&bb2,&assembler](gsVector<real_t> const &x)
     {
-        gsMatrix<real_t> solFull = assembler.fullSolutionVector(solVector);
+        gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
         GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
         solFull.resize(solFull.rows()/3,3);
         gsMappedSpline<2,real_t> mspline(bb2,solFull);
@@ -275,9 +275,9 @@ int main(int argc, char *argv[])
         return assembler.matrix();
     };
     // Function for the Residual
-    Residual_t Residual = [&geom,&mp,&bb2,&solVector,&assembler](gsVector<real_t> const &x)
+    Residual_t Residual = [&geom,&mp,&bb2,&assembler](gsVector<real_t> const &x)
     {
-        gsMatrix<real_t> solFull = assembler.fullSolutionVector(solVector);
+        gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
         GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
         solFull.resize(solFull.rows()/3,3);
 
