@@ -58,7 +58,6 @@ int main(int argc, char *argv[])
     bool writeMatrix= false;
     index_t numRefine  = 2;
     index_t numElevate = 1;
-    index_t geometry = 1;
     index_t smoothing = 0;
     std::string input;
 
@@ -153,9 +152,28 @@ int main(int argc, char *argv[])
 
     // Manufactured solution
     gsFunctionExpr<> analytical;
+    bool ansol = false;
     gsInfo<<"Reading manufactured solutoon "<<fn2<<" (ID=41) ...";
-    fd.getId(41,analytical);
+    if (nullptr!=fd.getId<gsFunctionExpr<real_t>>(41))
+    {
+        ansol = true;
+        fd.getId(41,analytical);
+    }
     gsInfo<<"Finished\n";
+
+    // Reference points
+    gsMatrix<> refPoints,refPatches;
+    gsInfo<<"Reading reference point locations from "<<fn2<<" (ID=50) ...";
+    if (nullptr!=fd.getId<gsMatrix<>>(50))
+        fd.getId(50,refPoints);
+    gsInfo<<"Finished\n";
+    gsInfo<<"Reading reference patches from "<<fn2<<" (ID=51) ...";
+    if (nullptr!=fd.getId<gsMatrix<>>(51))
+        fd.getId(51,refPatches);
+    gsInfo<<"Finished\n";
+
+    GISMO_ENSURE(refPatches.cols()==refPoints.cols(),"Number of reference points and patches do not match");
+
     mp.embed(3);
 
     gsField<> u_an(mp,analytical);
@@ -202,6 +220,8 @@ int main(int argc, char *argv[])
     //! [Solver loop]
     gsVector<> l2err(numRefine+1), h1err(numRefine+1), linferr(numRefine+1),
         b2err(numRefine+1), b1err(numRefine+1), binferr(numRefine+1);
+
+    gsMatrix<> refs(numRefine+1,3*refPoints.cols());
 
     gsSparseSolver<>::CGDiagonal solver;
 
@@ -317,14 +337,39 @@ int main(int argc, char *argv[])
         gsInfo<<"\tSolving system:\t\t"<<time.stop()<<"\t[s]\n";
         time.restart();
 
+
+        if (ansol)
+        {
         // l2err[r]= math::sqrt( ev.integral( (f - s).sqNorm()*meas(G) ) / ev.integral(f.sqNorm()*meas(G)) );
         // h1err[r]= l2err[r] + math::sqrt(ev.integral( ( igrad(f) - grad(s)*jac(G).inv() ).sqNorm()*meas(G) )/ev.integral( igrad(f).sqNorm()*meas(G) ) );
         // linferr[r] = ev.max( f-s ) / ev.max(f);
+        }
+        else
+        {
+            l2err[r]= 0;
+            h1err[r]= 0;
+            linferr[r] = 0;
+        }
 
-        l2err[r]= 0;
-        h1err[r]= 0;
-        linferr[r] = 0;
+        if (refPoints.cols()!=0)
+        {
+            /// Make a gsMappedSpline to represent the solution
+            // 1. Get all the coefficients (including the ones from the eliminated BCs.)
+            gsMatrix<real_t> solFull = assembler.fullSolutionVector(solVector);
 
+            // 2. Reshape all the coefficients to a Nx3 matrix
+            GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
+            solFull.resize(solFull.rows()/3,3);
+
+            // 3. Make the mapped spline
+            gsMappedSpline<2,real_t> mspline(bb2,solFull);
+
+            gsFunctionSum<real_t> def(&mp,&mspline);
+
+            for (index_t p=0; p!=refPoints.cols(); p++)
+                refs.block(r,p*3,1,3) = def.piece(refPatches(0,p)).eval(refPoints.col(p)).transpose();
+
+        }
 
         gsInfo<<"\tError computations:\t"<<time.stop()<<"\t[s]\n"; // This takes longer for the D-patch, probably because there are a lot of points being evaluated, all containing the linear combinations of the MSplines
 
@@ -336,6 +381,21 @@ int main(int argc, char *argv[])
         }
     }
     //! [Solver loop]
+
+    gsInfo<<"Errors\n";
+    gsInfo<<"L2\tH1\tLinf\n";
+    for (index_t k=0; k<=numRefine; ++k)
+        gsInfo<<l2err[k]<<"\t"<<h1err[k]<<"\t"<<linferr[k]<<"\n";
+
+    gsInfo<<"References\n";
+    for (index_t p=0; p!=refPoints.cols(); ++p)
+        gsInfo<<"x"<<std::to_string(p)<<"\ty"<<std::to_string(p)<<"\tz"<<std::to_string(p)<<"\t";
+    gsInfo<<"\n";
+
+    for (index_t k=0; k<=numRefine; ++k)
+        for (index_t p=0; p!=refPoints.cols(); ++p)
+            gsInfo<<refs(k,3*p)<<"\t"<<refs(k,3*p+1)<<"\t"<<refs(k,3*p+2)<<"\t";
+    gsInfo<<"\n";
 
     // gsInfo<< "\n\nCG it.: "<<CGiter.transpose()<<"\n";
 
