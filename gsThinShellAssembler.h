@@ -345,8 +345,6 @@ protected:
     typedef gsExprAssembler<>::space       space;
     typedef gsExprAssembler<>::solution    solution;
 
-    gsSparseSolver<>::uPtr m_solver;
-
     std::vector<gsDofMapper>  m_dofMappers;
     gsDofMapper m_mapper;
 
