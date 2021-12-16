@@ -122,6 +122,7 @@ void gsThinShellAssembler<d, T, bending>::_defaultOptions()
     m_options.addReal("quA","Number of quadrature points: quA*deg + quB",1);
     m_options.addInt("quB","Number of quadrature points: quA*deg + quB",1);
     m_options.addInt("quRule","Quadrature rule [1:GaussLegendre,2:GaussLobatto]",1);
+    m_options.addString("Solver","Sparse linear solver", "CGDiagonal");
 }
 
 
@@ -142,7 +143,7 @@ void gsThinShellAssembler<d, T, bending>::_initialize()
     // Elements used for numerical integration
     m_assembler.setIntegrationElements(m_basis);
     m_assembler.setOptions(m_options);
-
+    
     // Initialize the geometry maps
     // geometryMap m_ori   = m_assembler.getMap(m_patches);
     // geometryMap m_def   = m_assembler.getMap(*m_defpatches);
@@ -1653,8 +1654,10 @@ void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & f
 
     // assemble system
     m_assembler.assemble(m_space*m_space.tr()*meas(m_ori),m_space * function*meas(m_ori));
-    m_solver.compute(m_assembler.matrix());
-    result = m_solver.solve(m_assembler.rhs());
+
+    gsSparseSolver<>::uPtr solver = gsSparseSolver<T>::get( m_options.askString("Solver","CGDiagonal") );
+    solver->compute(m_assembler.matrix());
+    result = solver->solve(m_assembler.rhs());
 }
 
 template <short_t d, class T, bool bending>
