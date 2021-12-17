@@ -218,9 +218,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        -(m_alpha_d * m_space * m_space.tr()) * tv(m_ori).norm()
         ,
-        -(m_alpha_d * m_space * g_N         ) * meas(m_ori)
+        -(m_alpha_d * m_space * g_N         ) * tv(m_ori).norm()
     );
 
     // // for weak clamped
@@ -230,7 +230,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     //         m_bcs.get("Weak Clamped")
     //         ,
     //         m_alpha_r * ( ( var1(m_space,m_ori) * nv(m_ori) ) * ( var1(m_space,m_ori) * nv(m_ori) ).tr() )
-    //     ) * meas(m_ori)
+    //     ) *tv(m_ori).norm()
     // );
 }
 
@@ -249,9 +249,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        -(m_alpha_d * m_space * m_space.tr()) * tv(m_ori).norm()
         ,
-        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * meas(m_ori)
+        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * tv(m_ori).norm()
     );
 }
 
@@ -279,9 +279,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
+        -m_alpha_d * m_space * m_space.tr() * tv(m_ori).norm()
         ,
-        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
+        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * tv(m_ori).norm()
     );
 
     // // for weak clamped
@@ -293,14 +293,14 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     //         m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_def,nv(m_ori).tr()) )
     //         +
     //         m_alpha_r * ( ( var1(m_space,m_def) * nv(m_ori) ) * ( var1(m_space,m_def) * nv(m_ori) ).tr() )
-    //     ) * meas(m_ori)
+    //     ) * tv(m_ori).norm()
     //     ,
     //     (
     //         m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var1(m_space,m_def) * sn(m_ori) )
     //         +
     //         // to be implemented: tvar1
     //         // m_alpha_r * ( nv(m_def).tr()*nv(m_ori) - nv(m_ori).tr()*nv(m_ori) ).val() * ( tvar1(m_space,m_def) * sn(m_ori) )
-    //     ) * meas(m_ori)
+    //     ) * tv(m_ori).norm()
     // );
 }
 
@@ -320,9 +320,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
+        -m_alpha_d * m_space * m_space.tr() * tv(m_ori).norm()
         ,
-        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
+        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * tv(m_ori).norm()
     );
 }
 
