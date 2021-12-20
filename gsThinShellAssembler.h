@@ -91,7 +91,7 @@ public:
     gsExprAssembler<T> assembler() {return m_assembler; }
 
     /// See \ref gsThinShellAssemblerBase for details
-    void setOptions(gsOptionList & options) {m_options.update(options,gsOptionList::addIfUnknown); }
+    void setOptions(gsOptionList & options);
 
     //--------------------- PROBLEM FORMULATION-------------------------------//
     /// See \ref gsThinShellAssemblerBase for details

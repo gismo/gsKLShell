@@ -134,6 +134,20 @@ void gsThinShellAssembler<d, T, bending>::_getOptions() const
     m_continuity = m_options.getInt("Continuity");
 }
 
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::setOptions(gsOptionList & options)
+{
+    // Check if the continuity option changed
+    // Get old continuity
+    index_t continuity = m_options.getInt("Continuity");
+
+    m_options.update(options,gsOptionList::addIfUnknown);
+
+    // If the continuity changed, we need to re-initialize the space.
+    if (continuity != m_options.getInt("Continuity"))
+        this->_initialize();
+
+}
 
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_initialize()
@@ -468,7 +482,7 @@ template<int _d, bool _bending>
 typename std::enable_if<_d==3 && _bending, void>::type
 gsThinShellAssembler<d, T, bending>::assemble_impl()
 {
-    // this->_getOptions();
+    this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -551,7 +565,7 @@ template<int _d, bool _bending>
 typename std::enable_if<!(_d==3 && _bending), void>::type
 gsThinShellAssembler<d, T, bending>::assemble_impl()
 {
-    // this->_getOptions();
+    this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1587,7 +1601,7 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::computePrincipalStretches(const
     // gsDebug<<"Warning: Principle Stretch computation of gsThinShellAssembler is depreciated...\n";
     gsMatrix<T> result(3,u.cols());
     result.setZero();
-    // this->_getOptions();
+    this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1638,7 +1652,7 @@ void gsThinShellAssembler<d, T, bending>::constructStress(const gsFunctionSet<T>
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & fun, gsMatrix<T>& result)
 {
-    // this->_getOptions();
+    this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
