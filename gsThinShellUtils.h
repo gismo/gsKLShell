@@ -123,7 +123,7 @@ private:
     parse_impl(gsExprHelper<Scalar> & evList) const
     {
         evList.add(_u);
-        _u.data().flags |= NEED_GRAD;
+        _u.data().flags |= NEED_ACTIVE | NEED_GRAD; // need actives for cardinality
         evList.add(_G);
         _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_MEASURE;
     }
