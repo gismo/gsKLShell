@@ -495,16 +495,31 @@ public:
     virtual void assembleMatrix(const gsMatrix<T>       & solVector ) = 0;
 
     /**
-     * @brief      Assembles the tangential stiffness matrix (nonlinear)
+     * @brief      Assembles the tangential stiffness matrix (nonlinear) using the Mixed Integration Point (MIP) method
+     *
+     * For more details, see
+     *  Leonetti, L., Magisano, D., Madeo, A., Garcea, G., Kiendl, J., & Reali, A. (2019).
+     *  A simplified Kirchhoff–Love large deformation model for elastic shells and its effective isogeometric formulation.
+     *  Computer Methods in Applied Mechanics and Engineering, 354, 369–396.
+     *  https://doi.org/10.1016/j.cma.2019.05.025
      *
      * @param[in]  deformed  The deformed geometry
+     * @param[in]  previous  The previous geometry
+     * @param      update    The update vector
      */
     virtual void assembleMatrix(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update) = 0;
 
     /**
-     * @brief      Assembles the tangential stiffness matrix (nonlinear)
+     * @brief      Assembles the tangential stiffness matrix (nonlinear) using the Mixed Integration Point (MIP) method
      *
-     * @param[in]  deformed  The solution vector
+     * For more details, see
+     *  Leonetti, L., Magisano, D., Madeo, A., Garcea, G., Kiendl, J., & Reali, A. (2019).
+     *  A simplified Kirchhoff–Love large deformation model for elastic shells and its effective isogeometric formulation.
+     *  Computer Methods in Applied Mechanics and Engineering, 354, 369–396.
+     *  https://doi.org/10.1016/j.cma.2019.05.025
+     *
+     * @param[in]  solVector   The current  solution vector
+     * @param[in]  prevVector  The previous solution vector
      */
     virtual void assembleMatrix(const gsMatrix<T> & solVector, const gsMatrix<T> & prevVector) = 0;
 
