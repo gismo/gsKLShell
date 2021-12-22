@@ -96,6 +96,7 @@ public:
     //--------------------- PROBLEM FORMULATION-------------------------------//
     /// See \ref gsThinShellAssemblerBase for details
     void setPointLoads(const gsPointLoads<T> & pLoads){ m_pLoads = pLoads; }
+    void setPointMass(const gsPointLoads<T> & pMass){ m_pMass = pMass; }
 
     /// See \ref gsThinShellAssemblerBase for details
     void setFoundation(const gsFunction<T> & foundation) { m_foundFun = &foundation; m_foundInd = true; }
@@ -254,7 +255,7 @@ public:
 
     //--------------------- SYSTEM ACCESS ----------------------------------//
     const gsSparseMatrix<T> & matrix()      const   {return m_assembler.matrix();}
-    // gsSparseMatrix<T> & matrix() {return const_cast <gsSparseMatrix<T> &>(m_assembler.matrix());}
+    gsSparseMatrix<T> & massMatrix() {return m_mass;}
 
     const gsMatrix<T>       & rhs()         const {return m_rhs.size()==0 ? m_assembler.rhs() : m_rhs;}
     // const gsMatrix<T>       & rhs()     const {return m_assembler.rhs();}
@@ -314,6 +315,7 @@ protected:
     void _assembleDirichlet();
 
     void _applyLoads();
+    void _applyMass();
 
 private:
     template<int _d, bool _bending>
@@ -360,6 +362,8 @@ protected:
 
     mutable gsMatrix<T> m_ddofs;
 
+    gsSparseMatrix<T> m_mass;
+
     const gsFunction<T> * m_forceFun;
     const gsFunction<T> * m_thickFun;
     const gsFunction<T> * m_foundFun;
@@ -369,7 +373,7 @@ protected:
 
     mutable gsMaterialMatrixBase<T> * m_materialMat;
 
-    gsPointLoads<T>  m_pLoads;
+    gsPointLoads<T>  m_pLoads, m_pMass;
 
     mutable gsMatrix<T> m_solvector;
 
@@ -413,6 +417,7 @@ public:
 
     /// Registers a \ref gsPointLoads object for point loads acting on the shell
     virtual void setPointLoads(const gsPointLoads<T> & pLoads) = 0;
+    virtual void setPointMass(const gsPointLoads<T> & pLoads) = 0;
 
     /**
      * @brief      Registers a stiffness function to be used for handling an elastic foundation, only relevant for 3D shells, with out-of-plane deformations
@@ -546,6 +551,9 @@ public:
 
     /// Returns a reference to the system matrix that is assembled
     virtual const gsSparseMatrix<T> & matrix()  const  = 0;
+
+    /// Returns a reference to the mass matrix that is assembled
+    virtual gsSparseMatrix<T> & massMatrix() = 0;
 
     /// Returns a reference to the right-hand side vector that is assembled
     virtual const gsMatrix<T>       & rhs()     const  = 0;
