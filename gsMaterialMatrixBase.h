@@ -26,7 +26,7 @@ namespace gismo
  *
  * @tparam     T     Real type
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  */
 template <class T>
 class gsMaterialMatrixBase
@@ -166,7 +166,7 @@ public:
      */
     inline virtual void info() const = 0;
 
-    void setDeformed(const gsFunctionSet<T> & deformed) {m_defpatches = &deformed; }
+    void setDeformed(const gsFunctionSet<T> * deformed) {m_defpatches = deformed; }
 
 protected:
     const gsFunctionSet<T> * m_defpatches;

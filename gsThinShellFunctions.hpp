@@ -15,7 +15,8 @@
 
 #pragma once
 
-#include <gsKLShell/gsThinShellFunctions.h>
+#include <gsAssembler/gsExprEvaluator.h>
+#include <gsAssembler/gsExprAssembler.h>
 
 namespace gismo
 {
@@ -26,8 +27,8 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
 
     m_assembler.cleanUp();
 
-    m_assembler.getMap(m_patches);           // this map is used for integrals
-    m_assembler.getMap(m_defpatches);
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_def   = m_assembler.getMap(*m_defpatches);
 
     // Initialize stystem
     // m_assembler.initSystem(false);
@@ -45,9 +46,6 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     gsMaterialMatrixIntegrate<T,MaterialOutput::StretchDir> m_lambdadir(m_materialMat,m_defpatches);
     variable lambdadir = m_assembler.getCoeff(m_lambdadir);
 
-    geometryMap m_ori   = m_assembler.exprData()->getMap();
-    geometryMap m_def   = m_assembler.exprData()->getMap2();
-
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m_m2 = m_assembler.getCoeff(mult2t);
 
@@ -60,7 +58,7 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     auto S_m    = S0.tr() * Ttilde;
     auto S_f    = S1.tr() * Ttilde;
 
-    gsExprEvaluator<> ev(m_assembler);
+    gsExprEvaluator<T> ev(m_assembler);
     gsMatrix<T> tmp;
 
     switch (m_stress_type)

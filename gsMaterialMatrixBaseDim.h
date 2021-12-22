@@ -16,6 +16,7 @@
 #pragma once
 
 #include <gsCore/gsFuncData.h>
+#include <gsUtils/gsThreaded.h>
 
 namespace gismo
 {
@@ -25,7 +26,7 @@ namespace gismo
  *
  * @tparam     T     Real type
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  */
 template <short_t dim, class T>
 class gsMaterialMatrixBaseDim : public gsMaterialMatrixBase<T>
@@ -53,7 +54,7 @@ public:
     m_patches(&mp)
     {
         membersSetZero();
-        this->setDeformed(mp_def);
+        this->setDeformed(&mp_def);
     }
 
 
@@ -145,7 +146,7 @@ protected:
     // const gsFunctionSet<T> * m_defpatches;
 
     // Geometric data point
-    mutable gsMapData<T> m_map, m_map_def;
+    mutable util::gsThreaded<gsMapData<T> > m_map, m_map_def;
 
     mutable gsMatrix<T,2,2> m_Acov_ori, m_Acon_ori, m_Acov_def, m_Acon_def, m_Bcov_ori, m_Bcon_ori, m_Bcov_def, m_Bcon_def;
     mutable gsMatrix<T,dim,2> m_acov_ori, m_acon_ori, m_acov_def, m_acon_def;

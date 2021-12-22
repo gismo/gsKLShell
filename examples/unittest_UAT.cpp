@@ -222,6 +222,7 @@ std::pair<real_t,real_t> numerical(index_t material, index_t impl, bool Compress
     result.first = L;
     result.second = S;
 
+    delete materialMatrix;
     delete assembler;
 
     return result;

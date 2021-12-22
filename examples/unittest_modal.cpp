@@ -66,6 +66,8 @@ gsVector<real_t> numerical(bool composite)
     BCs.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1 ); // unknown 1 - y
     BCs.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 2 ); // unknown 2 - z
 
+    BCs.setGeoMap(mp);
+
     // Initialise solution object
     gsMultiPatch<> mp_def = mp;
 
@@ -150,7 +152,9 @@ gsVector<real_t> numerical(bool composite)
     values = values.cwiseSqrt();
     values = values.col(0).head(10);
 
+    delete materialMatrix;
     delete assembler;
+
     return values;
 }
 

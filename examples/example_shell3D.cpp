@@ -1,6 +1,6 @@
 /** @file example_shell3D.cpp
 
-    @brief Examples for the surface thin shells including the shell obstacle course
+    @brief Simple 3D examples for the shell class
 
     This file is part of the G+Smo library.
 
@@ -16,8 +16,6 @@
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/getMaterialMatrix.h>
 
-//#include <gsThinShell/gsNewtonIterator.h>
-
 using namespace gismo;
 
 // Choose among various shell examples, default = Thin Plate
@@ -29,6 +27,7 @@ int main(int argc, char *argv[])
     index_t numRefine  = 1;
     index_t numElevate = 1;
     index_t testCase = 1;
+    bool nonlinear = false;
 
     bool membrane = false;
     bool composite = false;
@@ -38,7 +37,7 @@ int main(int argc, char *argv[])
     real_t Density = 1.0;
     real_t thickness = 1.0;
 
-    gsCmdLine cmd("Tutorial on solving a Poisson problem.");
+    gsCmdLine cmd("2D shell example.");
     cmd.addInt( "e", "degreeElevation",
                 "Number of degree elevation steps to perform before solving (0: equalize degree in all directions)", numElevate );
     cmd.addInt( "r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
@@ -47,15 +46,15 @@ int main(int argc, char *argv[])
     cmd.addSwitch("stress", "Create a ParaView visualization file with the stresses", stress);
     cmd.addSwitch("membrane", "Use membrane model (no bending)", membrane);
     cmd.addSwitch("composite", "Composite material", composite);
+    cmd.addSwitch( "nl", "Print information", nonlinear );
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
 
-    //! [Read input file]
+    //! [Define material parameters and geometry per example]
     gsMultiPatch<> mp;
     gsMultiPatch<> mp_def;
     std::string fn;
-    bool nonlinear = false;
     if (testCase == 1 )
     {
         thickness = 0.25;
@@ -87,9 +86,16 @@ int main(int argc, char *argv[])
         E_modulus = 1e0;
         thickness = 1e0;
         PoissonRatio = 0.3;
-        nonlinear = true;
     }
-    //! [Read input file]
+
+    gsMultiBasis<> dbasis(mp);
+
+    gsInfo << "Patches: "<< mp.nPatches() <<", degree: "<< dbasis.minCwiseDegree() <<"\n";
+    gsInfo << dbasis.basis(0)<<"\n";
+
+    //! [Define material parameters and geometry per example]
+
+    //! [Refine and elevate]
     // p-refine
     if (numElevate!=0)
         mp.degreeElevate(numElevate);
@@ -100,15 +106,9 @@ int main(int argc, char *argv[])
 
     mp_def = mp;
     gsWriteParaview<>( mp_def    , "mp", 1000, true);
+    //! [Refine and elevate]
 
-
-    //! [Refinement]
-    gsMultiBasis<> dbasis(mp);
-
-    gsInfo << "Patches: "<< mp.nPatches() <<", degree: "<< dbasis.minCwiseDegree() <<"\n";
-    gsInfo<<mp_def<<"\n";
-    gsInfo << dbasis.basis(0)<<"\n";
-
+    //! [Set boundary conditions]
     gsBoundaryConditions<> bc;
     bc.setGeoMap(mp);
     gsVector<> tmp(3);
@@ -219,9 +219,10 @@ int main(int argc, char *argv[])
     }
     else
         GISMO_ERROR("Test case not known");
+    //! [Set boundary conditions]
 
-    //! [Refinement]
 
+    //! [Make material functions]
     // Linear isotropic material model
     gsConstantFunction<> force(tmp,3);
     gsConstantFunction<> pressFun(pressure,3);
@@ -230,29 +231,32 @@ int main(int argc, char *argv[])
     gsFunctionExpr<> nu(std::to_string(PoissonRatio),3);
     gsFunctionExpr<> rho(std::to_string(Density),3);
 
-    index_t kmax = 1;
+    // Linear anisotropic material model (only one layer for example purposes)
+    index_t kmax = 1; // number of layers
+    std::vector<gsFunctionSet<> * > Gs(kmax); // Material matrices
+    std::vector<gsFunctionSet<> * > Ts(kmax); // Thickness per layer
+    std::vector<gsFunctionSet<> * > Phis(kmax); // Fiber angle per layer
 
-    std::vector<gsFunctionSet<> * > Gs(kmax);
-    std::vector<gsFunctionSet<> * > Ts(kmax);
-    std::vector<gsFunctionSet<> * > Phis(kmax);
-
+    // Make material matrix
     gsMatrix<> Gmat = gsCompositeMatrix(E_modulus,E_modulus,0.5 * E_modulus / (1+PoissonRatio),PoissonRatio,PoissonRatio);
     Gmat.resize(Gmat.rows()*Gmat.cols(),1);
     gsConstantFunction<> Gfun(Gmat,3);
     Gs[0] = &Gfun;
 
+    // Define fiber angle
     gsConstantFunction<> phi;
     phi.setValue(0,3);
-
     Phis[0] = &phi;
 
+    // Define thickness
     gsConstantFunction<> thicks(thickness/kmax,3);
     Ts[0] = &thicks;
 
-    // Set Material
+    //! [Make assembler]
     std::vector<gsFunction<>*> parameters;
     gsMaterialMatrixBase<real_t>* materialMatrix;
     gsOptionList options;
+    // Make gsMaterialMatrix depending on the user-defined choices
     if (composite)
     {
         materialMatrix = new gsMaterialMatrixComposite<3,real_t>(mp,Ts,Gs,Phis);
@@ -267,9 +271,9 @@ int main(int argc, char *argv[])
         materialMatrix = getMaterialMatrix<3,real_t>(mp,t,parameters,rho,options);
     }
 
-    // Set assembler
+    // Construct the gsThinShellAssembler
     gsThinShellAssemblerBase<real_t>* assembler;
-    if(membrane)
+    if(membrane) // no bending term
         assembler = new gsThinShellAssembler<3, real_t, false>(mp,dbasis,bc,force,materialMatrix);
     else
         assembler = new gsThinShellAssembler<3, real_t, true >(mp,dbasis,bc,force,materialMatrix);
@@ -277,12 +281,14 @@ int main(int argc, char *argv[])
     assembler->setPointLoads(pLoads);
     if (pressure!= 0.0)
         assembler->setPressure(pressFun);
+    //! [Make assembler]
 
     // Set stopwatch
     gsStopwatch stopwatch,stopwatch2;
     real_t time = 0.0;
     real_t totaltime = 0.0;
 
+    //! [Define jacobian and residual]
     // Function for the Jacobian
     typedef std::function<gsSparseMatrix<real_t> (gsVector<real_t> const &)>    Jacobian_t;
     typedef std::function<gsVector<real_t> (gsVector<real_t> const &) >         Residual_t;
@@ -304,23 +310,26 @@ int main(int argc, char *argv[])
       time += stopwatch.stop();
       return assembler->rhs();
     };
+    //! [Define jacobian and residual]
 
-    // Define Matrices
     stopwatch.restart();
     stopwatch2.restart();
     assembler->assemble();
     time += stopwatch.stop();
 
+    //! [Assemble linear part]
     gsSparseMatrix<> matrix = assembler->matrix();
     gsVector<> vector = assembler->rhs();
+    //! [Assemble linear part]
 
-    // Solve linear problem
+    //! [Solve linear problem]
     gsVector<> solVector;
     gsSparseSolver<>::CGDiagonal solver;
     solver.compute( matrix );
     solVector = solver.solve(vector);
+    //! [Solve linear problem]
 
-
+    //! [Solve non-linear problem]
     if (nonlinear)
     {
         real_t residual = vector.norm();
@@ -354,14 +363,17 @@ int main(int argc, char *argv[])
                 gsWarn<<"Maximum iterations reached!\n";
         }
     }
+    //! [Solve non-linear problem]
 
     totaltime += stopwatch2.stop();
 
+    //! [Construct and evaluate solution]
     mp_def = assembler->constructSolution(solVector);
     gsMultiPatch<> deformation = assembler->constructDisplacement(solVector);
+    //! [Construct and evaluate solution]
 
-    // ! [Export visualization in ParaView]
 
+    //! [Construct and evaluate solution]
     gsVector<> refVals = deformation.patch(0).eval(refPoint);
     real_t numVal;
     if      (testCase == 0 || testCase == 1 || testCase == 3)
@@ -370,7 +382,9 @@ int main(int argc, char *argv[])
         numVal = refVals.at(1);
 
     gsInfo << "Displacement at reference point: "<<numVal<<"\n";
+    //! [Construct and evaluate solution]
 
+    // ! [Export visualization in ParaView]
     if (plot)
     {
         gsField<> solField(mp_def, deformation);
@@ -400,10 +414,13 @@ int main(int argc, char *argv[])
             gsWriteParaview(flexuralStress,"FlexuralStress");
         }
     }
+    // ! [Export visualization in ParaView]
+
     gsInfo<<"Total ellapsed assembly time: \t\t"<<time<<" s\n";
     gsInfo<<"Total ellapsed solution time (incl. assembly): \t"<<totaltime<<" s\n";
 
     delete assembler;
+    delete materialMatrix;
     return EXIT_SUCCESS;
 
 }// end main
