@@ -122,6 +122,7 @@ void gsThinShellAssembler<d, T, bending>::_defaultOptions()
     m_options.addReal("quA","Number of quadrature points: quA*deg + quB",1);
     m_options.addInt("quB","Number of quadrature points: quA*deg + quB",1);
     m_options.addInt("quRule","Quadrature rule [1:GaussLegendre,2:GaussLobatto]",1);
+    m_options.addString("Solver","Sparse linear solver", "CGDiagonal");
 }
 
 
@@ -133,6 +134,20 @@ void gsThinShellAssembler<d, T, bending>::_getOptions() const
     m_continuity = m_options.getInt("Continuity");
 }
 
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::setOptions(gsOptionList & options)
+{
+    // Check if the continuity option changed
+    // Get old continuity
+    index_t continuity = m_options.getInt("Continuity");
+
+    m_options.update(options,gsOptionList::addIfUnknown);
+
+    // If the continuity changed, we need to re-initialize the space.
+    if (continuity != m_options.getInt("Continuity"))
+        this->_initialize();
+
+}
 
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_initialize()
@@ -142,7 +157,7 @@ void gsThinShellAssembler<d, T, bending>::_initialize()
     // Elements used for numerical integration
     m_assembler.setIntegrationElements(m_basis);
     m_assembler.setOptions(m_options);
-
+    
     // Initialize the geometry maps
     // geometryMap m_ori   = m_assembler.getMap(m_patches);
     // geometryMap m_def   = m_assembler.getMap(*m_defpatches);
@@ -217,9 +232,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        -(m_alpha_d * m_space * m_space.tr()) * tv(m_ori).norm()
         ,
-        -(m_alpha_d * m_space * g_N         ) * meas(m_ori)
+        -(m_alpha_d * m_space * g_N         ) * tv(m_ori).norm()
     );
 
     // // for weak clamped
@@ -229,7 +244,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     //         m_bcs.get("Weak Clamped")
     //         ,
     //         m_alpha_r * ( ( var1(m_space,m_ori) * nv(m_ori) ) * ( var1(m_space,m_ori) * nv(m_ori) ).tr() )
-    //     ) * meas(m_ori)
+    //     ) *tv(m_ori).norm()
     // );
 }
 
@@ -248,9 +263,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        -(m_alpha_d * m_space * m_space.tr()) * tv(m_ori).norm()
         ,
-        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * meas(m_ori)
+        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * tv(m_ori).norm()
     );
 }
 
@@ -278,9 +293,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
+        -m_alpha_d * m_space * m_space.tr() * tv(m_ori).norm()
         ,
-        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
+        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * tv(m_ori).norm()
     );
 
     // // for weak clamped
@@ -292,14 +307,14 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     //         m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_def,nv(m_ori).tr()) )
     //         +
     //         m_alpha_r * ( ( var1(m_space,m_def) * nv(m_ori) ) * ( var1(m_space,m_def) * nv(m_ori) ).tr() )
-    //     ) * meas(m_ori)
+    //     ) * tv(m_ori).norm()
     //     ,
     //     (
     //         m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var1(m_space,m_def) * sn(m_ori) )
     //         +
     //         // to be implemented: tvar1
     //         // m_alpha_r * ( nv(m_def).tr()*nv(m_ori) - nv(m_ori).tr()*nv(m_ori) ).val() * ( tvar1(m_space,m_def) * sn(m_ori) )
-    //     ) * meas(m_ori)
+    //     ) * tv(m_ori).norm()
     // );
 }
 
@@ -319,9 +334,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
+        -m_alpha_d * m_space * m_space.tr() * tv(m_ori).norm()
         ,
-        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
+        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * tv(m_ori).norm()
     );
 }
 
@@ -467,7 +482,7 @@ template<int _d, bool _bending>
 typename std::enable_if<_d==3 && _bending, void>::type
 gsThinShellAssembler<d, T, bending>::assemble_impl()
 {
-    // this->_getOptions();
+    this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -550,7 +565,7 @@ template<int _d, bool _bending>
 typename std::enable_if<!(_d==3 && _bending), void>::type
 gsThinShellAssembler<d, T, bending>::assemble_impl()
 {
-    // this->_getOptions();
+    this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1586,7 +1601,7 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::computePrincipalStretches(const
     // gsDebug<<"Warning: Principle Stretch computation of gsThinShellAssembler is depreciated...\n";
     gsMatrix<T> result(3,u.cols());
     result.setZero();
-    // this->_getOptions();
+    this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1637,7 +1652,7 @@ void gsThinShellAssembler<d, T, bending>::constructStress(const gsFunctionSet<T>
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & fun, gsMatrix<T>& result)
 {
-    // this->_getOptions();
+    this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1653,8 +1668,10 @@ void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & f
 
     // assemble system
     m_assembler.assemble(m_space*m_space.tr()*meas(m_ori),m_space * function*meas(m_ori));
-    m_solver.compute(m_assembler.matrix());
-    result = m_solver.solve(m_assembler.rhs());
+
+    gsSparseSolver<>::uPtr solver = gsSparseSolver<T>::get( m_options.askString("Solver","CGDiagonal") );
+    solver->compute(m_assembler.matrix());
+    result = solver->solve(m_assembler.rhs());
 }
 
 template <short_t d, class T, bool bending>
