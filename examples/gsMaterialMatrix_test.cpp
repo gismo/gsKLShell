@@ -13,6 +13,8 @@
 
 #include <gismo.h>
 #include <gsKLShell/getMaterialMatrix.h>
+#include <gsKLShell/gsMaterialMatrixLinear.h>
+#include <gsKLShell/gsMaterialMatrix.h>
 #include <gsKLShell/gsMaterialMatrixIntegrate.h>
 #include <gsKLShell/gsMaterialMatrixEval.h>
 #include <gsKLShell/gsThinShellUtils.h>
@@ -62,6 +64,51 @@ int main (int argc, char** argv)
     options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",Compressibility);
     options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",impl);
     materialMatrix = getMaterialMatrix<3,real_t>(mp,t,parameters,options);
+
+    // gsMaterialMatrixBase<real_t>* materialMatrix;
+    // if (material==0)
+    // {
+    //     materialMatrix = new gsMaterialMatrixLinear<3,real_t>(mp,t);
+    //     materialMatrix->setYoungsModulus(E);
+    //     materialMatrix->setPoissonsRatio(nu);
+    // }
+    // else if (material==1)
+    // {
+    //     constexpr int id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
+    //     materialMatrix = new gsMaterialMatrix<3,real_t,id,true>(mp,t);
+    //     materialMatrix->setYoungsModulus(E);
+    //     materialMatrix->setPoissonsRatio(nu);
+    // }
+    // else if (material==2)
+    // {
+    //     constexpr int id = encodeMat_id<Material::NH_ext, Implementation::Analytical>::id;
+    //     materialMatrix = new gsMaterialMatrix<3,real_t,id,true>(mp,t);
+    //     materialMatrix->setYoungsModulus(E);
+    //     materialMatrix->setPoissonsRatio(nu);
+    // }
+    // else if (material==3)
+    // {
+    //     constexpr int id = encodeMat_id<Material::MR, Implementation::Analytical>::id;
+    //     materialMatrix = new gsMaterialMatrix<3,real_t,id,true>(mp,t);
+    //     materialMatrix->setYoungsModulus(E);
+    //     materialMatrix->setPoissonsRatio(nu);
+    //     materialMatrix->setRatio(ratio);
+    // }
+    // else if (material==4)
+    // {
+    //     constexpr int id = encodeMat_id<Material::OG, Implementation::Spectral>::id;
+    //     materialMatrix = new gsMaterialMatrix<3,real_t,id,true>(mp,t);
+    //     materialMatrix->setYoungsModulus(E);
+    //     materialMatrix->setPoissonsRatio(nu);
+    //     materialMatrix->setMu(0,nu);
+    //     materialMatrix->setAlpha(0,E);
+    //     materialMatrix->setMu(1,nu);
+    //     materialMatrix->setAlpha(1,E);
+    //     materialMatrix->setMu(2,nu);
+    //     materialMatrix->setAlpha(2,E);
+    //     materialMatrix->setMu(3,nu);
+    //     materialMatrix->setAlpha(3,E);
+    // }
 
 
     gsVector<> pt(2);

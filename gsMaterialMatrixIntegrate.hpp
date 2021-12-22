@@ -156,7 +156,7 @@ void gsMaterialMatrixIntegrate<T,out>::integrateZ_into(const gsMatrix<T>& u, con
     result.resize(this->targetDim(),u.cols());
     result.setZero();
 
-    gsGaussRule<T> gauss = gsGaussRule<T>(numGauss);
+    gsGaussRule<T> gauss(numGauss);
     gsMatrix<T> z(numGauss,u.cols());
     gsMatrix<T> w(numGauss,u.cols());
     gsMatrix<T> vals;

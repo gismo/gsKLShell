@@ -43,7 +43,44 @@ public:
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 
     /**
+     * @brief      Constructor without material parameters
+     *
+     * @param[in]  mp             Original geometry
+     * @param[in]  thickness      Thickness function
+     */
+    gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
+                        const gsFunction<T> & thickness);
+
+    /**
      * @brief      Constructor without deformed multipatch and density
+     *
+     * @param[in]  mp             Original geometry
+     * @param[in]  thickness      Thickness function
+     * @param[in]  YoungsModulus  The youngs modulus
+     * @param[in]  PoissonRatio   The poisson ratio
+     */
+    gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
+                        const gsFunction<T> & thickness,
+                        const gsFunction<T> & YoungsModulus,
+                        const gsFunction<T> & PoissonRatio);
+
+    /**
+     * @brief      Full constructor
+     *
+     * @param[in]  mp             Original geometry
+     * @param[in]  thickness      Thickness function
+     * @param[in]  YoungsModulus  The youngs modulus
+     * @param[in]  PoissonRatio   The poisson ratio
+     * @param[in]  Density        The density
+     */
+    gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
+                        const gsFunction<T> & thickness,
+                        const gsFunction<T> & YoungsModulus,
+                        const gsFunction<T> & PoissonRatio,
+                        const gsFunction<T> & Density);
+
+    /**
+     * @brief      Constructor without density
      *
      * @param[in]  mp         Original geometry
      * @param[in]  thickness  Thickness function
@@ -106,11 +143,39 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
+    /// Sets the YoungsModulus
+    void setYoungsModulus(const gsFunction<T> & YoungsModulus)
+    {
+        if ((index_t)m_pars.size() < 1)
+            m_pars.resize(1);
+        m_pars[0] = const_cast<gsFunction<T> *>(&YoungsModulus);
+    }
+
+    /// Gets the YoungsModulus
+    gsFunction<T> * getYoungsModulus() {return m_pars[0];}
+
+    /// Sets the Poisson's Ratio
+    void setPoissonsRatio(const gsFunction<T> & PoissonsRatio)
+    {
+        if ((index_t)m_pars.size() < 2)
+            m_pars.resize(2);
+        m_pars[1] = const_cast<gsFunction<T> *>(&PoissonsRatio);
+    }
+    /// Gets the Poisson's Ratio
+    gsFunction<T> * getPoissonsRatio() {return m_pars[1];}
+
+    /// Sets the Density
+    void setDensity(const gsFunction<T> & Density)
+    {
+        m_density = const_cast<gsFunction<T> *>(&Density);
+    }
+    /// Gets the Density
+    gsFunction<T> * getDensity() {return const_cast<gsFunction<T> *>(m_density);}
+
     /// See \ref gsMaterialMatrixBase for details
     void setParameters(const std::vector<gsFunction<T>*> &pars)
     {
         m_pars = pars;
-        m_numPars = m_pars.size();
     }
 
     /// See \ref gsMaterialMatrixBase for details
@@ -182,9 +247,6 @@ protected:
     std::pair<gsVector<T>,gsMatrix<T>> _evalPStress(const gsMatrix<T> & C ) const;
 
 protected:
-    // general
-    index_t m_numPars; // how many parameters for the material model?
-
     // constructor
     using Base::m_patches;
     using Base::m_defpatches;
