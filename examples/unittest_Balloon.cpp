@@ -214,11 +214,12 @@ std::pair<real_t,real_t> numerical(index_t material, index_t impl)
     // Get the total force on the tension boundary
     real_t P = pressure * assembler->getArea(mp) / assembler->getArea(mp_def);
 
-    delete assembler;
-
     std::pair<real_t,real_t> result;
     result.first = P;
     result.second = r;
+
+    delete materialMatrix;
+    delete assembler;
 
     return result;
 }

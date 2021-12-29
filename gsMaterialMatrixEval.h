@@ -30,7 +30,7 @@ namespace gismo
  * @tparam     T     Real tyoe
  * @tparam     out   Output type (see \ref MaterialOutput)
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  */
 template <class T, enum MaterialOutput out>
 class gsMaterialMatrixEval : public gsFunction<T>
@@ -39,7 +39,7 @@ public:
 
     /// Constructor
     gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * materialMatrix,
-                                const gsFunctionSet<T> & deformed,
+                                const gsFunctionSet<T> * deformed,
                                 const gsMatrix<T> z);
 
     /// Domain dimension, always 2 for shells

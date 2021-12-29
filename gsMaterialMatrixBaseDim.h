@@ -26,7 +26,7 @@ namespace gismo
  *
  * @tparam     T     Real type
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  */
 template <short_t dim, class T>
 class gsMaterialMatrixBaseDim : public gsMaterialMatrixBase<T>
@@ -54,7 +54,7 @@ public:
     m_patches(&mp)
     {
         membersSetZero();
-        this->setDeformed(mp_def);
+        this->setDeformed(&mp_def);
     }
 
 

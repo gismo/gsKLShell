@@ -30,7 +30,7 @@ namespace gismo
  * Constant: The object is constant through thickness, but is not integrated
  * Linear: The object is linear through thickness, but is not integrated
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  */
 enum class MatIntegration : short_t
 {
@@ -44,7 +44,7 @@ enum class MatIntegration : short_t
 /**
  * @brief      This class describes a material model.
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  *
  */
 enum class Material : short_t
@@ -65,7 +65,7 @@ enum class Material : short_t
  * Generalized: Uses a generalized way, where only the derivatives of psi have to be implemented
  * Spectral: Implementation based on derivatives of psi w.r.t. principal stretches
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  */
 enum class Implementation : short_t
 {
@@ -92,7 +92,7 @@ enum class Implementation : short_t
  * Stretch: Principal stretch
  * StretchDir: Principal stretch directions
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  *
  */
 enum class MaterialOutput : short_t
@@ -125,7 +125,7 @@ enum class MaterialOutput : short_t
  * @tparam     material        Material model
  * @tparam     implementation  The way it is implemented
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  *
  */
 template<enum Material material, enum Implementation implementation>
@@ -138,7 +138,7 @@ struct encodeMat_id {
  *
  * @tparam     id    identifier (from encoder)
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  *
  */
 template<short_t id>
