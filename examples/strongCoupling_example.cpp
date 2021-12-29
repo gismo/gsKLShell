@@ -107,15 +107,18 @@ int main(int argc, char *argv[])
 
     // Loads
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
-    gsMatrix<> points,loads;
+    gsMatrix<> points,indices,loads;
     gsInfo<<"Reading point load locations from "<<fn2<<" (ID=30) ...";
     fd.getId(30,points);
     gsInfo<<"Finished\n";
     gsInfo<<"Reading point loads from "<<fn2<<" (ID=31) ...";
-    fd.getId(31,loads);
+    fd.getId(31,indices);
+    gsInfo<<"Finished\n";
+    gsInfo<<"Reading point loads from "<<fn2<<" (ID=32) ...";
+    fd.getId(32,loads);
     gsInfo<<"Finished\n";
     for (index_t k =0; k!=points.cols(); k++)
-        pLoads.addLoad(points.col(k), loads.col(k), 0 ); // in parametric domain!
+        pLoads.addLoad(points.col(k), loads.col(k), indices(0,k) ); // in parametric domain!
 
     // Material properties
     gsFunctionExpr<> t,E,nu,rho;

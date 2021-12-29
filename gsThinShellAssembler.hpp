@@ -1473,6 +1473,53 @@ void gsThinShellAssembler<d, T, bending>::plotSolution(std::string string, const
 }
 
 template <short_t d, class T, bool bending>
+T gsThinShellAssembler<d, T, bending>::interfaceErrorC0(const gsFunctionSet<T> & deformed, const intContainer & iFaces)
+{
+    geometryMap G = m_assembler.getMap(deformed);
+    gsExprEvaluator<T> ev(m_assembler);
+    ev.integralInterface( ( G.left() - G.right() ).sqNorm() , iFaces);
+    ev.calcSqrt();
+    return ev.value();
+}
+
+template <short_t d, class T, bool bending>
+T gsThinShellAssembler<d, T, bending>::interfaceErrorG1(const gsFunctionSet<T> & deformed, const intContainer & iFaces)
+{
+    geometryMap G = m_assembler.getMap(deformed);
+    gsExprEvaluator<T> ev(m_assembler);
+    ev.integralInterface( (sn(G.left()).normalized()-sn(G.right()).normalized()).sqNorm() , iFaces);
+    ev.calcSqrt();
+    return ev.value();
+}
+
+template <short_t d, class T, bool bending>
+T gsThinShellAssembler<d, T, bending>::interfaceErrorNormal(const gsFunctionSet<T> & deformed, const intContainer & iFaces)
+{
+    geometryMap G = m_assembler.getMap(deformed);
+    gsExprEvaluator<T> ev(m_assembler);
+    ev.maxInterface( (sn(G.left())-sn(G.right())).norm() , iFaces);
+    return ev.value();
+}
+
+template <short_t d, class T, bool bending>
+T gsThinShellAssembler<d, T, bending>::interfaceErrorGaussCurvature(const gsFunctionSet<T> & deformed, const intContainer & iFaces)
+{
+    geometryMap G = m_assembler.getMap(deformed);
+    gsExprEvaluator<T> ev(m_assembler);
+    ev.maxInterface( abs( (fform(G.left() ).inv()*fform2nd(G.left() )).det() -
+                          (fform(G.right()).inv()*fform2nd(G.right())).det() ) , iFaces);
+    return ev.value();
+}
+template <short_t d, class T, bool bending>
+T gsThinShellAssembler<d, T, bending>::interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed, const intContainer & iFaces)
+{
+    geometryMap G = m_assembler.getMap(deformed);
+    gsExprEvaluator<T> ev(m_assembler);
+    ev.maxInterface( abs( (fform(G.left() ).inv()*fform2nd(G.left() )).trace().val() -
+                          (fform(G.right()).inv()*fform2nd(G.right())).trace().val() ) , iFaces);
+    return ev.value();
+}
+template <short_t d, class T, bool bending>
 gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructMultiPatch(const gsMatrix<T> & solVector) const
 {
     m_solvector = solVector;

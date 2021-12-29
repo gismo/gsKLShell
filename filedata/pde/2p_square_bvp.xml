@@ -84,6 +84,9 @@
 <!-- Point load forces -->
 <Matrix rows="3" cols="0" id="31" tag="Loads" >
 </Matrix>
+<!-- Point load patch indices -->
+<Matrix rows="1" cols="0" id="32" tag="Loads" >
+</Matrix>
 
 <!-- Manufactured solution -->
 <Function type="FunctionExpr" id="41" tag="Loads" dim="3">
