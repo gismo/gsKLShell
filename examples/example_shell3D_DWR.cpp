@@ -218,9 +218,6 @@ int main(int argc, char *argv[])
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
 
     // real_t load = 1e-5;
-    real_t load = 0.0;
-
-    // real_t D = E_modulus * math::pow(thickness,3) / ( 12 * ( 1- math::pow(PoissonRatio,2) ) );
     // gsFunctionExpr<> exact( "x","y","w:= 0; for (u := 1; u < 100; u += 2) { for (v := 1; v < 100; v += 2) { w += -16.0 * " + std::to_string(load) + " / ( pi^6*" + std::to_string(D) + " ) * 1 / (v * u * ( v^2 + u^2 )^2 ) * sin( v * pi * x) * sin(u * pi * y) } }",2);
 
     real_t ampl;
@@ -228,13 +225,12 @@ int main(int argc, char *argv[])
     gsMatrix<> points;
     if (testCase == 0)
     {
-        load = 1.0;
         for (index_t i=0; i!=3; ++i)
         {
-            bc.addCondition(boundary::north,condition_type::dirichlet, 0, i );
-            bc.addCondition(boundary::east, condition_type::dirichlet, 0, i );
-            bc.addCondition(boundary::south,condition_type::dirichlet, 0, i );
-            bc.addCondition(boundary::west, condition_type::dirichlet, 0, i );
+            bc.addCondition(boundary::north,condition_type::dirichlet, 0, 0, false, i );
+            bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, i );
+            bc.addCondition(boundary::south,condition_type::dirichlet, 0, 0, false, i );
+            bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, i );
         }
 
         bc.addCondition(boundary::north, condition_type::clamped, 0, 0, false, 2 ); // unknown 0 - x

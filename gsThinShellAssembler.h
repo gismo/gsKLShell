@@ -118,6 +118,8 @@ public:
         this->_initialize();
     }
 
+    gsDofMapper getMapper() { return m_mapper; };
+
 private:
     /// Specialisation of assemble() for surfaces (3D)
     template<int _d, bool _bending>
@@ -583,6 +585,9 @@ public:
     virtual gsMatrix<T> projectL2(const gsFunction<T> &fun) = 0;
 
     virtual void plotSolution(std::string string, const gsMatrix<T> & solVector) = 0;;
+
+    virtual gsDofMapper getMapper() = 0;
+
 
 };
 
