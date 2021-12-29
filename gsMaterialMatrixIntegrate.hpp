@@ -39,7 +39,9 @@ m_materialMat(materialMatrix),
 m_piece(nullptr)
 {
     m_pIndex = 0;
+    gsDebugVar(*deformed);
     m_materialMat->setDeformed(deformed);
+    gsDebugVar(m_materialMat->getDeformed());
     // m_materialMat = new gsMaterialMatrix(materialMatrix);
 }
 

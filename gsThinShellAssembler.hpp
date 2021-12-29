@@ -1664,28 +1664,28 @@ void gsThinShellAssembler<d, T, bending>::constructStress(const gsFunctionSet<T>
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & fun, gsMatrix<T>& result)
 {
-    /// todo: make a projection with BCs?
-    /// todo: test
-    // this->_getOptions();
+    // /// todo: make a projection with BCs?
+    // /// todo: test
+    // // this->_getOptions();
 
-    m_assembler.cleanUp();
-    m_assembler.setOptions(m_options);
+    // m_assembler.cleanUp();
+    // m_assembler.setOptions(m_options);
 
-    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    // geometryMap m_ori   = m_assembler.getMap(m_patches);
 
-    // Initialize stystem
-    m_assembler.initSystem();
+    // // Initialize stystem
+    // m_assembler.initSystem();
 
-    space       m_space = m_assembler.trialSpace(0);
-    auto    function = m_assembler.getCoeff(fun, m_ori);
-    // auto    function = m_assembler.getCoeff(fun);
+    // space       m_space = m_assembler.trialSpace(0);
+    // auto    function = m_assembler.getCoeff(fun, m_ori);
+    // // auto    function = m_assembler.getCoeff(fun);
 
-    // assemble system
-    m_assembler.assemble(m_space*m_space.tr()*meas(m_ori),m_space * function*meas(m_ori));
+    // // assemble system
+    // m_assembler.assemble(m_space*m_space.tr()*meas(m_ori),m_space * function*meas(m_ori));
 
-    gsSparseSolver<>::uPtr solver = gsSparseSolver<T>::get( m_options.askString("Solver","CGDiagonal") );
-    solver->compute(m_assembler.matrix());
-    result = solver->solve(m_assembler.rhs());
+    // gsSparseSolver<>::uPtr solver = gsSparseSolver<T>::get( m_options.askString("Solver","CGDiagonal") );
+    // solver->compute(m_assembler.matrix());
+    // result = solver->solve(m_assembler.rhs());
 }
 
 template <short_t d, class T, bool bending>

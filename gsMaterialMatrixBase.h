@@ -204,7 +204,12 @@ public:
      */
     inline virtual void info() const = 0;
 
-    void setDeformed(const gsFunctionSet<T> * deformed) {m_defpatches = deformed; }
+    void setDeformed(const gsFunctionSet<T> * deformed)
+    {
+        gsDebugVar(deformed);
+        m_defpatches = deformed;
+    }
+    const gsFunctionSet<T> & getDeformed() { return *m_defpatches; }
 
 protected:
     const gsFunctionSet<T> * m_defpatches;

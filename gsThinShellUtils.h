@@ -360,6 +360,134 @@ private:
     }
 };
 
+/**
+ * @brief      Second variation of the surface normal times a vector.
+ *
+ * @tparam     E1    Type of u
+ * @tparam     E2    Type of v
+ * @tparam     E3    Type of the vector
+ */
+template<class E1, class E2, class E3>
+class var2_expr : public _expr<var2_expr<E1,E2,E3> >
+{
+public:
+    typedef typename E1::Scalar Scalar;
+
+private:
+    typename E1::Nested_t _u;
+    typename E2::Nested_t _v;
+    typename gsGeometryMap<Scalar>::Nested_t _G;
+    typename E3::Nested_t _Ef;
+
+public:
+    enum{ Space = 3, ScalarValued= 0, ColBlocks= 0 };
+
+    var2_expr( const E1 & u, const E2 & v, const gsGeometryMap<Scalar> & G, _expr<E3> const& Ef) : _u(u),_v(v), _G(G), _Ef(Ef) { }
+
+    mutable gsMatrix<Scalar> res;
+
+    mutable gsMatrix<Scalar> uGrads, vGrads, cJac, cDer2, evEf, result;
+    mutable gsVector<Scalar> m_u, m_v, normal, m_uv, m_u_der, n_der, n_der2, tmp; // memomry leaks when gsVector<T,3>, i.e. fixed dimension
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    // helper function
+    static inline gsVector<Scalar,3> vecFun(index_t pos, Scalar val)
+    {
+        gsVector<Scalar,3> result = gsVector<Scalar,3>::Zero();
+        result[pos] = val;
+        return result;
+    }
+
+    const gsMatrix<Scalar> & eval(const index_t k) const
+    {
+        res.resize(_u.cardinality(), _u.cardinality());
+
+        normal = _G.data().normal(k);
+        normal.normalize();
+        uGrads = _u.data().values[1].col(k);
+        vGrads = _v.data().values[1].col(k);
+        cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
+        cDer2 = _G.data().values[2].reshapeCol(k, _G.data().dim.second, _G.data().dim.second);
+
+        const index_t cardU = _u.data().values[0].rows(); // number of actives per component of u
+        const index_t cardV = _v.data().values[0].rows(); // number of actives per component of v
+        const Scalar measure =  _G.data().measures.at(k);
+
+        evEf = _Ef.eval(k);
+
+        for (index_t j = 0; j!= cardU; ++j) // for all basis functions u (1)
+        {
+            for (index_t i = 0; i!= cardV; ++i) // for all basis functions v (1)
+            {
+                for (index_t d = 0; d!= _u.dim(); ++d) // for all basis functions u (2)
+                {
+                    m_u.noalias() = ( vecFun(d, uGrads.at(2*j  ) ).cross( cJac.col(1).template head<3>() )
+                                     -vecFun(d, uGrads.at(2*j+1) ).cross( cJac.col(0).template head<3>() ))
+                                    / measure;
+
+                    const short_t s = d*cardU;
+
+                    for (index_t c = 0; c!= _v.dim(); ++c) // for all basis functions v (2)
+                    {
+                        const short_t r = c*cardV;
+                        m_v.noalias() = ( vecFun(c, vGrads.at(2*i  ) ).cross( cJac.col(1).template head<3>() )
+                                         -vecFun(c, vGrads.at(2*i+1) ).cross( cJac.col(0).template head<3>() ))
+                                        / measure;
+
+                        // n_der.noalias() = (m_v - ( normal.dot(m_v) ) * normal);
+                        n_der.noalias() = (m_v - ( normal*m_v.transpose() ) * normal); // outer-product version
+
+                        m_uv.noalias() = ( vecFun(d, uGrads.at(2*j  ) ).cross( vecFun(c, vGrads.at(2*i+1) ) )
+                                          +vecFun(c, vGrads.at(2*i  ) ).cross( vecFun(d, uGrads.at(2*j+1) ) ))
+                                          / measure; //check
+
+                        m_u_der.noalias() = (m_uv - ( normal.dot(m_v) ) * m_u);
+                        // m_u_der.noalias() = (m_uv - ( normal*m_v.transpose() ) * m_u); // outer-product version TODO
+
+                        // ---------------  Second variation of the normal
+                        tmp = m_u_der - (m_u.dot(n_der) + normal.dot(m_u_der) ) * normal - (normal.dot(m_u) ) * n_der;
+                        // tmp = m_u_der - (m_u.dot(n_der) + normal.dot(m_u_der) ) * normal - (normal.dot(m_u) ) * n_der;
+
+                        // Evaluate the product
+                        tmp = cDer2 * tmp; // E_f_der2, last component
+                        tmp.row(2) *= 2.0;
+                        result = evEf * tmp;
+
+                        res(s + j, r + i ) = result(0,0);
+                    }
+                }
+            }
+        }
+        return res;
+    }
+
+    index_t rows() const
+    {
+        return 1; // because the resulting matrix has scalar entries for every combination of active basis functions
+    }
+
+    index_t cols() const
+    {
+        return 1; // because the resulting matrix has scalar entries for every combination of active basis functions
+    }
+
+    void parse(gsExprHelper<Scalar> & evList) const
+    {
+        evList.add(_u);
+        _u.data().flags |= NEED_ACTIVE | NEED_VALUE | NEED_GRAD;
+        evList.add(_v);
+        _v.data().flags |= NEED_ACTIVE | NEED_VALUE | NEED_GRAD;
+        evList.add(_G);
+        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_2ND_DER | NEED_MEASURE;
+        _Ef.parse(evList);
+    }
+
+    const gsFeSpace<Scalar> & rowVar() const { return _u.rowVar(); }
+    const gsFeSpace<Scalar> & colVar() const { return _v.rowVar(); }
+
+    void print(std::ostream &os) const { os << "var2("; _u.print(os); os <<")"; }
+};
+
 
 /**
  * @brief      Second variation of the surface normal times a vector.
@@ -1869,9 +1997,9 @@ template<class E1, class E2, class E3> EIGEN_STRONG_INLINE
 var2dot_expr<E1,E2,E3> var2dot(const E1 & u, const E2 & v, const gsGeometryMap<typename E1::Scalar> & G, const E3 & Ef)
 { return var2dot_expr<E1,E2,E3>(u,v, G, Ef); }
 
-template<class E1, class E2> EIGEN_STRONG_INLINE
-var2_expr<E1,E2> var2(const E1 & u, const E2 & v, const gsGeometryMap<typename E1::Scalar> & G)
-{ return var2_expr<E1,E2>(u,v, G); }
+template<class E1, class E2, class E3> EIGEN_STRONG_INLINE
+var2_expr<E1,E2,E3> var2(const E1 & u, const E2 & v, const gsGeometryMap<typename E1::Scalar> & G, const E3 & Ef)
+{ return var2_expr<E1,E2,E3>(u,v, G, Ef); }
 
 template<class E> EIGEN_STRONG_INLINE
 tvar1_expr<E> tvar1(const E & u, const gsGeometryMap<typename E::Scalar> & G) { return tvar1_expr<E>(u, G); }

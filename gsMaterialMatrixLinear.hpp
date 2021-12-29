@@ -100,7 +100,6 @@ void gsMaterialMatrixLinear<dim,T>::_computePoints(const index_t patch, const gs
     gsMatrix<T> tmp;
 
     this->_computeMetricUndeformed(patch,u,basis);
-
     if (Base::m_defpatches->nPieces()!=0)
         this->_computeMetricDeformed(patch,u,basis);
 
@@ -361,7 +360,6 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstrain(const index_t patch, c
             // result.col(j * u.cols() + k) = res.first;
 
             gsMatrix<> E = _E(0,out);
-            gsDebugVar("Temporary");
             result(0,j*u.cols() + k) = E(0,0);
             result(1,j*u.cols() + k) = E(1,1);
             result(2,j*u.cols() + k) = E(0,1) + E(1,0);
