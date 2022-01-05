@@ -424,6 +424,54 @@ void gsThinShellAssembler<d, T, bending>::_applyLoads()
 }
 
 template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::_applyMass()
+{
+    gsMatrix<T>        bVals;
+    gsMatrix<index_t> acts,globalActs;
+
+    space       m_space = m_assembler.trialSpace(0);
+    m_mapper = m_space.mapper();
+
+    GISMO_ASSERT(m_mass.rows()!=0,"Mass matrix must be assembled first");
+
+    for (size_t i = 0; i< m_pMass.numLoads(); ++i )
+    {
+        GISMO_ASSERT(m_pMass[i].value.size()==1,"Mass should be one-dimensional");
+
+        // Compute actives and values of basis functions on point load location.
+        if ( m_pMass[i].parametric )   // in parametric space
+        {
+            m_basis.front().basis(m_pMass[i].patch).active_into( m_pMass[i].point, acts );
+            m_basis.front().basis(m_pMass[i].patch).eval_into  ( m_pMass[i].point, bVals);
+        }
+        else                            // in physical space
+        {
+            gsMatrix<T> forcePoint;
+            m_patches.patch(m_pMass[i].patch).invertPoints(m_pMass[i].point,forcePoint);
+            m_basis.front().basis(m_pMass[i].patch).active_into( forcePoint, acts );
+            m_basis.front().basis(m_pMass[i].patch).eval_into  ( forcePoint, bVals);
+        }
+
+        // Add the point load values in the right entries in the global RHS
+        for (size_t j = 0; j< d; ++j)
+        {
+            if (m_pMass[i].value[0] != 0.0)
+            {
+                m_mapper.localToGlobal(acts, m_pMass[i].patch, globalActs,j);
+                for (index_t k=0; k < globalActs.rows(); ++k)
+                {
+                    for (index_t l=0; l < globalActs.rows(); ++l)
+                    {
+                        if (m_mapper.is_free_index(globalActs(k,0)) && m_mapper.is_free_index(globalActs(l,0)))
+                            m_mass(globalActs(k,0), globalActs(l,0)) += bVals(k,0) * bVals(l,0) * m_pMass[i].value[0];
+                    }
+                }
+            }
+        }
+    }
+}
+
+template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::assembleMass(bool lumped)
 {
     m_assembler.cleanUp();
@@ -444,6 +492,10 @@ void gsThinShellAssembler<d, T, bending>::assembleMass(bool lumped)
         m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
     else
         m_assembler.assemble(mm0.val()*(m_space.rowSum())*meas(m_ori));
+
+    m_mass = m_assembler.matrix();
+
+    this->_applyMass();
 }
 
 template <short_t d, class T, bool bending>
