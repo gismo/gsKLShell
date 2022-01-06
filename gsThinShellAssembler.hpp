@@ -158,6 +158,8 @@ void gsThinShellAssembler<d, T, bending>::_initialize()
     m_assembler.setIntegrationElements(m_basis);
     m_assembler.setOptions(m_options);
     
+    GISMO_ASSERT(m_bcs.hasGeoMap(),"No geometry map was assigned to the boundary conditions. Use bc.setGeoMap to assign one!");
+
     // Initialize the geometry maps
     // geometryMap m_ori   = m_assembler.getMap(m_patches);
     // geometryMap m_def   = m_assembler.getMap(*m_defpatches);
