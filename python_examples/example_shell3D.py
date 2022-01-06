@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
 """"
-    @file BSpline curve example
+    @file example_shell3D.py
 
-    @brief Play with a B-spline curve in Python
+    @brief Replicates example_shell3D from the gsKLShell module
 
     This file is part of the G+Smo library.
 
@@ -11,7 +11,7 @@
     License, v. 2.0. If a copy of the MPL was not distributed with this
     file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    Author(s): S. Imperatore
+    Author(s): H.M. Verhelst
 """
 
 import os, sys
@@ -143,12 +143,10 @@ XX = XX.reshape(N*N)
 YY = YY.reshape(N*N)
 
 u = np.stack([XX,YY])
-print(u)
 
 sol = assembler.constructSolution(solution)
 
 solution = sol.patch(0).eval(u)
-print(solution)
 
 fig = plt.figure()
 ax = fig.add_subplot() # projection='3d'
