@@ -267,145 +267,39 @@ public:
             //                 -m_alpha_d * u.right()* du
             //                  );
 
-            // // Penalty of out-of-plane coupling
-            // // dW^pr / du_r --> first line
-            // if (m_continuity > 0)
-            // m_assembler.assembleIfc(m_mb.topology().interfaces(),
-            //                 m_alpha_r * dN_lr * var1(u.left(),defG.left())   * usn(defG.right())
-            //                 ,
-            //                 m_alpha_r * dN_lr * var1(u.right(),defG.right()) * usn(defG.left() )
-            //                 ,
-            //                 // Symmetry
-            //                 m_alpha_r * dN_rl * var1(u.right(),defG.right()) * usn(defG.left())
-            //                 ,
-            //                 m_alpha_r * dN_rl * var1(u.left(),defG.left()) * usn(defG.right() )
-            //                  );
+            // Penalty of out-of-plane coupling
+            // dW^pr / du_r --> first line
+            if (m_continuity > 0)
+            m_assembler.assembleIfc(m_mb.topology().interfaces(),
+                            m_alpha_r * dN_lr * var1(u.left(),defG.left())   * usn(defG.right())
+                            ,
+                            m_alpha_r * dN_lr * var1(u.right(),defG.right()) * usn(defG.left() )
+                            ,
+                            // Symmetry
+                            m_alpha_r * dN_rl * var1(u.right(),defG.right()) * usn(defG.left())
+                            ,
+                            m_alpha_r * dN_rl * var1(u.left(),defG.left()) * usn(defG.right() )
+                             );
 
             // Penalty of in-plane coupling
             // dW^pr / du_r --> second line
+            //
+            // This term seems problematic!!
             if (m_continuity > 0)
             m_assembler.assembleIfc(m_mb.topology().interfaces(),
                               m_alpha_r * dnN_lr * ovar1(u.left() ,defG.left() ) * usn(defG.right()) //nonzero [0, 0 ; BA, BB]
                             ,
-                              m_alpha_r * dnN_rl * ovar1(u.right(),defG.right()) * usn(defG.left()) //nonzero [-AA, -AB ; 0, 0]
-                              ,
                               m_alpha_r * dnN_lr *  var1(u.left() ,defG.left() ) * unv(defG.right() ) //nonzero [0, 0 ; BA, BB]
                             ,
-                              m_alpha_r * dnN_rl *  var1(u.right(),defG.right()) * unv(defG.left() ) //nonzero [AA, AB ; 0, 0]
-                            // ,
+                              m_alpha_r * dnN_rl * ovar1(u.right(),defG.right()) * usn(defG.left()) //nonzero [AA, AB ; 0, 0]
+                            ,
+                              m_alpha_r * dnN_rl *  var1(u.right(),defG.right()) * unv(defG.left() ) //nonzero [-AA, -AB ; 0, 0]
                              );
-
-            // gsVector<T> pt1(2);
-            // pt1<<0,0.5;
-            // gsVector<T> pt2(2);
-            // pt2<<1,0.5;
-
-            // gsDebugVar(ev.eval(defG,pt1,0));
-            // gsDebugVar(ev.eval(var1(u,defG),pt1,0));
-            // gsDebugVar(ev.eval(unv(defG),pt1,0));
-            // gsDebugVar(ev.eval(var1(u,defG) * unv(defG),pt1,0));
-
-            // gsDebugVar(ev.eval(defG,pt2,1));
-            // gsDebugVar(ev.eval(var1(u,defG),pt2,1));
-            // gsDebugVar(ev.eval(unv(defG),pt2,1));
-            // gsDebugVar(ev.eval(var1(u,defG) * unv(defG),pt2,1));
-
-
-
-            // // Penalty of out-of-plane coupling
-            // // dW^pr / du_r --> first line
-            // if (m_continuity > 0)
-            // m_assembler.assembleIfc(m_mb.topology().interfaces(),
-            //                  m_alpha_r * dN_lr * var2(u.left() ,u.left() ,defG.left() ,usn(defG.right()).tr() )      // left left
-            //                 ,
-            //                  m_alpha_r * dN_lr * ( var1(u.left() ,defG.left() ) * var1(u.right(),defG.right()).tr() )// left right
-            //                 ,
-            //                  m_alpha_r * dN_lr * ( var1(u.right(),defG.right()) * var1(u.left() ,defG.left() ).tr() )// right left
-            //                 ,
-            //                  m_alpha_r * dN_lr * var2( u.right(),u.right(),defG.right(),usn(defG.left() ).tr() )     // right right
-            //                 ,
-            //                 // Symmetry
-            //                  m_alpha_r * dN_rl * var2(u.right() ,u.right() ,defG.right() ,usn(defG.left()).tr() )      // right right
-            //                 ,
-            //                  m_alpha_r * dN_rl * ( var1(u.right() ,defG.right() ) * var1(u.left(),defG.left()).tr() )// right left
-            //                 ,
-            //                  m_alpha_r * dN_rl * ( var1(u.left(),defG.left()) * var1(u.right() ,defG.right() ).tr() )// left right
-            //                 ,
-            //                  m_alpha_r * dN_rl * var2( u.left(),u.left(),defG.left(),usn(defG.right() ).tr() )     // left left
-            //                  );
-
-            // // Penalty of out-of-plane coupling
-            // // dW^pr / du_r --> second line
-            // if (m_continuity > 0)
-            // m_assembler.assembleIfc(m_mb.topology().interfaces(),
-            //                  m_alpha_r * ( var1(u.left(),defG.left()) * usn(defG.right()) ) * ( var1(u.left(),defG.left()) * usn(defG.right()) ).tr()    // left left
-            //                 ,
-            //                  m_alpha_r * ( var1(u.left(),defG.left()) * usn(defG.right()) ) * ( var1(u.right(),defG.right()) * usn(defG.left()) ).tr()   // left right
-            //                 ,
-            //                  m_alpha_r * ( var1(u.right(),defG.right()) * usn(defG.left()) ) * ( var1(u.left(),defG.left()) * usn(defG.right()) ).tr()   // right left
-            //                 ,
-            //                  m_alpha_r * ( var1(u.right(),defG.right()) * usn(defG.left()) ) * ( var1(u.right(),defG.right()) * usn(defG.left()) ).tr()  // right right
-            //                 ,
-            //                 // Symmetry
-            //                  m_alpha_r * ( var1(u.right(),defG.right()) * usn(defG.left()) ) * ( var1(u.right(),defG.right()) * usn(defG.left()) ).tr()    // right right
-            //                 ,
-            //                  m_alpha_r * ( var1(u.right(),defG.right()) * usn(defG.left()) ) * ( var1(u.left(),defG.left()) * usn(defG.right()) ).tr()   // right left
-            //                 ,
-            //                  m_alpha_r * ( var1(u.left(),defG.left()) * usn(defG.right()) ) * ( var1(u.right(),defG.right()) * usn(defG.left()) ).tr()   // left right
-            //                 ,
-            //                  m_alpha_r * ( var1(u.left(),defG.left()) * usn(defG.right()) ) * ( var1(u.left(),defG.left()) * usn(defG.right()) ).tr()  // left left
-            //                  );
-
-            // // Penalty of in-plane coupling
-            // // dW^pr / du_r --> third line
-            // if (m_continuity > 0)
-            // m_assembler.assembleIfc(m_mb.topology().interfaces(),
-            //                  m_alpha_r * dnN_lr * ovar2(u.left(),u.left(),defG.left(),usn(defG.right()).tr())            // left left
-            //                 ,
-            //                  m_alpha_r * dnN_lr * ( ovar1(u.left() ,defG.left() ) * var1(u.right(),defG.right()).tr() ) // left right
-            //                 ,
-            //                  m_alpha_r * dnN_lr * ( ovar1(u.right(),defG.right()) * var1(u.left() ,defG.left() ).tr() ) // left right
-            //                 ,
-            //                  m_alpha_r * dnN_lr * ovar2(u.right(),u.right(),defG.right(),usn(defG.left()).tr())          // right right
-            //                 ,
-            //                 // Symmetry
-            //                  m_alpha_r * dnN_rl * ovar2(u.right(),u.right(),defG.right(),usn(defG.left()).tr())            // right right
-            //                 ,
-            //                  m_alpha_r * dnN_rl * ( ovar1(u.right() ,defG.right() ) * var1(u.left(),defG.left()).tr() ) // right left
-            //                 ,
-            //                  m_alpha_r * dnN_rl * ( ovar1(u.left(),defG.left()) * var1(u.right() ,defG.right() ).tr() ) // right left
-            //                 ,
-            //                  m_alpha_r * dnN_rl * ovar2(u.left(),u.left(),defG.left(),usn(defG.right()).tr())          // left left
-            //                  );
-
-            // // Penalty of in-plane coupling
-            // // dW^pr / du_r --> fourth line
-            // if (m_continuity > 0)
-            // m_assembler.assembleIfc(m_mb.topology().interfaces(),
-            //                  m_alpha_r * ( ovar1(u.left() ,defG.left()) * usn(defG.right()) ) * ( ovar1(u.left(),defG.left() ) * usn(defG.right()) ).tr()    // left left
-            //                 ,
-            //                  m_alpha_r * ( ovar1(u.left() ,defG.left()) * usn(defG.right()) ) * ( var1(u.right(),defG.right()) * unv(defG.left() ) ).tr()   // left right
-            //                 ,
-            //                  m_alpha_r * ( var1(u.right(),defG.right()) * unv(defG.left())  ) * ( ovar1(u.left(),defG.left() ) * usn(defG.right()) ).tr()   // right left
-            //                 ,
-            //                  m_alpha_r * ( var1(u.right(),defG.right()) * unv(defG.left())  ) * ( var1(u.right(),defG.right()) * unv(defG.left() ) ).tr()  // right right
-            //                 ,
-            //                 // Symmetry
-            //                  m_alpha_r * ( ovar1(u.right() ,defG.right()) * usn(defG.left()) ) * ( ovar1(u.right(),defG.right() ) * usn(defG.left()) ).tr()    // right right
-            //                 ,
-            //                  m_alpha_r * ( ovar1(u.right() ,defG.right()) * usn(defG.left()) ) * ( var1(u.left(),defG.left()) * unv(defG.right() ) ).tr()   // right left
-            //                 ,
-            //                  m_alpha_r * ( var1(u.left(),defG.left()) * unv(defG.right())  ) * ( ovar1(u.right(),defG.right() ) * usn(defG.left()) ).tr()   // left right
-            //                 ,
-            //                  m_alpha_r * ( var1(u.left(),defG.left()) * unv(defG.right())  ) * ( var1(u.left(),defG.left()) * unv(defG.right() ) ).tr()  // left left
-            //                  );
 
             // // Weak Dirichlet term
             // // RHS is minussed!
             // m_assembler.assembleBdr(
             //     m_bcs.get("Weak Dirichlet")
-            //     // ,
-            //     // m_alpha_d * u * u.tr()
             //     ,
             //     m_alpha_d * (u * (defG - G) - u * (g_N) )
             // );
@@ -414,10 +308,6 @@ public:
             // // RHS is minussed!
             // m_assembler.assembleBdr(
             //     m_bcs.get("Weak Clamped")
-            //     // ,
-            //     // m_alpha_r * (usn(defG).tr() * nv(G) - usn(G).tr() * nv(G)).val() * var2(u,u,defG,nv(G).tr()) * tv(G).norm()
-            //     // +
-            //     // m_alpha_r * (var1(u,defG) * nv(G)) * (var1(u,defG) * nv(G)).tr() * meas(G)
             //     ,
             //     m_alpha_r * (usn(defG).tr() * nv(G) - usn(G).tr() * nv(G)).val() * var1(u,defG) * nv(G) * tv(G).norm()
             // );
@@ -426,18 +316,6 @@ public:
             // m_assembler.assembleBdr(m_bcs.get("Neumann"), u * g_N * tv(G).norm() );
 
             // m_assembler.assemble(
-            //     // (
-            //       // N_der * E_m_der.tr()
-            //       //   +
-            //       // E_m_der2
-            //       //   +
-            //       // M_der * E_f_der.tr()
-            //       //   +
-            //       // E_f_der2
-            //       // ) * meas(G)
-            //         // -
-            //       //pressure * u * var1(u,defG) .tr() * meas(G)
-            //     // ,
             //     -u * F * meas(G) + ( ( N * E_m_der.tr() + M * E_f_der.tr() ) * meas(G) ).tr() //+ pressure * u * usn(defG) * meas(G)
             //     );
 
@@ -560,13 +438,13 @@ int main(int argc, char *argv[])
         //     for (index_t d = 0; d!=3; d++)
         //         bc.addCondition(bit->patch, bit->side(), condition_type::dirichlet, 0, 0, false, d);
 
-        // if (weak)
-        // {
-        //     bc.addCondition(0, boundary::east, condition_type::weak_dirichlet, 0, 0, false, -1);
-        //     bc.addCondition(1, boundary::west, condition_type::weak_dirichlet, 0, 0, false, -1);
-        // }
-        // else
-        // {
+        if (weak)
+        {
+            bc.addCondition(0, boundary::east, condition_type::weak_dirichlet, 0, 0, false, -1);
+            bc.addCondition(1, boundary::west, condition_type::weak_dirichlet, 0, 0, false, -1);
+        }
+        else
+        {
             for (index_t d = 0; d!=3; d++)
             {
                 bc.addCondition(0, boundary::east, condition_type::dirichlet, 0, 0, false, d);
@@ -577,7 +455,7 @@ int main(int argc, char *argv[])
                 bc.addCondition(1, boundary::south, condition_type::dirichlet, 0, 0, false, d);
                 bc.addCondition(1, boundary::north, condition_type::dirichlet, 0, 0, false, d);
             }
-        // }
+        }
 
 
         // if (weak)
@@ -588,10 +466,10 @@ int main(int argc, char *argv[])
         // else
         // {
         // for (index_t d = 0; d!=3; d++)
-        // {
-        //     bc.addCondition(0, boundary::east, condition_type::dirichlet, 0, 0, false, d);
-        //     bc.addCondition(1, boundary::west, condition_type::dirichlet, 0, 0, false, d);
-        // }
+        //     {
+        //         bc.addCondition(0, boundary::east, condition_type::dirichlet, 0, 0, false, d);
+        //         bc.addCondition(1, boundary::west, condition_type::dirichlet, 0, 0, false, d);
+        //     }
         // }
         // if (weak)
         //     bc.addCondition(1, boundary::west, condition_type::weak_clamped, 0, 0, false, 2);
@@ -800,23 +678,23 @@ int main(int argc, char *argv[])
 
     auto du = ((defG.left()-G.left()) - (defG.right()-G.right()));
 
-    // if (continuity > -1)
-    // A.assembleIfc(dbasis.topology().interfaces(),
-    //                  alpha_d * u.left() * du
-    //                 ,
-    //                 -alpha_d * u.right()* du
-    //                 ,
-    //                  alpha_d * u.left() * u.left().tr()
-    //                 ,
-    //                 -alpha_d * u.right()* u.left() .tr()
-    //                 ,
-    //                 -alpha_d * u.left() * u.right().tr()
-    //                 ,
-    //                  alpha_d * u.right()* u.right().tr()
-    //                  );
+    if (continuity > -1)
+    A.assembleIfc(dbasis.topology().interfaces(),
+                     alpha_d * u.left() * du
+                    ,
+                    -alpha_d * u.right()* du
+                    ,
+                     alpha_d * u.left() * u.left().tr()
+                    ,
+                    -alpha_d * u.right()* u.left() .tr()
+                    ,
+                    -alpha_d * u.left() * u.right().tr()
+                    ,
+                     alpha_d * u.right()* u.right().tr()
+                     );
 
-    // if (verbose>1) gsDebugVar(A.matrix().toDense());
-    // if (verbose>1) gsDebugVar(A.rhs().transpose());
+    if (verbose>1) gsDebugVar(A.matrix().toDense());
+    if (verbose>1) gsDebugVar(A.rhs().transpose());
 
     auto dN_lr1= (usn(defG.left()).tr()*usn(defG.right())).val();
     auto dN_lr2= (usn(   G.left()).tr()*usn(   G.right())).val();
@@ -848,89 +726,89 @@ int main(int argc, char *argv[])
     if (verbose>1) gsDebugVar(ev.minInterface(dnN_lr2));
     if (verbose>1) gsDebugVar(ev.minInterface(dnN_lr));
 
-    // // Penalty of out-of-plane coupling
-    // // dW^pr / du_r --> first line
-    // if (continuity > 0)
-    // A.assembleIfc(dbasis.topology().interfaces(),
-    //                  alpha_r * dN_lr * var1(u.left(),defG.left())   * usn(defG.right())
-    //                 ,
-    //                  alpha_r * dN_lr * var1(u.right(),defG.right()) * usn(defG.left() )
-    //                 ,
-    //                 // Symmetry
-    //                  alpha_r * dN_rl * var1(u.right(),defG.right())   * usn(defG.left())
-    //                 ,
-    //                  alpha_r * dN_rl * var1(u.left(),defG.left()) * usn(defG.right() )
-    //                  );
+    // Penalty of out-of-plane coupling
+    // dW^pr / du_r --> first line
+    if (continuity > 0)
+    A.assembleIfc(dbasis.topology().interfaces(),
+                     alpha_r * dN_lr * var1(u.left(),defG.left())   * usn(defG.right())
+                    ,
+                     alpha_r * dN_lr * var1(u.right(),defG.right()) * usn(defG.left() )
+                    ,
+                    // Symmetry
+                     alpha_r * dN_rl * var1(u.right(),defG.right())   * usn(defG.left())
+                    ,
+                     alpha_r * dN_rl * var1(u.left(),defG.left()) * usn(defG.right() )
+                     );
 
-    // if (verbose>1) gsDebugVar(A.matrix().toDense());
-    // if (verbose>1) gsDebugVar(A.rhs().transpose());
+    if (verbose>1) gsDebugVar(A.matrix().toDense());
+    if (verbose>1) gsDebugVar(A.rhs().transpose());
 
-    // // Penalty of in-plane coupling
-    // // dW^pr / du_r --> second line
-    // if (continuity > 0)
-    // A.assembleIfc(dbasis.topology().interfaces(),
-    //                  alpha_r * dnN_lr* ovar1(u.left(),defG.left())  * usn(defG.right())
-    //                 ,
-    //                  alpha_r * dnN_lr* var1(u.right(),defG.right()) * unv(defG.left() )
-    //                 ,
-    //                 // Symmetry
-    //                  alpha_r * dnN_rl* ovar1(u.right(),defG.right())  * usn(defG.left())
-    //                 ,
-    //                  alpha_r * dnN_rl* var1(u.left(),defG.left()) * unv(defG.right() )
-    //                  );
+    // Penalty of in-plane coupling
+    // dW^pr / du_r --> second line
+    if (continuity > 0)
+    A.assembleIfc(dbasis.topology().interfaces(),
+                     alpha_r * dnN_lr* ovar1(u.left(),defG.left())  * usn(defG.right())
+                    ,
+                     alpha_r * dnN_lr* var1(u.right(),defG.right()) * unv(defG.left() )
+                    ,
+                    // Symmetry
+                     alpha_r * dnN_rl* ovar1(u.right(),defG.right())  * usn(defG.left())
+                    ,
+                     alpha_r * dnN_rl* var1(u.left(),defG.left()) * unv(defG.right() )
+                     );
 
-    // if (verbose>1) gsDebugVar(A.matrix().toDense());
-    // if (verbose>1) gsDebugVar(A.rhs().transpose());
+    if (verbose>1) gsDebugVar(A.matrix().toDense());
+    if (verbose>1) gsDebugVar(A.rhs().transpose());
 
-    // // Penalty of out-of-plane coupling
-    // // dW^pr / du_r --> first line
-    // if (continuity > 0)
-    // A.assembleIfc(dbasis.topology().interfaces(),
-    //                  alpha_r * dN_lr * var2(u.left() ,u.left() ,defG.left() ,usn(defG.right()).tr() )      // left left
-    //                 ,
-    //                  alpha_r * dN_lr * ( var1(u.left() ,defG.left() ) * var1(u.right(),defG.right()).tr() )// left right
-    //                 ,
-    //                  alpha_r * dN_lr * ( var1(u.right(),defG.right()) * var1(u.left() ,defG.left() ).tr() )// right left
-    //                 ,
-    //                  alpha_r * dN_lr * var2( u.right(),u.right(),defG.right(),usn(defG.left() ).tr() )     // right right
-    //                 ,
-    //                 // Symmetry
-    //                  alpha_r * dN_rl * var2(u.right() ,u.right() ,defG.right() ,usn(defG.left()).tr() )      // right right
-    //                 ,
-    //                  alpha_r * dN_rl * ( var1(u.right() ,defG.right() ) * var1(u.left(),defG.left()).tr() )// right left
-    //                 ,
-    //                  alpha_r * dN_rl * ( var1(u.left(),defG.left()) * var1(u.right() ,defG.right() ).tr() )// left right
-    //                 ,
-    //                  alpha_r * dN_rl * var2( u.left(),u.left(),defG.left(),usn(defG.right() ).tr() )     // left left
-    //                  );
+    // Penalty of out-of-plane coupling
+    // dW^pr / du_r --> first line
+    if (continuity > 0)
+    A.assembleIfc(dbasis.topology().interfaces(),
+                     alpha_r * dN_lr * var2(u.left() ,u.left() ,defG.left() ,usn(defG.right()).tr() )      // left left
+                    ,
+                     alpha_r * dN_lr * ( var1(u.left() ,defG.left() ) * var1(u.right(),defG.right()).tr() )// left right
+                    ,
+                     alpha_r * dN_lr * ( var1(u.right(),defG.right()) * var1(u.left() ,defG.left() ).tr() )// right left
+                    ,
+                     alpha_r * dN_lr * var2( u.right(),u.right(),defG.right(),usn(defG.left() ).tr() )     // right right
+                    ,
+                    // Symmetry
+                     alpha_r * dN_rl * var2(u.right() ,u.right() ,defG.right() ,usn(defG.left()).tr() )      // right right
+                    ,
+                     alpha_r * dN_rl * ( var1(u.right() ,defG.right() ) * var1(u.left(),defG.left()).tr() )// right left
+                    ,
+                     alpha_r * dN_rl * ( var1(u.left(),defG.left()) * var1(u.right() ,defG.right() ).tr() )// left right
+                    ,
+                     alpha_r * dN_rl * var2( u.left(),u.left(),defG.left(),usn(defG.right() ).tr() )     // left left
+                     );
 
-    // if (verbose>1) gsDebugVar(A.matrix().toDense());
-    // if (verbose>1) gsDebugVar(A.rhs().transpose());
+    if (verbose>1) gsDebugVar(A.matrix().toDense());
+    if (verbose>1) gsDebugVar(A.rhs().transpose());
 
-    // // Penalty of out-of-plane coupling
-    // // dW^pr / du_r --> second line
-    // if (continuity > 0)
-    // A.assembleIfc(dbasis.topology().interfaces(),
-    //                  alpha_r * ( var1(u.left(),defG.left()) * usn(defG.right()) ) * ( var1(u.left(),defG.left()) * usn(defG.right()) ).tr()    // left left
-    //                 ,
-    //                  alpha_r * ( var1(u.left(),defG.left()) * usn(defG.right()) ) * ( var1(u.right(),defG.right()) * usn(defG.left()) ).tr()   // left right
-    //                 ,
-    //                  alpha_r * ( var1(u.right(),defG.right()) * usn(defG.left()) ) * ( var1(u.left(),defG.left()) * usn(defG.right()) ).tr()   // right left
-    //                 ,
-    //                  alpha_r * ( var1(u.right(),defG.right()) * usn(defG.left()) ) * ( var1(u.right(),defG.right()) * usn(defG.left()) ).tr()  // right right
-    //                 ,
-    //                 // Symmetry
-    //                  alpha_r * ( var1(u.right(),defG.right()) * usn(defG.left()) ) * ( var1(u.right(),defG.right()) * usn(defG.left()) ).tr()    // right right
-    //                 ,
-    //                  alpha_r * ( var1(u.right(),defG.right()) * usn(defG.left()) ) * ( var1(u.left(),defG.left()) * usn(defG.right()) ).tr()   // right left
-    //                 ,
-    //                  alpha_r * ( var1(u.left(),defG.left()) * usn(defG.right()) ) * ( var1(u.right(),defG.right()) * usn(defG.left()) ).tr()   // left right
-    //                 ,
-    //                  alpha_r * ( var1(u.left(),defG.left()) * usn(defG.right()) ) * ( var1(u.left(),defG.left()) * usn(defG.right()) ).tr()  // left left
-    //                  );
+    // Penalty of out-of-plane coupling
+    // dW^pr / du_r --> second line
+    if (continuity > 0)
+    A.assembleIfc(dbasis.topology().interfaces(),
+                     alpha_r * ( var1(u.left(),defG.left()) * usn(defG.right()) ) * ( var1(u.left(),defG.left()) * usn(defG.right()) ).tr()    // left left
+                    ,
+                     alpha_r * ( var1(u.left(),defG.left()) * usn(defG.right()) ) * ( var1(u.right(),defG.right()) * usn(defG.left()) ).tr()   // left right
+                    ,
+                     alpha_r * ( var1(u.right(),defG.right()) * usn(defG.left()) ) * ( var1(u.left(),defG.left()) * usn(defG.right()) ).tr()   // right left
+                    ,
+                     alpha_r * ( var1(u.right(),defG.right()) * usn(defG.left()) ) * ( var1(u.right(),defG.right()) * usn(defG.left()) ).tr()  // right right
+                    ,
+                    // Symmetry
+                     alpha_r * ( var1(u.right(),defG.right()) * usn(defG.left()) ) * ( var1(u.right(),defG.right()) * usn(defG.left()) ).tr()    // right right
+                    ,
+                     alpha_r * ( var1(u.right(),defG.right()) * usn(defG.left()) ) * ( var1(u.left(),defG.left()) * usn(defG.right()) ).tr()   // right left
+                    ,
+                     alpha_r * ( var1(u.left(),defG.left()) * usn(defG.right()) ) * ( var1(u.right(),defG.right()) * usn(defG.left()) ).tr()   // left right
+                    ,
+                     alpha_r * ( var1(u.left(),defG.left()) * usn(defG.right()) ) * ( var1(u.left(),defG.left()) * usn(defG.right()) ).tr()  // left left
+                     );
 
-    // if (verbose>1) gsDebugVar(A.matrix().toDense());
-    // if (verbose>1) gsDebugVar(A.rhs().transpose());
+    if (verbose>1) gsDebugVar(A.matrix().toDense());
+    if (verbose>1) gsDebugVar(A.rhs().transpose());
 
     // Penalty of in-plane coupling
     // dW^pr / du_r --> third line
@@ -956,97 +834,55 @@ int main(int argc, char *argv[])
     if (verbose>1) gsDebugVar(A.matrix().toDense());
     if (verbose>1) gsDebugVar(A.rhs().transpose());
 
-    // // Penalty of in-plane coupling
-    // // dW^pr / du_r --> fourth line
-    // if (continuity > 0)
-    // A.assembleIfc(dbasis.topology().interfaces(),
-    //                  alpha_r * ( ovar1(u.left() ,defG.left() ) * usn(defG.right()) ) * ( ovar1(u.left() ,defG.left() ) * usn(defG.right()) ).tr() // left left
-    //                 + // Symmetry
-    //                  alpha_r * (  var1(u.left() ,defG.left() ) * unv(defG.right()) ) * (  var1(u.left() ,defG.left() ) * unv(defG.right()) ).tr() // left left
-    //                 ,
-    //                  alpha_r * ( ovar1(u.left() ,defG.left() ) * usn(defG.right()) ) * (  var1(u.right(),defG.right()) * unv(defG.left() ) ).tr() // left right
-    //                 + // Symmetry
-    //                  alpha_r * (  var1(u.left() ,defG.left() ) * unv(defG.right()) ) * ( ovar1(u.right(),defG.right()) * usn(defG.left() ) ).tr() // left right
-    //                 ,
-    //                  alpha_r * (  var1(u.right(),defG.right()) * unv(defG.left() ) ) * ( ovar1(u.left() ,defG.left() ) * usn(defG.right()) ).tr() // right left
-    //                 + // Symmetry
-    //                  alpha_r * ( ovar1(u.right(),defG.right()) * usn(defG.left() ) ) * (  var1(u.left() ,defG.left() ) * unv(defG.right()) ).tr() // right left
-    //                 ,
-    //                  alpha_r * (  var1(u.right(),defG.right()) * unv(defG.left() ) ) * (  var1(u.right(),defG.right()) * unv(defG.left() ) ).tr() // right right
-    //                 + // Symmetry
-    //                  alpha_r * ( ovar1(u.right(),defG.right()) * usn(defG.left() ) ) * ( ovar1(u.right(),defG.right()) * usn(defG.left() ) ).tr() // right right
-    //                  );
-
     // Penalty of in-plane coupling
     // dW^pr / du_r --> fourth line
-    // if (continuity > 0)
-    // A.assembleIfc(dbasis.topology().interfaces(),
-    //                  alpha_r * ( ovar1(u.left() ,defG.left() ) ) * ( ovar1(u.left() ,defG.left() ) ).tr() // left left
-    //                 + // Symmetry
-    //                  alpha_r * (  var1(u.left() ,defG.left() ) ) * (  var1(u.left() ,defG.left() ) ).tr() // left left
-    //                 ,
-    //                  alpha_r * ( ovar1(u.left() ,defG.left() ) ) * (  var1(u.right(),defG.right()) ).tr() // left right
-    //                 + // Symmetry
-    //                  alpha_r * (  var1(u.left() ,defG.left() ) ) * ( ovar1(u.right(),defG.right())  ).tr() // left right
-    //                 ,
-    //                  alpha_r * (  var1(u.right(),defG.right()) ) * ( ovar1(u.left() ,defG.left() ) ).tr() // right left
-    //                 + // Symmetry
-    //                  alpha_r * ( ovar1(u.right(),defG.right()) ) * (  var1(u.left() ,defG.left() ) ).tr() // right left
-    //                 ,
-    //                  alpha_r * (  var1(u.right(),defG.right()) ) * (  var1(u.right(),defG.right() ) ).tr() // right right
-    //                 + // Symmetry
-    //                  alpha_r * ( ovar1(u.right(),defG.right()) ) * ( ovar1(u.right(),defG.right() ) ).tr() // right right
-    //                  );
-
     if (continuity > 0)
     A.assembleIfc(dbasis.topology().interfaces(),
-                     alpha_r * ( u.left()  ) * ( u.left()  ).tr() // left left
+                     alpha_r * ( ovar1(u.left() ,defG.left() ) * usn(defG.right()) ) * ( ovar1(u.left() ,defG.left() ) * usn(defG.right()) ).tr() // left left
+                    + // Symmetry
+                     alpha_r * (  var1(u.left() ,defG.left() ) * unv(defG.right()) ) * (  var1(u.left() ,defG.left() ) * unv(defG.right()) ).tr() // left left
                     ,
-                     alpha_r * ( u.left()  ) * ( u.right() ).tr() // left right
+                     alpha_r * ( ovar1(u.left() ,defG.left() ) * usn(defG.right()) ) * (  var1(u.right(),defG.right()) * unv(defG.left() ) ).tr() // left right
+                    + // Symmetry
+                     alpha_r * (  var1(u.left() ,defG.left() ) * unv(defG.right()) ) * ( ovar1(u.right(),defG.right()) * usn(defG.left() ) ).tr() // left right
                     ,
-                     alpha_r * ( u.right() ) * ( u.left()  ).tr() // right left
+                     alpha_r * (  var1(u.right(),defG.right()) * unv(defG.left() ) ) * ( ovar1(u.left() ,defG.left() ) * usn(defG.right()) ).tr() // right left
+                    + // Symmetry
+                     alpha_r * ( ovar1(u.right(),defG.right()) * usn(defG.left() ) ) * (  var1(u.left() ,defG.left() ) * unv(defG.right()) ).tr() // right left
                     ,
-                     alpha_r * ( u.right() ) * ( u.right() ).tr() // right right
+                     alpha_r * (  var1(u.right(),defG.right()) * unv(defG.left() ) ) * (  var1(u.right(),defG.right()) * unv(defG.left() ) ).tr() // right right
+                    + // Symmetry
+                     alpha_r * ( ovar1(u.right(),defG.right()) * usn(defG.left() ) ) * ( ovar1(u.right(),defG.right()) * usn(defG.left() ) ).tr() // right right
                      );
 
-    gsDebugVar(u.mapper());
-    gsDebugVar(u.mapper().asVector(0).transpose());
-    gsDebugVar(u.mapper().asVector(1).transpose());
-    gsDebugVar(u.mapper().asVector(2).transpose());
+    // gsDebugVar(u.mapper());
+    // gsDebugVar(u.mapper().asVector(0).transpose());
+    // gsDebugVar(u.mapper().asVector(1).transpose());
+    // gsDebugVar(u.mapper().asVector(2).transpose());
 
-    gsExprEvaluator<> ev2(A);
-    gsVector<> pt1(2);
-    pt1<<0,0.5;
-    gsVector<> pt2(2);
-    pt2<<1,0.5;
+    // gsExprEvaluator<> ev2(A);
+    // gsVector<> pt1(2);
+    // pt1<<0,0.5;
+    // gsVector<> pt2(2);
+    // pt2<<1,0.5;
 
-    gsDebugVar(ev2.eval(defG,pt1,0));
-    gsDebugVar(ev2.eval(var1(u,defG),pt1,0));
-    gsDebugVar(ev2.eval(unv(defG),pt1,0));
-    gsDebugVar(ev2.eval(var1(u,defG) * unv(defG),pt1,0));
+    // gsDebugVar(ev2.eval(defG,pt1,0));
+    // gsDebugVar(ev2.eval(var1(u,defG),pt1,0));
+    // gsDebugVar(ev2.eval(unv(defG),pt1,0));
+    // gsDebugVar(ev2.eval(var1(u,defG) * unv(defG),pt1,0));
 
-    gsDebugVar(ev2.eval(defG,pt2,1));
-    gsDebugVar(ev2.eval(var1(u,defG),pt2,1));
-    gsDebugVar(ev2.eval(unv(defG),pt2,1));
-    gsDebugVar(ev2.eval(var1(u,defG) * unv(defG),pt2,1));
+    // gsDebugVar(ev2.eval(defG,pt2,1));
+    // gsDebugVar(ev2.eval(var1(u,defG),pt2,1));
+    // gsDebugVar(ev2.eval(unv(defG),pt2,1));
+    // gsDebugVar(ev2.eval(var1(u,defG) * unv(defG),pt2,1));
 
-    if (verbose>1)
-    {
-        gsDebugVar(A.matrix().rows());
-        gsDebugVar(A.matrix().cols());
-        gsDebugVar(A.matrix().toDense());
-    }
-    if (verbose>1) gsDebugVar(A.rhs().transpose());
-
-    Residual<real_t> ResidualFun(mp,dbasis,t,force,materialMat,bc,alpha_d,alpha_r,continuity,verbose);
-    gsMatrix<> result;
-
-    gsMatrix<> zeros(A.numDofs(),1);
-    zeros.setZero();
-
-    gsDebugVar(A.matrix().toDense());
-    ResidualFun.jacobian_into(zeros,result);
-    gsDebugVar(result);
+    // if (verbose>1)
+    // {
+    //     gsDebugVar(A.matrix().rows());
+    //     gsDebugVar(A.matrix().cols());
+    //     gsDebugVar(A.matrix().toDense());
+    // }
+    // if (verbose>1) gsDebugVar(A.rhs().transpose());
 
     A.assembleBdr(
         bc.get("Weak Dirichlet")
@@ -1077,6 +913,16 @@ int main(int argc, char *argv[])
         );
 
     //! [System assembly]
+
+    Residual<real_t> ResidualFun(mp,dbasis,t,force,materialMat,bc,alpha_d,alpha_r,continuity,verbose);
+    gsMatrix<> result;
+
+    gsMatrix<> zeros(A.numDofs(),1);
+    zeros.setZero();
+
+    gsDebugVar(A.matrix().toDense());
+    ResidualFun.jacobian_into(zeros,result);
+    gsDebugVar(result);
 
     //! [Linear solve]
     // solve system
@@ -1325,21 +1171,24 @@ int main(int argc, char *argv[])
                 , u * F * meas(G) + pressure * u * usn(defG) * meas(G) - ( ( N * E_m_der.tr() + M * E_f_der.tr() ) * meas(G) ).tr()
                 );
 
-            // gsDebugVar(A.rhs().transpose());
-            // ResidualFun.eval_into(solVector,result);
-            // gsDebugVar(result.transpose());
+            gsDebugVar(A.rhs().transpose());
+            ResidualFun.eval_into(solVector,result);
+            gsDebugVar(result.transpose());
 
             gsDebugVar(A.matrix().toDense());
             ResidualFun.deriv_into(solVector,result);
             result.resize(ResidualFun.targetDim(),ResidualFun.targetDim());
             gsDebugVar(result);
 
-            return 0;
+            // return 0;
             // solve system
-            solver.compute( result.sparseView() );
+            gsSparseMatrix<> mat = result.sparseView();
+            gsDebugVar(mat.toDense());
+            solver.compute( mat );
             // solver.compute( A.matrix() );
             updateVector = solver.solve(A.rhs()); // this is the UPDATE
-
+            gsDebugVar(A.rhs());
+            gsDebugVar(updateVector);
 
             solVector += updateVector;
             residual = A.rhs().norm();
