@@ -181,12 +181,12 @@ void gsThinShellAssembler<d, T, bending>::_initialize()
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_assembleNeumann()
 {
-    _assembleNeumann_impl<d,bending>();
+    _assembleNeumann_impl<d>();
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool _bending>
-typename std::enable_if<_d==3 && _bending, void>::type
+template<int _d>
+typename std::enable_if<_d==3, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -197,8 +197,8 @@ gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool _bending>
-typename std::enable_if<!(_d==3 && _bending), void>::type
+template<int _d>
+typename std::enable_if<!(_d==3), void>::type
 gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -208,18 +208,229 @@ gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
     m_assembler.assembleBdr(m_bcs.get("Neumann"), m_space * g_N * tv(m_ori).norm());
 }
 
+template <short_t d, class T, bool bending>
+template <bool matrix>
+void gsThinShellAssembler<d, T, bending>::_assemblePressure()
+{
+    gsWarn<<"Weak boundary conditions are currently disabled.\n";
+    this->_getOptions();
+    _assemblePressure_impl<d,matrix>();
+}
 
 template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assemblePressure_impl()
+{
+    // No matrix contribution for the linear case
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && !matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assemblePressure_impl()
+{
+    if (m_pressInd)
+    {
+        gsMultiPatch<T> & defpatches = m_patches;
+        geometryMap m_ori   = m_assembler.getMap(m_patches);
+        geometryMap m_def   = m_assembler.getMap(defpatches);
+
+        space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+
+        auto m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
+
+        m_assembler.assemble(
+            m_pressure.val() * m_space * usn(m_def) * meas(m_ori)
+            );
+    }
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<!(_d==3), void>::type
+gsThinShellAssembler<d, T, bending>::_assemblePressure_impl()
+{
+    // Since pressure works out-of-plane, this function has no effect
+}
+
+template <short_t d, class T, bool bending>
+template <bool matrix>
+void gsThinShellAssembler<d, T, bending>::_assemblePressure(const gsFunctionSet<T> & deformed)
+{
+    // gsWarn<<"Weak boundary conditions are currently disabled.\n";
+    this->_getOptions();
+    _assemblePressure_impl<d,matrix>(deformed);
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunctionSet<T> & deformed)
+{
+    if (m_pressInd)
+    {
+        geometryMap m_ori   = m_assembler.getMap(m_patches);
+        geometryMap m_def   = m_assembler.getMap(deformed);
+
+        space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+
+        auto m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
+
+        m_assembler.assemble(
+                                -m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
+                            );
+    }
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && !matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunctionSet<T> & deformed)
+{
+    if (m_pressInd)
+    {
+        geometryMap m_ori   = m_assembler.getMap(m_patches);
+        geometryMap m_def   = m_assembler.getMap(deformed);
+
+        space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+
+        auto m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
+        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
+
+        // Assemble vector
+        m_assembler.assemble(
+                      m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
+                      );
+    }
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<!(_d==3), void>::type
+gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunctionSet<T> & deformed)
+{
+    // Since pressure works out-of-plane, this function has no effect
+}
+
+template <short_t d, class T, bool bending>
+template <bool matrix>
+void gsThinShellAssembler<d, T, bending>::_assembleFoundation()
+{
+    gsWarn<<"Weak boundary conditions are currently disabled.\n";
+    this->_getOptions();
+    _assembleFoundation_impl<d,matrix>();
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl()
+{
+    // No matrix contribution for the linear case
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && !matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl()
+{
+    if (m_foundInd)
+    {
+        geometryMap m_ori   = m_assembler.getMap(m_patches);
+
+        space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+
+        auto m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
+        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
+
+        m_assembler.assemble(
+            m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
+            );
+    }
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<!(_d==3), void>::type
+gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl()
+{
+    // Since foundation works out-of-plane, this function has no effect
+}
+
+template <short_t d, class T, bool bending>
+template <bool matrix>
+void gsThinShellAssembler<d, T, bending>::_assembleFoundation(const gsFunctionSet<T> & deformed)
+{
+    // gsWarn<<"Weak boundary conditions are currently disabled.\n";
+    this->_getOptions();
+    _assembleFoundation_impl<d,matrix>(deformed);
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunctionSet<T> & deformed)
+{
+    if (m_foundInd)
+    {
+        geometryMap m_ori   = m_assembler.getMap(m_patches);
+
+        space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+
+        auto m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
+        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
+
+        m_assembler.assemble(
+                m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
+            );
+    }
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && !matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunctionSet<T> & deformed)
+{
+    if (m_foundInd)
+    {
+        geometryMap m_ori   = m_assembler.getMap(m_patches);
+        geometryMap m_def   = m_assembler.getMap(deformed);
+
+        space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+
+        auto m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
+        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
+
+        // Assemble vector
+        m_assembler.assemble(
+                      m_space * m_foundation.asDiag() * (m_def - m_ori) * meas(m_ori) // [v_x,v_y,v_z] diag([k_x,k_y,k_z]) [u_x; u_y; u_z]
+                    );
+    }
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<!(_d==3), void>::type
+gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunctionSet<T> & deformed)
+{
+    // Since foundation works out-of-plane, this function has no effect
+}
+
+template <short_t d, class T, bool bending>
+template <bool matrix>
 void gsThinShellAssembler<d, T, bending>::_assembleWeakBCs()
 {
     gsWarn<<"Weak boundary conditions are currently disabled.\n";
     this->_getOptions();
-    _assembleWeakBCs_impl<d,bending>();
+    _assembleWeakBCs_impl<d,matrix>();
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool _bending>
-typename std::enable_if<_d==3 && _bending, void>::type
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -233,24 +444,44 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
         m_bcs.get("Weak Dirichlet")
         ,
         -(m_alpha_d * m_space * m_space.tr()) * tv(m_ori).norm()
+    );
+
+    // for weak clamped
+    m_assembler.assembleBdr
+    (
+        m_bcs.get("Weak Clamped")
+        ,
+        (
+            m_alpha_r * ( ( var1(m_space,m_ori) * unv(m_ori) ) * ( var1(m_space,m_ori) * unv(m_ori) ).tr() )
+        ) * tv(m_ori).norm()
+    );
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && !matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
+{
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    auto g_N = m_assembler.getBdrFunction(m_ori);
+
+    // Weak BCs
+    m_assembler.assembleBdr
+    (
+        m_bcs.get("Weak Dirichlet")
         ,
         -(m_alpha_d * m_space * g_N         ) * tv(m_ori).norm()
     );
 
-    // // for weak clamped
-    // m_assembler.assembleBdr
-    // (
-    //     (
-    //         m_bcs.get("Weak Clamped")
-    //         ,
-    //         m_alpha_r * ( ( var1(m_space,m_ori) * nv(m_ori) ) * ( var1(m_space,m_ori) * nv(m_ori) ).tr() )
-    //     ) *tv(m_ori).norm()
-    // );
+    // for weak clamped
+    // do nothing
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool _bending>
-typename std::enable_if<!(_d==3 && _bending), void>::type
+template<int _d, bool matrix>
+typename std::enable_if<!(_d==3) && matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -264,22 +495,106 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
         m_bcs.get("Weak Dirichlet")
         ,
         -(m_alpha_d * m_space * m_space.tr()) * tv(m_ori).norm()
+    );
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<!(_d==3) && !matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
+{
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    auto g_N = m_assembler.getBdrFunction(m_ori);
+
+    // Weak BCs
+    m_assembler.assembleBdr
+    (
+        m_bcs.get("Weak Dirichlet")
         ,
         (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * tv(m_ori).norm()
     );
 }
 
 template <short_t d, class T, bool bending>
+template <bool matrix>
 void gsThinShellAssembler<d, T, bending>::_assembleWeakBCs(const gsFunctionSet<T> & deformed)
 {
     // gsWarn<<"Weak boundary conditions are currently disabled.\n";
     this->_getOptions();
-    _assembleWeakBCs_impl<d,bending>(deformed);
+    _assembleWeakBCs_impl<d,matrix>(deformed);
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool _bending>
-typename std::enable_if<_d==3 && _bending, void>::type
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T> & deformed)
+{
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_def   = m_assembler.getMap(deformed);
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    auto g_N = m_assembler.getBdrFunction(m_ori);
+    auto du  = m_def - m_ori;
+    auto dnN = ( usn(m_def).tr()*unv(m_ori) - usn(m_ori).tr()*unv(m_ori) ).val();
+
+    // Weak BCs
+    m_assembler.assembleBdr
+    (
+        m_bcs.get("Weak Dirichlet")
+        ,
+        -m_alpha_d * m_space * m_space.tr() * tv(m_ori).norm()
+    );
+
+    // for weak clamped
+    m_assembler.assembleBdr
+    (
+        m_bcs.get("Weak Clamped")
+        ,
+        (
+            m_alpha_r * dnN * ( var2(m_space,m_space,m_def,unv(m_ori).tr()) )
+            +
+            m_alpha_r * ( ( var1(m_space,m_def) * unv(m_ori) ) * ( var1(m_space,m_def) * unv(m_ori) ).tr() )
+        ) * tv(m_ori).norm()
+    );
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && !matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T> & deformed)
+{
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_def   = m_assembler.getMap(deformed);
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    auto g_N = m_assembler.getBdrFunction(m_ori);
+    auto du  = m_def - m_ori;
+    auto dnN = ( usn(m_def).tr()*unv(m_ori) - usn(m_ori).tr()*unv(m_ori) ).val();
+
+    // Weak BCs
+    m_assembler.assembleBdr
+    (
+        m_bcs.get("Weak Dirichlet")
+        ,
+        m_alpha_d * (m_space * du - m_space * (g_N) ) * tv(m_ori).norm()
+    );
+
+    // for weak clamped
+    m_assembler.assembleBdr
+    (
+        m_bcs.get("Weak Clamped")
+        ,
+        (
+            m_alpha_r * dnN * ( var1(m_space,m_def) * usn(m_ori) )
+        ) * tv(m_ori).norm()
+    );
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<!(_d==3) && matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -294,33 +609,12 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
         m_bcs.get("Weak Dirichlet")
         ,
         -m_alpha_d * m_space * m_space.tr() * tv(m_ori).norm()
-        ,
-        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * tv(m_ori).norm()
     );
-
-    // // for weak clamped
-    // m_assembler.assembleBdr
-    // (
-    //     m_bcs.get("Weak Clamped")
-    //     ,
-    //     (
-    //         m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_def,nv(m_ori).tr()) )
-    //         +
-    //         m_alpha_r * ( ( var1(m_space,m_def) * nv(m_ori) ) * ( var1(m_space,m_def) * nv(m_ori) ).tr() )
-    //     ) * tv(m_ori).norm()
-    //     ,
-    //     (
-    //         m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var1(m_space,m_def) * sn(m_ori) )
-    //         +
-    //         // to be implemented: tvar1
-    //         // m_alpha_r * ( nv(m_def).tr()*nv(m_ori) - nv(m_ori).tr()*nv(m_ori) ).val() * ( tvar1(m_space,m_def) * sn(m_ori) )
-    //     ) * tv(m_ori).norm()
-    // );
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool _bending>
-typename std::enable_if<!(_d==3 && _bending), void>::type
+template<int _d, bool matrix>
+typename std::enable_if<!(_d==3) && !matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -334,10 +628,144 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -m_alpha_d * m_space * m_space.tr() * tv(m_ori).norm()
-        ,
         m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * tv(m_ori).norm()
     );
+}
+
+template <short_t d, class T, bool bending>
+template <bool matrix>
+void gsThinShellAssembler<d, T, bending>::_assembleWeakIfc()
+{
+    gsWarn<<"Weak boundary conditions are currently disabled.\n";
+    this->_getOptions();
+    _assembleWeakIfc_impl<d,matrix>();
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
+{
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+
+    /*
+     To do
+     */
+
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && !matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
+{
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+
+    /*
+     To do
+     */
+
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<!(_d==3) && matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
+{
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+
+    /*
+     To do
+     */
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<!(_d==3) && !matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
+{
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+
+    /*
+     To do
+     */
+}
+
+template <short_t d, class T, bool bending>
+template <bool matrix>
+void gsThinShellAssembler<d, T, bending>::_assembleWeakIfc(const gsFunctionSet<T> & deformed)
+{
+    // gsWarn<<"Weak boundary conditions are currently disabled.\n";
+    this->_getOptions();
+    _assembleWeakIfc_impl<d,matrix>(deformed);
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T> & deformed)
+{
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_def   = m_assembler.getMap(deformed);
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+
+   /*
+    To do
+    */
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<_d==3 && !matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T> & deformed)
+{
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_def   = m_assembler.getMap(deformed);
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+
+   /*
+    To do
+    */
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<!(_d==3) && matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T> & deformed)
+{
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_def   = m_assembler.getMap(deformed);
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+
+    /*
+     To do
+     */
+}
+
+template <short_t d, class T, bool bending>
+template<int _d, bool matrix>
+typename std::enable_if<!(_d==3) && !matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T> & deformed)
+{
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_def   = m_assembler.getMap(deformed);
+
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+
+    /*
+     To do
+     */
 }
 
 template <short_t d, class T, bool bending>
@@ -571,25 +999,10 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
 
-    if (m_foundInd)
-    {
-        auto m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
-        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
-
-        m_assembler.assemble(
-            m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
-            );
-
-    }
-    if (m_pressInd)
-    {
-        auto m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
-        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
-
-        m_assembler.assemble(
-            m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
-            );
-    }
+    this->_assembleFoundation<true>();
+    this->_assembleFoundation<false>();
+    this->_assemblePressure<true>();
+    this->_assemblePressure<false>();
 
     m_assembler.assemble(
         (
@@ -601,7 +1014,8 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
         m_space * m_force * meas(m_ori)
         );
 
-    this->_assembleWeakBCs();
+    this->_assembleWeakBCs<true>();
+    this->_assembleWeakBCs<false>();
     this->_assembleNeumann();
 
     // Assemble the loads
@@ -640,25 +1054,10 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     auto m_Em_der   = flat( jacG.tr() * jac(m_space) ) ; //[checked]
     auto m_N_der    = m_Em_der * reshape(mmA,3,3);
 
-    if (m_foundInd)
-    {
-        auto m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
-        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
-
-        m_assembler.assemble(
-            m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
-            );
-    }
-    if (m_pressInd)
-    {
-        auto m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
-        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
-
-        // Assemble vector
-        m_assembler.assemble(
-            m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
-            );
-    }
+    this->_assembleFoundation<true>();
+    this->_assembleFoundation<false>();
+    this->_assemblePressure<true>();
+    this->_assemblePressure<false>();
 
     m_assembler.assemble(
         (
@@ -668,7 +1067,8 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
         m_space * m_force * meas(m_ori)
         );
 
-    this->_assembleWeakBCs();
+    this->_assembleWeakBCs<true>();
+    this->_assembleWeakBCs<false>();
     this->_assembleNeumann();
 
     // Assemble the loads
@@ -738,30 +1138,8 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
 
-    if (m_foundInd)
-    {
-        auto m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
-        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
-
-        m_assembler.assemble(
-                m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
-            );
-    }
-    if (m_pressInd)
-    {
-        auto m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
-        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
-
-        m_assembler.assemble(
-                                -m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
-                            );
-    }
-
-    // // gsDebugVar(ev.eval(m_Em_der2,pt));
-    // // gsDebugVar(ev.eval(m_Ef_der2,pt));
-
-    // gsDebugVar(ev.eval(S0.tr(),pt));
-    // gsDebugVar(ev.eval(S1.tr(),pt));
+    this->_assembleFoundation<true>(deformed);
+    this->_assemblePressure<true>(deformed);
 
     // Assemble matrix
     m_assembler.assemble(
@@ -776,7 +1154,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
             ) * meas(m_ori)
         );
 
-    this->_assembleWeakBCs(deformed);
+    this->_assembleWeakBCs<true>(deformed);
 }
 
 template<int d, typename T, bool bending>
@@ -810,6 +1188,9 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
 
     auto m_N_der    = m_Em_der * reshape(mmA,3,3);
 
+    this->_assembleFoundation<true>(deformed);
+    this->_assemblePressure<true>(deformed);
+
     // Assemble matrix
     m_assembler.assemble(
             (
@@ -819,25 +1200,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
             ) * meas(m_ori)
         );
 
-    if (m_foundInd)
-    {
-        auto m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
-        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
-
-        m_assembler.assemble(
-                m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
-            );
-    }
-    if (m_pressInd)
-    {
-        auto m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
-        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
-
-        m_assembler.assemble(
-                -m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
-            );
-    }
-    this->_assembleWeakBCs(deformed);
+    this->_assembleWeakBCs<true>(deformed);
 }
 
 template <short_t d, class T, bool bending>
@@ -933,25 +1296,9 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     // gsDebugVar(ev.eval(S0.tr(),pt));
     // gsDebugVar(ev.eval(S1.tr(),pt));
 
+    this->_assembleFoundation<true>(deformed);
+    this->_assemblePressure<true>(deformed);
 
-    if (m_foundInd)
-    {
-        auto m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
-        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
-
-        m_assembler.assemble(
-                m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
-            );
-    }
-    if (m_pressInd)
-    {
-        auto m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
-        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
-
-        m_assembler.assemble(
-                                -m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
-                            );
-    }
     // Assemble matrix
     m_assembler.assemble(
             (
@@ -964,7 +1311,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
                 m_Ef_der2
             ) * meas(m_ori)
         );
-    this->_assembleWeakBCs(deformed);
+    this->_assembleWeakBCs<true>(deformed);
 }
 
 // template<int d, typename T, bool bending>
@@ -1029,33 +1376,15 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     auto m_M        = S1.tr(); // output is a column
     auto m_Ef_der   = -( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
 
-    if (m_foundInd)
-    {
-        auto m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
-        GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
-
-        // Assemble vector
-        m_assembler.assemble(
-                      m_space * m_foundation.asDiag() * (m_def - m_ori) * meas(m_ori) // [v_x,v_y,v_z] diag([k_x,k_y,k_z]) [u_x; u_y; u_z]
-                    );
-    }
-    if (m_pressInd)
-    {
-        auto m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
-        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
-
-        // Assemble vector
-        m_assembler.assemble(
-                      m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
-                      );
-    }
+    this->_assembleFoundation<false>(deformed);
+    this->_assemblePressure<false>(deformed);
 
         // Assemble vector
     m_assembler.assemble(m_space * m_force * meas(m_ori) -
                             ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
                         );
 
-    this->_assembleWeakBCs(deformed);
+    this->_assembleWeakBCs<false>(deformed);
     this->_assembleNeumann();
 
     // Assemble the loads
@@ -1101,23 +1430,16 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
                       m_space * m_foundation.asDiag() * (m_def - m_ori) * meas(m_ori) // [v_x,v_y,v_z] diag([k_x,k_y,k_z]) [u_x; u_y; u_z]
                     );
     }
-    if (m_pressInd)
-    {
-        auto m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
-        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
 
-        // Assemble vector
-        m_assembler.assemble(
-                      m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
-                    );
-    }
+    this->_assembleFoundation<false>(deformed);
+    this->_assemblePressure<false>(deformed);
 
     // Assemble vector
     m_assembler.assemble(m_space * m_force * meas(m_ori) -
                 ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
                 );
 
-    this->_assembleWeakBCs(deformed);
+    this->_assembleWeakBCs<false>(deformed);
     this->_assembleNeumann();
 
     // Assemble the loads
