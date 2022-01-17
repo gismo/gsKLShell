@@ -122,6 +122,7 @@ void gsThinShellAssembler<d, T, bending>::_defaultOptions()
     m_options.addReal("quA","Number of quadrature points: quA*deg + quB",1);
     m_options.addInt("quB","Number of quadrature points: quA*deg + quB",1);
     m_options.addInt("quRule","Quadrature rule [1:GaussLegendre,2:GaussLobatto]",1);
+    m_options.addString("Solver","Sparse linear solver", "CGDiagonal");
 }
 
 
@@ -133,6 +134,20 @@ void gsThinShellAssembler<d, T, bending>::_getOptions() const
     m_continuity = m_options.getInt("Continuity");
 }
 
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::setOptions(gsOptionList & options)
+{
+    // Check if the continuity option changed
+    // Get old continuity
+    index_t continuity = m_options.getInt("Continuity");
+
+    m_options.update(options,gsOptionList::addIfUnknown);
+
+    // If the continuity changed, we need to re-initialize the space.
+    if (continuity != m_options.getInt("Continuity"))
+        this->_initialize();
+
+}
 
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_initialize()
@@ -142,6 +157,8 @@ void gsThinShellAssembler<d, T, bending>::_initialize()
     // Elements used for numerical integration
     m_assembler.setIntegrationElements(m_basis);
     m_assembler.setOptions(m_options);
+    
+    GISMO_ASSERT(m_bcs.hasGeoMap(),"No geometry map was assigned to the boundary conditions. Use bc.setGeoMap to assign one!");
 
     // Initialize the geometry maps
     // geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -217,9 +234,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        -(m_alpha_d * m_space * m_space.tr()) * tv(m_ori).norm()
         ,
-        -(m_alpha_d * m_space * g_N         ) * meas(m_ori)
+        -(m_alpha_d * m_space * g_N         ) * tv(m_ori).norm()
     );
 
     // // for weak clamped
@@ -229,7 +246,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     //         m_bcs.get("Weak Clamped")
     //         ,
     //         m_alpha_r * ( ( var1(m_space,m_ori) * nv(m_ori) ) * ( var1(m_space,m_ori) * nv(m_ori) ).tr() )
-    //     ) * meas(m_ori)
+    //     ) *tv(m_ori).norm()
     // );
 }
 
@@ -248,9 +265,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        -(m_alpha_d * m_space * m_space.tr()) * tv(m_ori).norm()
         ,
-        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * meas(m_ori)
+        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * tv(m_ori).norm()
     );
 }
 
@@ -278,9 +295,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
+        -m_alpha_d * m_space * m_space.tr() * tv(m_ori).norm()
         ,
-        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
+        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * tv(m_ori).norm()
     );
 
     // // for weak clamped
@@ -292,14 +309,14 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     //         m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2(m_space,m_space,m_def,nv(m_ori).tr()) )
     //         +
     //         m_alpha_r * ( ( var1(m_space,m_def) * nv(m_ori) ) * ( var1(m_space,m_def) * nv(m_ori) ).tr() )
-    //     ) * meas(m_ori)
+    //     ) * tv(m_ori).norm()
     //     ,
     //     (
     //         m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var1(m_space,m_def) * sn(m_ori) )
     //         +
     //         // to be implemented: tvar1
     //         // m_alpha_r * ( nv(m_def).tr()*nv(m_ori) - nv(m_ori).tr()*nv(m_ori) ).val() * ( tvar1(m_space,m_def) * sn(m_ori) )
-    //     ) * meas(m_ori)
+    //     ) * tv(m_ori).norm()
     // );
 }
 
@@ -319,9 +336,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
+        -m_alpha_d * m_space * m_space.tr() * tv(m_ori).norm()
         ,
-        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
+        m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * tv(m_ori).norm()
     );
 }
 
@@ -409,6 +426,54 @@ void gsThinShellAssembler<d, T, bending>::_applyLoads()
 }
 
 template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::_applyMass()
+{
+    gsMatrix<T>        bVals;
+    gsMatrix<index_t> acts,globalActs;
+
+    space       m_space = m_assembler.trialSpace(0);
+    m_mapper = m_space.mapper();
+
+    GISMO_ASSERT(m_mass.rows()!=0,"Mass matrix must be assembled first");
+
+    for (size_t i = 0; i< m_pMass.numLoads(); ++i )
+    {
+        GISMO_ASSERT(m_pMass[i].value.size()==1,"Mass should be one-dimensional");
+
+        // Compute actives and values of basis functions on point load location.
+        if ( m_pMass[i].parametric )   // in parametric space
+        {
+            m_basis.front().basis(m_pMass[i].patch).active_into( m_pMass[i].point, acts );
+            m_basis.front().basis(m_pMass[i].patch).eval_into  ( m_pMass[i].point, bVals);
+        }
+        else                            // in physical space
+        {
+            gsMatrix<T> forcePoint;
+            m_patches.patch(m_pMass[i].patch).invertPoints(m_pMass[i].point,forcePoint);
+            m_basis.front().basis(m_pMass[i].patch).active_into( forcePoint, acts );
+            m_basis.front().basis(m_pMass[i].patch).eval_into  ( forcePoint, bVals);
+        }
+
+        // Add the point load values in the right entries in the global RHS
+        for (size_t j = 0; j< d; ++j)
+        {
+            if (m_pMass[i].value[0] != 0.0)
+            {
+                m_mapper.localToGlobal(acts, m_pMass[i].patch, globalActs,j);
+                for (index_t k=0; k < globalActs.rows(); ++k)
+                {
+                    for (index_t l=0; l < globalActs.rows(); ++l)
+                    {
+                        if (m_mapper.is_free_index(globalActs(k,0)) && m_mapper.is_free_index(globalActs(l,0)))
+                            m_mass(globalActs(k,0), globalActs(l,0)) += bVals(k,0) * bVals(l,0) * m_pMass[i].value[0];
+                    }
+                }
+            }
+        }
+    }
+}
+
+template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::assembleMass(bool lumped)
 {
     m_assembler.cleanUp();
@@ -429,6 +494,10 @@ void gsThinShellAssembler<d, T, bending>::assembleMass(bool lumped)
         m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
     else
         m_assembler.assemble(mm0.val()*(m_space.rowSum())*meas(m_ori));
+
+    m_mass = m_assembler.matrix();
+
+    this->_applyMass();
 }
 
 template <short_t d, class T, bool bending>
@@ -467,7 +536,7 @@ template<int _d, bool _bending>
 typename std::enable_if<_d==3 && _bending, void>::type
 gsThinShellAssembler<d, T, bending>::assemble_impl()
 {
-    // this->_getOptions();
+    this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -550,7 +619,7 @@ template<int _d, bool _bending>
 typename std::enable_if<!(_d==3 && _bending), void>::type
 gsThinShellAssembler<d, T, bending>::assemble_impl()
 {
-    // this->_getOptions();
+    this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1633,7 +1702,7 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::computePrincipalStretches(const
     // gsDebug<<"Warning: Principle Stretch computation of gsThinShellAssembler is depreciated...\n";
     gsMatrix<T> result(3,u.cols());
     result.setZero();
-    // this->_getOptions();
+    this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1684,7 +1753,7 @@ void gsThinShellAssembler<d, T, bending>::constructStress(const gsFunctionSet<T>
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & fun, gsMatrix<T>& result)
 {
-    // this->_getOptions();
+    this->_getOptions();
 
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1700,8 +1769,10 @@ void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & f
 
     // assemble system
     m_assembler.assemble(m_space*m_space.tr()*meas(m_ori),m_space * function*meas(m_ori));
-    m_solver.compute(m_assembler.matrix());
-    result = m_solver.solve(m_assembler.rhs());
+
+    gsSparseSolver<>::uPtr solver = gsSparseSolver<T>::get( m_options.askString("Solver","CGDiagonal") );
+    solver->compute(m_assembler.matrix());
+    result = solver->solve(m_assembler.rhs());
 }
 
 template <short_t d, class T, bool bending>

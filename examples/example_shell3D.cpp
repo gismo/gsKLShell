@@ -87,12 +87,6 @@ int main(int argc, char *argv[])
         thickness = 1e0;
         PoissonRatio = 0.3;
     }
-
-    gsMultiBasis<> dbasis(mp);
-
-    gsInfo << "Patches: "<< mp.nPatches() <<", degree: "<< dbasis.minCwiseDegree() <<"\n";
-    gsInfo << dbasis.basis(0)<<"\n";
-
     //! [Define material parameters and geometry per example]
 
     //! [Refine and elevate]
@@ -107,6 +101,12 @@ int main(int argc, char *argv[])
     mp_def = mp;
     gsWriteParaview<>( mp_def    , "mp", 1000, true);
     //! [Refine and elevate]
+
+    gsMultiBasis<> dbasis(mp);
+
+    gsInfo << "Patches: "<< mp.nPatches() <<", degree: "<< dbasis.minCwiseDegree() <<"\n";
+    gsInfo << dbasis.basis(0)<<"\n";
+
 
     //! [Set boundary conditions]
     gsBoundaryConditions<> bc;
@@ -137,9 +137,9 @@ int main(int argc, char *argv[])
             bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0 ,false,i);
         }
 
-        pressure = -1;
+        // pressure = -1;
         refPoint<<0.5,0.5;
-        // tmp << 0,0,-1;
+        tmp << 0,0,-1;
 
     }
     else if (testCase == 1)

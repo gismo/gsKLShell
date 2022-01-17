@@ -123,7 +123,7 @@ private:
     parse_impl(gsExprHelper<Scalar> & evList) const
     {
         evList.add(_u);
-        _u.data().flags |= NEED_GRAD;
+        _u.data().flags |= NEED_ACTIVE | NEED_GRAD; // need actives for cardinality
         evList.add(_G);
         _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_MEASURE;
     }
@@ -215,7 +215,7 @@ private:
     typename E3::Nested_t _Ef;
 
 public:
-    enum{ Space = 2, ScalarValued= 0, ColBlocks= 0 };
+    enum{ Space = 3, ScalarValued= 0, ColBlocks= 0 };
 
     var2_expr( const E1 & u, const E2 & v, const gsGeometryMap<Scalar> & G, _expr<E3> const& Ef) : _u(u),_v(v), _G(G), _Ef(Ef) { }
 
@@ -309,9 +309,9 @@ public:
     void parse(gsExprHelper<Scalar> & evList) const
     {
         evList.add(_u);
-        _u.data().flags |= NEED_VALUE | NEED_GRAD;
+        _u.data().flags |= NEED_ACTIVE | NEED_VALUE | NEED_GRAD;
         evList.add(_v);
-        _v.data().flags |= NEED_VALUE | NEED_GRAD;
+        _v.data().flags |= NEED_ACTIVE | NEED_VALUE | NEED_GRAD;
         evList.add(_G);
         _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_2ND_DER | NEED_MEASURE;
         _Ef.parse(evList);
@@ -490,7 +490,7 @@ private:
     typename E::Nested_t _u;
     typename gsGeometryMap<Scalar>::Nested_t _G;
 
-    mutable gsVector<Scalar,3> onormal, tangent, normal, dtan, tvar, snvar, m_v;
+    mutable gsVector<Scalar,3> onormal, tangent, utangent, normal, dtan, tvar, snvar, m_v;
     mutable gsVector<Scalar> tmp;
     mutable gsMatrix<Scalar> bGrads, cJac, res;
 
@@ -556,10 +556,8 @@ private:
         const index_t A = _u.cardinality()/_u.dim(); // _u.data().actives.rows()
         res.resize(_u.cardinality(), cols()); // rows()*
 
-        cJac = _G.data().jacobian(k);
-
         onormal = _G.data().outNormal(k);
-        normal  =  _G.data().normal(k);
+        cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
         tmp = cJac.transpose() * onormal;
         Scalar tol = 1e-8;
 
@@ -576,12 +574,15 @@ private:
         else                    // then the normal is unknown??
             gsInfo<<"warning: choice unknown\n";
 
-        tangent = cJac.col(colIndex);
+        tangent  = cJac.col(colIndex);
+        utangent = tangent / tangent.norm();
 
-        // Now we will compute the derivatives of the basis functions
+        // For the normal vector variation
+        normal  =  _G.data().normal(k);
+        normal.normalize();
         bGrads = _u.data().values[1].col(k);
-
         const Scalar measure =  _G.data().measures.at(k);
+
         for (index_t d = 0; d!= cols(); ++d) // for all basis function components
         {
             const short_t s = d*A;
@@ -591,7 +592,7 @@ private:
                 // The tangent vector is in column colIndex in cJac and thus in 2*j+colIndex in bGrads.
                 // Furthermore, as basis function for dimension d, it has a nonzero in entry d, and zeros elsewhere
                 dtan = vecFun(d, bGrads.at(2*j+colIndex));
-                tvar.noalias() = 1 / tangent.norm() * ( dtan - ( tangent.dot(dtan) ) * tangent / (tangent.norm() * tangent.norm()) );
+                tvar.noalias() = 1 / tangent.norm() * ( dtan - ( utangent.dot(dtan) ) * utangent);
 
                 // VARIATION OF THE NORMAL
                 // Jac(u) ~ Jac(G) with alternating signs ?..
@@ -599,10 +600,10 @@ private:
                               - vecFun(d, bGrads.at(2*j+1) ).cross( cJac.col(0).template head<3>() )) / measure;
 
                 // ---------------  First variation of the normal
-                snvar.noalias() = m_v - ( normal.dot(m_v) ) * normal;
+                snvar.noalias() = m_v - ( normal*m_v.transpose() ) * normal;
 
                 // VARIATION OF THE OUTER NORMAL
-                res.row(s+j).noalias() = tvar.cross(normal) + tangent.cross(snvar);
+                res.row(s+j).noalias() = tvar.cross(normal) + utangent.cross(snvar);
             }
         }
         return res;
@@ -635,6 +636,7 @@ private:
             gsInfo<<"warning: choice unknown\n";
 
         tangent = cJac.col(colIndex);
+        utangent = tangent / tangent.norm();
 
         // Now we will compute the derivatives of the basis functions
         bGrads = _u.data().values[1].col(k);
@@ -643,7 +645,7 @@ private:
         // VARIATION OF THE TANGENT
         // The tangent vector is in column colIndex in cJac and colIndex in bGrads.
         dtan = bGrads.col(colIndex);
-        tvar.noalias() = 1 / tangent.norm() * ( dtan - ( tangent.dot(dtan) ) * tangent / (tangent.norm() * tangent.norm()) );
+        tvar.noalias() = 1 / tangent.norm() * ( dtan - ( utangent.dot(dtan) ) * utangent );
 
         // VARIATION OF THE NORMAL
         m_v.noalias() = ( ( bGrads.col(0).template head<3>() ).cross( cJac.col(1).template head<3>() )
@@ -653,7 +655,7 @@ private:
         snvar.noalias() = m_v - ( normal.dot(m_v) ) * normal;
 
         // VARIATION OF THE OUTER NORMAL
-        res.noalias() = tvar.cross(normal) + tangent.cross(snvar);
+        res.noalias() = tvar.cross(normal) + utangent.cross(snvar);
 
         return res;
     }
@@ -678,13 +680,13 @@ private:
     typename gsGeometryMap<Scalar>::Nested_t _G;
     typename E3::Nested_t _C;
 
-    mutable gsVector<Scalar,3> onormal, normal, tangent, dtanu, dtanv, tvaru, tvarv, tvar2,
+    mutable gsVector<Scalar,3> onormal, normal, tangent, utangent, dtanu, dtanv, tvaru, tvarv, tvar2,
                             mu, mv, muv, mu_der, snvaru, snvarv, snvar2, nvar2;
     mutable gsVector<Scalar> tmp;
     mutable gsMatrix<Scalar> uGrads, vGrads, cJac, res, eC;
 
 public:
-    enum{ Space = 2, ScalarValued= 0, ColBlocks= 0 };
+    enum{ Space = 3, ScalarValued= 0, ColBlocks= 0 };
 
     ovar2_expr(const E1 & u, const E2 & v, const gsGeometryMap<Scalar> & G, _expr<E3> const& C) : _u(u), _v(v), _G(G), _C(C) { }
 
@@ -707,10 +709,9 @@ public:
         eC = _C.eval(k);
         eC.resize(1,3);
 
-        cJac = _G.data().jacobian(k);
+        cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
 
         onormal = _G.data().outNormal(k);
-        normal =  _G.data().normal(k);
         tmp = cJac.transpose() * onormal;
         Scalar tol = 1e-8;
 
@@ -728,13 +729,16 @@ public:
             gsInfo<<"warning: choice unknown\n";
 
         tangent = cJac.col(colIndex);
+        utangent = tangent / tangent.norm();
 
-        // Now we will compute the derivatives of the basis functions
+        // Required for the normal vector variation
+        normal = _G.data().normal(k);
+        normal.normalize();
         uGrads = _u.data().values[1].col(k);
         vGrads = _v.data().values[1].col(k);
+
         const index_t cardU = _u.data().values[0].rows(); // number of actives per component of u
         const index_t cardV = _v.data().values[0].rows(); // number of actives per component of v
-
         const Scalar measure =  _G.data().measures.at(k);
 
         for (index_t j = 0; j!= cardU; ++j) // for all basis functions u (1)
@@ -747,7 +751,7 @@ public:
 
                     // first variation of the tangent (colvector)
                     dtanu = vecFun(d, uGrads.at(2*j+colIndex));
-                    tvaru = 1 / tangent.norm() * ( dtanu - ( tangent.dot(dtanu) ) * tangent / (tangent.norm() * tangent.norm()) );
+                    tvaru = 1 / tangent.norm() * ( dtanu - ( utangent.dot(dtanu) ) * utangent );
 
                     // first variation of the surface normal (colvector)
                     mu.noalias() = ( vecFun(d, uGrads.at(2*j  ) ).cross( cJac.col(1).template head<3>() )
@@ -761,7 +765,7 @@ public:
 
                         // first variation of the tangent (colvector)
                         dtanv = vecFun(c, vGrads.at(2*i+colIndex));
-                        tvarv = 1 / tangent.norm() * ( dtanv - ( tangent.dot(dtanv) ) * tangent / (tangent.norm() * tangent.norm()) );
+                        tvarv = 1 / tangent.norm() * ( dtanv - ( utangent.dot(dtanv) ) * utangent );
 
                         // first variation of the surface normal (colvector)
                         mv.noalias() = ( vecFun(c, vGrads.at(2*i  ) ).cross( cJac.col(1).template head<3>() )
@@ -771,10 +775,15 @@ public:
 
 
                         // Second variation of the tangent (colvector)
-                        tvar2 = 1 / tangent.norm() * ( tvarv.dot(dtanu) * tangent )
-                                + 1 / (tangent.norm()*tangent.norm())
-                                * ( 2*( (tangent.dot(dtanu))*(tangent.dot(dtanv))*tangent )
-                                    - ( tangent.dot(dtanu)*dtanv ) - ( tangent.dot(dtanv)*dtanu) );
+                        // tvar2 = 1 / tangent.norm() * ( tvarv.dot(dtanu) * tangent )
+                        //         + 1 / (tangent.norm()*tangent.norm())
+                        //         * ( 2*( (tangent.dot(dtanu))*(tangent.dot(dtanv))*tangent )
+                        //             - ( tangent.dot(dtanu)*dtanv ) - ( tangent.dot(dtanv)*dtanu) );
+                        tvar2 = -1 / tangent.norm() * (
+                                                        ( tvarv.dot(dtanu) * utangent )
+                                                      + ( utangent.dot(dtanv) * tvaru )
+                                                      + ( utangent.dot(dtanu) * tvarv )
+                                                                            );
 
                         // Second variation of the surface normal (colvector)
                         muv.noalias() = ( vecFun(d, uGrads.at(2*j  ) ).cross( vecFun(c, vGrads.at(2*i+1) ) )
@@ -786,7 +795,7 @@ public:
                         snvar2 = mu_der - (mu.dot(snvarv) + normal.dot(mu_der) ) * normal - (normal.dot(mu) ) * snvarv;
 
                         // Second variation of the outer normal (colvector)
-                        nvar2 = tvar2.cross(normal) + tvaru.cross(snvarv) + tvarv.cross(snvaru) + tangent.cross(snvar2);
+                        nvar2 = tvar2.cross(normal) + tvaru.cross(snvarv) + tvarv.cross(snvaru) + utangent.cross(snvar2);
 
                         res(s + j, r + i ) = (eC * nvar2)(0,0);
                     }
@@ -803,9 +812,9 @@ public:
     void parse(gsExprHelper<Scalar> & evList) const
     {
         evList.add(_u);
-        _u.data().flags |= NEED_GRAD;
+        _u.data().flags |= NEED_ACTIVE | NEED_VALUE | NEED_GRAD;
         evList.add(_v);
-        _v.data().flags |= NEED_GRAD;
+        _v.data().flags |= NEED_ACTIVE | NEED_VALUE | NEED_GRAD;
         evList.add(_G);
         _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV | NEED_MEASURE;
         _C.parse(evList);
@@ -830,7 +839,10 @@ class deriv2dot_expr : public _expr<deriv2dot_expr<E1, E2> >
     typename E2::Nested_t _v;
 
 public:
-    enum{ Space = E1::Space, ScalarValued= 0, ColBlocks= 0 };
+    enum{   Space = (E1::Space == 1 || E2::Space == 1) ? 1 : 0,
+            ScalarValued= 0,
+            ColBlocks= 0
+        };
 
     typedef typename E1::Scalar Scalar;
 
@@ -857,26 +869,22 @@ public:
 
     const gsFeSpace<Scalar> & rowVar() const
     {
-        // Note: what happens if E2 is a space? The following can fix it:
-        // if      (E1::Space == 1 && E2::Space == 0)
-        //     return _u.rowVar();
-        // else if (E1::Space == 0 && E2::Space == 1)
-        //     return _v.rowVar();
-        // else
-
-        return _u.rowVar();
+        if      (E1::Space == 1 && E2::Space == 0)
+            return _u.rowVar();
+        else if (E1::Space == 0 && E2::Space == 1)
+            return _v.rowVar();
+        else
+            return gsNullExpr<Scalar>::get();
     }
 
     const gsFeSpace<Scalar> & colVar() const
     {
-        // Note: what happens if E2 is a space? The following can fix it:
-        // if      (E1::Space == 1 && E2::Space == 0)
-        //     return _v.rowVar();
-        // else if (E1::Space == 0 && E2::Space == 1)
-        //     return _u.rowVar();
-        // else
-
-        return _v.rowVar();
+        if      (E1::Space == 1 && E2::Space == 0)
+            return _v.colVar();
+        else if (E1::Space == 0 && E2::Space == 1)
+            return _u.colVar();
+        else
+            return gsNullExpr<Scalar>::get();
     }
 
     void print(std::ostream &os) const { os << "deriv2("; _u.print(os); _v.print(os); os <<")"; }
@@ -1180,7 +1188,7 @@ private:
     mutable gsMatrix<Scalar> eA, eB, eC, tmp, res;
 
 public:
-    enum {Space = E1::Space, ScalarValued = 0, ColBlocks = 0};
+    enum {Space = 3, ScalarValued = 0, ColBlocks = 0};
 
 public:
 

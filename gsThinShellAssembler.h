@@ -94,11 +94,12 @@ public:
     gsExprAssembler<T> assembler() {return m_assembler; }
 
     /// See \ref gsThinShellAssemblerBase for details
-    void setOptions(gsOptionList & options) {m_options.update(options,gsOptionList::addIfUnknown); }
+    void setOptions(gsOptionList & options);
 
     //--------------------- PROBLEM FORMULATION-------------------------------//
     /// See \ref gsThinShellAssemblerBase for details
     void setPointLoads(const gsPointLoads<T> & pLoads){ m_pLoads = pLoads; }
+    void setPointMass(const gsPointLoads<T> & pMass){ m_pMass = pMass; }
 
     /// See \ref gsThinShellAssemblerBase for details
     void setFoundation(const gsFunction<T> & foundation) { m_foundFun = &foundation; m_foundInd = true; }
@@ -257,7 +258,7 @@ public:
 
     //--------------------- SYSTEM ACCESS ----------------------------------//
     const gsSparseMatrix<T> & matrix()      const   {return m_assembler.matrix();}
-    // gsSparseMatrix<T> & matrix() {return const_cast <gsSparseMatrix<T> &>(m_assembler.matrix());}
+    gsSparseMatrix<T> & massMatrix() {return m_mass;}
 
     const gsMatrix<T>       & rhs()         const {return m_rhs.size()==0 ? m_assembler.rhs() : m_rhs;}
     // const gsMatrix<T>       & rhs()     const {return m_assembler.rhs();}
@@ -344,6 +345,7 @@ protected:
     void _assembleDirichlet();
 
     void _applyLoads();
+    void _applyMass();
 
 private:
     template<int _d, bool _bending>
@@ -375,8 +377,6 @@ protected:
     typedef gsExprAssembler<>::space       space;
     typedef gsExprAssembler<>::solution    solution;
 
-    gsSparseSolver<>::CGDiagonal m_solver;
-
     std::vector<gsDofMapper>  m_dofMappers;
     gsDofMapper m_mapper;
 
@@ -392,6 +392,8 @@ protected:
 
     mutable gsMatrix<T> m_ddofs;
 
+    gsSparseMatrix<T> m_mass;
+
     const gsFunction<T> * m_forceFun;
     const gsFunction<T> * m_thickFun;
     const gsFunction<T> * m_foundFun;
@@ -401,7 +403,7 @@ protected:
 
     mutable gsMaterialMatrixBase<T> * m_materialMat;
 
-    gsPointLoads<T>  m_pLoads;
+    gsPointLoads<T>  m_pLoads, m_pMass;
 
     mutable gsMatrix<T> m_solvector;
 
@@ -420,6 +422,17 @@ protected:
 
 };
 
+#ifdef GISMO_BUILD_PYBIND11
+
+  /**
+   * @brief Initializes the Python wrapper for the class: gsThinShellAssembler
+   */
+  void pybind11_init_gsThinShellAssembler2(pybind11::module &m);
+  void pybind11_init_gsThinShellAssembler3(pybind11::module &m);
+  void pybind11_init_gsThinShellAssembler3nb(pybind11::module &m);
+
+#endif // GISMO_BUILD_PYBIND11
+
 /**
  * @brief      Base class for the gsThinShellAssembler
  *
@@ -431,9 +444,14 @@ template <class T>
 class gsThinShellAssemblerBase
 {
 public:
+    /// Default deconstructor
     typedef typename gsExprEvaluator<T>::intContainer intContainer;
 
 public:
+
+    /// Default deconstructor
+    gsThinShellAssemblerBase() {};
+
     /// Default empty constructor
     virtual ~gsThinShellAssemblerBase() {};
 
@@ -448,6 +466,9 @@ public:
 
     /// Registers a \ref gsPointLoads object for point loads acting on the shell
     virtual void setPointLoads(const gsPointLoads<T> & pLoads) = 0;
+
+    /// Registers a \ref gsPointLoads object for a point mass acting on the shell. The point masss must be 1-dimensional
+    virtual void setPointMass(const gsPointLoads<T> & pLoads) = 0;
 
     /**
      * @brief      Registers a stiffness function to be used for handling an elastic foundation, only relevant for 3D shells, with out-of-plane deformations
@@ -525,16 +546,31 @@ public:
     virtual void assembleMatrix(const gsMatrix<T>       & solVector ) = 0;
 
     /**
-     * @brief      Assembles the tangential stiffness matrix (nonlinear)
+     * @brief      Assembles the tangential stiffness matrix (nonlinear) using the Mixed Integration Point (MIP) method
+     *
+     * For more details, see
+     *  Leonetti, L., Magisano, D., Madeo, A., Garcea, G., Kiendl, J., & Reali, A. (2019).
+     *  A simplified Kirchhoff–Love large deformation model for elastic shells and its effective isogeometric formulation.
+     *  Computer Methods in Applied Mechanics and Engineering, 354, 369–396.
+     *  https://doi.org/10.1016/j.cma.2019.05.025
      *
      * @param[in]  deformed  The deformed geometry
+     * @param[in]  previous  The previous geometry
+     * @param      update    The update vector
      */
     virtual void assembleMatrix(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update) = 0;
 
     /**
-     * @brief      Assembles the tangential stiffness matrix (nonlinear)
+     * @brief      Assembles the tangential stiffness matrix (nonlinear) using the Mixed Integration Point (MIP) method
      *
-     * @param[in]  deformed  The solution vector
+     * For more details, see
+     *  Leonetti, L., Magisano, D., Madeo, A., Garcea, G., Kiendl, J., & Reali, A. (2019).
+     *  A simplified Kirchhoff–Love large deformation model for elastic shells and its effective isogeometric formulation.
+     *  Computer Methods in Applied Mechanics and Engineering, 354, 369–396.
+     *  https://doi.org/10.1016/j.cma.2019.05.025
+     *
+     * @param[in]  solVector   The current  solution vector
+     * @param[in]  prevVector  The previous solution vector
      */
     virtual void assembleMatrix(const gsMatrix<T> & solVector, const gsMatrix<T> & prevVector) = 0;
 
@@ -581,6 +617,9 @@ public:
 
     /// Returns a reference to the system matrix that is assembled
     virtual const gsSparseMatrix<T> & matrix()  const  = 0;
+
+    /// Returns a reference to the mass matrix that is assembled
+    virtual gsSparseMatrix<T> & massMatrix() = 0;
 
     /// Returns a reference to the right-hand side vector that is assembled
     virtual const gsMatrix<T>       & rhs()     const  = 0;
@@ -647,6 +686,15 @@ public:
     virtual void plotSolution(std::string string, const gsMatrix<T> & solVector) = 0;;
 
 };
+
+#ifdef GISMO_BUILD_PYBIND11
+
+  /**
+   * @brief Initializes the Python wrapper for the class: gsThinShellAssembler
+   */
+  void pybind11_init_gsThinShellAssemblerBase(pybind11::module &m);
+
+#endif // GISMO_BUILD_PYBIND11
 
 } // namespace gismo
 

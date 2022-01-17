@@ -32,13 +32,62 @@ namespace gismo
 template <short_t dim, class T >
 gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                         const gsFunctionSet<T> & mp,
+                                        const gsFunction<T> & thickness
+                                        )
+                                        :
+                                        Base(mp),
+                                        m_thickness(&thickness),
+                                        m_density(nullptr)
+{
+
+}
+
+template <short_t dim, class T >
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
+                                        const gsFunctionSet<T> & mp,
+                                        const gsFunction<T> & thickness,
+                                        const gsFunction<T> & YoungsModulus,
+                                        const gsFunction<T> & PoissonsRatio
+                                        )
+                                        :
+                                        gsMaterialMatrixLinear( mp,
+                                                                thickness)
+{
+    m_pars.resize(2);
+    m_pars[0] = const_cast<gsFunction<T> *>(&YoungsModulus);
+    m_pars[1] = const_cast<gsFunction<T> *>(&PoissonsRatio);
+
+    _initialize();
+}
+
+template <short_t dim, class T >
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
+                                        const gsFunctionSet<T> & mp,
+                                        const gsFunction<T> & thickness,
+                                        const gsFunction<T> & YoungsModulus,
+                                        const gsFunction<T> & PoissonsRatio,
+                                        const gsFunction<T> & Density
+                                        )
+                                        :
+                                        gsMaterialMatrixLinear( mp,
+                                                                thickness,
+                                                                YoungsModulus,
+                                                                PoissonsRatio)
+{
+    m_density = &Density;
+}
+
+template <short_t dim, class T >
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
+                                        const gsFunctionSet<T> & mp,
                                         const gsFunction<T> & thickness,
                                         const std::vector<gsFunction<T>*> &pars
                                         )
                                         :
                                         Base(mp),
                                         m_thickness(&thickness),
-                                        m_pars(pars)
+                                        m_pars(pars),
+                                        m_density(nullptr)
 {
     _initialize();
 }
@@ -88,15 +137,13 @@ void gsMaterialMatrixLinear<dim,T>::_initialize()
 
     // set flags
     m_map.mine().flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
-
-    // Initialize some parameters
-    m_numPars = m_pars.size();
 }
 
 
 template <short_t dim, class T >
 void gsMaterialMatrixLinear<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool basis) const
 {
+    GISMO_ASSERT(m_pars.size()==2,"Two material parameters should be assigned!");
     gsMatrix<T> tmp;
 
     this->_computeMetricUndeformed(patch,u,basis);
@@ -106,7 +153,7 @@ void gsMaterialMatrixLinear<dim,T>::_computePoints(const index_t patch, const gs
 
     m_thickness->eval_into(m_map.mine().values[0], m_Tmat);
 
-    m_parmat.resize(m_numPars,m_map.mine().values[0].cols());
+    m_parmat.resize(m_pars.size(),m_map.mine().values[0].cols());
     m_parmat.setZero();
 
     for (size_t v=0; v!=m_pars.size(); v++)
@@ -115,7 +162,7 @@ void gsMaterialMatrixLinear<dim,T>::_computePoints(const index_t patch, const gs
         m_parmat.row(v) = tmp;
     }
 
-    m_parvals.resize(m_numPars);
+    m_parvals.resize(m_pars.size());
 }
 
 template <short_t dim, class T >

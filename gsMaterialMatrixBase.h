@@ -154,6 +154,32 @@ public:
      */
     inline virtual gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
 
+    virtual void setYoungsModulus(const gsFunction<T> & YoungsModulus)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsFunction<T> * getYoungsModulus()
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual void setPoissonsRatio(const gsFunction<T> & PoissonsRatio)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsFunction<T> * getPoissonsRatio()
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual void setRatio(const gsFunction<T> & Ratio)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsFunction<T> * getRatio()
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual void setMu(const index_t & i, const gsFunction<T> & Mu_i)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsFunction<T> * getMu(const index_t & i)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual void setAlpha(const index_t & i, const gsFunction<T> & Alpha_i)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsFunction<T> * getAlpha(const index_t & i)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual void setDensity(const gsFunction<T> & Density)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsFunction<T> * getDensity()
+    { GISMO_NO_IMPLEMENTATION; }
+
+
     /**
      * @brief      Sets the material parameters.
      *
@@ -171,5 +197,14 @@ public:
 protected:
     const gsFunctionSet<T> * m_defpatches;
 };
+
+#ifdef GISMO_BUILD_PYBIND11
+
+  /**
+   * @brief Initializes the Python wrapper for the class: gsMaterialMatrixBase
+   */
+  void pybind11_init_gsMaterialMatrixBase(pybind11::module &m);
+
+#endif // GISMO_BUILD_PYBIND11
 
 } // namespace
