@@ -138,7 +138,8 @@ gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     auto g_N = m_assembler.getBdrFunction();
-    m_assembler.assembleRhsBc(m_space * g_N * tv(m_ori).norm(), m_bcs.neumannSides() );
+    m_assembler.assembleBdr(  m_bcs.get("Neumann"),
+                              m_space * g_N * tv(m_ori).norm());
 }
 
 template <short_t d, class T, bool bending>
@@ -150,7 +151,8 @@ gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     auto g_N = m_assembler.getBdrFunction();
-    m_assembler.assembleRhsBc(m_space * g_N * tv(m_ori).norm(), m_bcs.neumannSides() );
+    m_assembler.assembleBdr(  m_bcs.get("Neumann"),
+                              m_space * g_N * tv(m_ori).norm());
 }
 
 
@@ -172,28 +174,29 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     auto g_N = m_assembler.getBdrFunction();
 
     // Weak BCs
-    m_assembler.assembleLhsRhsBc
+    // Weak BCs
+    m_assembler.assembleBdr
     (
-        -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        m_bcs.get("Weak Dirichlet")
         ,
-        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * meas(m_ori)
+        -(m_alpha_d * m_space * m_space.tr()) * tv(m_ori).norm()
         ,
-        m_bcs.container("Weak Dirichlet")
+        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) *  tv(m_ori).norm()
     );
 
     // for weak clamped
-    m_assembler.assembleLhsRhsBc
+    m_assembler.assembleBdr
     (
+        m_bcs.get("Weak Clamped")
+        ,
         (
             m_alpha_r * ( sn(m_ori).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2dot(m_space,m_space,m_ori,nv(m_ori).tr()) )
             +
             m_alpha_r * ( ( var1(m_space,m_ori) * nv(m_ori) ) * ( var1(m_space,m_ori) * nv(m_ori) ).tr() )
-        ) * meas(m_ori)
+        ) *  tv(m_ori).norm()
         ,
         // THIS LINE SHOULD BE ZERO!
-        ( m_alpha_r * ( sn(m_ori).tr()*sn(m_ori) - sn(m_ori).tr()*sn(m_ori) ).val() * ( var1(m_space,m_ori) * sn(m_ori) ) ) * meas(m_ori)
-        ,
-        m_bcs.container("Weak Clamped")
+        ( m_alpha_r * ( sn(m_ori).tr()*sn(m_ori) - sn(m_ori).tr()*sn(m_ori) ).val() * ( var1(m_space,m_ori) * sn(m_ori) ) ) * tv(m_ori).norm()
     );
 }
 
@@ -208,13 +211,13 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     auto g_N = m_assembler.getBdrFunction();
 
     // Weak BCs
-    m_assembler.assembleLhsRhsBc
+    m_assembler.assembleBdr
     (
-        -(m_alpha_d * m_space * m_space.tr()) * meas(m_ori)
+        m_bcs.get("Weak Dirichlet")
         ,
-        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * meas(m_ori)
+        -(m_alpha_d * m_space * m_space.tr()) * tv(m_ori).norm()
         ,
-        m_bcs.container("Weak Dirichlet")
+        (m_alpha_d * (m_space * (m_ori - m_ori) - m_space * (g_N) )) * tv(m_ori).norm()
     );
 }
 
@@ -239,27 +242,27 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsMultiPatch<T>
     auto g_N = m_assembler.getBdrFunction();
 
     // Weak BCs
-    m_assembler.assembleLhsRhsBc
+    m_assembler.assembleBdr
     (
+        m_bcs.get("Weak Dirichlet")
+        ,
         -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
         ,
         m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
-        ,
-        m_bcs.container("Weak Dirichlet")
     );
 
     // for weak clamped
-    m_assembler.assembleLhsRhsBc
+    m_assembler.assembleBdr
     (
+        m_bcs.get("Weak Clamped")
+        ,
         (
             m_alpha_r * ( sn(m_def).tr()*nv(m_ori) - sn(m_ori).tr()*nv(m_ori) ).val() * ( var2dot(m_space,m_space,m_def,nv(m_ori).tr()) )
             +
             m_alpha_r * ( ( var1(m_space,m_def) * nv(m_ori) ) * ( var1(m_space,m_def) * nv(m_ori) ).tr() )
-        ) * meas(m_ori)
+        ) * tv(m_ori).norm()
         ,
-        ( m_alpha_r * ( sn(m_def).tr()*sn(m_ori) - sn(m_ori).tr()*sn(m_ori) ).val() * ( var1(m_space,m_def) * sn(m_ori) ) ) * meas(m_ori)
-        ,
-        m_bcs.container("Weak Clamped")
+        ( m_alpha_r * ( sn(m_def).tr()*sn(m_ori) - sn(m_ori).tr()*sn(m_ori) ).val() * ( var1(m_space,m_def) * sn(m_ori) ) ) * tv(m_ori).norm()
     );
 }
 
@@ -276,13 +279,13 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsMultiPatch<T>
     auto g_N = m_assembler.getBdrFunction();
 
     // Weak BCs
-    m_assembler.assembleLhsRhsBc
+    m_assembler.assembleBdr
     (
+        m_bcs.get("Weak Dirichlet")
+        ,
         -m_alpha_d * m_space * m_space.tr() * meas(m_ori)
         ,
         m_alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * meas(m_ori)
-        ,
-        m_bcs.container("Weak Dirichlet")
     );
 }
 
