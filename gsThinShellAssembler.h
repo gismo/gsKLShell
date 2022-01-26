@@ -44,6 +44,9 @@ template <short_t d, class T, bool bending>
 class gsThinShellAssembler : public gsThinShellAssemblerBase<T>
 {
 public:
+    typedef typename gsExprEvaluator<T>::intContainer intContainer;
+
+public:
 
     /**
      * @brief      Constructor for te shell assembler
@@ -298,9 +301,36 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     gsMatrix<T> projectL2(const gsFunction<T> &fun);
 
+    /// See \ref gsThinShellAssemblerBase for details
     void plotSolution(std::string string, const gsMatrix<T> & solVector);
 
+    /// See \ref gsThinShellAssemblerBase for details
     gsDofMapper getMapper() { return m_mapper; };
+
+    /// See \ref gsThinShellAssemblerBase for details
+    T interfaceErrorC0(const gsFunctionSet<T> & deformed)
+    { return interfaceErrorC0(deformed,m_patches.interfaces()); }
+    T interfaceErrorC0(const gsFunctionSet<T> & deformed, const intContainer & iFaces);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    T interfaceErrorG1(const gsFunctionSet<T> & deformed)
+    { return interfaceErrorG1(deformed,m_patches.interfaces()); }
+    T interfaceErrorG1(const gsFunctionSet<T> & deformed, const intContainer & iFaces);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    T interfaceErrorNormal(const gsFunctionSet<T> & deformed)
+    { return interfaceErrorNormal(deformed,m_patches.interfaces()); }
+    T interfaceErrorNormal(const gsFunctionSet<T> & deformed, const intContainer & iFaces);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    T interfaceErrorGaussCurvature(const gsFunctionSet<T> & deformed)
+    { return interfaceErrorGaussCurvature(deformed,m_patches.interfaces()); }
+    T interfaceErrorGaussCurvature(const gsFunctionSet<T> & deformed, const intContainer & iFaces);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    T interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed)
+    { return interfaceErrorMeanCurvature(deformed,m_patches.interfaces()); }
+    T interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed, const intContainer & iFaces);
 
 protected:
     /// Initializes the method
@@ -400,6 +430,9 @@ protected:
 template <class T>
 class gsThinShellAssemblerBase
 {
+public:
+    typedef typename gsExprEvaluator<T>::intContainer intContainer;
+
 public:
     /// Default empty constructor
     virtual ~gsThinShellAssemblerBase() {};
@@ -579,24 +612,28 @@ public:
     /// Compute the principal stretches in \a points given a \a deformed geometry. Optionally, the stretches can be computed on through-thickness coordinate \a z
     virtual gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsFunctionSet<T> & deformed, const T z=0) = 0;
 
+    /// Returns the gsDofMapper
+    virtual   gsDofMapper getMapper() = 0;
 
+    /// Returns the C1 error over the interface
+    virtual T interfaceErrorC0(const gsFunctionSet<T> & deformed) = 0;
+    virtual T interfaceErrorC0(const gsFunctionSet<T> & deformed, const intContainer & iFaces) = 0;
 
+    /// Returns the G1 error over the interface
+    virtual T interfaceErrorG1(const gsFunctionSet<T> & deformed) = 0;
+    virtual T interfaceErrorG1(const gsFunctionSet<T> & deformed, const intContainer & iFaces) = 0;
 
-    // Pascal
-virtual   gsDofMapper getMapper() = 0;
+    /// Returns the normal vector error over the interface
+    virtual T interfaceErrorNormal(const gsFunctionSet<T> & deformed) = 0;
+    virtual T interfaceErrorNormal(const gsFunctionSet<T> & deformed, const intContainer & iFaces) = 0;
 
+    /// Returns the Gaussian curvature error over the interface
+    virtual T interfaceErrorGaussCurvature(const gsFunctionSet<T> & deformed) = 0;
+    virtual T interfaceErrorGaussCurvature(const gsFunctionSet<T> & deformed, const intContainer & iFaces) = 0;
 
-
-
-
-
-
-
-
-
-
-
-
+    /// Returns the mean curvature error over the interface
+    virtual T interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed) = 0;
+    virtual T interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed, const intContainer & iFaces) = 0;
 
     /// Projects function \a fun on the basis and geometry stored in the class and returns the coefficients in \a result
     virtual void projectL2_into(const gsFunction<T> &fun, gsMatrix<T> & result) = 0;
