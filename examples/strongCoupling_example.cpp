@@ -107,18 +107,41 @@ int main(int argc, char *argv[])
 
     // Loads
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
-    gsMatrix<> points,indices,loads;
-    gsInfo<<"Reading point load locations from "<<fn2<<" (ID=30) ...";
-    fd.getId(30,points);
-    gsInfo<<"Finished\n";
-    gsInfo<<"Reading point loads from "<<fn2<<" (ID=31) ...";
-    fd.getId(31,indices);
-    gsInfo<<"Finished\n";
-    gsInfo<<"Reading point loads from "<<fn2<<" (ID=32) ...";
-    fd.getId(32,loads);
-    gsInfo<<"Finished\n";
+    gsMatrix<> points,loads;
+    gsMatrix<index_t> pid_ploads;
+    if ( fd.hasId(30) )
+        fd.getId(30,points);
+    if ( fd.hasId(31) )
+        fd.getId(31,loads);
+
+    if ( fd.hasId(32) )
+        fd.getId(32,pid_ploads);
+    else
+        pid_ploads = gsMatrix<index_t>::Zero(1,points.cols());
+
     for (index_t k =0; k!=points.cols(); k++)
-        pLoads.addLoad(points.col(k), loads.col(k), indices(0,k) ); // in parametric domain!
+        pLoads.addLoad(points.col(k), loads.col(k), pid_ploads.at(k) ); // in parametric domain!
+
+    gsInfo<<pLoads;
+
+    // Reference points
+    gsMatrix<index_t> refPatches;
+    gsMatrix<> refPoints, refValue; // todo: add refValue..
+    gsInfo<<"Reading reference point locations from "<<fn2<<" (ID=50) ...";
+    if ( fd.hasId(50) )
+        fd.getId(50,refPoints);
+    gsInfo<<"Finished\n";
+    gsInfo<<"Reading reference patches from "<<fn2<<" (ID=51) ...";
+    if ( fd.hasId(51) )
+        fd.getId(51,refPatches);
+    gsInfo<<"Finished\n";
+    gsInfo<<"Reading reference values from "<<fn2<<" (ID=52) ...";
+    if ( fd.hasId(52) )
+        fd.getId(52,refValue);
+    else
+        refValue = gsMatrix<>::Zero(mp.geoDim(),refPoints.cols());
+    gsInfo<<"Finished\n";
+    GISMO_ENSURE(refPatches.cols()==refPoints.cols(),"Number of reference points and patches do not match");
 
     // Material properties
     gsFunctionExpr<> t,E,nu,rho;
@@ -185,7 +208,15 @@ int main(int argc, char *argv[])
     gsMultiBasis<> dbasis(mp);
     gsWriteParaview(mp.basis(0),"basis",1000);
 
-    if (smoothing==0)
+    if (smoothing==-1)
+    {
+        // identity map
+        global2local.resize(dbasis.totalSize(),dbasis.totalSize());
+        for (index_t k=0; k!=dbasis.totalSize(); ++k)
+            global2local.coeffRef(k,k) = 1;
+        geom = mp;
+    }
+    else if (smoothing==0)
     {
         gsMPBESSpline<2,real_t> cgeom(mp,3);
         gsMappedBasis<2,real_t> basis = cgeom.getMappedBasis();
@@ -340,23 +371,64 @@ int main(int argc, char *argv[])
 
     // ! [Solver loop]
 
+    /// Make a gsMappedSpline to represent the solution
+    // 1. Get all the coefficients (including the ones from the eliminated BCs.)
+    gsMatrix<real_t> solFull = assembler.fullSolutionVector(solVector);
+
+    // 2. Reshape all the coefficients to a Nx3 matrix
+    GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
+    solFull.resize(solFull.rows()/3,3);
+
+    // 3. Make the mapped spline
+    gsMappedSpline<2,real_t> mspline(bb2,solFull);
+
+    gsFunctionSum<real_t> def(&mp,&mspline);
+
+    gsField<> solField(geom, mspline,true);
+
+    if (refPoints.cols()!=0)
+    {
+
+        gsMatrix<> ppoints(3,1), result;
+        ppoints<<0.5,0,0.25;
+        mp.patch(refPatches(0,0)).invertPoints(ppoints,result);
+        gsDebugVar(result);
+
+
+        gsMatrix<> refs(1,mp.geoDim()*refPoints.cols());
+        for (index_t p=0; p!=refPoints.cols(); p++)
+            refs.block(0,p*mp.geoDim(),1,mp.geoDim()) = mp.piece(refPatches(0,p)).eval(refPoints.col(p)).transpose();
+        gsInfo<<"Reference point coordinates\n";
+        for (index_t p=0; p!=refPoints.cols(); ++p)
+            gsInfo<<"x"<<std::to_string(p)<<"\ty"<<std::to_string(p)<<"\tz"<<std::to_string(p)<<"\t";
+        gsInfo<<"\n";
+        for (index_t p=0; p!=refPoints.cols(); ++p)
+            gsInfo<<refs(0,mp.geoDim()*p)<<"\t"<<refs(0,mp.geoDim()*p+1)<<"\t"<<refs(0,mp.geoDim()*p+2)<<"\t";
+        gsInfo<<"\n";
+
+        for (index_t p=0; p!=refPoints.cols(); p++)
+            refs.block(0,p*mp.geoDim(),1,mp.geoDim()) = solField.value(refPoints.col(p),refPatches(0,p)).transpose();
+        gsInfo<<"Computed values\n";
+        for (index_t p=0; p!=refPoints.cols(); ++p)
+            gsInfo<<"x"<<std::to_string(p)<<"\ty"<<std::to_string(p)<<"\tz"<<std::to_string(p)<<"\t";
+        gsInfo<<"\n";
+        for (index_t p=0; p!=refPoints.cols(); ++p)
+            gsInfo<<refs(0,mp.geoDim()*p)<<"\t"<<refs(0,mp.geoDim()*p+1)<<"\t"<<refs(0,mp.geoDim()*p+2)<<"\t";
+        gsInfo<<"\n";
+
+        gsInfo<<"Reference values\n"; // provided as mp.geoDim() x points.cols() matrix
+        for (index_t p=0; p!=refValue.cols(); ++p)
+            gsInfo<<"x"<<std::to_string(p)<<"\ty"<<std::to_string(p)<<"\tz"<<std::to_string(p)<<"\t";
+        gsInfo<<"\n";
+        for (index_t p=0; p!=refValue.cols(); ++p)
+            for (index_t d=0; d!=mp.geoDim(); d++)
+                gsInfo<<refValue(d,p)<<"\t";
+        gsInfo<<"\n";
+    }
 
     //! [Export visualization in ParaView]
     if (plot)
     {
-        /// Make a gsMappedSpline to represent the solution
-        // 1. Get all the coefficients (including the ones from the eliminated BCs.)
-        gsMatrix<real_t> solFull = assembler.fullSolutionVector(solVector);
-
-        // 2. Reshape all the coefficients to a Nx3 matrix
-        GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
-        solFull.resize(solFull.rows()/3,3);
-
-        // 3. Make the mapped spline
-        gsMappedSpline<2,real_t> mspline(bb2,solFull);
-
-        gsFunctionSum<real_t> def(&mp,&mspline);
-
         // 4. Plot the mapped spline on the original geometry
         gsField<> solField(geom, mspline,true);
         gsInfo<<"Plotting in Paraview...\n";
