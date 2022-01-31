@@ -287,7 +287,15 @@ public:
     const gsMatrix<T>       & rhs()         const {return m_rhs.size()==0 ? m_assembler.rhs() : m_rhs;}
     // const gsMatrix<T>       & rhs()     const {return m_assembler.rhs();}
 
-    //--------------------- SOLUTION CONSTRUCTION ----------------------------------//
+    //--------------------- INTERFACE HANDLING -----------------------------//
+    void addStrongC0(const gsBoxTopology::ifContainer & interfaces);
+    void addStrongC1(const gsBoxTopology::ifContainer & interfaces);
+    void addWeakC0(const gsBoxTopology::ifContainer & interfaces);
+    void addWeakC1(const gsBoxTopology::ifContainer & interfaces);
+    void addUncoupled(const gsBoxTopology::ifContainer & interfaces);
+    void initInterfaces();
+
+    //--------------------- SOLUTION CONSTRUCTION --------------------------//
     gsMultiPatch<T> constructMultiPatch(const gsMatrix<T> & solVector) const;
 
     /// See \ref gsThinShellAssemblerBase for details
@@ -362,6 +370,9 @@ protected:
 
     void _applyLoads();
     void _applyMass();
+
+    void _ifcTest(const T tol = 1e-2);
+    bool _isInPlane(const boundaryInterface & ifc, const T tol = 1e-2);
 
 private:
     template<int _d>
@@ -528,9 +539,10 @@ protected:
 
     mutable index_t m_continuity;
 
-    mutable T m_alpha_d,m_alpha_r;
+    mutable T m_alpha_d_bc,m_alpha_r_bc,m_alpha_d_ifc,m_alpha_r_ifc;
+    mutable index_t m_IfcDefault;
 
-    mutable ifContainer m_strongC0, m_weakC0, m_strongC1, m_weakC1;
+    mutable ifContainer m_inPlane, m_outPlane, m_uncoupled, m_strongC0, m_weakC0, m_strongC1, m_weakC1, m_unassigned;
 
 };
 
@@ -714,6 +726,14 @@ public:
 
     /// Returns a reference to the right-hand side vector that is assembled
     virtual const gsMatrix<T>       & rhs()     const  = 0;
+
+    //--------------------- INTERFACE HANDLING -----------------------------//
+    virtual addStrongC0(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual addStrongC1(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual addWeakC0(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual addWeakC1(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual addUncoupled(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual initInterfaces() = 0;
 
     /// Construct solution field from computed solution vector \a solVector and returns a multipatch
     virtual gsMultiPatch<T> constructMultiPatch(const gsMatrix<T> & solVector) const = 0;

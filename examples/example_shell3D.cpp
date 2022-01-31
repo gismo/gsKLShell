@@ -390,7 +390,7 @@ int main(int argc, char *argv[])
     else
         assembler = new gsThinShellAssembler<3, real_t, true >(mp,dbasis,bc,force,materialMatrix);
 
-    assembler->options().setReal("WeakClamped",0);
+    assembler->options().setReal("IfcClamped",1e0);
 
     assembler->setPointLoads(pLoads);
     if (pressure!= 0.0)
