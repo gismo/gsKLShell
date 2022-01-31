@@ -5,7 +5,7 @@
   <!-- Thickness -->
   <Function type="FunctionExpr" id="10" tag="Material" dim="3">0.01</Function>
   <!-- E modulus -->
-  <Function type="FunctionExpr" id="11" tag="Material" dim="3">2e11</Function>
+  <Function type="FunctionExpr" id="11" tag="Material" dim="3">2*10^11</Function>
   <!-- Poisson ratio -->
   <Function type="FunctionExpr" id="12" tag="Material" dim="3">0.3</Function>
   <!-- Density -->
@@ -79,11 +79,11 @@
 
 <!-- Reference point coordinates -->
 <Matrix rows="2" cols="1" id="50" >
-  0.5 0.0
+  0.90909091 0
 </Matrix>
 <!-- Reference point patch indices -->
 <Matrix rows="1" cols="1" id="51" >
-  0
+  1
 </Matrix>
 <!-- Reference values -->
 <Matrix rows="3" cols="1" id="52" >
