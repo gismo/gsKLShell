@@ -77,6 +77,34 @@ int main(int argc, char *argv[])
         PoissonRatio = 0.3;
         gsReadFile<>("surface/pinched_cylinder.xml", mp);
     }
+    else if (testCase == 4)
+    {
+        thickness = 1;
+        E_modulus = 1;
+        PoissonRatio = 0.0;
+
+        // MULTIPATCH CASE plate
+        gsReadFile<>("planar/two_squares.xml", mp);
+        mp.embed(3);
+    }
+    else if (testCase == 5)
+    {
+        thickness = 1;
+        E_modulus = 1;
+        PoissonRatio = 0.0;
+
+        // MULTIPATCH CASE plate
+        gsReadFile<>("multipatches/T-beam.xml", mp);
+    }
+    else if (testCase == 6)
+    {
+        thickness = 1;
+        E_modulus = 1;
+        PoissonRatio = 0.0;
+
+        // MULTIPATCH CASE plate
+        gsReadFile<>("multipatches/I-beam.xml", mp);
+    }
     else
     {
         // Unit square
@@ -110,9 +138,11 @@ int main(int argc, char *argv[])
     //! [Set boundary conditions]
     gsBoundaryConditions<> bc;
     bc.setGeoMap(mp);
+
+    gsPiecewiseFunction<> force(mp.nPatches());
+
     gsVector<> tmp(3);
     tmp << 0, 0, 0;
-
     gsVector<> neu(3);
     neu << 0, 0, 0;
 
@@ -126,6 +156,7 @@ int main(int argc, char *argv[])
     real_t pressure = 0.0;
 
     gsVector<> refPoint(2);
+    real_t refPatch = 0;
     if (testCase == 0)
     {
         for (index_t i=0; i!=3; ++i)
@@ -136,10 +167,11 @@ int main(int argc, char *argv[])
             bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0 ,false,i);
         }
 
-        pressure = -1;
         refPoint<<0.5,0.5;
-        // tmp << 0,0,-1;
+        tmp << 0,0,-1;
 
+        gsConstantFunction<> piece0(tmp,3);
+        force.addPiece(piece0);
     }
     else if (testCase == 1)
     {
@@ -153,7 +185,9 @@ int main(int argc, char *argv[])
         bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0 ,false, 2 );
 
         // Surface forces
-        tmp << 0, 0, -90;
+        gsConstantFunction<> piece0(tmp,3);
+        force.addPiece(piece0);
+
         refPoint<<0.5,1;
     }
     else if (testCase == 2)
@@ -173,7 +207,8 @@ int main(int argc, char *argv[])
         bc.addCondition(boundary::west, condition_type::clamped, 0, 0, false, 2 );
 
         // Surface forces
-        tmp.setZero();
+        gsConstantFunction<> piece0(tmp,3);
+        force.addPiece(piece0);
 
         // Point loads
         gsVector<> point(2);
@@ -208,12 +243,91 @@ int main(int argc, char *argv[])
 
         // Surface forces
         tmp.setZero();
+        gsConstantFunction<> piece0(tmp,3);
+        force.addPiece(piece0);
 
         // Point loads
         gsVector<> point(2); point<< 1.0, 1.0 ;
         gsVector<> load (3); load << 0.0, 0.0, -0.25 ;
         pLoads.addLoad(point, load, 0 );
 
+        refPoint = point;
+    }
+    else if (testCase == 4)
+    {
+        for (index_t d = 0; d!=3; d++)
+        {
+            bc.addCondition(0, boundary::east, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(1, boundary::west, condition_type::dirichlet, 0, 0, false, d);
+
+            bc.addCondition(0, boundary::south, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(0, boundary::north, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(1, boundary::south, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(1, boundary::north, condition_type::dirichlet, 0, 0, false, d);
+        }
+
+        // Surface forces
+        tmp << 0,0,-1;
+        gsConstantFunction<> piece0(tmp,3);
+        force.addPiece(piece0);
+        tmp << 0,0,-1;
+        gsConstantFunction<> piece1(tmp,3);
+        force.addPiece(piece1);
+
+        // Point loads
+        gsVector<> point(2); point<< 0.0, 0.5 ;
+        refPoint = point;
+    }
+    else if (testCase == 5)
+    {
+        for (index_t d = 0; d!=3; d++)
+            for (size_t p=0; p!=mp.nPatches(); ++p)
+                bc.addCondition(p, boundary::east, condition_type::dirichlet, 0, 0, false, d);
+        for (size_t p=0; p!=mp.nPatches(); ++p)
+            bc.addCondition(p, boundary::east, condition_type::clamped, 0, 0, false, 2);
+
+
+        // Surface forces
+        tmp << 0,0,0;
+        gsConstantFunction<> piece0(tmp,3);
+        force.addPiece(piece0);
+        tmp << 0,0,-1e-3;
+        gsConstantFunction<> piece1(tmp,3);
+        force.addPiece(piece1);
+        tmp << 0,0,-1e-1;
+        gsConstantFunction<> piece2(tmp,3);
+        force.addPiece(piece2);
+
+        // Point loads
+        gsVector<> point(2); point<< 1.0, 1.0 ;
+        refPoint = point;
+    }
+    else if (testCase == 6)
+    {
+        for (index_t d = 0; d!=3; d++)
+            for (size_t p=0; p!=mp.nPatches(); ++p)
+                bc.addCondition(p, boundary::east, condition_type::dirichlet, 0, 0, false, d);
+        for (size_t p=0; p!=mp.nPatches(); ++p)
+            bc.addCondition(p, boundary::east, condition_type::clamped, 0, 0, false, 2);
+
+        // Point loads
+        tmp << 0,0,0;
+        gsConstantFunction<> piece0(tmp,3);
+        force.addPiece(piece0);
+        tmp << 0,0,-1e-3;
+        gsConstantFunction<> piece1(tmp,3);
+        force.addPiece(piece1);
+        tmp << 0,0,-1e-3;
+        gsConstantFunction<> piece2(tmp,3);
+        force.addPiece(piece2);
+        tmp << 0,0,0;
+        gsConstantFunction<> piece3(tmp,3);
+        force.addPiece(piece3);
+        tmp << 0,0,0;
+        gsConstantFunction<> piece4(tmp,3);
+        force.addPiece(piece4);
+
+        gsVector<> point(2); point<< 1.0, 1.0 ;
         refPoint = point;
     }
     else
@@ -223,7 +337,6 @@ int main(int argc, char *argv[])
 
     //! [Make material functions]
     // Linear isotropic material model
-    gsConstantFunction<> force(tmp,3);
     gsConstantFunction<> pressFun(pressure,3);
     gsFunctionExpr<> t(std::to_string(thickness), 3);
     gsFunctionExpr<> E(std::to_string(E_modulus),3);
@@ -277,6 +390,8 @@ int main(int argc, char *argv[])
     else
         assembler = new gsThinShellAssembler<3, real_t, true >(mp,dbasis,bc,force,materialMatrix);
 
+    assembler->options().setReal("WeakClamped",0);
+
     assembler->setPointLoads(pLoads);
     if (pressure!= 0.0)
         assembler->setPressure(pressFun);
@@ -320,6 +435,9 @@ int main(int argc, char *argv[])
     gsSparseMatrix<> matrix = assembler->matrix();
     gsVector<> vector = assembler->rhs();
     //! [Assemble linear part]
+
+    gsDebugVar(assembler->matrix().toDense());
+    gsDebugVar(assembler->rhs().transpose());
 
     //! [Solve linear problem]
     gsVector<> solVector;
@@ -373,14 +491,15 @@ int main(int argc, char *argv[])
 
 
     //! [Construct and evaluate solution]
-    gsVector<> refVals = deformation.patch(0).eval(refPoint);
-    real_t numVal;
-    if      (testCase == 0 || testCase == 1 || testCase == 3)
-        numVal = refVals.at(2);
-    else
-        numVal = refVals.at(1);
+    gsVector<> refVals = deformation.patch(refPatch).eval(refPoint);
+    // real_t numVal;
+    // if      (testCase == 0 || testCase == 1 || testCase == 3)
+    //     numVal = refVals.at(2);
+    // else
+    //     numVal = refVals.at(1);
 
-    gsInfo << "Displacement at reference point: "<<numVal<<"\n";
+    // gsInfo << "Displacement at reference point: "<<numVal<<"\n";
+    gsInfo << "Displacement at reference point: "<<refVals<<"\n";
     //! [Construct and evaluate solution]
 
     // ! [Export visualization in ParaView]

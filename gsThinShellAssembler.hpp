@@ -212,7 +212,6 @@ template <short_t d, class T, bool bending>
 template <bool matrix>
 void gsThinShellAssembler<d, T, bending>::_assemblePressure()
 {
-    gsWarn<<"Weak boundary conditions are currently disabled.\n";
     this->_getOptions();
     _assemblePressure_impl<d,matrix>();
 }
@@ -319,7 +318,6 @@ template <short_t d, class T, bool bending>
 template <bool matrix>
 void gsThinShellAssembler<d, T, bending>::_assembleFoundation()
 {
-    gsWarn<<"Weak boundary conditions are currently disabled.\n";
     this->_getOptions();
     _assembleFoundation_impl<d,matrix>();
 }
@@ -436,7 +434,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    auto g_N = m_assembler.getBdrFunction(m_ori);
+    // auto g_N = m_assembler.getBdrFunction(m_ori);
 
     // Weak BCs
     m_assembler.assembleBdr
@@ -487,7 +485,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    auto g_N = m_assembler.getBdrFunction(m_ori);
+    // auto g_N = m_assembler.getBdrFunction(m_ori);
 
     // Weak BCs
     m_assembler.assembleBdr
@@ -535,7 +533,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     geometryMap m_def   = m_assembler.getMap(deformed);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    auto g_N = m_assembler.getBdrFunction(m_ori);
+    // auto g_N = m_assembler.getBdrFunction(m_ori);
     auto du  = m_def - m_ori;
     auto dnN = ( usn(m_def).tr()*unv(m_ori) - usn(m_ori).tr()*unv(m_ori) ).val();
 
@@ -553,7 +551,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
         m_bcs.get("Weak Clamped")
         ,
         (
-            m_alpha_r * dnN * ( var2(m_space,m_space,m_def,unv(m_ori).tr()) )
+            m_alpha_r * dnN * ( var2deriv2(m_space,m_space,m_def,unv(m_ori).tr()) )
             +
             m_alpha_r * ( ( var1(m_space,m_def) * unv(m_ori) ) * ( var1(m_space,m_def) * unv(m_ori) ).tr() )
         ) * tv(m_ori).norm()
@@ -598,10 +596,10 @@ typename std::enable_if<!(_d==3) && matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
-    geometryMap m_def   = m_assembler.getMap(deformed);
+    // geometryMap m_def   = m_assembler.getMap(deformed);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    auto g_N = m_assembler.getBdrFunction(m_ori);
+    // auto g_N = m_assembler.getBdrFunction(m_ori);
 
     // Weak BCs
     m_assembler.assembleBdr
@@ -650,9 +648,58 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
-    /*
-     To do
-     */
+    // C^0 coupling
+    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+                     m_alpha_d * m_space.left() * m_space.left().tr()
+                    ,
+                    -m_alpha_d * m_space.right()* m_space.left() .tr()
+                    ,
+                    -m_alpha_d * m_space.left() * m_space.right().tr()
+                    ,
+                     m_alpha_d * m_space.right()* m_space.right().tr()
+                     );
+
+    // C^1 coupling
+    // Penalty of out-of-plane coupling
+    // dW^pr / du_r --> second line
+    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+                     m_alpha_r * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr()    // left left
+                    ,
+                     m_alpha_r * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr()   // left right
+                    ,
+                     m_alpha_r * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr()   // right left
+                    ,
+                     m_alpha_r * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr()  // right right
+                    ,
+                    // Symmetry
+                     m_alpha_r * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr()    // right right
+                    ,
+                     m_alpha_r * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr()   // right left
+                    ,
+                     m_alpha_r * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr()   // left right
+                    ,
+                     m_alpha_r * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr()  // left left
+                     );
+
+    // Penalty of in-plane coupling
+    // dW^pr / du_r --> fourth line
+    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+                     m_alpha_r * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ) * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ).tr() // left left
+                    + // Symmetry
+                     m_alpha_r * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ) * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ).tr() // left left
+                    ,
+                     m_alpha_r * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ) * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ).tr() // left right
+                    + // Symmetry
+                     m_alpha_r * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ) * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ).tr() // left right
+                    ,
+                     m_alpha_r * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ) * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ).tr() // right left
+                    + // Symmetry
+                     m_alpha_r * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ) * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ).tr() // right left
+                    ,
+                     m_alpha_r * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ) * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ).tr() // right right
+                    + // Symmetry
+                     m_alpha_r * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ) * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ).tr() // right right
+                     );
 
 }
 
@@ -661,14 +708,9 @@ template<int _d, bool matrix>
 typename std::enable_if<_d==3 && !matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 {
-    geometryMap m_ori   = m_assembler.getMap(m_patches);
-
-    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-
-    /*
-     To do
-     */
-
+/*
+    empty
+ */
 }
 
 template <short_t d, class T, bool bending>
@@ -676,13 +718,20 @@ template<int _d, bool matrix>
 typename std::enable_if<!(_d==3) && matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 {
-    geometryMap m_ori   = m_assembler.getMap(m_patches);
-
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
-    /*
-     To do
-     */
+    // C^0 coupling
+    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+                     m_alpha_d * m_space.left() * m_space.left().tr()
+                    ,
+                    -m_alpha_d * m_space.right()* m_space.left() .tr()
+                    ,
+                    -m_alpha_d * m_space.left() * m_space.right().tr()
+                    ,
+                     m_alpha_d * m_space.right()* m_space.right().tr()
+                     );
+
+    // C^1 coupling DOES NOT CONTRIBUTE IN 2D PROBLEMS
 }
 
 template <short_t d, class T, bool bending>
@@ -690,13 +739,9 @@ template<int _d, bool matrix>
 typename std::enable_if<!(_d==3) && !matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 {
-    geometryMap m_ori   = m_assembler.getMap(m_patches);
-
-    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-
-    /*
-     To do
-     */
+/*
+    empty
+ */
 }
 
 template <short_t d, class T, bool bending>
@@ -718,9 +763,113 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
-   /*
-    To do
-    */
+    auto du = ((m_def.left()-m_ori.left()) - (m_def.right()-m_ori.right()));
+
+    auto dN_lr = (usn(m_def.left()).tr()*usn(m_def.right())
+                    - usn(m_ori.left()).tr()*usn(m_ori.right())).val();
+
+    auto dN_rl = (usn(m_def.right()).tr()*usn(m_def.left())
+                    - usn(m_ori.right()).tr()*usn(m_ori.left())).val();
+
+    auto dnN_lr= (unv(m_def.left()).tr()*usn(m_def.right())
+                    - unv(m_ori.left()).tr()*usn(m_ori.right())).val();
+
+    auto dnN_rl= (unv(m_def.right()).tr()*usn(m_def.left())
+                    - unv(m_ori.right()).tr()*usn(m_ori.left())).val();
+
+    // C^0 coupling
+    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+                     m_alpha_d * m_space.left() * m_space.left().tr()
+                    ,
+                    -m_alpha_d * m_space.right()* m_space.left() .tr()
+                    ,
+                    -m_alpha_d * m_space.left() * m_space.right().tr()
+                    ,
+                     m_alpha_d * m_space.right()* m_space.right().tr()
+                     );
+
+    // C^1 coupling
+    // Penalty of out-of-plane coupling
+    // dW^pr / du_r --> first line
+    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+                     m_alpha_r * dN_lr * var2(m_space.left() ,m_space.left() ,m_def.left() ,usn(m_def.right()).tr() )      // left left
+                    ,
+                     m_alpha_r * dN_lr * ( var1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() )// left right
+                    ,
+                     m_alpha_r * dN_lr * ( var1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() )// right left
+                    ,
+                     m_alpha_r * dN_lr * var2( m_space.right(),m_space.right(),m_def.right(),usn(m_def.left() ).tr() )     // right right
+                    ,
+                    // Symmetry
+                     m_alpha_r * dN_rl * var2(m_space.right() ,m_space.right() ,m_def.right() ,usn(m_def.left()).tr() )      // right right
+                    ,
+                     m_alpha_r * dN_rl * ( var1(m_space.right() ,m_def.right() ) * var1(m_space.left(),m_def.left()).tr() )// right left
+                    ,
+                     m_alpha_r * dN_rl * ( var1(m_space.left(),m_def.left()) * var1(m_space.right() ,m_def.right() ).tr() )// left right
+                    ,
+                     m_alpha_r * dN_rl * var2( m_space.left(),m_space.left(),m_def.left(),usn(m_def.right() ).tr() )     // left left
+                     );
+
+    // Penalty of out-of-plane coupling
+    // dW^pr / du_r --> second line
+    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+                     m_alpha_r * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr()    // left left
+                    ,
+                     m_alpha_r * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr()   // left right
+                    ,
+                     m_alpha_r * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr()   // right left
+                    ,
+                     m_alpha_r * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr()  // right right
+                    ,
+                    // Symmetry
+                     m_alpha_r * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr()    // right right
+                    ,
+                     m_alpha_r * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr()   // right left
+                    ,
+                     m_alpha_r * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr()   // left right
+                    ,
+                     m_alpha_r * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr()  // left left
+                     );
+
+    // Penalty of in-plane coupling
+    // dW^pr / du_r --> third line
+    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+                     m_alpha_r * dnN_lr * ovar2(m_space.left(),m_space.left(),m_def.left(),usn(m_def.right()).tr()) // left left
+                    + // Symmetry
+                     m_alpha_r * dnN_rl * ovar2(m_space.left(),m_space.left(),m_def.left(),usn(m_def.right()).tr()) // left left
+                    ,
+                     m_alpha_r * dnN_lr * ( ovar1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() ) // left right
+                    + // Symmetry
+                     m_alpha_r * dnN_rl * ( ovar1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() ) // right left
+                    ,
+                     m_alpha_r * dnN_lr * ( ovar1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() ) // right left
+                    + // Symmetry
+                     m_alpha_r * dnN_rl * ( ovar1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() ) // right left
+                    ,
+                     m_alpha_r * dnN_lr * ovar2(m_space.right(),m_space.right(),m_def.right(),usn(m_def.left()).tr()) // right right
+                    + // Symmetry
+                     m_alpha_r * dnN_rl * ovar2(m_space.right(),m_space.right(),m_def.right(),usn(m_def.left()).tr()) // right right
+                     );
+
+    // Penalty of in-plane coupling
+    // dW^pr / du_r --> fourth line
+    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+                     m_alpha_r * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ) * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ).tr() // left left
+                    + // Symmetry
+                     m_alpha_r * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ) * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ).tr() // left left
+                    ,
+                     m_alpha_r * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ) * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ).tr() // left right
+                    + // Symmetry
+                     m_alpha_r * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ) * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ).tr() // left right
+                    ,
+                     m_alpha_r * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ) * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ).tr() // right left
+                    + // Symmetry
+                     m_alpha_r * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ) * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ).tr() // right left
+                    ,
+                     m_alpha_r * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ) * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ).tr() // right right
+                    + // Symmetry
+                     m_alpha_r * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ) * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ).tr() // right right
+                     );
 }
 
 template <short_t d, class T, bool bending>
@@ -733,9 +882,52 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
-   /*
-    To do
-    */
+    auto du = ((m_def.left()-m_ori.left()) - (m_def.right()-m_ori.right()));
+
+    auto dN_lr = (usn(m_def.left()).tr()*usn(m_def.right())
+                    - usn(m_ori.left()).tr()*usn(m_ori.right())).val();
+
+    auto dN_rl = (usn(m_def.right()).tr()*usn(m_def.left())
+                    - usn(m_ori.right()).tr()*usn(m_ori.left())).val();
+
+    auto dnN_lr= (unv(m_def.left()).tr()*usn(m_def.right())
+                    - unv(m_ori.left()).tr()*usn(m_ori.right())).val();
+
+    auto dnN_rl= (unv(m_def.right()).tr()*usn(m_def.left())
+                    - unv(m_ori.right()).tr()*usn(m_ori.left())).val();
+
+    // C^0 coupling
+    // TODO: change m_patches.topology().interfaces() to a dedicated container
+    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+                    -m_alpha_d * m_space.left() * du
+                    ,
+                     m_alpha_d * m_space.right()* du
+                     );
+
+   // C^1 coupling
+    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+                    -m_alpha_r * dN_lr * var1(m_space.left(),m_def.left())   * usn(m_def.right())
+                    ,
+                    -m_alpha_r * dN_lr * var1(m_space.right(),m_def.right()) * usn(m_def.left() )
+                    ,
+                    // Symmetry
+                    -m_alpha_r * dN_rl * var1(m_space.right(),m_def.right())   * usn(m_def.left())
+                    ,
+                    -m_alpha_r * dN_rl * var1(m_space.left(),m_def.left()) * usn(m_def.right() )
+                     );
+
+    // Penalty of in-plane coupling
+    // dW^pr / du_r --> second line
+    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+                    -m_alpha_r * dnN_lr* ovar1(m_space.left(),m_def.left())  * usn(m_def.right())
+                    ,
+                    -m_alpha_r * dnN_lr* var1(m_space.right(),m_def.right()) * unv(m_def.left() )
+                    ,
+                    // Symmetry
+                    -m_alpha_r * dnN_rl* ovar1(m_space.right(),m_def.right())  * usn(m_def.left())
+                    ,
+                    -m_alpha_r * dnN_rl* var1(m_space.left(),m_def.left()) * unv(m_def.right() )
+                     );
 }
 
 template <short_t d, class T, bool bending>
@@ -748,9 +940,20 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
-    /*
-     To do
-     */
+    auto du = ((m_def.left()-m_ori.left()) - (m_def.right()-m_ori.right()));
+
+    // C^0 coupling
+    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+                     m_alpha_d * m_space.left() * m_space.left().tr()
+                    ,
+                    -m_alpha_d * m_space.right()* m_space.left() .tr()
+                    ,
+                    -m_alpha_d * m_space.left() * m_space.right().tr()
+                    ,
+                     m_alpha_d * m_space.right()* m_space.right().tr()
+                     );
+
+    // C^1 coupling DOES NOT CONTRIBUTE IN 2D PROBLEMS
 }
 
 template <short_t d, class T, bool bending>
@@ -763,9 +966,16 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
-    /*
-     To do
-     */
+     auto du = ((m_def.left()-m_ori.left()) - (m_def.right()-m_ori.right()));
+
+    // C^0 coupling
+     m_assembler.assembleIfc(m_patches.topology().interfaces(),
+                      m_alpha_d * m_space.left() * du
+                     ,
+                     -m_alpha_d * m_space.right()* du
+                      );
+
+    // C^1 coupling DOES NOT CONTRIBUTE IN 2D PROBLEMS
 }
 
 template <short_t d, class T, bool bending>
@@ -1016,6 +1226,8 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
 
     this->_assembleWeakBCs<true>();
     this->_assembleWeakBCs<false>();
+    this->_assembleWeakIfc<true>();
+    this->_assembleWeakIfc<false>();
     this->_assembleNeumann();
 
     // Assemble the loads
@@ -1069,6 +1281,8 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
 
     this->_assembleWeakBCs<true>();
     this->_assembleWeakBCs<false>();
+    this->_assembleWeakIfc<true>();
+    this->_assembleWeakIfc<false>();
     this->_assembleNeumann();
 
     // Assemble the loads
@@ -1133,7 +1347,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     auto m_M        = S1.tr(); // output is a column
     auto m_Ef_der   = -( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
     auto m_Ef_der2  = -(flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_M  ).symmetrize()
-                            + var2(m_space,m_space,m_def, m_M ));
+                            + var2deriv2(m_space,m_space,m_def, m_M ));
 
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
@@ -1155,6 +1369,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
         );
 
     this->_assembleWeakBCs<true>(deformed);
+    this->_assembleWeakIfc<true>(deformed);
 }
 
 template<int d, typename T, bool bending>
@@ -1201,6 +1416,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
         );
 
     this->_assembleWeakBCs<true>(deformed);
+    this->_assembleWeakIfc<true>(deformed);
 }
 
 template <short_t d, class T, bool bending>
@@ -1282,7 +1498,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     auto m_M        = S1.tr() + m_M_c; // output is a column
     auto m_Ef_der   = -( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
     auto m_Ef_der2  = -(flatdot2( deriv2(m_space), var1(m_space,m_def).tr(), m_M ).symmetrize()
-                            + var2(m_space,m_space,m_def, m_M ));
+                            + var2deriv2(m_space,m_space,m_def, m_M ));
 
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
@@ -1312,6 +1528,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
             ) * meas(m_ori)
         );
     this->_assembleWeakBCs<true>(deformed);
+    this->_assembleWeakIfc<true>(deformed);
 }
 
 // template<int d, typename T, bool bending>
@@ -1385,6 +1602,7 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
                         );
 
     this->_assembleWeakBCs<false>(deformed);
+    this->_assembleWeakIfc<false>(deformed);
     this->_assembleNeumann();
 
     // Assemble the loads
@@ -1440,6 +1658,7 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
                 );
 
     this->_assembleWeakBCs<false>(deformed);
+    this->_assembleWeakIfc<false>(deformed);
     this->_assembleNeumann();
 
     // Assemble the loads
