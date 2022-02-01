@@ -13,14 +13,6 @@
         A. Mantzaflaris (2019-..., Inria)
 */
 
-/*
-    To Do [updated 16-06-2020]:
-    - Make beta (compressible materials) and material parameters universal for all integration points over the thickness. So get them out of the dPsi functions etc and move them into the integration loops as global variables.
-
-*/
-
-
-
 #pragma once
 
 #include <gsKLShell/gsMaterialMatrixEval.h>
@@ -28,11 +20,9 @@
 
 namespace gismo
 {
-
-// Linear material models
 template <class T, enum MaterialOutput out>
-gsMaterialMatrixEval<T,out>::gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * materialMatrix, //??
-                                                    const gsFunctionSet<T> & deformed,
+gsMaterialMatrixEval<T,out>::gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * materialMatrix,
+                                                    const gsFunctionSet<T> * deformed,
                                                     const gsMatrix<T> z
                                                    )
 :

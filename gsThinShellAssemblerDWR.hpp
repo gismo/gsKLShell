@@ -76,7 +76,7 @@ gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleMass(gsThinSh
 //     // Initialize stystem
 //     assembler.initSystem();
 
-//     gsMaterialMatrixIntegrate<T,MaterialOutput::Density> m_mm(m_materialMat,m_patches);
+//     gsMaterialMatrixIntegrate<T,MaterialOutput::Density> m_mm(m_materialMat,&m_patches);
 //     auto mm0 = assembler.getCoeff(m_mm);
 
 //     space       m_space = assembler.trialSpace(0);
@@ -93,7 +93,7 @@ gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleMass(gsThinSh
     // // Initialize stystem
     // m_assembler.initSystem();
 
-    // gsMaterialMatrixIntegrate<T,MaterialOutput::Density> m_mm(m_materialMat,m_patches);
+    // gsMaterialMatrixIntegrate<T,MaterialOutput::Density> m_mm(m_materialMat,&m_patches);
     // auto mm0 = m_assembler.getCoeff(m_mm);
 
     // space       m_space = m_assembler.trialSpace(0);
@@ -165,10 +165,9 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
     exprAssembler.cleanUp();
     exprAssembler.setOptions(assembler->options());
 
-    m_defpatches = deformed;
     // Geometries
     geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
-    geometryMap Gdef = exprAssembler.getMap(m_defpatches);
+    geometryMap Gdef = exprAssembler.getMap(deformed);
 
     // Initialize vector
     exprAssembler.initSystem();
@@ -183,40 +182,40 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
     auto usol   = exprAssembler.getCoeff(primal);
 
     // Transformation for stretches
-    gsMaterialMatrixEval<T,MaterialOutput::CovTransform>  Tcovf(m_assemblerL->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::CovTransform>  Tcovf(m_assemblerL->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),&deformed,Z);
     auto Tcov = exprAssembler.getCoeff(Tcovf);
     auto Tcon = exprAssembler.getCoeff(Tconf);
 
     // Material tensors at Z
-    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::MatrixD> mmDf(assembler->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixD> mmDf(assembler->material(),&deformed,Z);
     auto mmA = exprAssembler.getCoeff(mmAf);
     auto mmD = exprAssembler.getCoeff(mmDf);
 
     // Material tensors integrated
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAfi(assembler->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBfi(assembler->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCfi(assembler->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDfi(assembler->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAfi(assembler->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBfi(assembler->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCfi(assembler->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDfi(assembler->material(),&deformed);
     auto mmAi = exprAssembler.getCoeff(mmAfi);
     auto mmBi = exprAssembler.getCoeff(mmBfi);
     auto mmCi = exprAssembler.getCoeff(mmCfi);
     auto mmDi = exprAssembler.getCoeff(mmDfi);
 
     // Stress tensors
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),&deformed,Z);
     auto S0 = exprAssembler.getCoeff(S0f);
     auto S1 = exprAssembler.getCoeff(S1f);
 
     // Principal stress tensors
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_assemblerL->material(),&deformed,Z);
     auto P0  = exprAssembler.getCoeff(P0f);
 
     // Force and moment tensors
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> Mf(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> Mf(m_assemblerL->material(),&deformed);
     auto N = exprAssembler.getCoeff(Nf);
     auto M = exprAssembler.getCoeff(Mf);
 
@@ -467,10 +466,9 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
     exprAssembler.cleanUp();
     exprAssembler.setOptions(assembler->options());
 
-    m_defpatches = deformed;
     // Geometries
     geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
-    geometryMap Gdef = exprAssembler.getMap(m_defpatches);
+    geometryMap Gdef = exprAssembler.getMap(deformed);
 
     // Initialize vector
     exprAssembler.initSystem();
@@ -485,40 +483,40 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
     auto usol   = exprAssembler.getCoeff(primal);
 
     // Transformation for stretches
-    gsMaterialMatrixEval<T,MaterialOutput::CovTransform>  Tcovf(m_assemblerL->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::CovTransform>  Tcovf(m_assemblerL->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),&deformed,Z);
     auto Tcov = exprAssembler.getCoeff(Tcovf);
     auto Tcon = exprAssembler.getCoeff(Tconf);
 
     // Material tensors at Z
-    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::MatrixD> mmDf(assembler->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::MatrixD> mmDf(assembler->material(),&deformed,Z);
     auto mmA = exprAssembler.getCoeff(mmAf);
     auto mmD = exprAssembler.getCoeff(mmDf);
 
     // Material tensors integrated
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAfi(assembler->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBfi(assembler->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCfi(assembler->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDfi(assembler->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAfi(assembler->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBfi(assembler->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCfi(assembler->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDfi(assembler->material(),&deformed);
     auto mmAi = exprAssembler.getCoeff(mmAfi);
     auto mmBi = exprAssembler.getCoeff(mmBfi);
     auto mmCi = exprAssembler.getCoeff(mmCfi);
     auto mmDi = exprAssembler.getCoeff(mmDfi);
 
     // Stress tensors
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(assembler->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S1f(assembler->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(assembler->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S1f(assembler->material(),&deformed,Z);
     auto S0 = exprAssembler.getCoeff(S0f);
     auto S1 = exprAssembler.getCoeff(S1f);
 
     // Principal stress tensors
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(assembler->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(assembler->material(),&deformed,Z);
     auto P0  = exprAssembler.getCoeff(P0f);
 
     // Force and moment tensors
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> Mf(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> Mf(m_assemblerL->material(),&deformed);
     auto N = exprAssembler.getCoeff(Nf);
     auto M = exprAssembler.getCoeff(Mf);
 
@@ -1109,7 +1107,7 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatc
     auto zsolL  = exprAssembler.getCoeff(dualL);
     auto zsolH  = exprAssembler.getCoeff(dualH);
 
-    auto g_N = exprAssembler.getBdrFunction();
+    auto g_N = exprAssembler.getBdrFunction(Gori);
 
     auto expr = (zsolH-zsolL).tr() * F * meas(Gori);
     auto bexpr= (zsolH-zsolL).tr() * g_N * tv(Gori).norm();
@@ -1119,13 +1117,7 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatc
     T integral, bintegral;
     if (_elWise == 0)
     {
-        // Get neumann sides, put them in a container of patchSide s.
-        std::vector<patchSide> bContainer;
-        typename gsBoundaryConditions<T>::bcContainer bcContainer = m_bcs.neumannSides();
-        for (typename gsBoundaryConditions<T>::bcContainer::iterator it = bcContainer.begin(); it!=bcContainer.end(); ++it)
-            bContainer.push_back(patchSide(it->patch(),it->side()));
-
-        bintegral = ev.integralBdr( bexpr, bContainer);
+        bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr);
         integral = ev.integral(expr);
         if (m_pLoads.numLoads()!=0)
             _applyLoadsToError(dualL,dualH,integral);
@@ -1190,18 +1182,17 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
     exprAssembler.cleanUp();
     exprAssembler.setOptions(m_assemblerL->options());
-    m_defpatches = deformed;
 
     // Geometries
     geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
-    geometryMap Gdef = exprAssembler.getMap(m_defpatches);
+    geometryMap Gdef = exprAssembler.getMap(deformed);
 
     // Initialize vector
     exprAssembler.initSystem();
     exprAssembler.initVector(1);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),&deformed);
     auto S0  = exprAssembler.getCoeff(S0f);
     auto S1  = exprAssembler.getCoeff(S1f);
 
@@ -1228,7 +1219,7 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     auto Fext = (zsolH-zsolL).tr() * F;
     auto Fint = ( N * Em_der.tr() + M * Ef_der.tr() );
 
-    auto g_N = exprAssembler.getBdrFunction();
+    auto g_N = exprAssembler.getBdrFunction(Gori);
 
     auto expr = ( Fext - Fint ) * meas(Gori);
     auto bexpr= (zsolH-zsolL).tr() * g_N * tv(Gori).norm();
@@ -1238,13 +1229,7 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     T integral, bintegral;
     if (_elWise == 0)
     {
-        // Get neumann sides, put them in a container of patchSide s.
-        std::vector<patchSide> bContainer;
-        typename gsBoundaryConditions<T>::bcContainer bcContainer = m_bcs.neumannSides();
-        for (typename gsBoundaryConditions<T>::bcContainer::iterator it = bcContainer.begin(); it!=bcContainer.end(); ++it)
-            bContainer.push_back(patchSide(it->patch(),it->side()));
-
-        bintegral = ev.integralBdr( bexpr, bContainer);
+        bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr);
         integral = ev.integral(expr);
         if (m_pLoads.numLoads()!=0)
             _applyLoadsToError(dualL,dualH,integral);
@@ -1309,17 +1294,16 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
     exprAssembler.cleanUp();
     exprAssembler.setOptions(m_assemblerL->options());
-    m_defpatches = deformed;
 
     // Geometries
     geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
-    geometryMap Gdef = exprAssembler.getMap(m_defpatches);
+    geometryMap Gdef = exprAssembler.getMap(deformed);
 
     // Initialize vector
     exprAssembler.initSystem();
     exprAssembler.initVector(1);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),&deformed);
     auto S0  = exprAssembler.getCoeff(S0f);
 
     auto F      = exprAssembler.getCoeff(*m_forceFun, Gori);
@@ -1335,7 +1319,7 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     auto Fext = (zsolH-zsolL).tr() * F;
     auto Fint = ( N * Em_der.tr() );
 
-    auto g_N = exprAssembler.getBdrFunction();
+    auto g_N = exprAssembler.getBdrFunction(Gori);
 
     auto expr = ( Fext - Fint ) * meas(Gori);
     auto bexpr= (zsolH-zsolL).tr() * g_N * tv(Gori).norm();
@@ -1345,13 +1329,7 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     T integral, bintegral;
     if (_elWise == 0)
     {
-        // Get neumann sides, put them in a container of patchSide s.
-        std::vector<patchSide> bContainer;
-        typename gsBoundaryConditions<T>::bcContainer bcContainer = m_bcs.neumannSides();
-        for (typename gsBoundaryConditions<T>::bcContainer::iterator it = bcContainer.begin(); it!=bcContainer.end(); ++it)
-            bContainer.push_back(patchSide(it->patch(),it->side()));
-
-        bintegral = ev.integralBdr( bexpr, bContainer);
+        bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr);
         integral = ev.integral(expr);
         m_error = bintegral+integral;
     }
@@ -1442,14 +1420,13 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertia_impl(const gsMu
     auto zsolL  = exprAssembler.getCoeff(dualL);
     auto zsolH  = exprAssembler.getCoeff(dualH);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::Density> m_mm(m_assemblerL->material(),m_patches); // provides rho*t
+    gsMaterialMatrixIntegrate<T,MaterialOutput::Density> m_mm(m_assemblerL->material(),&m_patches); // provides rho*t
     auto mm0    = exprAssembler.getCoeff(m_mm);
 
     auto expr   = mm0.val()*asol.tr()*(zsolH-zsolL)*meas(Gori);
 
     gsExprEvaluator<T> ev(exprAssembler);
 
-    T integral, bintegral;
     if (_elWise == 0)
     {
         m_error = ev.integral(expr);
@@ -1463,7 +1440,7 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertia_impl(const gsMu
     }
     else if (_elWise == 2) // function-wise
     {
-        integral = 0;
+        m_error = 0;
         return;
     }
     else
@@ -1556,36 +1533,35 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
     exprAssembler.cleanUp();
     exprAssembler.setOptions(m_assemblerL->options());
 
-    m_defpatches = deformed;
     // Geometries
     geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
-    geometryMap Gdef = exprAssembler.getMap(m_defpatches);
+    geometryMap Gdef = exprAssembler.getMap(deformed);
 
     // Initialize vector
     exprAssembler.initSystem();
     exprAssembler.initVector(1);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAf_L(m_assemblerL->material(),m_patches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBf_L(m_assemblerL->material(),m_patches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCf_L(m_assemblerL->material(),m_patches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDf_L(m_assemblerL->material(),m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAf_L(m_assemblerL->material(),&m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBf_L(m_assemblerL->material(),&m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCf_L(m_assemblerL->material(),&m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDf_L(m_assemblerL->material(),&m_patches);
     auto mmA_L    = exprAssembler.getCoeff(mmAf_L);
     auto mmB_L    = exprAssembler.getCoeff(mmBf_L);
     auto mmC_L    = exprAssembler.getCoeff(mmCf_L);
     auto mmD_L    = exprAssembler.getCoeff(mmDf_L);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAf_NL(m_assemblerL->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBf_NL(m_assemblerL->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCf_NL(m_assemblerL->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDf_NL(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAf_NL(m_assemblerL->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBf_NL(m_assemblerL->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCf_NL(m_assemblerL->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDf_NL(m_assemblerL->material(),&deformed);
     auto mmA_NL    = exprAssembler.getCoeff(mmAf_NL);
     auto mmB_NL    = exprAssembler.getCoeff(mmBf_NL);
     auto mmC_NL    = exprAssembler.getCoeff(mmCf_NL);
     auto mmD_NL    = exprAssembler.getCoeff(mmDf_NL);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),m_defpatches);
-    // gsMaterialMatrixIntegrate<T,MaterialOutput::Density> rhof(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),&deformed);
+    // gsMaterialMatrixIntegrate<T,MaterialOutput::Density> rhof(m_assemblerL->material(),deformed);
     auto S0  = exprAssembler.getCoeff(S0f);
     auto S1  = exprAssembler.getCoeff(S1f);
     // auto rho  = exprAssembler.getCoeff(rhof);
@@ -1693,7 +1669,6 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
 
     gsExprEvaluator<T> ev(exprAssembler);
 
-    T integral = 0;
     if (_elWise == 0)
     {
         m_error = ev.integral(expr);
@@ -1707,7 +1682,7 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
     }
     else if (_elWise == 2)
     {
-        integral = 0;
+        m_error = 0;
         return;
     }
     else
@@ -1728,7 +1703,6 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
 //     exprAssembler.cleanUp();
 //     exprAssembler.setOptions(m_assemblerL->options());
 
-//     m_defpatches = deformed;
 //     gsExprEvaluator<T> ev(exprAssembler);
 
 //     return ev.eval(expr,u);
@@ -1799,10 +1773,9 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
     gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
     exprAssembler.cleanUp();
     exprAssembler.setOptions(m_assemblerL->options());
-
-    m_defpatches = m_patches;
+    gsMultiPatch<T> deformed = m_patches;
     for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
-        m_defpatches.patch(k).coefs() += primal.patch(k).coefs();  // Gdef points to mp_def, therefore updated
+        deformed.patch(k).coefs() += primal.patch(k).coefs();  // Gdef points to mp_def, therefore updated
 
     // Geometries
     geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
@@ -1811,18 +1784,18 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
     exprAssembler.initSystem();
     exprAssembler.initVector(1);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAf(m_assemblerL->material(),m_patches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBf(m_assemblerL->material(),m_patches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCf(m_assemblerL->material(),m_patches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDf(m_assemblerL->material(),m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAf(m_assemblerL->material(),&m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBf(m_assemblerL->material(),&m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCf(m_assemblerL->material(),&m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDf(m_assemblerL->material(),&m_patches);
     auto mmA    = exprAssembler.getCoeff(mmAf);
     auto mmB    = exprAssembler.getCoeff(mmBf);
     auto mmC    = exprAssembler.getCoeff(mmCf);
     auto mmD    = exprAssembler.getCoeff(mmDf);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),m_patches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),m_patches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::Density> rhof(m_assemblerL->material(),m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),&m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),&m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::Density> rhof(m_assemblerL->material(),&m_patches);
     auto S0  = exprAssembler.getCoeff(S0f);
     auto S1  = exprAssembler.getCoeff(S1f);
     auto rho  = exprAssembler.getCoeff(rhof);
@@ -1864,8 +1837,6 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
     gsConstantFunction<T> onefun(1,2);
     auto one    =exprAssembler.getCoeff(onefun);
 
-    T integral = 0;
-
     if (_elWise == 0)
     {
         m_error = ev.integral( A  * meas(Gori) - evPrimalL * Bdiff * meas(Gori) + (evDualH - evDualL) * ( Bprimal * meas(Gori)  - one) );
@@ -1879,7 +1850,7 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
     }
     else if (_elWise == 2)
     {
-        integral = 0;
+        m_error = 0;
         return;
     }
     else
@@ -1897,45 +1868,43 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMultiPatch<T> & de
     exprAssembler.cleanUp();
     exprAssembler.setOptions(m_assemblerL->options());
 
-    m_defpatches = deformed;
-
     // Initialize vector
     exprAssembler.initSystem();
     exprAssembler.initVector(1);
 
     // Geometries
     geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
-    geometryMap Gdef = exprAssembler.getMap(m_defpatches);
+    geometryMap Gdef = exprAssembler.getMap(deformed);
 
     // Transformation for stretches
-    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),&deformed,Z);
     auto Tcon = exprAssembler.getCoeff(Tconf);
 
     // Stress tensors
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),&deformed,Z);
     auto S0 = exprAssembler.getCoeff(S0f);
     auto S1 = exprAssembler.getCoeff(S1f);
 
     // Force tensors
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> Mf(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> Mf(m_assemblerL->material(),&deformed);
     auto N  = exprAssembler.getCoeff(Nf);
     auto M  = exprAssembler.getCoeff(Mf);
 
     ///////// TEMPORARY
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0if(m_assemblerL->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1if(m_assemblerL->material(),m_defpatches);
-    auto S0i = exprAssembler.getCoeff(S0if);
-    auto S1i = exprAssembler.getCoeff(S1if);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmAfi(m_assemblerL->material(),m_defpatches);
-    auto mmAi = exprAssembler.getCoeff(mmAfi);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDfi(m_assemblerL->material(),m_defpatches);
-    auto mmDi = exprAssembler.getCoeff(mmDfi);
+    // gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0if(m_assemblerL->material(),&deformed);
+    // gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1if(m_assemblerL->material(),&deformed);
+    // auto S0i = exprAssembler.getCoeff(S0if);
+    // auto S1i = exprAssembler.getCoeff(S1if);
+    // gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmAfi(m_assemblerL->material(),&deformed);
+    // auto mmAi = exprAssembler.getCoeff(mmAfi);
+    // gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDfi(m_assemblerL->material(),&deformed);
+    // auto mmDi = exprAssembler.getCoeff(mmDfi);
     ///////// TEMPORARY
 
     // Principal stress tensors
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_assemblerL->material(),&deformed,Z);
     auto P0  = exprAssembler.getCoeff(P0f);
 
     // Helper matrix for flexural components
@@ -1987,7 +1956,7 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMultiPatch<T> & de
          */
         if (m_component==9)
         {
-            // gsMaterialMatrixEval<T,MaterialOutput::Stretch>  lambdaf(m_assemblerL->material(),m_defpatches,Z);
+            // gsMaterialMatrixEval<T,MaterialOutput::Stretch>  lambdaf(m_assemblerL->material(),&deformed,Z);
             // auto lambda = exprAssembler.getCoeff(lambdaf);
             // auto expr1 = gismo::expr::pow(lambda.tr() * lambda,2) * meas(Gori);
             auto expr = lambda.tr() * lambda * meas(Gori);
@@ -2127,35 +2096,33 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMatrix<T> & points
     exprAssembler.cleanUp();
     exprAssembler.setOptions(m_assemblerL->options());
 
-    m_defpatches = deformed;
-
     // Initialize vector
     exprAssembler.initSystem();
     exprAssembler.initVector(1);
 
     // Geometries
     geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
-    geometryMap Gdef = exprAssembler.getMap(m_defpatches);
+    geometryMap Gdef = exprAssembler.getMap(deformed);
 
     // Transformation for stretches
-    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),&deformed,Z);
     auto Tcon = exprAssembler.getCoeff(Tconf);
     // Material tensors
 
     // Stress tensors
-    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),m_defpatches,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),&deformed,Z);
     auto S0 = exprAssembler.getCoeff(S0f);
     auto S1 = exprAssembler.getCoeff(S1f);
 
     // Force tensors
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> Mf(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> Nf(m_assemblerL->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> Mf(m_assemblerL->material(),&deformed);
     auto N  = exprAssembler.getCoeff(Nf);
     auto M  = exprAssembler.getCoeff(Mf);
 
     // Principal stress tensors
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_assemblerL->material(),m_defpatches,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_assemblerL->material(),&deformed,Z);
     auto P0 = exprAssembler.getCoeff(P0f);
 
     // // Helper matrix for flexural components
@@ -2220,7 +2187,7 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMatrix<T> & points
          */
         if (m_component==9)
         {
-            // gsMaterialMatrixEval<T,MaterialOutput::Stretch>  lambdaf(m_assemblerL->material(),m_defpatches,Z);
+            // gsMaterialMatrixEval<T,MaterialOutput::Stretch>  lambdaf(m_assemblerL->material(),&deformed,Z);
             // auto lambda = exprAssembler.getCoeff(lambdaf);
             // auto expr1 = gismo::expr::pow(lambda.tr() * lambda,2) * meas(Gori);
             auto expr = lambda.tr() * lambda * meas(Gori);
@@ -2465,7 +2432,7 @@ T gsThinShellAssemblerDWR<d, T, bending>::matrixNorm(const gsMultiPatch<T> &prim
     exprAssembler.initSystem();
     exprAssembler.initVector(1);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::Density> rhof(m_assemblerH->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::Density> rhof(m_assemblerH->material(),&m_patches); // note: is this right?
     auto rho = exprAssembler.getCoeff(rhof);
 
     auto usol = exprAssembler.getCoeff(primal);
@@ -2493,26 +2460,26 @@ T gsThinShellAssemblerDWR<d, T, bending>::matrixNorm(const gsMultiPatch<T> &prim
     exprAssembler.initSystem();
     exprAssembler.initVector(1);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAf_L(m_assemblerL->material(),m_patches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBf_L(m_assemblerL->material(),m_patches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCf_L(m_assemblerL->material(),m_patches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDf_L(m_assemblerL->material(),m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAf_L(m_assemblerL->material(),&m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBf_L(m_assemblerL->material(),&m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCf_L(m_assemblerL->material(),&m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDf_L(m_assemblerL->material(),&m_patches);
     auto mmA_L    = exprAssembler.getCoeff(mmAf_L);
     auto mmB_L    = exprAssembler.getCoeff(mmBf_L);
     auto mmC_L    = exprAssembler.getCoeff(mmCf_L);
     auto mmD_L    = exprAssembler.getCoeff(mmDf_L);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAf_NL(m_assemblerL->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBf_NL(m_assemblerL->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCf_NL(m_assemblerL->material(),m_defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDf_NL(m_assemblerL->material(),m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> mmAf_NL(m_assemblerL->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> mmBf_NL(m_assemblerL->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> mmCf_NL(m_assemblerL->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> mmDf_NL(m_assemblerL->material(),&deformed);
     auto mmA_NL    = exprAssembler.getCoeff(mmAf_NL);
     auto mmB_NL    = exprAssembler.getCoeff(mmBf_NL);
     auto mmC_NL    = exprAssembler.getCoeff(mmCf_NL);
     auto mmD_NL    = exprAssembler.getCoeff(mmDf_NL);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerH->material(),defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1f(m_assemblerH->material(),defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerH->material(),&defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1f(m_assemblerH->material(),&defpatches);
     auto S0  = exprAssembler.getCoeff(S0f);
     auto S1  = exprAssembler.getCoeff(S1f);
 
@@ -2642,10 +2609,10 @@ void gsThinShellAssemblerDWR<d, T, bending>::_applyLoadsToElWiseError(const gsMu
         gsMatrix<T> result = (Hres-Lres).transpose() * m_pLoads[i].value;
         // Distribute load over all the elements
         GISMO_ASSERT(result.rows()==result.cols() && result.rows()==1,"Result must be scalar");
-        for (index_t k=0; k!=elements.size(); k++)
+        for (size_t k=0; k!=elements.size(); k++)
             errors.at(elements.at(k)) = result(0,0)/elements.size();
 
-        for (index_t k=0; k!=elements.size(); k++)
+        for (size_t k=0; k!=elements.size(); k++)
             gsDebugVar(elements[k]);
     }
 }

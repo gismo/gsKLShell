@@ -50,6 +50,52 @@ gsMatrix<T> gsCompositeMatrix(  const T Exx,
     return G;
 }
 
+template<class T>
+gsMatrix<T> gsCompositeMatrixRaw(   const T G11,
+                                    const T G22,
+                                    const T G33,
+                                    const T G12,
+                                    const T G13,
+                                    const T G23,
+                                    const T G21,
+                                    const T G31,
+                                    const T G32 )
+{
+    gsMatrix<T> G(3,3);
+    G.setZero();
+
+    G(0,0) = G11;
+    G(1,1) = G22;
+    G(2,2) = G33;
+    G(1,0) = G12;
+    G(0,1) = G21;
+    G(0,2) = G13;
+    G(2,0) = G31;
+    G(1,2) = G23;
+    G(2,1) = G32;
+    return G;
+}
+
+template<class T>
+gsMatrix<T> gsCompositeMatrixRaw(   const T G11,
+                                    const T G22,
+                                    const T G33,
+                                    const T G12,
+                                    const T G13,
+                                    const T G23 )
+{
+    gsMatrix<T> G(3,3);
+    G.setZero();
+
+    G(0,0) = G11;
+    G(1,1) = G22;
+    G(2,2) = G33;
+    G(1,0) = G(0,1) = G12;
+    G(0,2) = G(2,0) = G13;
+    G(1,2) = G(2,1) = G23;
+    return G;
+}
+
 /**
  * @brief      Gets a material matrix based on \a options
  *
@@ -64,7 +110,7 @@ gsMatrix<T> gsCompositeMatrix(  const T Exx,
  *
  * @return     The material matrix.
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  *
  */
 template<short_t d, class T>
@@ -228,7 +274,7 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
  *
  * @return     The material matrix.
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  *
  */
 template<short_t d, class T>

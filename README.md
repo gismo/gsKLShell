@@ -1,3 +1,12 @@
+# To Do
+
+# Changelog
+
+## v21.12:
+  - Compatibility with the new `gsExprAssembler` in `gismo/gsAssembler`
+## v21.6:
+  - Initial version!
+
 # gsKLShell
 
 Module for the isogeometric Kirchhoff-Love shell element. The module is based on `gismo`'s Expression Assembler `gsExprAssembler`.
@@ -11,7 +20,7 @@ Module for the isogeometric Kirchhoff-Love shell element. The module is based on
 |Status|completed|
 |Developer|[Hugo Verhelst](https://github.com/hverhelst)|
 |Maintainer|[h.m.verhelst@tudelft.nl](mailto:h.m.verhelst@tudelft.nl)|
-|Last checked|13-11-2020|
+|Last checked|09-12-2021|
 
 #### Dependencies
 No dependencies
@@ -58,7 +67,6 @@ The template parameters of the class are the dimension of the geometry (`dim`) w
 
 #### Not (yet) supported:
 * Multipatch coupling
-* Laminates with ply angles and various thicknesses
 * Error estimation via DWR
 
 #### To do:

@@ -35,7 +35,7 @@ namespace gismo
  * @tparam     mat    Material flag (see \ref Material)
  * @tparam     imp    Implementation flag (see \ref Implementation)
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  */
 template <  short_t dim,
             class T,
@@ -50,7 +50,16 @@ public:
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 
     /**
-     * @brief      Constructor without density
+     * @brief      Constructor without material parameters
+     *
+     * @param[in]  mp             Original geometry
+     * @param[in]  thickness      Thickness function
+     */
+    gsMaterialMatrix(   const gsFunctionSet<T> & mp,
+                        const gsFunction<T> & thickness);
+
+    /**
+     * @brief      General constructor without density
      *
      * @param[in]  mp         Original geometry
      * @param[in]  thickness  Thickness function
@@ -61,7 +70,7 @@ public:
                         const std::vector<gsFunction<T> *> &pars);
 
     /**
-     * @brief      Full constructor
+     * @brief      Full general constructor
      *
      * @param[in]  mp         Original geometry
      * @param[in]  thickness  Thickness function
@@ -115,11 +124,54 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
+    /// Sets the YoungsModulus
+    void setYoungsModulus(const gsFunction<T> & YoungsModulus);
+
+    /// Gets the YoungsModulus
+    gsFunction<T> * getYoungsModulus();
+
+    /// Sets the Poisson's Ratio
+    void setPoissonsRatio(const gsFunction<T> & PoissonsRatio);
+    /// Gets the Poisson's Ratio
+    gsFunction<T> * getPoissonsRatio();
+
+    /// Sets the Ratio for the MR material
+    void setRatio(const gsFunction<T> & Ratio) { _setRatio_impl<mat>(Ratio);}
+    /// Gets the Ratio for the MR material
+    gsFunction<T> * getRatio(){ return _getRatio_impl<mat>(); }
+
+    /// Sets Mu_i
+    void setMu(const index_t & i, const gsFunction<T> & Mu_i) { _setMu_impl<mat>(i,Mu_i); }
+
+    /// Gets Mu_i
+    gsFunction<T> * getMu(const index_t & i) {return _getMu_impl<mat>(i);}
+
+    /// Sets Alpha_i
+    void setAlpha(const index_t & i, const gsFunction<T> & Alpha_i) { _setAlpha_impl<mat>(i,Alpha_i); }
+
+    /// Gets Alpha_i
+    gsFunction<T> * getAlpha(const index_t & i) {return _getAlpha_impl<mat>(i);}
+
+    /// Sets the Density
+    void setDensity(const gsFunction<T> & Density)
+    {
+        m_density = const_cast<gsFunction<T> *>(&Density);
+    }
+    /// Gets the Density
+    gsFunction<T> * getDensity() {return const_cast<gsFunction<T> *>(m_density);}
+
+
     /// See \ref gsMaterialMatrixBase for details
     void setParameters(const std::vector<gsFunction<T>*> &pars)
     {
         m_pars = pars;
-        m_numPars = m_pars.size();
+    }
+
+    /// See \ref gsMaterialMatrixBase for details
+    void resetParameters()
+    {
+        m_pars.clear();
+        m_pars.resize(0);
     }
 
     /// See \ref gsMaterialMatrixBase for details
@@ -399,6 +451,35 @@ private:
     template<enum Material _mat, bool _com>
     typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_pstress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::MR, void>::type _setRatio_impl(const gsFunction<T> & Ratio);
+    template<enum Material _mat>
+    typename std::enable_if<_mat!=Material::MR, void>::type _setRatio_impl(const gsFunction<T> & Ratio);
+
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::MR, gsFunction<T> *>::type _getRatio_impl();
+    template<enum Material _mat>
+    typename std::enable_if<_mat!=Material::MR, gsFunction<T> *>::type _getRatio_impl();
+
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::OG, void>::type _setMu_impl(const index_t & i, const gsFunction<T> & Mu_i);
+    template<enum Material _mat>
+    typename std::enable_if<_mat!=Material::OG, void>::type _setMu_impl(const index_t & i, const gsFunction<T> & Mu_i);
+
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::OG, gsFunction<T> *>::type _getMu_impl(const index_t & i);
+    template<enum Material _mat>
+    typename std::enable_if<_mat!=Material::OG, gsFunction<T> *>::type _getMu_impl(const index_t & i);
+
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::OG, void>::type _setAlpha_impl(const index_t & i, const gsFunction<T> & Alpha_i);
+    template<enum Material _mat>
+    typename std::enable_if<_mat!=Material::OG, void>::type _setAlpha_impl(const index_t & i, const gsFunction<T> & Alpha_i);
+
+    template<enum Material _mat>
+    typename std::enable_if<_mat==Material::OG, gsFunction<T> *>::type _getAlpha_impl(const index_t & i);
+    template<enum Material _mat>
+    typename std::enable_if<_mat!=Material::OG, gsFunction<T> *>::type _getAlpha_impl(const index_t & i);
 
 protected:
 
@@ -1026,14 +1107,15 @@ private:
     typename std::enable_if<_mat!=Material::OG, void>::type _computePoints_impl(const gsMatrix<T> & u) const;
 
 protected:
-    // general
-    index_t m_numPars; // how many parameters for the material model?
-
     // constructor
     using Base::m_patches;
     using Base::m_defpatches;
     const gsFunction<T> * m_thickness;
-    std::vector<gsFunction<T>* > m_pars;
+    std::vector<gsFunction<T>* > m_pars; // stores the parameters: 0=YoungsModulus, 1=Poisson's ratio,
+                                         //                                                           MR: 2= Ratio
+                                         //                                                           OG: for i=0...n
+                                         //                                                                 2+2i  =mu_i
+                                         //                                                                 2+2i+1=alpha_i
     const gsFunction<T> * m_density;
 
     // // Geometric data point
@@ -1065,34 +1147,28 @@ protected:
     using Base::m_Bcon_ori;
     using Base::m_Bcov_def;
     using Base::m_Bcon_def;
-
     using Base::m_acov_ori;
     using Base::m_acon_ori;
     using Base::m_acov_def;
     using Base::m_acon_def;
-
     using Base::m_ncov_ori;
     using Base::m_ncov_def;
-
     using Base::m_Gcov_ori;
     using Base::m_Gcon_ori;
     using Base::m_Gcov_def;
     using Base::m_Gcon_def;
     using Base::m_Gcov_ori_L;
     using Base::m_Gcov_def_L;
-
     using Base::m_gcov_ori;
     using Base::m_gcov_def;
     using Base::m_gcon_ori;
     using Base::m_gcon_def;
-
     using Base::m_Acov_ori_mat;
     using Base::m_Acon_ori_mat;
     using Base::m_Acov_def_mat;
     using Base::m_Acon_def_mat;
     using Base::m_Bcov_ori_mat;
     using Base::m_Bcov_def_mat;
-
     using Base::m_acov_ori_mat;
     using Base::m_acon_ori_mat;
     using Base::m_acov_def_mat;
@@ -1120,6 +1196,31 @@ private:
         return (a!=b) ? 1 : 0;
     }
 };
+
+#ifdef GISMO_BUILD_PYBIND11
+
+  /**
+   * @brief Initializes the Python wrapper for the class: gsMaterialMatrixLinear
+   */
+  void pybind11_init_gsMaterialMatrixNH2i(pybind11::module &m);
+  void pybind11_init_gsMaterialMatrixNH2c(pybind11::module &m);
+
+  void pybind11_init_gsMaterialMatrixNH3i(pybind11::module &m);
+  void pybind11_init_gsMaterialMatrixNH3c(pybind11::module &m);
+
+  void pybind11_init_gsMaterialMatrixMR2i(pybind11::module &m);
+  void pybind11_init_gsMaterialMatrixMR2c(pybind11::module &m);
+
+  void pybind11_init_gsMaterialMatrixMR3i(pybind11::module &m);
+  void pybind11_init_gsMaterialMatrixMR3c(pybind11::module &m);
+
+  void pybind11_init_gsMaterialMatrixOG2i(pybind11::module &m);
+  void pybind11_init_gsMaterialMatrixOG2c(pybind11::module &m);
+
+  void pybind11_init_gsMaterialMatrixOG3i(pybind11::module &m);
+  void pybind11_init_gsMaterialMatrixOG3c(pybind11::module &m);
+
+#endif // GISMO_BUILD_PYBIND11
 
 } // namespace
 

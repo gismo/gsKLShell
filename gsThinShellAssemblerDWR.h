@@ -356,7 +356,7 @@ protected:
     // using Base::m_basis;
 
     using Base::m_patches;
-    using Base::m_defpatches;
+    // using Base::m_defpatches;
     using Base::m_materialMat;
     using Base::m_forceFun;
     using Base::m_options;

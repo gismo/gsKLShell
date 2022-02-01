@@ -30,7 +30,7 @@ namespace gismo
  * @tparam     T     Real tyoe
  * @tparam     out   Output type (see \ref MaterialOutput)
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  */
 template <class T, enum MaterialOutput out>
 class gsMaterialMatrixEval : public gsFunction<T>
@@ -39,7 +39,7 @@ public:
 
     /// Constructor
     gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * materialMatrix,
-                                const gsFunctionSet<T> & deformed,
+                                const gsFunctionSet<T> * deformed,
                                 const gsMatrix<T> z);
 
     /// Domain dimension, always 2 for shells
@@ -76,7 +76,7 @@ private:
     /// Implementation of \ref targetDim for principal stress fields
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::PStressN ||
-                            _out==MaterialOutput::PStressM  , short_t>::type targetDim_impl() const { return 3; };
+                            _out==MaterialOutput::PStressM  , short_t>::type targetDim_impl() const { return 2; };
 
     /// Implementation of \ref targetDim for principal stretch fields
     template<enum MaterialOutput _out>

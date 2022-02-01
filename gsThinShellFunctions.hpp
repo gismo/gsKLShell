@@ -28,7 +28,7 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     m_assembler.cleanUp();
 
     geometryMap m_ori   = m_assembler.getMap(m_patches);
-    geometryMap m_def   = m_assembler.getMap(m_defpatches);
+    geometryMap m_def   = m_assembler.getMap(*m_defpatches);
 
     // Initialize stystem
     // m_assembler.initSystem(false);

@@ -26,7 +26,7 @@ namespace gismo
  *
  * @tparam     T     Real type
  *
- * @ingroup    MaterialMatrix
+ * @ingroup    KLShell
  */
 template <short_t dim, class T>
 class gsMaterialMatrixBaseDim : public gsMaterialMatrixBase<T>
@@ -54,7 +54,7 @@ public:
     m_patches(&mp)
     {
         membersSetZero();
-        this->setDeformed(mp_def);
+        this->setDeformed(&mp_def);
     }
 
 
@@ -166,6 +166,16 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW //must be present whenever the class contains fixed size matrices
 
 };
+
+#ifdef GISMO_BUILD_PYBIND11
+
+  /**
+   * @brief Initializes the Python wrapper for the class: gsMaterialMatrixBaseDim
+   */
+  void pybind11_init_gsMaterialMatrixBaseDim2(pybind11::module &m);
+  void pybind11_init_gsMaterialMatrixBaseDim3(pybind11::module &m);
+
+#endif // GISMO_BUILD_PYBIND11
 
 } // namespace
 
