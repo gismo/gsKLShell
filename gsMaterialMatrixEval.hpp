@@ -21,16 +21,17 @@
 namespace gismo
 {
 template <class T, enum MaterialOutput out>
-gsMaterialMatrixEval<T,out>::gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * materialMatrix,
-                                                    const gsFunctionSet<T> * deformed,
-                                                    const gsMatrix<T> z
+gsMaterialMatrixEvalSingle<T,out>::gsMaterialMatrixEvalSingle(    index_t patch,
+                                                        gsMaterialMatrixBase<T> * materialMatrix,
+                                                        const gsFunctionSet<T> * deformed,
+                                                        const gsMatrix<T> z
                                                    )
 :
+m_pIndex(patch),
 m_materialMat(materialMatrix),
 m_piece(nullptr),
 m_z(z)
 {
-    m_pIndex = 0;
     m_materialMat->setDeformed(deformed);
 
     if (m_z.cols()==0 || m_z.rows()==0)
@@ -44,17 +45,17 @@ m_z(z)
 }
 
 template <class T, enum MaterialOutput out>
-void gsMaterialMatrixEval<T,out>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+void gsMaterialMatrixEvalSingle<T,out>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
 /// Non-parallel evaluation
-#pragma omp critical (gsMaterialMatrixEval_eval_into)
+#pragma omp critical (gsMaterialMatrixEvalSingle_eval_into)
     this->eval_into_impl<out>(u,result);
 }
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::Density, void>::type
-gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     m_materialMat->density_into(m_pIndex,u,result);
 }
@@ -62,7 +63,7 @@ gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& r
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::VectorN || _out==MaterialOutput::VectorM || _out==MaterialOutput::Generic, void>::type
-gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     result = m_materialMat->eval3D_vector(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
 }
@@ -71,7 +72,7 @@ template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
 typename std::enable_if<   _out==MaterialOutput::MatrixA || _out==MaterialOutput::MatrixB
                         || _out==MaterialOutput::MatrixC || _out==MaterialOutput::MatrixD, void>::type
-gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     result = m_materialMat->eval3D_matrix(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
 }
@@ -79,7 +80,7 @@ gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& r
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::PStressN || _out==MaterialOutput::PStressM, void>::type
-gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     result = m_materialMat->eval3D_pstress(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
 }
@@ -87,7 +88,7 @@ gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& r
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::Stretch, void>::type
-gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     m_materialMat->stretch_into(m_pIndex,u,result);
 }
@@ -95,7 +96,7 @@ gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& r
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::StretchDir, void>::type
-gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     m_materialMat->stretchDir_into(m_pIndex,u,result);
 }
@@ -103,9 +104,25 @@ gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& r
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::Transformation, void>::type
-gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     m_materialMat->transform_into(m_pIndex,u,result);
+}
+
+template <class T, enum MaterialOutput out>
+template <enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::Thickness, void>::type
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    m_materialMat->thickness_into(m_pIndex,u,result);
+}
+
+template <class T, enum MaterialOutput out>
+template <enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::Parameters, void>::type
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    m_materialMat->parameters_into(m_pIndex,u,result);
 }
 
 

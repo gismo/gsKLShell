@@ -37,7 +37,7 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
                                                           const gsMultiBasis<T> & basis,
                                                           const gsBoundaryConditions<T> & bconditions,
                                                           const gsFunction<T> & surface_force,
-                                                          gsMaterialMatrixBase<T> * materialmatrix
+                                                          const gsMaterialMatrixContainer<T> & materialMatrices
                                                           )
                                         :
                                         m_patches(patches),
@@ -45,8 +45,31 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
                                         m_spaceBasis(&basis),
                                         m_bcs(bconditions),
                                         m_forceFun(&surface_force),
-                                        m_materialMat(materialmatrix)
+                                        m_materialMatrices(materialMatrices)
 {
+    this->_defaultOptions();
+    this->_getOptions();
+    this->_initialize();
+}
+
+template <short_t d, class T, bool bending>
+gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> & patches,
+                                                          const gsMultiBasis<T> & basis,
+                                                          const gsBoundaryConditions<T> & bconditions,
+                                                          const gsFunction<T> & surface_force,
+                                                          gsMaterialMatrixBase<T> * materialMatrix
+                                                          )
+                                        :
+                                        m_patches(patches),
+                                        m_basis(basis),
+                                        m_spaceBasis(&basis),
+                                        m_bcs(bconditions),
+                                        m_forceFun(&surface_force)
+{
+    m_materialMatrices = gsMaterialMatrixContainer<T>(m_patches.nPatches());
+    for (index_t p=0; p!=m_patches.nPatches(); p++)
+        m_materialMatrices.add(materialMatrix);
+
     this->_defaultOptions();
     this->_getOptions();
     this->_initialize();
@@ -62,7 +85,7 @@ gsThinShellAssembler<d, T, bending>& gsThinShellAssembler<d, T, bending>::operat
         m_spaceBasis=other.m_spaceBasis;
         m_bcs=other.m_bcs;
         m_forceFun=other.m_forceFun;
-        m_materialMat=other.m_materialMat;
+        m_materialMatrices=other.m_materialMatrices;
         m_options=other.m_options;
         m_alpha_d_bc=other.m_alpha_d_bc;
         m_alpha_r_bc=other.m_alpha_r_bc;
@@ -91,7 +114,7 @@ gsThinShellAssembler<d, T, bending>& gsThinShellAssembler<d, T, bending>::operat
     m_spaceBasis=give(other.m_spaceBasis);
     m_bcs=give(other.m_bcs);
     m_forceFun=give(other.m_forceFun);
-    m_materialMat=give(other.m_materialMat);
+    m_materialMatrices=give(other.m_materialMatrices);
     m_options=give(other.m_options);
     m_alpha_d_bc=give(other.m_alpha_d_bc);
     m_alpha_r_bc=give(other.m_alpha_r_bc);
@@ -1199,7 +1222,7 @@ void gsThinShellAssembler<d, T, bending>::assembleMass(bool lumped)
     // Initialize stystem
     m_assembler.initSystem();
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::Density> m_mm(m_materialMat,&m_patches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::Density> m_mm(m_materialMatrices,&m_patches);
     auto mm0 = m_assembler.getCoeff(m_mm);
 
     space       m_space = m_assembler.trialSpace(0);
@@ -1265,10 +1288,10 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     m_assembler.initSystem();
     m_assembler.initVector(1);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMat,&defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> m_mmB(m_materialMat,&defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> m_mmC(m_materialMat,&defpatches);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmD(m_materialMat,&defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> m_mmB(m_materialMatrices,&defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> m_mmC(m_materialMatrices,&defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmD(m_materialMatrices,&defpatches);
     auto mmA = m_assembler.getCoeff(m_mmA);
     auto mmB = m_assembler.getCoeff(m_mmB);
     auto mmC = m_assembler.getCoeff(m_mmC);
@@ -1335,7 +1358,7 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     // Initialize stystem
     m_assembler.initSystem();
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMat,&defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&defpatches);
     auto mmA = m_assembler.getCoeff(m_mmA);
 
     space       m_space = m_assembler.trialSpace(0);
@@ -1393,12 +1416,12 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     m_assembler.initMatrix();
     // m_assembler.initSystem();
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMat,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> m_mmB(m_materialMat,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> m_mmC(m_materialMat,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmD(m_materialMat,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMat,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMat,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> m_mmB(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> m_mmC(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmD(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMatrices,&deformed);
     auto mmA = m_assembler.getCoeff(m_mmA);
     auto mmB = m_assembler.getCoeff(m_mmB);
     auto mmC = m_assembler.getCoeff(m_mmC);
@@ -1466,8 +1489,8 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     m_assembler.initMatrix();
     // m_assembler.initSystem();
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMat,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMat,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&deformed);
     auto mmA = m_assembler.getCoeff(m_mmA);
     auto S0  = m_assembler.getCoeff(m_S0);
 
@@ -1527,12 +1550,12 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     m_assembler.initMatrix();
     // m_assembler.initSystem();
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMat,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> m_mmB(m_materialMat,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> m_mmC(m_materialMat,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmD(m_materialMat,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMat,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMat,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> m_mmB(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> m_mmC(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmD(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMatrices,&deformed);
     auto mmA = m_assembler.getCoeff(m_mmA);
     auto mmB = m_assembler.getCoeff(m_mmB);
     auto mmC = m_assembler.getCoeff(m_mmC);
@@ -1540,12 +1563,12 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     // auto S0  = m_assembler.getCoeff(m_S0);
     // auto S1  = m_assembler.getCoeff(m_S1);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmAd(m_materialMat,&previous);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> m_mmBd(m_materialMat,&previous);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> m_mmCd(m_materialMat,&previous);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmDd(m_materialMat,&previous);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0d(m_materialMat,&previous);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1d(m_materialMat,&previous);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmAd(m_materialMatrices,&previous);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> m_mmBd(m_materialMatrices,&previous);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixC> m_mmCd(m_materialMatrices,&previous);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmDd(m_materialMatrices,&previous);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0d(m_materialMatrices,&previous);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1d(m_materialMatrices,&previous);
     auto mmAp = m_assembler.getCoeff(m_mmAd);
     auto mmBp = m_assembler.getCoeff(m_mmBd);
     auto mmCp = m_assembler.getCoeff(m_mmCd);
@@ -1652,8 +1675,8 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     // Initialize vector
     m_assembler.initVector(1);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMat,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMat,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMatrices,&deformed);
     auto S0  = m_assembler.getCoeff(m_S0);
     auto S1  = m_assembler.getCoeff(m_S1);
 
@@ -1706,7 +1729,7 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     // Initialize vector
     m_assembler.initVector(1);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMat,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&deformed);
     auto S0  = m_assembler.getCoeff(m_S0);
 
     space m_space       = m_assembler.trialSpace(0);
@@ -1774,8 +1797,8 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsFunctionSet<T> &
     // Initialize vector
     // m_assembler.initVector(1);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMat,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMat,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMatrices,&deformed);
     auto S0  = assembler.getCoeff(m_S0);
     auto S1  = assembler.getCoeff(m_S1);
 
@@ -1845,7 +1868,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsFunctionSet<T> &
     // Initialize vector
     // m_assembler.initVector(1);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMat,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&deformed);
     auto S0  = assembler.getCoeff(m_S0);
 
 
@@ -1908,8 +1931,8 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsFunctionSe
     // Initialize vector
     // m_assembler.initVector(1);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMat,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMat,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMatrices,&deformed);
     auto S0  = assembler.getCoeff(m_S0);
     auto S1  = assembler.getCoeff(m_S1);
 
@@ -2010,7 +2033,7 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsFunctionSe
     // Initialize vector
     // m_assembler.initVector(1);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMat,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&deformed);
     auto S0  = assembler.getCoeff(m_S0);
 
     // this->homogenizeDirichlet();
@@ -2282,7 +2305,7 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::computePrincipalStretches(const
     // geometryMap m_def   = m_assembler.getMap(*m_defpatches);
     // m_assembler.initSystem();
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::Stretch> m_mm(m_materialMat,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::Stretch> m_mm(m_materialMatrices,&deformed);
     auto mm0 = m_assembler.getCoeff(m_mm);
 
     gsExprEvaluator<T> evaluator(m_assembler);
@@ -2302,7 +2325,7 @@ void gsThinShellAssembler<d, T, bending>::constructStress(const gsFunctionSet<T>
     result.clear();
 
     for (size_t p = 0; p < m_patches.nPatches(); ++p )
-        result.addPiecePointer(new gsShellStressFunction<T>(m_patches,deformed,m_materialMat,p,type,m_assembler));
+        result.addPiecePointer(new gsShellStressFunction<T>(m_patches,deformed,m_materialMatrices.piece(p),p,type,m_assembler));
 
 }
 
@@ -2314,7 +2337,7 @@ void gsThinShellAssembler<d, T, bending>::constructStress(const gsFunctionSet<T>
 //     result.clear();
 
 //     for (size_t p = 0; p < m_patches.nPatches(); ++p )
-//         result.addPiecePointer(new gsShellStressFunction<d, T, bending>(m_patches,deformed,m_materialMat,p,type,m_assembler));
+//         result.addPiecePointer(new gsShellStressFunction<d, T, bending>(m_patches,deformed,m_materialMatrices.piece(p),p,type,m_assembler));
 
 //     gsField<T> stressField(m_patches,result, true);
 //     return stressField;

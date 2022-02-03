@@ -16,6 +16,7 @@
 #pragma once
 
 #include <gsKLShell/gsMaterialMatrix.h>
+#include <gsKLShell/gsMaterialMatrixContainer.h>
 #include <gsKLShell/gsThinShellFunctions.h>
 
 #include <gsPde/gsPointLoads.h>
@@ -73,7 +74,22 @@ public:
 public:
 
     /**
-     * @brief      Constructor for te shell assembler
+     * @brief      Constructor for the shell assembler
+     *
+     * @param[in]  patches         The geometry
+     * @param[in]  basis           The basis
+     * @param[in]  bconditions     The boundary condition
+     * @param[in]  surface_force   The surface force
+     * @param      materialmatrix  The material matrix container
+     */
+    gsThinShellAssembler(const gsMultiPatch<T> & patches,
+                        const gsMultiBasis<T> & basis,
+                        const gsBoundaryConditions<T> & bconditions,
+                        const gsFunction<T> & surface_force,
+                        const gsMaterialMatrixContainer<T> & materialmatrices);
+
+    /**
+     * @brief      Constructor for the shell assembler
      *
      * @param[in]  patches         The geometry
      * @param[in]  basis           The basis
@@ -86,6 +102,21 @@ public:
                         const gsBoundaryConditions<T> & bconditions,
                         const gsFunction<T> & surface_force,
                         gsMaterialMatrixBase<T> * materialmatrix);
+
+    /**
+     * @brief      Constructor for te shell assembler
+     *
+     * @param[in]  patches         The geometry
+     * @param[in]  basis           The basis
+     * @param[in]  bconditions     The boundary condition
+     * @param[in]  surface_force   The surface force
+     * @param      materialmatrix  The material matrix class
+     */
+    // gsThinShellAssembler(const gsMultiPatch<T> & patches,
+    //                     const gsMultiBasis<T> & basis,
+    //                     const gsBoundaryConditions<T> & bconditions,
+    //                     const gsFunction<T> & surface_force,
+    //                     const gsPiecewiseFunction<T> & materialmatrices);
 
     /// Default empty constructor
     gsThinShellAssembler() { }
@@ -278,7 +309,8 @@ public:
     T getArea(const gsFunctionSet<T> & geometry);
 
     //--------------------- MATERIAL ACCESS --------------------------------//
-    gsMaterialMatrixBase<T> * material()    const  {return m_materialMat;}
+    gsMaterialMatrixContainer<T> materials()    const  {return m_materialMatrices;}
+    gsMaterialMatrixBase<T> * material(const index_t p)    const  {return m_materialMatrices.piece(p);}
 
     //--------------------- SYSTEM ACCESS ----------------------------------//
     const gsSparseMatrix<T> & matrix()      const   {return m_assembler.matrix();}
@@ -524,7 +556,7 @@ protected:
     typename gsFunction<T>::Ptr m_YoungsModulus;
     typename gsFunction<T>::Ptr m_PoissonsRatio;
 
-    mutable gsMaterialMatrixBase<T> * m_materialMat;
+    gsMaterialMatrixContainer<T> m_materialMatrices;
 
     gsPointLoads<T>  m_pLoads, m_pMass;
 
@@ -712,8 +744,10 @@ public:
     // /// Returns the deformed geometry
     // virtual const gsFunctionSet<T> & defGeometry() const = 0;
 
-    /// Returns the material matrix used in the class
-    virtual gsMaterialMatrixBase<T> * material()          const = 0;
+    /// Returns the material matrices used in the class
+    virtual gsMaterialMatrixContainer<T> materials()          const = 0;
+    /// Returns the material matrix on patch p used in the class
+    virtual gsMaterialMatrixBase<T> * material(const index_t p)          const = 0;
 
     /// Returns the area of \a geometry
     virtual T getArea(const gsFunctionSet<T> & geometry) = 0;
@@ -728,12 +762,12 @@ public:
     virtual const gsMatrix<T>       & rhs()     const  = 0;
 
     //--------------------- INTERFACE HANDLING -----------------------------//
-    virtual addStrongC0(const gsBoxTopology::ifContainer & interfaces) = 0;
-    virtual addStrongC1(const gsBoxTopology::ifContainer & interfaces) = 0;
-    virtual addWeakC0(const gsBoxTopology::ifContainer & interfaces) = 0;
-    virtual addWeakC1(const gsBoxTopology::ifContainer & interfaces) = 0;
-    virtual addUncoupled(const gsBoxTopology::ifContainer & interfaces) = 0;
-    virtual initInterfaces() = 0;
+    virtual void addStrongC0(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual void addStrongC1(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual void addWeakC0(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual void addWeakC1(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual void addUncoupled(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual void initInterfaces() = 0;
 
     /// Construct solution field from computed solution vector \a solVector and returns a multipatch
     virtual gsMultiPatch<T> constructMultiPatch(const gsMatrix<T> & solVector) const = 0;
@@ -762,24 +796,8 @@ public:
     /// Compute the principal stretches in \a points given a \a deformed geometry. Optionally, the stretches can be computed on through-thickness coordinate \a z
     virtual gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsFunctionSet<T> & deformed, const T z=0) = 0;
 
-
-
-
     // Pascal
-virtual   gsDofMapper getMapper() = 0;
-
-
-
-
-
-
-
-
-
-
-
-
-
+    virtual   gsDofMapper getMapper() = 0;
 
     /// Projects function \a fun on the basis and geometry stored in the class and returns the coefficients in \a result
     virtual void projectL2_into(const gsFunction<T> &fun, gsMatrix<T> & result) = 0;

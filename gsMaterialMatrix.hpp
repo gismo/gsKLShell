@@ -164,26 +164,26 @@ template <enum Material _mat>
 typename std::enable_if<_mat==Material::OG, void>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_computePoints_impl(const gsMatrix<T>& u) const
 {
-    // T prod, sum, mu;
-    for (index_t c=0; c!=m_parmat.cols(); c++)
-    {
-        for (index_t r=0; r!=m_parmat.rows(); r++)
-            m_parvals.at(r) = m_parmat(r,c);
+    // // T prod, sum, mu;
+    // for (index_t c=0; c!=m_parmat.cols(); c++)
+    // {
+    //     for (index_t r=0; r!=m_parmat.rows(); r++)
+    //         m_parvals.at(r) = m_parmat(r,c);
 
-        // mu = m_parvals.at(0) / (2 * (1 + m_parvals.at(1)));
-        GISMO_ENSURE((m_pars.size()-2 )% 2 ==0, "Ogden material models must have an even number of parameters (tuples of alpha_i and mu_i). m_pars.size() = "<< m_pars.size());
+    //     // mu = m_parvals.at(0) / (2 * (1 + m_parvals.at(1)));
+    //     GISMO_ENSURE((m_pars.size()-2 )% 2 ==0, "Ogden material models must have an even number of parameters (tuples of alpha_i and mu_i). m_pars.size() = "<< m_pars.size());
 
-        /// THIS CHECK IS NOT NECESSARY
-        // int n = (m_pars.size()-2)/2;
-        // sum = 0.0;
-        // for (index_t k=0; k!=n; k++)
-        // {
-        //     prod = m_parvals.at(2*(k+1))*m_parvals.at(2*(k+1)+1);
-        //     GISMO_ENSURE(prod > 0.0,"Product of coefficients must be positive for all indices");
-        //     sum += prod;
-        // }
-        // GISMO_ENSURE((sum-2.*mu)/sum<1e-10,"Sum of products must be equal to 2*mu! sum = "<<sum<<"; 2*mu = "<<2.*mu);
-    }
+    //     /// THIS CHECK IS NOT NECESSARY
+    //     // int n = (m_pars.size()-2)/2;
+    //     // sum = 0.0;
+    //     // for (index_t k=0; k!=n; k++)
+    //     // {
+    //     //     prod = m_parvals.at(2*(k+1))*m_parvals.at(2*(k+1)+1);
+    //     //     GISMO_ENSURE(prod > 0.0,"Product of coefficients must be positive for all indices");
+    //     //     sum += prod;
+    //     // }
+    //     // GISMO_ENSURE((sum-2.*mu)/sum<1e-10,"Sum of products must be equal to 2*mu! sum = "<<sum<<"; 2*mu = "<<2.*mu);
+    // }
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
@@ -409,6 +409,23 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::thickness_into(const index_t pa
     m_map.mine().points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
     m_thickness->eval_into(m_map.mine().values[0], result);
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+{
+    m_map.mine().flags = NEED_VALUE;
+    m_map.mine().points = u;
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
+
+    gsMatrix<T> tmp;
+    result.resize(m_pars.size(),m_map.mine().values[0].cols());
+    result.setZero();
+    for (size_t v=0; v!=m_pars.size(); v++)
+    {
+        m_pars[v]->eval_into(m_map.mine().values[0], tmp);
+        result.row(v) = tmp;
+    }
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
