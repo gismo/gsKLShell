@@ -75,18 +75,20 @@ public:
      */
     gsShellStressFunction(const gsMultiPatch<T> & geometry,
                            const gsFunctionSet<T> & deformed,
-                           gsMaterialMatrixBase<T> * mm,
+                           const gsMaterialMatrixContainer<T> & mm,
                            index_t patch,
                            stress_type::type type,
                            const gsExprAssembler<T> & assembler
                            )
         : m_patches(geometry),
           m_defpatches(&deformed),
-          m_materialMat(mm),
+          m_materialMatrices(mm),
           m_patchID(patch),
           m_stress_type(type),
           m_assembler(assembler)
-    {}
+    {
+
+    }
 
     virtual short_t domainDim() const
     {
@@ -184,7 +186,7 @@ protected:
 
     const gsMultiPatch<T> & m_patches;
     const gsFunctionSet<T> * m_defpatches;
-    mutable gsMaterialMatrixBase<T> * m_materialMat;
+    const gsMaterialMatrixContainer<T> & m_materialMatrices;
     index_t m_patchID;
     stress_type::type m_stress_type;
     mutable gsExprAssembler<> m_assembler;

@@ -34,7 +34,8 @@ public:
                             const gsFunctionSet<T> * deformed)
     :
     m_materialMatrices(materialMatrices),
-    m_deformed(deformed)
+    m_deformed(deformed),
+    m_piece(nullptr)
     {
 
     }
@@ -44,7 +45,8 @@ public:
                             const gsFunctionSet<T> * deformed)
     :
     m_materialMatrices(deformed->nPieces()),
-    m_deformed(deformed)
+    m_deformed(deformed),
+    m_piece(nullptr)
     {
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
             m_materialMatrices.add(materialMatrix);

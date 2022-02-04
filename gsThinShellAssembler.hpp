@@ -67,7 +67,7 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
                                         m_forceFun(&surface_force)
 {
     m_materialMatrices = gsMaterialMatrixContainer<T>(m_patches.nPatches());
-    for (index_t p=0; p!=m_patches.nPatches(); p++)
+    for (size_t p=0; p!=m_patches.nPatches(); p++)
         m_materialMatrices.add(materialMatrix);
 
     this->_defaultOptions();
@@ -360,7 +360,6 @@ template <short_t d, class T, bool bending>
 template <bool matrix>
 void gsThinShellAssembler<d, T, bending>::_assemblePressure(const gsFunctionSet<T> & deformed)
 {
-    // gsWarn<<"Weak boundary conditions are currently disabled.\n";
     this->_getOptions();
     _assemblePressure_impl<d,matrix>(deformed);
 }
@@ -464,7 +463,6 @@ template <short_t d, class T, bool bending>
 template <bool matrix>
 void gsThinShellAssembler<d, T, bending>::_assembleFoundation(const gsFunctionSet<T> & deformed)
 {
-    // gsWarn<<"Weak boundary conditions are currently disabled.\n";
     this->_getOptions();
     _assembleFoundation_impl<d,matrix>(deformed);
 }
@@ -523,7 +521,6 @@ template <short_t d, class T, bool bending>
 template <bool matrix>
 void gsThinShellAssembler<d, T, bending>::_assembleWeakBCs()
 {
-    gsWarn<<"Weak boundary conditions are currently disabled.\n";
     this->_getOptions();
     _assembleWeakBCs_impl<d,matrix>();
 }
@@ -621,7 +618,6 @@ template <short_t d, class T, bool bending>
 template <bool matrix>
 void gsThinShellAssembler<d, T, bending>::_assembleWeakBCs(const gsFunctionSet<T> & deformed)
 {
-    // gsWarn<<"Weak boundary conditions are currently disabled.\n";
     this->_getOptions();
     _assembleWeakBCs_impl<d,matrix>(deformed);
 }
@@ -687,7 +683,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
         m_bcs.get("Weak Clamped")
         ,
         (
-            m_alpha_r_bc * dnN * ( var1(m_space,m_def) * usn(m_ori) )
+            - m_alpha_r_bc * dnN * ( var1(m_space,m_def) * usn(m_ori) )
         ) * tv(m_ori).norm()
     );
 }
@@ -736,7 +732,6 @@ template <short_t d, class T, bool bending>
 template <bool matrix>
 void gsThinShellAssembler<d, T, bending>::_assembleWeakIfc()
 {
-    gsWarn<<"Weak boundary conditions are currently disabled.\n";
     this->_getOptions();
     _assembleWeakIfc_impl<d,matrix>();
 }
@@ -751,7 +746,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
     // C^0 coupling
-    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+    m_assembler.assembleIfc(m_weakC0,
                      m_alpha_d_ifc * m_space.left() * m_space.left().tr()
                     ,
                     -m_alpha_d_ifc * m_space.right()* m_space.left() .tr()
@@ -764,7 +759,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
     // C^1 coupling
     // Penalty of out-of-plane coupling
     // dW^pr / du_r --> second line
-    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+    m_assembler.assembleIfc(m_weakC1,
                      m_alpha_r_ifc * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr()    // left left
                     ,
                      m_alpha_r_ifc * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr()   // left right
@@ -785,7 +780,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 
     // Penalty of in-plane coupling
     // dW^pr / du_r --> fourth line
-    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+    m_assembler.assembleIfc(m_weakC1,
                      m_alpha_r_ifc * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ) * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ).tr() // left left
                     + // Symmetry
                      m_alpha_r_ifc * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ) * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ).tr() // left left
@@ -823,7 +818,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
     // C^0 coupling
-    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+    m_assembler.assembleIfc(m_weakC0,
                      m_alpha_d_ifc * m_space.left() * m_space.left().tr()
                     ,
                     -m_alpha_d_ifc * m_space.right()* m_space.left() .tr()
@@ -850,7 +845,6 @@ template <short_t d, class T, bool bending>
 template <bool matrix>
 void gsThinShellAssembler<d, T, bending>::_assembleWeakIfc(const gsFunctionSet<T> & deformed)
 {
-    // gsWarn<<"Weak boundary conditions are currently disabled.\n";
     this->_getOptions();
     _assembleWeakIfc_impl<d,matrix>(deformed);
 }
@@ -880,7 +874,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
                     - unv(m_ori.right()).tr()*usn(m_ori.left())).val();
 
     // C^0 coupling
-    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+    m_assembler.assembleIfc(m_weakC0,
                      m_alpha_d_ifc * m_space.left() * m_space.left().tr()
                     ,
                     -m_alpha_d_ifc * m_space.right()* m_space.left() .tr()
@@ -893,7 +887,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
     // C^1 coupling
     // Penalty of out-of-plane coupling
     // dW^pr / du_r --> first line
-    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+    m_assembler.assembleIfc(m_weakC1,
                      m_alpha_r_ifc * dN_lr * var2(m_space.left() ,m_space.left() ,m_def.left() ,usn(m_def.right()).tr() )      // left left
                     ,
                      m_alpha_r_ifc * dN_lr * ( var1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() )// left right
@@ -914,7 +908,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     // Penalty of out-of-plane coupling
     // dW^pr / du_r --> second line
-    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+    m_assembler.assembleIfc(m_weakC1,
                      m_alpha_r_ifc * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr()    // left left
                     ,
                      m_alpha_r_ifc * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr()   // left right
@@ -935,7 +929,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     // Penalty of in-plane coupling
     // dW^pr / du_r --> third line
-    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+    m_assembler.assembleIfc(m_weakC1,
                      m_alpha_r_ifc * dnN_lr * ovar2(m_space.left(),m_space.left(),m_def.left(),usn(m_def.right()).tr()) // left left
                     + // Symmetry
                      m_alpha_r_ifc * dnN_rl * ovar2(m_space.left(),m_space.left(),m_def.left(),usn(m_def.right()).tr()) // left left
@@ -955,7 +949,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     // Penalty of in-plane coupling
     // dW^pr / du_r --> fourth line
-    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+    m_assembler.assembleIfc(m_weakC1,
                      m_alpha_r_ifc * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ) * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ).tr() // left left
                     + // Symmetry
                      m_alpha_r_ifc * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ) * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ).tr() // left left
@@ -999,15 +993,14 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
                     - unv(m_ori.right()).tr()*usn(m_ori.left())).val();
 
     // C^0 coupling
-    // TODO: change m_patches.topology().interfaces() to a dedicated container
-    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+    m_assembler.assembleIfc(m_weakC0,
                     -m_alpha_d_ifc * m_space.left() * du
                     ,
                      m_alpha_d_ifc * m_space.right()* du
                      );
 
    // C^1 coupling
-    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+    m_assembler.assembleIfc(m_weakC1,
                     -m_alpha_r_ifc * dN_lr * var1(m_space.left(),m_def.left())   * usn(m_def.right())
                     ,
                     -m_alpha_r_ifc * dN_lr * var1(m_space.right(),m_def.right()) * usn(m_def.left() )
@@ -1020,7 +1013,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     // Penalty of in-plane coupling
     // dW^pr / du_r --> second line
-    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+    m_assembler.assembleIfc(m_weakC1,
                     -m_alpha_r_ifc * dnN_lr* ovar1(m_space.left(),m_def.left())  * usn(m_def.right())
                     ,
                     -m_alpha_r_ifc * dnN_lr* var1(m_space.right(),m_def.right()) * unv(m_def.left() )
@@ -1045,7 +1038,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
     auto du = ((m_def.left()-m_ori.left()) - (m_def.right()-m_ori.right()));
 
     // C^0 coupling
-    m_assembler.assembleIfc(m_patches.topology().interfaces(),
+    m_assembler.assembleIfc(m_weakC0,
                      m_alpha_d_ifc * m_space.left() * m_space.left().tr()
                     ,
                     -m_alpha_d_ifc * m_space.right()* m_space.left() .tr()
@@ -1071,7 +1064,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
      auto du = ((m_def.left()-m_ori.left()) - (m_def.right()-m_ori.right()));
 
     // C^0 coupling
-     m_assembler.assembleIfc(m_patches.topology().interfaces(),
+     m_assembler.assembleIfc(m_weakC0,
                       m_alpha_d_ifc * m_space.left() * du
                      ,
                      -m_alpha_d_ifc * m_space.right()* du
@@ -2325,7 +2318,7 @@ void gsThinShellAssembler<d, T, bending>::constructStress(const gsFunctionSet<T>
     result.clear();
 
     for (size_t p = 0; p < m_patches.nPatches(); ++p )
-        result.addPiecePointer(new gsShellStressFunction<T>(m_patches,deformed,m_materialMatrices.piece(p),p,type,m_assembler));
+        result.addPiecePointer(new gsShellStressFunction<T>(m_patches,deformed,m_materialMatrices,p,type,m_assembler));
 
 }
 
@@ -2337,7 +2330,7 @@ void gsThinShellAssembler<d, T, bending>::constructStress(const gsFunctionSet<T>
 //     result.clear();
 
 //     for (size_t p = 0; p < m_patches.nPatches(); ++p )
-//         result.addPiecePointer(new gsShellStressFunction<d, T, bending>(m_patches,deformed,m_materialMatrices.piece(p),p,type,m_assembler));
+//         result.addPiecePointer(new gsShellStressFunction<d, T, bending>(m_patches,deformed,m_materialMatrices,p,type,m_assembler));
 
 //     gsField<T> stressField(m_patches,result, true);
 //     return stressField;

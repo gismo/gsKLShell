@@ -36,7 +36,8 @@ public:
     :
     m_materialMatrices(materialMatrices),
     m_deformed(deformed),
-    m_z(z)
+    m_z(z),
+    m_piece(nullptr)
     {
         gsDebugVar("Container");
     }
@@ -48,7 +49,8 @@ public:
     :
     m_materialMatrices(deformed->nPieces()),
     m_deformed(deformed),
-    m_z(z)
+    m_z(z),
+    m_piece(nullptr)
     {
         gsDebugVar("Single");
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
@@ -84,8 +86,8 @@ public:
 protected:
     gsMaterialMatrixContainer<T> m_materialMatrices;
     const gsFunctionSet<T> * m_deformed;
-    mutable gsMaterialMatrixEvalSingle<T,out> * m_piece;
     gsMatrix<T> m_z;
+    mutable gsMaterialMatrixEvalSingle<T,out> * m_piece;
 };
 
 /**
