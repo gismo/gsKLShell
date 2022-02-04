@@ -584,6 +584,8 @@ template <class T>
 gsMultiPatch<T> RectangularDomain(int n, int p, T L, T B);
 //! [Forward declarations]
 
+template <class T>
+gsMultiPatch<T> Panel(T Lp, T Wp, T Hw, T Wf, T x = 0, T y = 0, T z = 0);
 
 int main(int argc, char *argv[])
 {
@@ -625,14 +627,22 @@ int main(int argc, char *argv[])
     gsMultiPatch<> mp;
     gsMultiPatch<> mp_def;
 
+    if (testCase < 4)
+    {
+        if (testCase==1)
+            fn = "planar/two_squares.xml";
+        else if (testCase==2)
+            fn = "multipatches/T-beam.xml";
+        else if (testCase==3)
+            fn = "multipatches/I-beam.xml";
+        gsReadFile<>(fn, mp);
 
-    if (testCase==1)
-        fn = "planar/two_squares.xml";
-    else if (testCase==2)
-        fn = "multipatches/T-beam.xml";
-    else if (testCase==3)
-        fn = "multipatches/I-beam.xml";
-    gsReadFile<>(fn, mp);
+    }
+    else if (testCase==4)
+        mp = Panel(10.,5.,1.,1.);
+
+    gsWrite(mp,"mp_xml");
+
     PoissonRatio = 0.0;
     if (testCase==1)
         mp.embed(3);
@@ -669,6 +679,7 @@ int main(int argc, char *argv[])
     //! [pre-define boundary conditions]
 
     gsPiecewiseFunction<> force(mp.nPatches());
+    gsPiecewiseFunction<> t(mp.nPatches());
     //! [Boundary condition case 1]
     if (testCase == 1)
     {
@@ -722,6 +733,11 @@ int main(int argc, char *argv[])
         tmp << 0,0,-1;
         gsConstantFunction<> piece1(tmp,3);
         force.addPiece(piece1);
+
+        gsConstantFunction<> tpiece0(1,3);
+        t.addPiece(tpiece0);
+        gsConstantFunction<> tpiece1(1,3);
+        t.addPiece(tpiece1);
     }
     else if (testCase == 2)
     {
@@ -765,6 +781,12 @@ int main(int argc, char *argv[])
         gsConstantFunction<> piece2(tmp,3);
         force.addPiece(piece2);
 
+        gsConstantFunction<> tpiece0(1,3);
+        t.addPiece(tpiece0);
+        gsConstantFunction<> tpiece1(1,3);
+        t.addPiece(tpiece1);
+        gsConstantFunction<> tpiece2(1,3);
+        t.addPiece(tpiece2);
     }
     else if (testCase == 3)
     {
@@ -814,6 +836,79 @@ int main(int argc, char *argv[])
         gsConstantFunction<> piece4(tmp,3);
         force.addPiece(piece4);
 
+        gsConstantFunction<> tpiece0(1,3);
+        t.addPiece(tpiece0);
+        gsConstantFunction<> tpiece1(1,3);
+        t.addPiece(tpiece1);
+        gsConstantFunction<> tpiece2(1,3);
+        t.addPiece(tpiece2);
+        gsConstantFunction<> tpiece3(1,3);
+        t.addPiece(tpiece3);
+        gsConstantFunction<> tpiece4(1,3);
+        t.addPiece(tpiece4);
+    }
+    else if (testCase == 4)
+    {
+        mp.clearTopology();
+        mp.computeTopology();
+        for (index_t d = 0; d!=3; d++)
+        {
+            bc.addCondition(0, boundary::north, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(0, boundary::south, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(0, boundary::east, condition_type::dirichlet, 0, 0, false, d);
+
+            bc.addCondition(1, boundary::north, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(1, boundary::south, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(1, boundary::west, condition_type::dirichlet, 0, 0, false, d);
+
+            bc.addCondition(2, boundary::east, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(2, boundary::west, condition_type::dirichlet, 0, 0, false, d);
+
+            bc.addCondition(3, boundary::north, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(3, boundary::south, condition_type::dirichlet, 0, 0, false, d);
+
+            bc.addCondition(4, boundary::north, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(4, boundary::south, condition_type::dirichlet, 0, 0, false, d);
+
+        }
+        // if (weak)
+        // {
+        //     for (size_t p=0; p!=mp.nPatches(); ++p)
+        //         bc.addCondition(p, boundary::east, condition_type::weak_clamped, 0, 0, false, 2);
+        // }
+        // else
+        // {
+        //     for (size_t p=0; p!=mp.nPatches(); ++p)
+        //         bc.addCondition(p, boundary::east, condition_type::clamped, 0, 0, false, 2);
+        // }
+
+        tmp << 0,0,1e-3;
+        gsConstantFunction<> piece0(tmp,3);
+        force.addPiece(piece0);
+        tmp << 0,0,1e-3;
+        gsConstantFunction<> piece1(tmp,3);
+        force.addPiece(piece1);
+        tmp << 0,0,0;
+        gsConstantFunction<> piece2(tmp,3);
+        force.addPiece(piece2);
+        tmp << 0,0,0;
+        gsConstantFunction<> piece3(tmp,3);
+        force.addPiece(piece3);
+        tmp << 0,0,0;
+        gsConstantFunction<> piece4(tmp,3);
+        force.addPiece(piece4);
+
+
+        gsConstantFunction<> tpiece0(1,3);
+        t.addPiece(tpiece0);
+        gsConstantFunction<> tpiece1(1,3);
+        t.addPiece(tpiece1);
+        gsConstantFunction<> tpiece2(0.5,3);
+        t.addPiece(tpiece2);
+        gsConstantFunction<> tpiece3(0.1,3);
+        t.addPiece(tpiece3);
+        gsConstantFunction<> tpiece4(0.1,3);
+        t.addPiece(tpiece4);
     }
 
     //! [Assembler setup]
@@ -845,7 +940,6 @@ int main(int argc, char *argv[])
     gsMaterialMatrixD<real_t> materialMat(mp, E, nu);
     auto mm = A.getCoeff(materialMat); // evaluates in the parametric domain, but the class transforms E and nu to physical
 
-    gsFunctionExpr<> t(util::to_string(thickness), 3);
     auto tt = A.getCoeff(t, G); // evaluates in the physical domain
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",3);
@@ -1565,4 +1659,67 @@ gsMultiPatch<T> RectangularDomain(int n, int m, int p, int q, T L, T B)
   mp.addAutoBoundaries();
 
   return mp;
+}
+
+template <class T>
+gsMultiPatch<T> Panel(T Lp, T Wp, T Hw, T Wf, T x, T y, T z)
+
+{
+    gsMultiPatch<T> result, tmp;
+
+    // Base plate, left
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(0).embed(3);
+    result.patch(0).coefs().row(0)<< 0,0,0;
+    result.patch(0).coefs().row(1)<< Wp/2,0,0;
+    result.patch(0).coefs().row(2)<< 0,Lp,0;
+    result.patch(0).coefs().row(3)<< Wp/2,Lp,0;
+
+    // Base plate, right
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(1).embed(3);
+    result.patch(1).coefs().row(0)<< -Wp/2,0,0;
+    result.patch(1).coefs().row(1)<< 0,0,0;
+    result.patch(1).coefs().row(2)<< -Wp/2,Lp,0;
+    result.patch(1).coefs().row(3)<< 0,Lp,0;
+
+    // Web
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(2).embed(3);
+    result.patch(2).coefs().row(0)<< 0,0,0;
+    result.patch(2).coefs().row(1)<< 0,Lp,0;
+    result.patch(2).coefs().row(2)<< 0,0,Hw;
+    result.patch(2).coefs().row(3)<< 0,Lp,Hw;
+
+    // Flange, left
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(3).embed(3);
+    result.patch(3).coefs().row(0)<< 0,0,Hw;
+    result.patch(3).coefs().row(1)<< Wf/2,0,Hw;
+    result.patch(3).coefs().row(2)<< 0,Lp,Hw;
+    result.patch(3).coefs().row(3)<< Wf/2,Lp,Hw;
+
+    // Flange, right
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(4).embed(3);
+    result.patch(4).coefs().row(0)<< -Wf/2,0,Hw;
+    result.patch(4).coefs().row(1)<< 0,0,Hw;
+    result.patch(4).coefs().row(2)<< -Wf/2,Lp,Hw;
+    result.patch(4).coefs().row(3)<< 0,Lp,Hw;
+
+    for (index_t p = 0; p!=5; p++)
+    {
+        result.patch(p).coefs().col(0).array() += x;
+        result.patch(p).coefs().col(1).array() += y;
+        result.patch(p).coefs().col(2).array() += z;
+    }
+
+    result.addInterface(&result.patch(1),2,&result.patch(0),1);
+    result.addInterface(&result.patch(2),3,&result.patch(0),1);
+    result.addInterface(&result.patch(2),4,&result.patch(3),1);
+    result.addInterface(&result.patch(2),4,&result.patch(4),2);
+
+    result.addAutoBoundaries();
+
+    return result;
 }

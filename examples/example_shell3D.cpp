@@ -14,9 +14,15 @@
 #include <gismo.h>
 
 #include <gsKLShell/gsThinShellAssembler.h>
+#include <gsKLShell/gsMaterialMatrixContainer.h>
+#include <gsKLShell/gsMaterialMatrixEval.h>
+#include <gsKLShell/gsMaterialMatrixIntegrate.h>
 #include <gsKLShell/getMaterialMatrix.h>
 
 using namespace gismo;
+
+template <class T>
+gsMultiPatch<T> Panel(T Lp, T Wp, T Hw, T Wf, T x = 0, T y = 0, T z = 0);
 
 // Choose among various shell examples, default = Thin Plate
 int main(int argc, char *argv[])
@@ -91,7 +97,7 @@ int main(int argc, char *argv[])
     {
         thickness = 1;
         E_modulus = 1;
-        PoissonRatio = 0.0;
+        PoissonRatio = 0.3;
 
         // MULTIPATCH CASE plate
         gsReadFile<>("multipatches/T-beam.xml", mp);
@@ -100,10 +106,18 @@ int main(int argc, char *argv[])
     {
         thickness = 1;
         E_modulus = 1;
-        PoissonRatio = 0.0;
+        PoissonRatio = 0.3;
 
         // MULTIPATCH CASE plate
         gsReadFile<>("multipatches/I-beam.xml", mp);
+    }
+    else if (testCase == 7)
+    {
+        thickness = 1;
+        E_modulus = 1;
+        PoissonRatio = 0.3;
+
+        mp = Panel(10.,5.,1.,1.);
     }
     else
     {
@@ -140,6 +154,8 @@ int main(int argc, char *argv[])
     bc.setGeoMap(mp);
 
     gsPiecewiseFunction<> force(mp.nPatches());
+    gsPiecewiseFunction<> t(mp.nPatches());
+    gsPiecewiseFunction<> nu(mp.nPatches());
 
     gsVector<> tmp(3);
     tmp << 0, 0, 0;
@@ -170,8 +186,14 @@ int main(int argc, char *argv[])
         refPoint<<0.5,0.5;
         tmp << 0,0,-1;
 
-        gsConstantFunction<> piece0(tmp,3);
-        force.addPiece(piece0);
+        gsConstantFunction<> force0(tmp,3);
+        force.addPiece(force0);
+
+        gsFunctionExpr<> t0(std::to_string(thickness), 3);
+        t.addPiece(t0);
+
+        gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu0);
     }
     else if (testCase == 1)
     {
@@ -185,8 +207,14 @@ int main(int argc, char *argv[])
         bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0 ,false, 2 );
 
         // Surface forces
-        gsConstantFunction<> piece0(tmp,3);
-        force.addPiece(piece0);
+        gsConstantFunction<> force0(tmp,3);
+        force.addPiece(force0);
+
+        gsFunctionExpr<> t0(std::to_string(thickness), 3);
+        t.addPiece(t0);
+
+        gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu0);
 
         refPoint<<0.5,1;
     }
@@ -207,8 +235,16 @@ int main(int argc, char *argv[])
         bc.addCondition(boundary::west, condition_type::clamped, 0, 0, false, 2 );
 
         // Surface forces
-        gsConstantFunction<> piece0(tmp,3);
-        force.addPiece(piece0);
+        gsConstantFunction<> force0(tmp,3);
+        force.addPiece(force0);
+
+        // thickness
+        gsFunctionExpr<> t0(std::to_string(thickness), 3);
+        t.addPiece(t0);
+
+        // material parameters
+        gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu0);
 
         // Point loads
         gsVector<> point(2);
@@ -243,8 +279,16 @@ int main(int argc, char *argv[])
 
         // Surface forces
         tmp.setZero();
-        gsConstantFunction<> piece0(tmp,3);
-        force.addPiece(piece0);
+        gsConstantFunction<> force0(tmp,3);
+        force.addPiece(force0);
+
+        // thickness
+        gsFunctionExpr<> t0(std::to_string(thickness), 3);
+        t.addPiece(t0);
+
+        // material parameters
+        gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu0);
 
         // Point loads
         gsVector<> point(2); point<< 1.0, 1.0 ;
@@ -267,12 +311,24 @@ int main(int argc, char *argv[])
         }
 
         // Surface forces
-        tmp << 0,0,-1;
-        gsConstantFunction<> piece0(tmp,3);
-        force.addPiece(piece0);
-        tmp << 0,0,-1;
-        gsConstantFunction<> piece1(tmp,3);
-        force.addPiece(piece1);
+        tmp << 0,0,-1e-3;
+        gsConstantFunction<> force0(tmp,3);
+        force.addPiece(force0);
+        tmp << 0,0,-1e-3;
+        gsConstantFunction<> force1(tmp,3);
+        force.addPiece(force1);
+
+        // thickness
+        gsFunctionExpr<> t0(std::to_string(thickness), 3);
+        t.addPiece(t0);
+        gsFunctionExpr<> t1(std::to_string(thickness), 3);
+        t.addPiece(t1);
+
+        // material parameters
+        gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu0);
+        gsFunctionExpr<> nu1(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu1);
 
         // Point loads
         gsVector<> point(2); point<< 0.0, 0.5 ;
@@ -289,14 +345,30 @@ int main(int argc, char *argv[])
 
         // Surface forces
         tmp << 0,0,0;
-        gsConstantFunction<> piece0(tmp,3);
-        force.addPiece(piece0);
+        gsConstantFunction<> force0(tmp,3);
+        force.addPiece(force0);
         tmp << 0,0,-1e-3;
-        gsConstantFunction<> piece1(tmp,3);
-        force.addPiece(piece1);
-        tmp << 0,0,-1e-1;
-        gsConstantFunction<> piece2(tmp,3);
-        force.addPiece(piece2);
+        gsConstantFunction<> force1(tmp,3);
+        force.addPiece(force1);
+        tmp << 0,0,-1e-3;
+        gsConstantFunction<> force2(tmp,3);
+        force.addPiece(force2);
+
+        // thickness
+        gsFunctionExpr<> t0(std::to_string(thickness), 3);
+        t.addPiece(t0);
+        gsFunctionExpr<> t1(std::to_string(thickness), 3);
+        t.addPiece(t1);
+        gsFunctionExpr<> t2(std::to_string(thickness), 3);
+        t.addPiece(t2);
+
+        // material parameters
+        gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu0);
+        gsFunctionExpr<> nu1(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu1);
+        gsFunctionExpr<> nu2(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu2);
 
         // Point loads
         gsVector<> point(2); point<< 1.0, 1.0 ;
@@ -312,12 +384,79 @@ int main(int argc, char *argv[])
 
         // Point loads
         tmp << 0,0,0;
+        gsConstantFunction<> force0(tmp,3);
+        force.addPiece(force0);
+        tmp << 0,0,-1e-3;
+        gsConstantFunction<> force1(tmp,3);
+        force.addPiece(force1);
+        tmp << 0,0,-1e-3;
+        gsConstantFunction<> force2(tmp,3);
+        force.addPiece(force2);
+        tmp << 0,0,0;
+        gsConstantFunction<> force3(tmp,3);
+        force.addPiece(force3);
+        tmp << 0,0,0;
+        gsConstantFunction<> force4(tmp,3);
+        force.addPiece(force4);
+
+        // thickness
+        gsFunctionExpr<> t0(std::to_string(thickness), 3);
+        t.addPiece(t0);
+        gsFunctionExpr<> t1(std::to_string(thickness), 3);
+        t.addPiece(t1);
+        gsFunctionExpr<> t2(std::to_string(thickness), 3);
+        t.addPiece(t2);
+        gsFunctionExpr<> t3(std::to_string(thickness), 3);
+        t.addPiece(t3);
+        gsFunctionExpr<> t4(std::to_string(thickness), 3);
+        t.addPiece(t4);
+
+        // material parameters
+        gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu0);
+        gsFunctionExpr<> nu1(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu1);
+        gsFunctionExpr<> nu2(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu2);
+        gsFunctionExpr<> nu3(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu3);
+        gsFunctionExpr<> nu4(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu4);
+
+        gsVector<> point(2); point<< 1.0, 1.0 ;
+        refPoint = point;
+    }
+    else if (testCase == 7)
+    {
+        for (index_t d = 0; d!=3; d++)
+        {
+            bc.addCondition(0, boundary::north, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(0, boundary::south, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(0, boundary::east, condition_type::dirichlet, 0, 0, false, d);
+
+            bc.addCondition(1, boundary::north, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(1, boundary::south, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(1, boundary::west, condition_type::dirichlet, 0, 0, false, d);
+
+            bc.addCondition(2, boundary::east, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(2, boundary::west, condition_type::dirichlet, 0, 0, false, d);
+
+            bc.addCondition(3, boundary::north, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(3, boundary::south, condition_type::dirichlet, 0, 0, false, d);
+
+            bc.addCondition(4, boundary::north, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(4, boundary::south, condition_type::dirichlet, 0, 0, false, d);
+
+        }
+
+        // Point loads
+        tmp << 0,0,1e-2;
         gsConstantFunction<> piece0(tmp,3);
         force.addPiece(piece0);
-        tmp << 0,0,-1e-3;
+        tmp << 0,0,1e-2;
         gsConstantFunction<> piece1(tmp,3);
         force.addPiece(piece1);
-        tmp << 0,0,-1e-3;
+        tmp << 0,0,0;
         gsConstantFunction<> piece2(tmp,3);
         force.addPiece(piece2);
         tmp << 0,0,0;
@@ -326,6 +465,30 @@ int main(int argc, char *argv[])
         tmp << 0,0,0;
         gsConstantFunction<> piece4(tmp,3);
         force.addPiece(piece4);
+
+        // thickness
+        gsFunctionExpr<> t0(std::to_string(thickness), 3);
+        t.addPiece(t0);
+        gsFunctionExpr<> t1(std::to_string(thickness), 3);
+        t.addPiece(t1);
+        gsFunctionExpr<> t2(std::to_string(thickness), 3);
+        t.addPiece(t2);
+        gsFunctionExpr<> t3(std::to_string(thickness), 3);
+        t.addPiece(t3);
+        gsFunctionExpr<> t4(std::to_string(thickness), 3);
+        t.addPiece(t4);
+
+        // material parameters
+        gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu0);
+        gsFunctionExpr<> nu1(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu1);
+        gsFunctionExpr<> nu2(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu2);
+        gsFunctionExpr<> nu3(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu3);
+        gsFunctionExpr<> nu4(std::to_string(PoissonRatio), 3);
+        nu.addPiece(nu4);
 
         gsVector<> point(2); point<< 1.0, 1.0 ;
         refPoint = point;
@@ -338,9 +501,8 @@ int main(int argc, char *argv[])
     //! [Make material functions]
     // Linear isotropic material model
     gsConstantFunction<> pressFun(pressure,3);
-    gsFunctionExpr<> t(std::to_string(thickness), 3);
     gsFunctionExpr<> E(std::to_string(E_modulus),3);
-    gsFunctionExpr<> nu(std::to_string(PoissonRatio),3);
+
     gsFunctionExpr<> rho(std::to_string(Density),3);
 
     // Linear anisotropic material model (only one layer for example purposes)
@@ -383,14 +545,78 @@ int main(int argc, char *argv[])
         materialMatrix = getMaterialMatrix<3,real_t>(mp,t,parameters,rho,options);
     }
 
+    gsMaterialMatrixContainer<real_t> materialMats(mp.nPatches());
+    for (size_t p = 0; p!=mp.nPatches(); p++)
+        materialMats.add(materialMatrix);
+
+
+    // gsMaterialMatrixContainer<real_t> materialMatsSingle(mp.nPatches());
+    // gsMaterialMatrixBase<real_t> * mmtmp;
+    // for (size_t p = 0; p!=mp.nPatches(); p++)
+    // {
+    //     parameters.resize(2);
+    //     parameters[0] = const_cast<gsFunction<> *>(&(E.function(p)));
+    //     parameters[1] = const_cast<gsFunction<> *>(&(nu.function(p)));
+    //     options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
+    //     options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+    //     mmtmp = getMaterialMatrix<3,real_t>(mp,t,parameters,rho,options);
+
+    //     materialMatsSingle.add(mmtmp);
+    // }
+
+
+
+    // gsDebugVar(materialMats);
+    // gsDebugVar(materialMatsSingle);
+
+    // gsMatrix<> z(1,1);
+    // z.setZero();
+    // // gsMaterialMatrixEval2<real_t,MaterialOutput::VectorN> vectorN(materialMats,&mp,z);
+
+    // gsMaterialMatrixEval<real_t,MaterialOutput::Thickness> Thickness(materialMatrix,&mp,z);
+    // gsMaterialMatrixEval<real_t,MaterialOutput::Parameters> Parameters(materialMatrix,&mp,z);
+
+
+    // gsMatrix<> result;
+    // gsVector<> pt(2); pt.setConstant(0.25);
+
+    // for (size_t p = 0; p!=mp.nPatches(); ++p)
+    // {
+    //     gsDebug<<"-----------Patch "<<p<<"\n";
+    //     Thickness.piece(p).eval_into(pt,result);
+    //     gsDebug<<"Thickness: "<<result.transpose()<<"\n";
+
+    //     Parameters.piece(p).eval_into(pt,result);
+    //     gsDebug<<"Parameters: "<<result.transpose()<<"\n";
+    // }
+
+
+    // gsMaterialMatrixEval<real_t,MaterialOutput::Thickness> Thickness2(materialMatsSingle,&mp,z);
+    // gsMaterialMatrixEval<real_t,MaterialOutput::Parameters> Parameters2(materialMatsSingle,&mp,z);
+
+
+    // for (size_t p = 0; p!=mp.nPatches(); ++p)
+    // {
+    //     gsDebug<<"-----------Patch "<<p<<"\n";
+    //     Thickness2.piece(p).eval_into(pt,result);
+    //     gsDebug<<"Thickness: "<<result.transpose()<<"\n";
+
+    //     Parameters2.piece(p).eval_into(pt,result);
+    //     gsDebug<<"Parameters: "<<result.transpose()<<"\n";
+    // }
+
     // Construct the gsThinShellAssembler
     gsThinShellAssemblerBase<real_t>* assembler;
     if(membrane) // no bending term
-        assembler = new gsThinShellAssembler<3, real_t, false>(mp,dbasis,bc,force,materialMatrix);
+        assembler = new gsThinShellAssembler<3, real_t, false>(mp,dbasis,bc,force,materialMats);
     else
-        assembler = new gsThinShellAssembler<3, real_t, true >(mp,dbasis,bc,force,materialMatrix);
+        assembler = new gsThinShellAssembler<3, real_t, true >(mp,dbasis,bc,force,materialMats);
 
+    // Set the penalty parameter for the interface C1 continuity
     assembler->options().setReal("IfcClamped",1e0);
+    assembler->addWeakC0(mp.topology().interfaces());
+    assembler->addWeakC1(mp.topology().interfaces());
+    assembler->initInterfaces();
 
     assembler->setPointLoads(pLoads);
     if (pressure!= 0.0)
@@ -436,15 +662,14 @@ int main(int argc, char *argv[])
     gsVector<> vector = assembler->rhs();
     //! [Assemble linear part]
 
-    gsDebugVar(assembler->matrix().toDense());
-    gsDebugVar(assembler->rhs().transpose());
-
     //! [Solve linear problem]
+    gsInfo<<"Solving system with "<<assembler->numDofs()<<" DoFs\n";
     gsVector<> solVector;
     gsSparseSolver<>::CGDiagonal solver;
     solver.compute( matrix );
     solVector = solver.solve(vector);
     //! [Solve linear problem]
+
 
     //! [Solve non-linear problem]
     if (nonlinear)
@@ -528,8 +753,8 @@ int main(int argc, char *argv[])
             assembler->constructStress(mp_def,flexuralStresses,stress_type::flexural);
             gsField<> flexuralStress(mp_def,flexuralStresses, true);
 
-            gsWriteParaview(membraneStress,"MembraneStress");
-            gsWriteParaview(flexuralStress,"FlexuralStress");
+            gsWriteParaview(membraneStress,"MembraneStress",1000);
+            gsWriteParaview(flexuralStress,"FlexuralStress",1000);
         }
     }
     // ! [Export visualization in ParaView]
@@ -542,3 +767,66 @@ int main(int argc, char *argv[])
     return EXIT_SUCCESS;
 
 }// end main
+
+template <class T>
+gsMultiPatch<T> Panel(T Lp, T Wp, T Hw, T Wf, T x, T y, T z)
+
+{
+    gsMultiPatch<T> result, tmp;
+
+    // Base plate, left
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(0).embed(3);
+    result.patch(0).coefs().row(0)<< 0,0,0;
+    result.patch(0).coefs().row(1)<< Wp/2,0,0;
+    result.patch(0).coefs().row(2)<< 0,Lp,0;
+    result.patch(0).coefs().row(3)<< Wp/2,Lp,0;
+
+    // Base plate, right
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(1).embed(3);
+    result.patch(1).coefs().row(0)<< -Wp/2,0,0;
+    result.patch(1).coefs().row(1)<< 0,0,0;
+    result.patch(1).coefs().row(2)<< -Wp/2,Lp,0;
+    result.patch(1).coefs().row(3)<< 0,Lp,0;
+
+    // Web
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(2).embed(3);
+    result.patch(2).coefs().row(0)<< 0,0,0;
+    result.patch(2).coefs().row(1)<< 0,Lp,0;
+    result.patch(2).coefs().row(2)<< 0,0,Hw;
+    result.patch(2).coefs().row(3)<< 0,Lp,Hw;
+
+    // Flange, left
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(3).embed(3);
+    result.patch(3).coefs().row(0)<< 0,0,Hw;
+    result.patch(3).coefs().row(1)<< Wf/2,0,Hw;
+    result.patch(3).coefs().row(2)<< 0,Lp,Hw;
+    result.patch(3).coefs().row(3)<< Wf/2,Lp,Hw;
+
+    // Flange, right
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(4).embed(3);
+    result.patch(4).coefs().row(0)<< -Wf/2,0,Hw;
+    result.patch(4).coefs().row(1)<< 0,0,Hw;
+    result.patch(4).coefs().row(2)<< -Wf/2,Lp,Hw;
+    result.patch(4).coefs().row(3)<< 0,Lp,Hw;
+
+    for (index_t p = 0; p!=5; p++)
+    {
+        result.patch(p).coefs().col(0).array() += x;
+        result.patch(p).coefs().col(1).array() += y;
+        result.patch(p).coefs().col(2).array() += z;
+    }
+
+    result.addInterface(&result.patch(1),2,&result.patch(0),1);
+    result.addInterface(&result.patch(2),3,&result.patch(0),1);
+    result.addInterface(&result.patch(2),4,&result.patch(3),1);
+    result.addInterface(&result.patch(2),4,&result.patch(4),2);
+
+    result.addAutoBoundaries();
+
+    return result;
+}
