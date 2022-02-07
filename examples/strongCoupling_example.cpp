@@ -432,7 +432,7 @@ int main(int argc, char *argv[])
         // 4. Plot the mapped spline on the original geometry
         gsField<> solField(geom, mspline,true);
         gsInfo<<"Plotting in Paraview...\n";
-        gsWriteParaview<>( solField, "Deformation", 1000, false);
+        gsWriteParaview<>( solField, "Deformation", 1000, true);
 
         // 5. Plot the mapped spline on the deformed geometry
         gsField<> defField(geom, def,true);
