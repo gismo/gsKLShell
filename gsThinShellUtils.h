@@ -119,7 +119,7 @@ public:
 
 private:
     template<class U> inline
-    typename util::enable_if< !util::is_same<U,gsFeSolution<Scalar> >::value,void>::type
+    typename util::enable_if< util::is_same<U,gsFeSpace<Scalar> >::value,void>::type
     parse_impl(gsExprHelper<Scalar> & evList) const
     {
         evList.add(_u);
@@ -129,7 +129,7 @@ private:
     }
 
     template<class U> inline
-    typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value,void>::type
+    typename util::enable_if< util::is_same<U,gsFeSolution<Scalar>>::value || util::is_same<U,gsFeVariable<Scalar>>::value,void>::type
     parse_impl(gsExprHelper<Scalar> & evList) const
     {
         evList.add(_G);
@@ -1252,9 +1252,36 @@ public:
 
 private:
     template<class U> inline
-    typename util::enable_if< !util::is_same<U,gsFeSolution<Scalar> >::value,void>::type
+    typename util::enable_if< util::is_same<U,gsGeometryMap<Scalar> >::value,void>::type
     parse_impl(gsExprHelper<Scalar> & evList) const
     {
+        _u.parse(evList);
+        evList.add(_u);   // We manage the flags of _u "manually" here (sets data)
+        _u.data().flags |= NEED_DERIV2; // define flags
+
+        _v.parse(evList); // We need to evaluate _v (_v.eval(.) is called)
+
+        // Note: evList.parse(.) is called only in exprAssembler for the global expression
+    }
+
+    template<class U> inline
+    typename util::enable_if< util::is_same<U,gsFeSpace<Scalar> >::value,void>::type
+    parse_impl(gsExprHelper<Scalar> & evList) const
+    {
+        _u.parse(evList);
+        evList.add(_u);   // We manage the flags of _u "manually" here (sets data)
+        _u.data().flags |= NEED_DERIV2; // define flags
+
+        _v.parse(evList); // We need to evaluate _v (_v.eval(.) is called)
+
+        // Note: evList.parse(.) is called only in exprAssembler for the global expression
+    }
+
+    template<class U> inline
+    typename util::enable_if< util::is_same<U,gsFeVariable<Scalar> >::value,void>::type
+    parse_impl(gsExprHelper<Scalar> & evList) const
+    {
+        _u.parse(evList);
         evList.add(_u);   // We manage the flags of _u "manually" here (sets data)
         _u.data().flags |= NEED_DERIV2; // define flags
 
@@ -1287,7 +1314,6 @@ private:
             And we want to compute [d11 c .v; d22 c .v;  d12 c .v] ( . denotes a dot product and c and v are both vectors)
             So we simply evaluate for every active basis function v_k the product hess(c).v_k
         */
-
 
         // evaluate the geometry map of U
         tmp =_u.data().values[2].reshapeCol(k, cols(), _u.data().dim.second );
@@ -1367,25 +1393,20 @@ private:
     }
 
     template<class U> inline
-    typename util::enable_if< util::is_same<U,gsGeometryMap<Scalar> >::value, index_t >::type
+    typename util::enable_if<   util::is_same<U,gsGeometryMap<Scalar> >::value ||
+                                util::is_same<U,gsFeVariable<Scalar>  >::value, index_t >::type
     cols_impl(const U & u)  const
     {
-        return _u.data().dim.second;
+        return _u.targetDim();
     }
 
     template<class U> inline
-    typename util::enable_if< !util::is_same<U,gsGeometryMap<Scalar>  >::value, index_t >::type
+    typename util::enable_if<   util::is_same<U,gsFeSpace<Scalar>    >::value ||
+                                util::is_same<U,gsFeSolution<Scalar> >::value, index_t >::type
     cols_impl(const U & u) const
     {
         return _u.dim();
     }
-
-    // template<class U> inline
-    // typename util::enable_if<util::is_same<U,gsFeSolution<Scalar> >::value, index_t >::type
-    // cols_impl(const U & u) const
-    // {
-    //     return _u.dim();
-    // }
 
 };
 
