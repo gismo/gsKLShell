@@ -1427,7 +1427,6 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
 
     space       m_space = m_assembler.trialSpace(0);
 
-
     this->homogenizeDirichlet();
 
     gsVector<T> pt(2);

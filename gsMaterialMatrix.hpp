@@ -142,14 +142,14 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_computePoints(const index_t pa
     if (Base::m_defpatches->nPieces()!=0)
         this->_computeMetricDeformed(patch,u);
 
-    m_thickness->eval_into(m_map.mine().values[0], m_Tmat);
+    m_thickness->piece(patch).eval_into(m_map.mine().values[0], m_Tmat);
 
     m_parmat.resize(m_pars.size(),m_map.mine().values[0].cols());
     m_parmat.setZero();
 
     for (size_t v=0; v!=m_pars.size(); v++)
     {
-        m_pars[v]->eval_into(m_map.mine().values[0], tmp);
+        m_pars[v]->piece(patch).eval_into(m_map.mine().values[0], tmp);
         m_parmat.row(v) = tmp;
     }
 
@@ -202,8 +202,8 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::density_into(const index_t patc
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
 
     result.resize(1, u.cols());
-    m_thickness->eval_into(m_map.mine().values[0], m_Tmat);
-    m_density->eval_into(m_map.mine().values[0], m_rhomat);
+    m_thickness->piece(patch).eval_into(m_map.mine().values[0], m_Tmat);
+    m_density->piece(patch).eval_into(m_map.mine().values[0], m_rhomat);
     for (index_t i = 0; i != u.cols(); ++i) // points
     {
         result(0,i) = m_Tmat(0,i)*m_rhomat(0,i);
@@ -408,7 +408,7 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::thickness_into(const index_t pa
     m_map.mine().flags = NEED_VALUE;
     m_map.mine().points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-    m_thickness->eval_into(m_map.mine().values[0], result);
+    m_thickness->piece(patch).eval_into(m_map.mine().values[0], result);
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
@@ -423,7 +423,7 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::parameters_into(const index_t p
     result.setZero();
     for (size_t v=0; v!=m_pars.size(); v++)
     {
-        m_pars[v]->eval_into(m_map.mine().values[0], tmp);
+        m_pars[v]->piece(patch).eval_into(m_map.mine().values[0], tmp);
         result.row(v) = tmp;
     }
 }
