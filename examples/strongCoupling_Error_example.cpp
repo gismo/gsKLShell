@@ -53,15 +53,18 @@ void writeToCSVfile(std::string name, gsMatrix<> matrix)
 int main(int argc, char *argv[])
 {
     bool plot       = false;
+    bool write      = false;
     bool last       = false;
     bool info       = false;
     bool writeMatrix= false;
+    bool nonlinear  = false;
     index_t numRefine  = 2;
     index_t numElevate = 1;
+    index_t geometry = 1;
     index_t smoothing = 0;
     std::string input;
 
-    std::string fn1,fn2,fn3,fn4;
+    std::string fn1,fn2,fn3;
     fn1 = "pde/2p_square_geom.xml";
     fn2 = "pde/2p_square_bvp.xml";
     fn3 = "options/solver_options.xml";
@@ -75,9 +78,11 @@ int main(int argc, char *argv[])
     cmd.addInt( "r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
     cmd.addInt( "s", "smooth", "Smoothing method to use",  smoothing );
     cmd.addSwitch("plot", "plot",plot);
+    cmd.addSwitch("write", "write",write);
     cmd.addSwitch("last", "last case only",last);
     cmd.addSwitch("writeMat", "Write projection matrix",writeMatrix);
     cmd.addSwitch( "info", "Print information", info );
+    cmd.addSwitch( "nl", "Print information", nonlinear );
 
     // to do:
     // smoothing method add nitsche @Pascal
@@ -123,14 +128,40 @@ int main(int argc, char *argv[])
     // Loads
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
     gsMatrix<> points,loads;
-    gsInfo<<"Reading point load locations from "<<fn2<<" (ID=30) ...";
-    fd.getId(30,points);
-    gsInfo<<"Finished\n";
-    gsInfo<<"Reading point loads from "<<fn2<<" (ID=31) ...";
-    fd.getId(31,loads);
-    gsInfo<<"Finished\n";
+    gsMatrix<index_t> pid_ploads;
+    if ( fd.hasId(30) )
+        fd.getId(30,points);
+    if ( fd.hasId(31) )
+        fd.getId(31,loads);
+
+    if ( fd.hasId(32) )
+        fd.getId(32,pid_ploads);
+    else
+        pid_ploads = gsMatrix<index_t>::Zero(1,points.cols());
+
     for (index_t k =0; k!=points.cols(); k++)
-        pLoads.addLoad(points.col(k), loads.col(k), 0 ); // in parametric domain!
+        pLoads.addLoad(points.col(k), loads.col(k), pid_ploads.at(k) ); // in parametric domain!
+
+    gsInfo<<pLoads;
+
+    // Reference points
+    gsMatrix<index_t> refPatches;
+    gsMatrix<> refPoints, refValue; // todo: add refValue..
+    gsInfo<<"Reading reference point locations from "<<fn2<<" (ID=50) ...";
+    if ( fd.hasId(50) )
+        fd.getId(50,refPoints);
+    gsInfo<<"Finished\n";
+    gsInfo<<"Reading reference patches from "<<fn2<<" (ID=51) ...";
+    if ( fd.hasId(51) )
+        fd.getId(51,refPatches);
+    gsInfo<<"Finished\n";
+    gsInfo<<"Reading reference values from "<<fn2<<" (ID=52) ...";
+    if ( fd.hasId(52) )
+        fd.getId(52,refValue);
+    else
+        refValue = gsMatrix<>::Zero(mp.geoDim(),refPoints.cols());
+    gsInfo<<"Finished\n";
+    GISMO_ENSURE(refPatches.cols()==refPoints.cols(),"Number of reference points and patches do not match");
 
     // Material properties
     gsFunctionExpr<> t,E,nu,rho;
@@ -150,34 +181,8 @@ int main(int argc, char *argv[])
     fd.getId(13,rho);
     gsInfo<<"Finished\n";
 
-    // Manufactured solution
-    gsFunctionExpr<> analytical;
-    bool ansol = false;
-    gsInfo<<"Reading manufactured solutoon "<<fn2<<" (ID=41) ...";
-    if (nullptr!=fd.getId<gsFunctionExpr<real_t>>(41))
-    {
-        ansol = true;
-        fd.getId(41,analytical);
-    }
-    gsInfo<<"Finished\n";
-
-    // Reference points
-    gsMatrix<> refPoints,refPatches;
-    gsInfo<<"Reading reference point locations from "<<fn2<<" (ID=50) ...";
-    if (nullptr!=fd.getId<gsMatrix<>>(50))
-        fd.getId(50,refPoints);
-    gsInfo<<"Finished\n";
-    gsInfo<<"Reading reference patches from "<<fn2<<" (ID=51) ...";
-    if (nullptr!=fd.getId<gsMatrix<>>(51))
-        fd.getId(51,refPatches);
-    gsInfo<<"Finished\n";
-
-    GISMO_ENSURE(refPatches.cols()==refPoints.cols(),"Number of reference points and patches do not match");
-
-    mp.embed(3);
-
-    gsField<> u_an(mp,analytical);
-    gsWriteParaview(u_an,"analytical");
+    if (mp.domainDim()==2)
+        mp.embed(3);
 
     gsMultiPatch<> geom = mp;
 
@@ -205,9 +210,9 @@ int main(int argc, char *argv[])
         numRefine = 0;
     }
 
-    gsWriteParaview(mp,"mp",1000,true,false);
-    for (size_t p = 0; p!=mp.nPatches(); ++p)
-        gsDebugVar(mp.patch(p));
+    if (plot) gsWriteParaview(mp,"mp",1000,true,false);
+    // for (size_t p = 0; p!=mp.nPatches(); ++p)
+    //     gsDebugVar(mp.patch(p));
 
     std::vector<gsFunction<>*> parameters(2);
     parameters[0] = &E;
@@ -221,6 +226,7 @@ int main(int argc, char *argv[])
     gsVector<> l2err(numRefine+1), h1err(numRefine+1), linferr(numRefine+1),
         b2err(numRefine+1), b1err(numRefine+1), binferr(numRefine+1);
 
+    gsVector<> numDofs(numRefine+1);
     gsMatrix<> refs(numRefine+1,3*refPoints.cols());
 
     gsSparseSolver<>::CGDiagonal solver;
@@ -241,7 +247,15 @@ int main(int argc, char *argv[])
 
         gsInfo<<"--------------------------------------------------------------\n";
         time.restart();
-        if (smoothing==0)
+        if (smoothing==-1)
+        {
+            // identity map
+            global2local.resize(dbasis.totalSize(),dbasis.totalSize());
+            for (index_t k=0; k!=dbasis.totalSize(); ++k)
+                global2local.coeffRef(k,k) = 1;
+            geom = mp;
+        }
+        else if (smoothing==0)
         {
             gsMPBESSpline<2,real_t> cgeom(mp,3);
             gsMappedBasis<2,real_t> basis = cgeom.getMappedBasis();
@@ -307,8 +321,6 @@ int main(int argc, char *argv[])
         // gsMappedSpline<2,real_t> mspline(bb2,coefs);
         // geom = mspline.exportToPatches();
 
-        //mem-leak here
-        // assembler = new gsThinShellAssembler<3, real_t, true>(geom,dbasis,bc,force,&materialMatrix);
         assembler = gsThinShellAssembler<3, real_t, true>(geom,dbasis,bc,force,&materialMatrix);
         if (smoothing==1)
             assembler.options().setInt("Continuity",-1);
@@ -320,104 +332,132 @@ int main(int argc, char *argv[])
         // options.setInt("Continuity",1);
         // assembler.setOptions(options);
 
-        time.restart();
         // Initialize the system
-
+        // Linear
         assembler.assemble();
         gsSparseMatrix<> matrix = assembler.matrix();
         gsVector<> vector = assembler.rhs();
 
-        gsInfo<<"\tSystem assembly:\t"<<time.stop()<<"\t[s]\n";
-
-        time.restart();
-
-        solver.compute( matrix );
-        solVector = solver.solve(vector);
-
-        gsInfo<<"\tSolving system:\t\t"<<time.stop()<<"\t[s]\n";
-        time.restart();
+        // gsDebugVar(matrix.toDense());
+        // gsDebugVar(vector.transpose());
 
 
-        if (ansol)
+        // Nonlinear
+        // Function for the Jacobian
+        typedef std::function<gsSparseMatrix<real_t> (gsVector<real_t> const &)>    Jacobian_t;
+        typedef std::function<gsVector<real_t> (gsVector<real_t> const &) >         Residual_t;
+        Jacobian_t Jacobian = [&mp,&bb2,&assembler](gsVector<real_t> const &x)
         {
-        // l2err[r]= math::sqrt( ev.integral( (f - s).sqNorm()*meas(G) ) / ev.integral(f.sqNorm()*meas(G)) );
-        // h1err[r]= l2err[r] + math::sqrt(ev.integral( ( igrad(f) - grad(s)*jac(G).inv() ).sqNorm()*meas(G) )/ev.integral( igrad(f).sqNorm()*meas(G) ) );
-        // linferr[r] = ev.max( f-s ) / ev.max(f);
-        }
-        else
-        {
-            l2err[r]= 0;
-            h1err[r]= 0;
-            linferr[r] = 0;
-        }
+            gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
+            GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
+            solFull.resize(solFull.rows()/3,3);
+            gsMappedSpline<2,real_t> mspline(bb2,solFull);
+            gsFunctionSum<real_t> def(&mp,&mspline);
 
-        if (refPoints.cols()!=0)
+            assembler.assembleMatrix(def);
+            // gsSparseMatrix<real_t> m =
+            return assembler.matrix();
+        };
+        // Function for the Residual
+        Residual_t Residual = [&geom,&mp,&bb2,&assembler](gsVector<real_t> const &x)
         {
-            /// Make a gsMappedSpline to represent the solution
-            // 1. Get all the coefficients (including the ones from the eliminated BCs.)
-            gsMatrix<real_t> solFull = assembler.fullSolutionVector(solVector);
-
-            // 2. Reshape all the coefficients to a Nx3 matrix
+            gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
             GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
             solFull.resize(solFull.rows()/3,3);
 
-            // 3. Make the mapped spline
             gsMappedSpline<2,real_t> mspline(bb2,solFull);
-
             gsFunctionSum<real_t> def(&mp,&mspline);
 
-            for (index_t p=0; p!=refPoints.cols(); p++)
-                refs.block(r,p*3,1,3) = def.piece(refPatches(0,p)).eval(refPoints.col(p)).transpose();
+            assembler.assembleVector(def);
+            return assembler.rhs();
+        };
 
-        }
+        // Linear solve
+        solver.compute( matrix );
+        solVector = solver.solve(vector);
 
-        gsInfo<<"\tError computations:\t"<<time.stop()<<"\t[s]\n"; // This takes longer for the D-patch, probably because there are a lot of points being evaluated, all containing the linear combinations of the MSplines
-
-        // TO DO: Refine the mb
-        if (r < numRefine)
+        if (nonlinear)
         {
-            mp.uniformRefine();
-            dbasis = gsMultiBasis<>(mp);
+            real_t residual = vector.norm();
+            real_t residual0 = residual;
+            real_t residualOld = residual;
+            gsVector<real_t> updateVector = solVector;
+            gsVector<real_t> resVec = Residual(solVector);
+            gsSparseMatrix<real_t> jacMat;
+            for (index_t it = 0; it != 100; ++it)
+            {
+                jacMat = Jacobian(solVector);
+                solver.compute(jacMat);
+                updateVector = solver.solve(resVec); // this is the UPDATE
+                solVector += updateVector;
+
+                resVec = Residual(solVector);
+                residual = resVec.norm();
+
+                gsInfo<<"Iteration: "<< it
+                   <<", residue: "<< residual
+                   <<", update norm: "<<updateVector.norm()
+                   <<", log(Ri/R0): "<< math::log10(residualOld/residual0)
+                   <<", log(Ri+1/R0): "<< math::log10(residual/residual0)
+                   <<"\n";
+
+                residualOld = residual;
+
+                if (updateVector.norm() < 1e-6)
+                    break;
+                else if (it+1 == it)
+                    gsWarn<<"Maximum iterations reached!\n";
+            }
         }
+
+
+        /// Make a gsMappedSpline to represent the solution
+        // 1. Get all the coefficients (including the ones from the eliminated BCs.)
+        gsMatrix<real_t> solFull = assembler.fullSolutionVector(solVector);
+
+        // 2. Reshape all the coefficients to a Nx3 matrix
+        GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
+        solFull.resize(solFull.rows()/3,3);
+
+        // 3. Make the mapped spline
+        gsMappedSpline<2,real_t> mspline(bb2,solFull);
+
+        gsFunctionSum<real_t> def(&mp,&mspline);
+
+        gsField<> solField(geom, mspline,true);
+
+        if (refPoints.cols()!=0)
+        {
+
+            gsMatrix<> ppoints(3,1), result;
+            ppoints<<0.5,0,0.25;
+            mp.patch(refPatches(0,0)).invertPoints(ppoints,result);
+            for (index_t p=0; p!=refPoints.cols(); p++)
+                // refs.block(r,p*mp.geoDim(),1,mp.geoDim()) = def.piece(refPatches(0,p)).eval(refPoints.col(p)).transpose();
+                refs.block(r,p*mp.geoDim(),1,mp.geoDim()) = solField.value(refPoints.col(p),refPatches(0,p)).transpose();
+        }
+
+        numDofs[r] = assembler.numDofs();
+
+        mp.uniformRefine();
+        dbasis = gsMultiBasis<>(mp);
     }
     //! [Solver loop]
 
-    gsInfo<<"Errors\n";
-    gsInfo<<"L2\tH1\tLinf\n";
-    for (index_t k=0; k<=numRefine; ++k)
-        gsInfo<<l2err[k]<<"\t"<<h1err[k]<<"\t"<<linferr[k]<<"\n";
-
-    gsInfo<<"References\n";
+    gsInfo<<"numDoFs";
     for (index_t p=0; p!=refPoints.cols(); ++p)
-        gsInfo<<"x"<<std::to_string(p)<<"\ty"<<std::to_string(p)<<"\tz"<<std::to_string(p)<<"\t";
+        gsInfo<<",x"<<std::to_string(p)<<",y"<<std::to_string(p)<<",z"<<std::to_string(p);
     gsInfo<<"\n";
 
     for (index_t k=0; k<=numRefine; ++k)
+    {
+        gsInfo<<numDofs(k);
         for (index_t p=0; p!=refPoints.cols(); ++p)
-            gsInfo<<refs(k,3*p)<<"\t"<<refs(k,3*p+1)<<"\t"<<refs(k,3*p+2)<<"\t";
-    gsInfo<<"\n";
-
-    // gsInfo<< "\n\nCG it.: "<<CGiter.transpose()<<"\n";
-
-    // //! [Error and convergence rates]
-    // gsInfo<<"\n* Error\n";
-    // gsInfo<< "H1    "<<std::scientific<<h1err.transpose()<<"\n";
-    // gsInfo<< "L2    "<<std::scientific<<std::setprecision(3)<<l2err.transpose()<<"\n";
-    // gsInfo<< "Linf  "<<std::scientific<<linferr.transpose()<<"\n";
-
-    // gsInfo<<"\n* EoC\n";
-    // gsInfo<< "H1c   0 "<< std::fixed<<std::setprecision(2)
-    //       <<( h1err.head(numRefine).array() /
-    //           h1err.tail(numRefine).array() ).log().transpose() / std::log(2.0) <<"\n";
-    // gsInfo<< "L2c   0 " << std::fixed<<std::setprecision(2)
-    //       << ( l2err.head(numRefine).array() /
-    //            l2err.tail(numRefine).array() ).log().transpose() / std::log(2.0) <<"\n";
-
-    // gsInfo<<   "Linfc 0 "<< std::fixed<<std::setprecision(2)
-    //       <<( linferr.head(numRefine).array() /
-    //           linferr.tail(numRefine).array() ).log().transpose() / std::log(2.0) <<"\n";
-
-    //! [Error and convergence rates]
+        {
+            gsInfo<<","<<refs(k,3*p)<<","<<refs(k,3*p+1)<<","<<refs(k,3*p+2)<<",";
+        }
+        gsInfo<<"\n";
+    }
 
     //! [Export visualization in ParaView]
     if (plot)
@@ -438,7 +478,7 @@ int main(int argc, char *argv[])
         // 4. Plot the mapped spline on the original geometry
         gsField<> solField(geom, mspline,true);
         gsInfo<<"Plotting in Paraview...\n";
-        gsWriteParaview<>( solField, "Deformation", 1000, false);
+        gsWriteParaview<>( solField, "Deformation", 1000, true);
 
         // 5. Plot the mapped spline on the deformed geometry
         gsField<> defField(geom, def,true);
@@ -459,103 +499,6 @@ int main(int argc, char *argv[])
 
         gsField<> solfield(mp,mp2,true);
         gsWriteParaview(solfield,"solfield");
-
-        // */
-
-
-        /*
-
-        // L2 PROJECTION
-
-
-        gsMultiBasis<> mb(mp);
-        gsBoundaryConditions<> bc_empty;
-
-        typedef gsExprAssembler<>::geometryMap geometryMap;
-        typedef gsExprAssembler<>::space       space;
-        typedef gsExprAssembler<>::solution    solution;
-        gsExprAssembler<> L2Projector(1,1);
-        geometryMap G   = L2Projector.getMap(mp);
-
-        L2Projector.setIntegrationElements(mb);
-        space v = L2Projector.getSpace(bb2, 1);//m-splines
-        space u = L2Projector.getTestSpace(v,mb);//TP splines
-        //solution sol = L2Projector.getSolution(v,solFull);
-        auto sol = L2Projector.getCoeff(mspline);
-
-        u.setup(bc_empty,dirichlet::homogeneous);
-        v.setup(bc_empty,dirichlet::homogeneous);
-
-
-        gsExprEvaluator<> ev(L2Projector);
-        gsMatrix<> pt(2,1);
-        pt.setConstant(0.25);
-        ev.writeParaview(sol,G,"solution");
-
-        L2Projector.initSystem(3);
-        L2Projector.assemble(u * v.tr(), u * sol.tr() );
-        gsMatrix<> result = L2Projector.matrix().toDense().
-            colPivHouseholderQr().solve(L2Projector.rhs());
-
-        gsMultiPatch<> mp_res;
-        gsMatrix<> coefs;
-        index_t offset = 0;
-        index_t blocksize = 0;
-        for (index_t p = 0; p != mp.nPatches(); p++)
-        {
-            blocksize = mp.patch(p).coefs().rows();
-            gsDebugVar(blocksize);
-            gsDebugVar(offset);
-            gsDebugVar(result.rows());
-            gsDebugVar(mb.basis(p).size());
-            coefs = result.block(offset,0,blocksize,result.cols());
-            mp_res.addPatch(mb.basis(p).makeGeometry(give(coefs)));
-            offset += blocksize;
-        }
-
-        gsField<> solfield_L2(mp,mp_res,true);
-        gsWriteParaview(solfield_L2,"solfield_L2");
-
-        // gsSparseSolver<>::QR solver( L2Projector.matrix() );
-        // gsMatrix<> result = solver.solve(L2Projector.rhs().col(k));
-
-        */
-
-        //
-
-        // Interpolate at anchors
-        /*
-        // gsMultiBasis<> mb(mp);
-        gsMultiPatch<> mp2;
-        for (size_t p = 0; p!=mp.nPatches(); ++p)
-        {
-            gsMatrix<> anchors;
-            mb.basis(p).anchors_into(anchors);
-            gsMatrix<> result;
-            bb2.eval_into(p,anchors,result);
-            mp2.addPatch(mb.basis(p).interpolateAtAnchors(result));
-        }
-
-        gsField<> solField(mp,mp2);
-
-        gsWriteParaview(solField,"beer");
-        */
-        // gsDebugVar(solFull.rows());
-        // gsDebugVar(mbasis.size());
-
-        // gsMatrix<> u(2,1);
-        // u.setConstant(0.25);
-
-        // gsMatrix<> B ;
-        // gsMatrix<index_t> actives;
-
-        // mspline.basis().eval_into(u,B);
-        // mbasis.active_into(u,actives);
-
-
-        // gsField<> solField(mp.patch(0),mspline,true);
-
-        // gsWriteParaview(solField,"mspline");
     }
     //! [Export visualization in ParaView]
 
