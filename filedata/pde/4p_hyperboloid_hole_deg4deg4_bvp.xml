@@ -30,16 +30,15 @@
   <Function type="FunctionExpr" dim="3" index="0">0</Function>
   <Function type="FunctionExpr" dim="3" index="1">0</Function>
   <bc type="Dirichlet" function="0" unknown="0" component="0">
-    2 4
+    1 4
   </bc>
   <bc type="Dirichlet" function="0" unknown="0" component="1">
-    2 4
+    1 4
   </bc>
   <bc type="Dirichlet" function="0" unknown="0" component="2">
-    2 4
+    1 4
   </bc>
-  <bc type="Clamped" function="0" unknown="0" component="2">
-    2 4
+   <bc type="Clamped" function="0" unknown="0" component="1">
   </bc>
   <bc type="Collapsed" function="0" unknown="0" component="2">
   </bc>
@@ -75,11 +74,11 @@
 
 <!-- Reference point coordinates -->
 <Matrix rows="2" cols="1" id="50" >
-  0.90909091 0
+  0.5 1
 </Matrix>
 <!-- Reference point patch indices -->
 <Matrix rows="1" cols="1" id="51" >
-  1
+  3
 </Matrix>
 <!-- Reference values -->
 <Matrix rows="3" cols="1" id="52" >
