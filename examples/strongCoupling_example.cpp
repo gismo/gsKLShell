@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
     {
         // identity map
         global2local.resize(dbasis.totalSize(),dbasis.totalSize());
-        for (index_t k=0; k!=dbasis.totalSize(); ++k)
+        for (size_t k=0; k!=dbasis.totalSize(); ++k)
             global2local.coeffRef(k,k) = 1;
         geom = mp;
     }
@@ -261,6 +261,7 @@ int main(int argc, char *argv[])
         gsC1SurfSpline<2,real_t> smoothC1(mp,dbasis);
         smoothC1.init();
         smoothC1.compute();
+
 
         global2local = smoothC1.getSystem();
         global2local = global2local.transpose();
