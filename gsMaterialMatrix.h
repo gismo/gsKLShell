@@ -1203,6 +1203,31 @@ private:
     }
 };
 
+#ifdef GISMO_BUILD_PYBIND11
+
+  /**
+   * @brief Initializes the Python wrapper for the class: gsMaterialMatrixLinear
+   */
+  void pybind11_init_gsMaterialMatrixNH2i(pybind11::module &m);
+  void pybind11_init_gsMaterialMatrixNH2c(pybind11::module &m);
+
+  void pybind11_init_gsMaterialMatrixNH3i(pybind11::module &m);
+  void pybind11_init_gsMaterialMatrixNH3c(pybind11::module &m);
+
+  void pybind11_init_gsMaterialMatrixMR2i(pybind11::module &m);
+  void pybind11_init_gsMaterialMatrixMR2c(pybind11::module &m);
+
+  void pybind11_init_gsMaterialMatrixMR3i(pybind11::module &m);
+  void pybind11_init_gsMaterialMatrixMR3c(pybind11::module &m);
+
+  void pybind11_init_gsMaterialMatrixOG2i(pybind11::module &m);
+  void pybind11_init_gsMaterialMatrixOG2c(pybind11::module &m);
+
+  void pybind11_init_gsMaterialMatrixOG3i(pybind11::module &m);
+  void pybind11_init_gsMaterialMatrixOG3c(pybind11::module &m);
+
+#endif // GISMO_BUILD_PYBIND11
+
 } // namespace
 
 

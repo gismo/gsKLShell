@@ -180,6 +180,7 @@ int main(int argc, char *argv[])
     gsInfo << "Patches: "<< mp.nPatches() <<", degree: "<< dbasis.minCwiseDegree() <<"\n";
     gsInfo << dbasis.basis(0)<<"\n";
 
+
     //! [Set boundary conditions]
     gsBoundaryConditions<> bc;
     bc.setGeoMap(mp);
@@ -214,11 +215,9 @@ int main(int argc, char *argv[])
             bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0 ,false,i);
         }
 
+        // pressure = -1;
         refPoint<<0.5,0.5;
         tmp << 0,0,-1;
-
-        // gsConstantFunction<> force0(tmp,3);
-        // force.addPiece(force0);
 
         gsFunctionExpr<> t0(std::to_string(thickness), 3);
         t.addPiece(t0);

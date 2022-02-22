@@ -578,6 +578,17 @@ protected:
 
 };
 
+#ifdef GISMO_BUILD_PYBIND11
+
+  /**
+   * @brief Initializes the Python wrapper for the class: gsThinShellAssembler
+   */
+  void pybind11_init_gsThinShellAssembler2(pybind11::module &m);
+  void pybind11_init_gsThinShellAssembler3(pybind11::module &m);
+  void pybind11_init_gsThinShellAssembler3nb(pybind11::module &m);
+
+#endif // GISMO_BUILD_PYBIND11
+
 /**
  * @brief      Base class for the gsThinShellAssembler
  *
@@ -589,7 +600,10 @@ template <class T>
 class gsThinShellAssemblerBase
 {
 public:
-    /// Default empty constructor
+    /// Default deconstructor
+    gsThinShellAssemblerBase() {};
+
+    /// Default deconstructor
     virtual ~gsThinShellAssemblerBase() {};
 
     /// Returns the options of the assembler
@@ -603,6 +617,8 @@ public:
 
     /// Registers a \ref gsPointLoads object for point loads acting on the shell
     virtual void setPointLoads(const gsPointLoads<T> & pLoads) = 0;
+
+    /// Registers a \ref gsPointLoads object for a point mass acting on the shell. The point masss must be 1-dimensional
     virtual void setPointMass(const gsPointLoads<T> & pLoads) = 0;
 
     /**
@@ -811,6 +827,15 @@ public:
     virtual void plotSolution(std::string string, const gsMatrix<T> & solVector) = 0;;
 
 };
+
+#ifdef GISMO_BUILD_PYBIND11
+
+  /**
+   * @brief Initializes the Python wrapper for the class: gsThinShellAssembler
+   */
+  void pybind11_init_gsThinShellAssemblerBase(pybind11::module &m);
+
+#endif // GISMO_BUILD_PYBIND11
 
 } // namespace gismo
 
