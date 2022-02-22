@@ -16,6 +16,7 @@
 #pragma once
 
 #include <gsKLShell/gsMaterialMatrix.h>
+#include <gsKLShell/gsMaterialMatrixContainer.h>
 #include <gsKLShell/gsThinShellFunctions.h>
 
 #include <gsPde/gsPointLoads.h>
@@ -25,6 +26,30 @@
 
 namespace gismo
 {
+
+/**
+ * @brief      Defines the coupling type over interfaces
+ */
+struct shell_coupling
+{
+    enum type
+    {
+        automatic           = -1, // (applies weak_penalty when needed, strong_Dpatch elsewhere)
+        weak_penalty        = 0,
+        weak_nitsche        = 1,
+        strong_C0           = 2,
+        strong_Dpatch       = 3,
+        strong_ASG1         = 4,
+    };
+
+    enum continuity
+    {
+        Cminus1             = -1,
+        C0                  = 0,
+        C1                  = 1,
+    };
+};
+
 
 template<class T> class gsThinShellAssemblerBase;
 /**
@@ -44,12 +69,27 @@ template <short_t d, class T, bool bending>
 class gsThinShellAssembler : public gsThinShellAssemblerBase<T>
 {
 public:
-    typedef typename gsExprEvaluator<T>::intContainer intContainer;
+    typedef gsBoxTopology::ifContainer ifContainer;
 
 public:
 
     /**
-     * @brief      Constructor for te shell assembler
+     * @brief      Constructor for the shell assembler
+     *
+     * @param[in]  patches         The geometry
+     * @param[in]  basis           The basis
+     * @param[in]  bconditions     The boundary condition
+     * @param[in]  surface_force   The surface force
+     * @param      materialmatrix  The material matrix container
+     */
+    gsThinShellAssembler(const gsMultiPatch<T> & patches,
+                        const gsMultiBasis<T> & basis,
+                        const gsBoundaryConditions<T> & bconditions,
+                        const gsFunction<T> & surface_force,
+                        const gsMaterialMatrixContainer<T> & materialmatrices);
+
+    /**
+     * @brief      Constructor for the shell assembler
      *
      * @param[in]  patches         The geometry
      * @param[in]  basis           The basis
@@ -62,6 +102,21 @@ public:
                         const gsBoundaryConditions<T> & bconditions,
                         const gsFunction<T> & surface_force,
                         gsMaterialMatrixBase<T> * materialmatrix);
+
+    /**
+     * @brief      Constructor for te shell assembler
+     *
+     * @param[in]  patches         The geometry
+     * @param[in]  basis           The basis
+     * @param[in]  bconditions     The boundary condition
+     * @param[in]  surface_force   The surface force
+     * @param      materialmatrix  The material matrix class
+     */
+    // gsThinShellAssembler(const gsMultiPatch<T> & patches,
+    //                     const gsMultiBasis<T> & basis,
+    //                     const gsBoundaryConditions<T> & bconditions,
+    //                     const gsFunction<T> & surface_force,
+    //                     const gsPiecewiseFunction<T> & materialmatrices);
 
     /// Default empty constructor
     gsThinShellAssembler() { }
@@ -254,7 +309,8 @@ public:
     T getArea(const gsFunctionSet<T> & geometry);
 
     //--------------------- MATERIAL ACCESS --------------------------------//
-    gsMaterialMatrixBase<T> * material()    const  {return m_materialMat;}
+    gsMaterialMatrixContainer<T> materials()    const  {return m_materialMatrices;}
+    gsMaterialMatrixBase<T> * material(const index_t p)    const  {return m_materialMatrices.piece(p);}
 
     //--------------------- SYSTEM ACCESS ----------------------------------//
     const gsSparseMatrix<T> & matrix()      const   {return m_assembler.matrix();}
@@ -263,7 +319,15 @@ public:
     const gsMatrix<T>       & rhs()         const {return m_rhs.size()==0 ? m_assembler.rhs() : m_rhs;}
     // const gsMatrix<T>       & rhs()     const {return m_assembler.rhs();}
 
-    //--------------------- SOLUTION CONSTRUCTION ----------------------------------//
+    //--------------------- INTERFACE HANDLING -----------------------------//
+    void addStrongC0(const gsBoxTopology::ifContainer & interfaces);
+    void addStrongC1(const gsBoxTopology::ifContainer & interfaces);
+    void addWeakC0(const gsBoxTopology::ifContainer & interfaces);
+    void addWeakC1(const gsBoxTopology::ifContainer & interfaces);
+    void addUncoupled(const gsBoxTopology::ifContainer & interfaces);
+    void initInterfaces();
+
+    //--------------------- SOLUTION CONSTRUCTION --------------------------//
     gsMultiPatch<T> constructMultiPatch(const gsMatrix<T> & solVector) const;
 
     /// See \ref gsThinShellAssemblerBase for details
@@ -311,27 +375,27 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     T interfaceErrorC0(const gsFunctionSet<T> & deformed)
     { return interfaceErrorC0(deformed,m_patches.interfaces()); }
-    T interfaceErrorC0(const gsFunctionSet<T> & deformed, const intContainer & iFaces);
+    T interfaceErrorC0(const gsFunctionSet<T> & deformed, const ifContainer & iFaces);
 
     /// See \ref gsThinShellAssemblerBase for details
     T interfaceErrorG1(const gsFunctionSet<T> & deformed)
     { return interfaceErrorG1(deformed,m_patches.interfaces()); }
-    T interfaceErrorG1(const gsFunctionSet<T> & deformed, const intContainer & iFaces);
+    T interfaceErrorG1(const gsFunctionSet<T> & deformed, const ifContainer & iFaces);
 
     /// See \ref gsThinShellAssemblerBase for details
     T interfaceErrorNormal(const gsFunctionSet<T> & deformed)
     { return interfaceErrorNormal(deformed,m_patches.interfaces()); }
-    T interfaceErrorNormal(const gsFunctionSet<T> & deformed, const intContainer & iFaces);
+    T interfaceErrorNormal(const gsFunctionSet<T> & deformed, const ifContainer & iFaces);
 
     /// See \ref gsThinShellAssemblerBase for details
     T interfaceErrorGaussCurvature(const gsFunctionSet<T> & deformed)
     { return interfaceErrorGaussCurvature(deformed,m_patches.interfaces()); }
-    T interfaceErrorGaussCurvature(const gsFunctionSet<T> & deformed, const intContainer & iFaces);
+    T interfaceErrorGaussCurvature(const gsFunctionSet<T> & deformed, const ifContainer & iFaces);
 
     /// See \ref gsThinShellAssemblerBase for details
     T interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed)
     { return interfaceErrorMeanCurvature(deformed,m_patches.interfaces()); }
-    T interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed, const intContainer & iFaces);
+    T interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed, const ifContainer & iFaces);
 
 protected:
     /// Initializes the method
@@ -340,37 +404,155 @@ protected:
     void _getOptions() const;
 
     void _assembleNeumann();
+
+    template <bool matrix>
+    void _assemblePressure();
+    template <bool matrix>
+    void _assemblePressure(const gsFunctionSet<T> & deformed);
+
+    template <bool matrix>
+    void _assembleFoundation();
+    template <bool matrix>
+    void _assembleFoundation(const gsFunctionSet<T> & deformed);
+
+    template <bool matrix>
     void _assembleWeakBCs();
+    template <bool matrix>
     void _assembleWeakBCs(const gsFunctionSet<T> & deformed);
+
+    template <bool matrix>
+    void _assembleWeakIfc();
+    template <bool matrix>
+    void _assembleWeakIfc(const gsFunctionSet<T> & deformed);
+
     void _assembleDirichlet();
 
     void _applyLoads();
     void _applyMass();
 
+    void _ifcTest(const T tol = 1e-2);
+    bool _isInPlane(const boundaryInterface & ifc, const T tol = 1e-2);
+
 private:
-    template<int _d, bool _bending>
-    typename std::enable_if<_d==3 && _bending, void>::type
+    template<int _d>
+    typename std::enable_if<_d==3, void>::type
     _assembleNeumann_impl();
 
-    template<int _d, bool _bending>
-    typename std::enable_if<!(_d==3 && _bending), void>::type
+    template<int _d>
+    typename std::enable_if<!(_d==3), void>::type
     _assembleNeumann_impl();
 
-    template<int _d, bool _bending>
-    typename std::enable_if<_d==3 && _bending, void>::type
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
+    _assemblePressure_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
+    _assemblePressure_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3), void>::type
+    _assemblePressure_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
+    _assemblePressure_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
+    _assemblePressure_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3), void>::type
+    _assemblePressure_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
+    _assembleFoundation_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
+    _assembleFoundation_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3), void>::type
+    _assembleFoundation_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
+    _assembleFoundation_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
+    _assembleFoundation_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3), void>::type
+    _assembleFoundation_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
     _assembleWeakBCs_impl();
 
-    template<int _d, bool _bending>
-    typename std::enable_if<!(_d==3 && _bending), void>::type
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
     _assembleWeakBCs_impl();
 
-    template<int _d, bool _bending>
-    typename std::enable_if<_d==3 && _bending, void>::type
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && matrix, void>::type
+    _assembleWeakBCs_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && !matrix, void>::type
+    _assembleWeakBCs_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
     _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool _bending>
-    typename std::enable_if<!(_d==3 && _bending), void>::type
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
     _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && matrix, void>::type
+    _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && !matrix, void>::type
+    _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
+    _assembleWeakIfc_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
+    _assembleWeakIfc_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && matrix, void>::type
+    _assembleWeakIfc_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && !matrix, void>::type
+    _assembleWeakIfc_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
+    _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
+    _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && matrix, void>::type
+    _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && !matrix, void>::type
+    _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
 
 protected:
     typedef gsExprAssembler<>::geometryMap geometryMap;
@@ -401,7 +583,7 @@ protected:
     typename gsFunction<T>::Ptr m_YoungsModulus;
     typename gsFunction<T>::Ptr m_PoissonsRatio;
 
-    mutable gsMaterialMatrixBase<T> * m_materialMat;
+    gsMaterialMatrixContainer<T> m_materialMatrices;
 
     gsPointLoads<T>  m_pLoads, m_pMass;
 
@@ -414,11 +596,12 @@ protected:
     mutable bool m_foundInd;
     mutable bool m_pressInd;
 
-    mutable index_t m_type; // shell_type
-
     mutable index_t m_continuity;
 
-    mutable T m_alpha_d,m_alpha_r; // shell_type
+    mutable T m_alpha_d_bc,m_alpha_r_bc,m_alpha_d_ifc,m_alpha_r_ifc;
+    mutable index_t m_IfcDefault;
+
+    mutable ifContainer m_inPlane, m_outPlane, m_uncoupled, m_strongC0, m_weakC0, m_strongC1, m_weakC1, m_unassigned;
 
 };
 
@@ -445,7 +628,7 @@ class gsThinShellAssemblerBase
 {
 public:
     /// Default deconstructor
-    typedef typename gsExprEvaluator<T>::intContainer intContainer;
+    typedef gsBoxTopology::ifContainer ifContainer;
 
 public:
 
@@ -609,8 +792,10 @@ public:
     // /// Returns the deformed geometry
     // virtual const gsFunctionSet<T> & defGeometry() const = 0;
 
-    /// Returns the material matrix used in the class
-    virtual gsMaterialMatrixBase<T> * material()          const = 0;
+    /// Returns the material matrices used in the class
+    virtual gsMaterialMatrixContainer<T> materials()          const = 0;
+    /// Returns the material matrix on patch p used in the class
+    virtual gsMaterialMatrixBase<T> * material(const index_t p)          const = 0;
 
     /// Returns the area of \a geometry
     virtual T getArea(const gsFunctionSet<T> & geometry) = 0;
@@ -623,6 +808,14 @@ public:
 
     /// Returns a reference to the right-hand side vector that is assembled
     virtual const gsMatrix<T>       & rhs()     const  = 0;
+
+    //--------------------- INTERFACE HANDLING -----------------------------//
+    virtual void addStrongC0(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual void addStrongC1(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual void addWeakC0(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual void addWeakC1(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual void addUncoupled(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual void initInterfaces() = 0;
 
     /// Construct solution field from computed solution vector \a solVector and returns a multipatch
     virtual gsMultiPatch<T> constructMultiPatch(const gsMatrix<T> & solVector) const = 0;
@@ -656,23 +849,23 @@ public:
 
     /// Returns the C1 error over the interface
     virtual T interfaceErrorC0(const gsFunctionSet<T> & deformed) = 0;
-    virtual T interfaceErrorC0(const gsFunctionSet<T> & deformed, const intContainer & iFaces) = 0;
+    virtual T interfaceErrorC0(const gsFunctionSet<T> & deformed, const ifContainer & iFaces) = 0;
 
     /// Returns the G1 error over the interface
     virtual T interfaceErrorG1(const gsFunctionSet<T> & deformed) = 0;
-    virtual T interfaceErrorG1(const gsFunctionSet<T> & deformed, const intContainer & iFaces) = 0;
+    virtual T interfaceErrorG1(const gsFunctionSet<T> & deformed, const ifContainer & iFaces) = 0;
 
     /// Returns the normal vector error over the interface
     virtual T interfaceErrorNormal(const gsFunctionSet<T> & deformed) = 0;
-    virtual T interfaceErrorNormal(const gsFunctionSet<T> & deformed, const intContainer & iFaces) = 0;
+    virtual T interfaceErrorNormal(const gsFunctionSet<T> & deformed, const ifContainer & iFaces) = 0;
 
     /// Returns the Gaussian curvature error over the interface
     virtual T interfaceErrorGaussCurvature(const gsFunctionSet<T> & deformed) = 0;
-    virtual T interfaceErrorGaussCurvature(const gsFunctionSet<T> & deformed, const intContainer & iFaces) = 0;
+    virtual T interfaceErrorGaussCurvature(const gsFunctionSet<T> & deformed, const ifContainer & iFaces) = 0;
 
     /// Returns the mean curvature error over the interface
     virtual T interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed) = 0;
-    virtual T interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed, const intContainer & iFaces) = 0;
+    virtual T interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed, const ifContainer & iFaces) = 0;
 
     /// Projects function \a fun on the basis and geometry stored in the class and returns the coefficients in \a result
     virtual void projectL2_into(const gsFunction<T> &fun, gsMatrix<T> & result) = 0;

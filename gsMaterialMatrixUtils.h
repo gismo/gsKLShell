@@ -110,6 +110,8 @@ enum class MaterialOutput : short_t
     Stretch = 10,       // ONLY ON MID-PLANE
     StretchDir = 11,    // ONLY ON MID-PLANE
     Transformation = 12,
+    Thickness = 100,
+    Parameters = 101,
 };
 
 

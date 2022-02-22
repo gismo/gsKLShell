@@ -41,7 +41,7 @@
     0 1
     3 3
   </bc>
-  <bc type="Clamped" function="0" unknown="0" component="2">
+  <bc type="Weak Clamped" function="0" unknown="0" component="2">
     0 1
     3 3
   </bc>

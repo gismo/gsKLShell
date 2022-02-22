@@ -16,13 +16,73 @@
 #pragma once
 
 #include <gsCore/gsFunction.h>
-#include <gsKLShell/gsMaterialMatrixLinear.h>
+#include <gsKLShell/gsMaterialMatrixContainer.h>
 #include <gsKLShell/gsMaterialMatrixUtils.h>
 #include <gsIO/gsOptionList.h>
 
 namespace gismo
 {
 
+template <class T, enum MaterialOutput out> class gsMaterialMatrixIntegrateSingle;
+
+template <class T, enum MaterialOutput out>
+class gsMaterialMatrixIntegrate : public gsFunction<T>
+{
+public:
+    /// Constructor
+    gsMaterialMatrixIntegrate(  const gsMaterialMatrixContainer<T> & materialMatrices,
+                            const gsFunctionSet<T> * deformed)
+    :
+    m_materialMatrices(materialMatrices),
+    m_deformed(deformed),
+    m_piece(nullptr)
+    {
+
+    }
+
+    /// Constructor
+    gsMaterialMatrixIntegrate(  gsMaterialMatrixBase<T> * materialMatrix,
+                            const gsFunctionSet<T> * deformed)
+    :
+    m_materialMatrices(deformed->nPieces()),
+    m_deformed(deformed),
+    m_piece(nullptr)
+    {
+        for (index_t p = 0; p!=deformed->nPieces(); ++p)
+            m_materialMatrices.add(materialMatrix);
+    }
+
+    /// Domain dimension, always 2 for shells
+    short_t domainDim() const {return 2;}
+
+    /**
+     * @brief      Target dimension
+     *
+     * For a scalar (e.g. density) the target dimension is 1, for a vector (e.g. stress tensor in Voight notation) the target dimension is 3 and for a matrix (e.g. the material matrix) the target dimension is 9, which can be reshaped to a 3x3 matrix.
+     *
+     * @return     Returns the target dimension depending on the specified type (scalar, vector, matrix etc.)
+     */
+    short_t targetDim() const { return this->piece(0).targetDim(); }
+
+    /// Implementation of piece, see \ref gsFunction
+    const gsFunction<T> & piece(const index_t p) const
+    {
+        m_piece = new gsMaterialMatrixIntegrateSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed);
+        return *m_piece;
+    }
+
+    /// Destructor
+    ~gsMaterialMatrixIntegrate() { delete m_piece; }
+
+    /// Implementation of eval_into, see \ref gsFunction
+    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    { GISMO_NO_IMPLEMENTATION; }
+
+protected:
+    gsMaterialMatrixContainer<T> m_materialMatrices;
+    const gsFunctionSet<T> * m_deformed;
+    mutable gsMaterialMatrixIntegrateSingle<T,out> * m_piece;
+};
 
 /**
  * @brief      This class serves as the integrator of material matrices, based on \ref gsMaterialMatrixBase
@@ -33,12 +93,13 @@ namespace gismo
  * @ingroup    KLShell
  */
 template <class T, enum MaterialOutput out>
-class gsMaterialMatrixIntegrate : public gsFunction<T>
+class gsMaterialMatrixIntegrateSingle : public gsFunction<T>
 {
 public:
 
     /// Constructor
-    gsMaterialMatrixIntegrate(  gsMaterialMatrixBase<T> * materialMatrix,
+    gsMaterialMatrixIntegrateSingle(  index_t patch,
+                                gsMaterialMatrixBase<T> * materialMatrix,
                                 const gsFunctionSet<T> * deformed);
 
     /// Domain dimension, always 2 for shells
@@ -89,7 +150,7 @@ public:
     /// Implementation of piece, see \ref gsFunction
     const gsFunction<T> & piece(const index_t p) const
     {
-        m_piece = new gsMaterialMatrixIntegrate(*this);
+        m_piece = new gsMaterialMatrixIntegrateSingle(*this);
         m_piece->setPatch(p);
         return *m_piece;
     }
@@ -100,7 +161,7 @@ protected:
 
 public:
     /// Destructor
-    ~gsMaterialMatrixIntegrate() { delete m_piece; }
+    ~gsMaterialMatrixIntegrateSingle() { delete m_piece; }
 
     /// Implementation of eval_into, see \ref gsFunction
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const;
@@ -253,7 +314,7 @@ protected:
 public:
 
     /**
-     * @brief      Evaluates the base class in 3D
+     * @brief      Integrateuates the base class in 3D
      *
      * @param[in]  u        The evaluation points (in plane)
      * @param[in]  Z        The through-thickness coordinate
@@ -264,7 +325,7 @@ public:
 
 
     /**
-     * @brief      Evaluates the base class in 3D, but on Z=0
+     * @brief      Integrateuates the base class in 3D, but on Z=0
      *
      * This function is primarily used in cases where the base class already integrates the material matrix or vectors
      *
@@ -302,11 +363,10 @@ private:
     { GISMO_NO_IMPLEMENTATION};
 
 protected:
-    gsMaterialMatrixBase<T> * m_materialMat;
-    mutable gsMaterialMatrixIntegrate<T,out> * m_piece;
     index_t m_pIndex;
-
-
+    gsMaterialMatrixBase<T> * m_materialMat;
+    mutable gsMaterialMatrixIntegrateSingle<T,out> * m_piece;
+    gsMatrix<T> m_z;
 };
 
 } // namespace

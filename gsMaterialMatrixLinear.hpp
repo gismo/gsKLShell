@@ -151,14 +151,14 @@ void gsMaterialMatrixLinear<dim,T>::_computePoints(const index_t patch, const gs
     if (Base::m_defpatches->nPieces()!=0)
         this->_computeMetricDeformed(patch,u,basis);
 
-    m_thickness->eval_into(m_map.mine().values[0], m_Tmat);
+    m_thickness->piece(patch).eval_into(m_map.mine().values[0], m_Tmat);
 
     m_parmat.resize(m_pars.size(),m_map.mine().values[0].cols());
     m_parmat.setZero();
 
     for (size_t v=0; v!=m_pars.size(); v++)
     {
-        m_pars[v]->eval_into(m_map.mine().values[0], tmp);
+        m_pars[v]->piece(patch).eval_into(m_map.mine().values[0], tmp);
         m_parmat.row(v) = tmp;
     }
 
@@ -173,8 +173,8 @@ void gsMaterialMatrixLinear<dim,T>::density_into(const index_t patch, const gsMa
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
 
     result.resize(1, u.cols());
-    m_thickness->eval_into(m_map.mine().values[0], m_Tmat);
-    m_density->eval_into(m_map.mine().values[0], m_rhomat);
+    m_thickness->piece(patch).eval_into(m_map.mine().values[0], m_Tmat);
+    m_density->piece(patch).eval_into(m_map.mine().values[0], m_rhomat);
     for (index_t i = 0; i != u.cols(); ++i) // points
     {
         result(0,i) = m_Tmat(0,i)*m_rhomat(0,i);
@@ -236,7 +236,24 @@ void gsMaterialMatrixLinear<dim,T>::thickness_into(const index_t patch, const gs
     m_map.mine().flags = NEED_VALUE;
     m_map.mine().points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-    m_thickness->eval_into(m_map.mine().values[0], result);
+    m_thickness->piece(patch).eval_into(m_map.mine().values[0], result);
+}
+
+template <short_t dim, class T >
+void gsMaterialMatrixLinear<dim,T>::parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+{
+    m_map.mine().flags = NEED_VALUE;
+    m_map.mine().points = u;
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
+
+    gsMatrix<T> tmp;
+    result.resize(m_pars.size(),m_map.mine().values[0].cols());
+    result.setZero();
+    for (size_t v=0; v!=m_pars.size(); v++)
+    {
+        m_pars[v]->piece(patch).eval_into(m_map.mine().values[0], tmp);
+        result.row(v) = tmp;
+    }
 }
 
 // Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) convariant basis

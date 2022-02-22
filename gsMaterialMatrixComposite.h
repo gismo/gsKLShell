@@ -39,6 +39,9 @@ template <  short_t dim,
 class gsMaterialMatrixComposite : public gsMaterialMatrixBaseDim<dim,T>
 {
 public:
+
+    GISMO_CLONE_FUNCTION(gsMaterialMatrixComposite)
+
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 
     /** @brief Constructor of the assembler object.
@@ -82,6 +85,10 @@ public:
     void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
+    void parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
+    {GISMO_NO_IMPLEMENTATION;}
+
+    /// See \ref gsMaterialMatrixBase for details
     void transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
     {GISMO_NO_IMPLEMENTATION;}
 
@@ -90,8 +97,6 @@ public:
     gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const
     { GISMO_NO_IMPLEMENTATION; }
 
-    void setParameters(const std::vector<gsFunction<T>*> &pars)
-    { GISMO_NO_IMPLEMENTATION; }
     void info() const;
 
 public:

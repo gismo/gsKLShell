@@ -45,12 +45,17 @@ int main(int argc, char *argv[])
     index_t smoothing = 0;
     std::string input;
 
+    real_t bcDirichlet = 1e3;
+    real_t bcClamped = 1e3;
+
     std::string fn1,fn2,fn3;
     fn1 = "pde/2p_square_geom.xml";
     fn2 = "pde/2p_square_bvp.xml";
     fn3 = "options/solver_options.xml";
 
     gsCmdLine cmd("Composite basis tests.");
+    cmd.addReal( "D", "Dir", "Dirichlet BC penalty scalar",  bcDirichlet );
+    cmd.addReal( "C", "Cla", "Clamped BC penalty scalar",  bcClamped );
     cmd.addString( "G", "geom","File containing the geometry",  fn1 );
     cmd.addString( "B", "bvp", "File containing the Boundary Value Problem (BVP)",  fn2 );
     cmd.addString( "O", "opt", "File containing solver options",  fn3 );
@@ -286,6 +291,8 @@ int main(int argc, char *argv[])
         assembler.options().setInt("Continuity",-1);
     else if (smoothing==2)
         assembler.options().setInt("Continuity",-1);
+    assembler.options().setReal("WeakDirichlet",bcDirichlet);
+    assembler.options().setReal("WeakClamped",bcClamped);
     assembler.setSpaceBasis(bb2);
     assembler.setPointLoads(pLoads);
     // gsOptionList options = assembler.options();

@@ -40,6 +40,9 @@ template <  short_t dim,
 class gsMaterialMatrixLinear : public gsMaterialMatrixBaseDim<dim,T>
 {
 public:
+
+    GISMO_CLONE_FUNCTION(gsMaterialMatrixLinear)
+
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 
     /**
@@ -132,6 +135,9 @@ public:
     void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
+    void parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+
+    /// See \ref gsMaterialMatrixBase for details
     void transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
@@ -177,6 +183,8 @@ public:
     {
         m_pars = pars;
     }
+
+    index_t numParameters() { return m_pars.size(); }
 
     /// See \ref gsMaterialMatrixBase for details
     void info() const;

@@ -33,6 +33,8 @@ class gsMaterialMatrixBase
 {
 public:
 
+    GISMO_UPTR_FUNCTION_NO_IMPLEMENTATION(gsMaterialMatrixBase, clone)
+
     /// Destructor
     virtual ~gsMaterialMatrixBase() {};
 
@@ -107,6 +109,15 @@ public:
      * @param      result  The resut
      */
     inline virtual void  thickness_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    /**
+     * @brief      Evaluates the parameters of the shell
+     *
+     * @param[in]  patch   The patch to be evaluated on
+     * @param[in]  u       The in-plane shell coordinates to be eveluated on
+     * @param      result  The resut
+     */
+    inline virtual void  parameters_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+
 
     /**
      * @brief      ???????????????
@@ -179,13 +190,20 @@ public:
     virtual gsFunction<T> * getDensity()
     { GISMO_NO_IMPLEMENTATION; }
 
-
     /**
      * @brief      Sets the material parameters.
      *
      * @param[in]  pars  Function pointers for the parameters in a container
      */
-    inline virtual void setParameters(const std::vector<gsFunction<T>*> &pars) =0;
+    inline virtual void setParameters(const std::vector<gsFunction<T>*> &pars)
+    { GISMO_NO_IMPLEMENTATION; }
+
+    /**
+     * @brief      Gets the number of parameters
+     *
+     */
+    inline virtual index_t numParameters()
+    { GISMO_NO_IMPLEMENTATION; }
 
     /**
      * @brief      Prints info
