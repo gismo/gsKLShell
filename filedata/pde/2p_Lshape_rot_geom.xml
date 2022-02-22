@@ -10,11 +10,11 @@
             <KnotVector degree="1">0 0 1 1 </KnotVector>
         </Basis>
         </Basis>
-        <coefs geoDim="2">
-            -2.0 0.0
-            -1.0 0.0
-            0.0 2.0
-            0.0 1.0
+        <coefs geoDim="3">
+            -2.0 0.0 0.0
+            -1.0 0.0 0.0
+            0.0 2.0  0.0
+            0.0 1.0  0.0
         </coefs>
     </Geometry>
     <Geometry type="TensorBSpline2" id="1">
@@ -26,11 +26,11 @@
             <KnotVector degree="1">0 0 1 1 </KnotVector>
         </Basis>
         </Basis>
-        <coefs geoDim="2">
-            1.0 0.0
-            2.0 0.0
-            0.0 1.0
-            0.0 2.0
+        <coefs geoDim="3">
+            1.0 0.0 0.0
+            2.0 0.0 0.0
+            0.0 1.0 0.0
+            0.0 2.0 0.0
         </coefs>
     </Geometry>
     <MultiPatch parDim="2" id="2">

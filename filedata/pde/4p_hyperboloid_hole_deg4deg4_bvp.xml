@@ -39,6 +39,7 @@
     1 4
   </bc>
    <bc type="Clamped" function="0" unknown="0" component="2">
+    1 4
   </bc>
   <bc type="Collapsed" function="0" unknown="0" component="2">
   </bc>
