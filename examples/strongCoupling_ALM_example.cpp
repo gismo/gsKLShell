@@ -309,7 +309,7 @@ int main(int argc, char *argv[])
     // Function for the Jacobian
     typedef std::function<gsSparseMatrix<real_t> (gsVector<real_t> const &)>                                Jacobian_t;
     typedef std::function<gsVector<real_t> (gsVector<real_t> const &) >                                     Residual_t;
-    typedef std::function<gsVector<real_t> (gsVector<real_t> const &, real_t) >                             ALResidual_t;
+    typedef std::function<gsVector<real_t> (gsVector<real_t> const &, real_t, gsVector<real_t> const &force) >                             ALResidual_t;
     Jacobian_t Jacobian = [&mp,&bb2,&assembler](gsVector<real_t> const &x)
     {
         gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
@@ -323,7 +323,7 @@ int main(int argc, char *argv[])
         return assembler.matrix();
     };
     // Function for the Residual
-    ALResidual_t ALResidual = [&Force,&geom,&mp,&bb2,&assembler](gsVector<real_t> const &x, real_t lam)
+    ALResidual_t ALResidual = [&geom,&mp,&bb2,&assembler](gsVector<real_t> const &x, real_t lam, gsVector<real_t> const &force)
     {
         gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
         GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
@@ -333,8 +333,8 @@ int main(int argc, char *argv[])
         gsFunctionSum<real_t> def(&mp,&mspline);
 
         assembler.assembleVector(def);
-        gsVector<real_t> Fint = -(assembler.rhs() - Force);
-        gsVector<real_t> result = Fint - lam * Force;
+        gsVector<real_t> Fint = -(assembler.rhs() - force);
+        gsVector<real_t> result = Fint - lam * force;
         return result; // - lam * force;
     };
 
