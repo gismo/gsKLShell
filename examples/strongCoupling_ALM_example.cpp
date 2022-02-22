@@ -49,6 +49,9 @@ int main(int argc, char *argv[])
     bool info       = false;
     bool writeMatrix= false;
     bool nonlinear  = false;
+    bool SingularPoint = false;
+    bool quasiNewton = false;
+    int quasiNewtonInt = -1;
     index_t numRefine  = 2;
     index_t numElevate = 1;
     index_t geometry = 1;
@@ -61,6 +64,7 @@ int main(int argc, char *argv[])
     real_t tol        = 1e-6;
     real_t tolU       = 1e-6;
     real_t tolF       = 1e-3;
+    real_t tau = 1e4;
 
     std::string fn1,fn2,fn3;
     fn1 = "pde/2p_square_geom.xml";
@@ -82,9 +86,13 @@ int main(int argc, char *argv[])
     cmd.addSwitch( "info", "Print information", info );
     cmd.addSwitch( "nl", "Print information", nonlinear );
 
+    cmd.addReal("F","factor", "factor for bifurcation perturbation", tau);
     cmd.addInt("m","Method", "Arc length method; 1: Crisfield's method; 2: RIks' method.", method);
     cmd.addReal("L","dL", "arc length", dL);
     cmd.addInt("N", "maxsteps", "Maximum number of steps", step);
+    cmd.addInt("q","QuasiNewtonInt","Use the Quasi Newton method every INT iterations",quasiNewtonInt);
+    cmd.addSwitch("bifurcation", "Compute singular points and bifurcation paths", SingularPoint);
+    cmd.addSwitch("quasi", "Use the Quasi Newton method", quasiNewton);
 
     // to do:
     // smoothing method add nitsche @Pascal
@@ -287,12 +295,13 @@ int main(int argc, char *argv[])
     // gsDebugVar(matrix.toDense());
     // gsDebugVar(vector.transpose());
 
-
+    assembler.assemble();
+    gsVector<> Force = assembler.rhs();
     // Nonlinear
     // Function for the Jacobian
     typedef std::function<gsSparseMatrix<real_t> (gsVector<real_t> const &)>                                Jacobian_t;
     typedef std::function<gsVector<real_t> (gsVector<real_t> const &) >                                     Residual_t;
-    typedef std::function<gsVector<real_t> (gsVector<real_t> const &, real_t, gsVector<real_t> const &) >   ALResidual_t;
+    typedef std::function<gsVector<real_t> (gsVector<real_t> const &, real_t) >                             ALResidual_t;
     Jacobian_t Jacobian = [&mp,&bb2,&assembler](gsVector<real_t> const &x)
     {
         gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
@@ -306,7 +315,7 @@ int main(int argc, char *argv[])
         return assembler.matrix();
     };
     // Function for the Residual
-    ALResidual_t ALResidual = [&geom,&mp,&bb2,&assembler](gsVector<real_t> const &x, real_t lam, gsVector<real_t> const &force)
+    ALResidual_t ALResidual = [&Force,&geom,&mp,&bb2,&assembler](gsVector<real_t> const &x, real_t lam)
     {
         gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
         GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
@@ -316,13 +325,10 @@ int main(int argc, char *argv[])
         gsFunctionSum<real_t> def(&mp,&mspline);
 
         assembler.assembleVector(def);
-        gsVector<real_t> Fint = -(assembler.rhs() - force);
-        gsVector<real_t> result = Fint - lam * force;
+        gsVector<real_t> Fint = -(assembler.rhs() - Force);
+        gsVector<real_t> result = Fint - lam * Force;
         return result; // - lam * force;
     };
-
-    assembler.assemble();
-    gsVector<> Force = assembler.rhs();
 
     gsALMBase<real_t> * arcLength;
     if (method==0)
@@ -336,16 +342,23 @@ int main(int argc, char *argv[])
     else
       GISMO_ERROR("Method unknown");
 
-    arcLength->options().setInt("Solver",0); // LDLT solver
+    arcLength->options().setString("Solver","SimplicialLDLT"); // LDLT solver
     arcLength->options().setInt("BifurcationMethod",0); // 0: determinant, 1: eigenvalue
     arcLength->options().setReal("Length",dL);
     // arcLength->options().setInt("AngleMethod",0); // 0: step, 1: iteration
     arcLength->options().setInt("AdaptiveIterations",5);
+    arcLength->options().setReal("Perturbation",tau);
     // arcLength->options().setReal("Scaling",0.0);
     arcLength->options().setReal("Tol",tol);
     arcLength->options().setReal("TolU",tolU);
     arcLength->options().setReal("TolF",tolF);
     arcLength->options().setSwitch("Verbose",true);
+    if (quasiNewtonInt>0)
+    {
+      quasiNewton = true;
+      arcLength->options().setInt("QuasiIterations",quasiNewtonInt);
+    }
+    arcLength->options().setSwitch("Quasi",quasiNewton);
 
     gsInfo<<arcLength->options();
     arcLength->applyOptions();
@@ -360,6 +373,7 @@ int main(int argc, char *argv[])
     arcLength->setIndicator(indicator); // RESET INDICATOR
     bool bisected = false;
     real_t dL0 = dL;
+    real_t dLb = dL;
 
     std::string output = "solution";
     std::string dirname = "ArcLengthResults";
@@ -381,6 +395,16 @@ int main(int argc, char *argv[])
           bisected = true;
           k -= 1;
           continue;
+        }
+        arcLength->computeStability(arcLength->solutionU(),quasiNewton);
+
+        if (arcLength->stabilityChange())
+        {
+            gsInfo<<"Bifurcation spotted!"<<"\n";
+            arcLength->computeSingularPoint(1e-4, 5, Uold, Lold, 1e-7, 0, false);
+            arcLength->switchBranch();
+            dL0 = dLb = dL;
+            arcLength->setLength(dLb);
         }
         indicator = arcLength->indicator();
 
