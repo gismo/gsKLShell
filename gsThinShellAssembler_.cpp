@@ -82,6 +82,7 @@ namespace gismo
     .def("setBasis"   , &Class::setBasis   , "Sets the basis")
     .def("setSpaceBasis"   , &Class::setSpaceBasis   , "Sets the basis for the space")
 
+    .def("setPointLoads"   , &Class::setPointLoads   , "Sets point loads")
     ;
   }
 
