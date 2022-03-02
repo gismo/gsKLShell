@@ -143,7 +143,7 @@ void gsThinShellAssembler<d, T, bending>::_defaultOptions()
 
     m_options.addReal("IfcDirichlet","Penalty parameter weak dirichlet conditions on the interface",1e3);
     m_options.addReal("IfcClamped","Penalty parameter weak clamped conditions on the interface",1e3);
-    m_options.addInt("IfcDefault","Default weak(!) interface coupling; C^k, k={-1,0,1}",1);
+    m_options.addInt("IfcDefault","Default weak(!) interface coupling; C^k, k={-1,0,1}",-1);
 
     // Assembler options
     m_options.addInt("DirichletStrategy","Method for enforcement of Dirichlet BCs [11..14]",11);
