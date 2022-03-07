@@ -44,7 +44,9 @@
     0 3
     11 3
   </bc>
-  <bc type="Clamped" function="0" unknown="0" component="2">
+  <bc type="Weak Clamped" function="0" unknown="0" component="2">
+    0 3
+    11 3
   </bc>
   <bc type="Collapsed" function="0" unknown="0" component="0">
   </bc>
@@ -61,9 +63,9 @@
      E, t and nu are the material properties defined above
 -->
 <Function type="FunctionExpr" id="21" tag="Loads" dim="3">
-  <c> -1e6 </c>
+  <c> 10000 </c>
   <c> 0 </c>
-  <c> 0 </c>
+  <c> -0.0000001 </c>
 </Function>
 <!-- Distributed pressure function -->
 <!-- <Function type="FunctionExpr" id="22" tag="Loads" dim="3">0</Function> -->
@@ -75,7 +77,7 @@
 <Matrix rows="3" cols="0" id="31" tag="Loads" >
 </Matrix>
 <!-- Point load patchIds -->
-<Matrix rows="3" cols="0" id="32" tag="Loads" >
+<Matrix rows="1" cols="0" id="32" tag="Loads" >
 </Matrix>
 
 

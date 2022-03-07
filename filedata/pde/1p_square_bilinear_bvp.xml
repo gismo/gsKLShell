@@ -47,7 +47,7 @@
     0 3
     0 4
   </bc>
-  <bc type="Clamped" function="0" unknown="0" component="2">
+  <bc type="Weak Clamped" function="0" unknown="0" component="2">
   </bc>
 
   <bc type="Collapsed" function="0" unknown="0" component="2">

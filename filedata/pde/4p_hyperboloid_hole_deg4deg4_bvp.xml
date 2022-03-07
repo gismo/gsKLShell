@@ -25,7 +25,6 @@
     <!-- Mu2 -->
     <Function type="FunctionExpr" id="18" tag="Material" dim="3">-0.0625</Function>
 
-<!-- Boundary conditions and loads -->
 <boundaryConditions id="20" multipatch="1">
   <Function type="FunctionExpr" dim="3" index="0">0</Function>
   <Function type="FunctionExpr" dim="3" index="1">0</Function>
@@ -38,8 +37,8 @@
   <bc type="Dirichlet" function="0" unknown="0" component="2">
     1 4
   </bc>
-   <bc type="Clamped" function="0" unknown="0" component="2">
-    1 4
+  <bc type="Weak Clamped" function="0" unknown="0" component="2">
+    1 4  
   </bc>
   <bc type="Collapsed" function="0" unknown="0" component="2">
   </bc>
@@ -58,7 +57,7 @@
 <Function type="FunctionExpr" id="21" tag="Loads" dim="3">
   <c> 0 </c>
   <c> 0 </c>
-  <c> -8000 * 0.01 </c>
+  <c> -8000000 * 0.01 </c>
 </Function>
 <!-- Distributed pressure function -->
 <!-- <Function type="FunctionExpr" id="22" tag="Loads" dim="3">0</Function> -->

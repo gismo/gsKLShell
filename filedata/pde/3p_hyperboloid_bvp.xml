@@ -38,8 +38,8 @@
   <bc type="Dirichlet" function="0" unknown="0" component="2">
     0 1
   </bc>
-  <bc type="Clamped" function="0" unknown="0" component="2">
-    0 1
+  <bc type="Weak Clamped" function="0" unknown="0" component="2">
+    0 1  
   </bc>
   <bc type="Collapsed" function="0" unknown="0" component="2">
   </bc>
@@ -75,7 +75,8 @@
 
 <!-- Reference point coordinates -->
 <Matrix rows="2" cols="1" id="50" >
-  0.90909091 0
+  0.90909091 
+  0.0
 </Matrix>
 <!-- Reference point patch indices -->
 <Matrix rows="1" cols="1" id="51" >
@@ -83,7 +84,9 @@
 </Matrix>
 <!-- Reference values -->
 <Matrix rows="3" cols="1" id="52" >
-  0 0 -9.3355e-5
+  0.0
+  0.0
+  -9.3355e-5
 </Matrix>
 
 <!-- Manufactured solution -->

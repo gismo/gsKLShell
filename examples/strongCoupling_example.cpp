@@ -434,6 +434,8 @@ int main(int argc, char *argv[])
         gsInfo<<"\n";
     }
 
+    gsInfo << "Number of Dof´s: " << assembler.numDofs() << "\n";
+
     //! [Export visualization in ParaView]
     if (plot)
     {
