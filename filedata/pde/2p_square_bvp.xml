@@ -105,6 +105,12 @@
   0   1
 </Matrix>
 
+<!-- Reference point coordinates -->
+<Matrix rows="3" cols="2" id="52" >
+  0.5 0.5 0.5
+  0.5 0.5 0.5
+</Matrix>
+
 <!-- Assembler options -->
 <OptionList id="90">
   <int label="Verbose" desc="Verbose for Newton iterations [0: off, 1: iterations, 2: full (matrix and vector output)" value="1"/>
