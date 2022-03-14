@@ -23,18 +23,11 @@
 #include <gsKLShell/gsMaterialMatrixLinear.h>
 #include <gsKLShell/gsFunctionSum.h>
 
-#include <gsUtils/gsQuasiInterpolate.h>
-
-
-#include <gsAssembler/gsExprAssembler.h>
-
-// #ifdef GISMO_STRUCTURALANALYSIS
 #include <gsStructuralAnalysis/gsALMBase.h>
 #include <gsStructuralAnalysis/gsALMRiks.h>
 #include <gsStructuralAnalysis/gsALMLoadControl.h>
 #include <gsStructuralAnalysis/gsALMCrisfield.h>
 #include <gsStructuralAnalysis/gsALMConsistentCrisfield.h>
-// #endif
 
 using namespace gismo;
 
@@ -43,6 +36,7 @@ int main(int argc, char *argv[])
 // #ifndef GISMO_STRUCTURALANALYSIS
 //     GISMO_ERROR("This code should be compiled with cmake flag -DGISMO_STRUCTURALANALYSIS=ON");
 // #else
+
     bool plot       = false;
     bool mesh       = false;
     bool last       = false;
@@ -60,7 +54,8 @@ int main(int argc, char *argv[])
 
     int step          = 10;
     int method        = 2; // (0: Load control; 1: Riks' method; 2: Crisfield's method; 3: consistent crisfield method)
-    real_t dL         = 0.5; // Arc length
+    real_t dL         = 0; // Arc length
+    real_t dLb        = 0.5; // Arc length to find bifurcation
     real_t tol        = 1e-6;
     real_t tolU       = 1e-6;
     real_t tolF       = 1e-3;
@@ -90,11 +85,11 @@ int main(int argc, char *argv[])
     cmd.addSwitch("last", "last case only",last);
     cmd.addSwitch("writeMat", "Write projection matrix",writeMatrix);
     cmd.addSwitch( "info", "Print information", info );
-    cmd.addSwitch( "nl", "Print information", nonlinear );
 
     cmd.addReal("F","factor", "factor for bifurcation perturbation", tau);
     cmd.addInt("m","Method", "Arc length method; 1: Crisfield's method; 2: RIks' method.", method);
-    cmd.addReal("L","dL", "arc length", dL);
+    cmd.addReal("L","dLb", "arc length", dLb);
+    cmd.addReal("l","dL", "arc length after bifurcation", dL);
     cmd.addInt("N", "maxsteps", "Maximum number of steps", step);
     cmd.addInt("q","QuasiNewtonInt","Use the Quasi Newton method every INT iterations",quasiNewtonInt);
     cmd.addSwitch("bifurcation", "Compute singular points and bifurcation paths", SingularPoint);
@@ -104,6 +99,11 @@ int main(int argc, char *argv[])
     // smoothing method add nitsche @Pascal
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
+
+    if (dL==0)
+    {
+      dL = dLb;
+    }
 
     gsMultiPatch<> mp;
     gsBoundaryConditions<> bc;
@@ -215,7 +215,6 @@ int main(int argc, char *argv[])
     gsMatrix<> coefs;
 
     gsMultiBasis<> dbasis(mp);
-    gsWriteParaview(mp.basis(0),"basis",1000);
 
     if (smoothing==0)
     {
@@ -278,8 +277,6 @@ int main(int argc, char *argv[])
     }
 
     bb2.init(dbasis,global2local);
-    // gsMappedSpline<2,real_t> mspline(bb2,coefs);
-    // geom = mspline.exportToPatches();
 
     assembler = gsThinShellAssembler<3, real_t, true>(geom,dbasis,bc,force,&materialMatrix);
     if (smoothing==1)
@@ -290,19 +287,9 @@ int main(int argc, char *argv[])
     assembler.options().setReal("WeakClamped",bcClamped);
     assembler.setSpaceBasis(bb2);
     assembler.setPointLoads(pLoads);
-    // gsOptionList options = assembler.options();
-    // options.setInt("Continuity",1);
-    // assembler.setOptions(options);
 
     // Initialize the system
     // Linear
-    assembler.assemble();
-    gsSparseMatrix<> matrix = assembler.matrix();
-    gsVector<> vector = assembler.rhs();
-
-    // gsDebugVar(matrix.toDense());
-    // gsDebugVar(vector.transpose());
-
     assembler.assemble();
     gsVector<> Force = assembler.rhs();
     // Nonlinear
@@ -351,8 +338,8 @@ int main(int argc, char *argv[])
       GISMO_ERROR("Method unknown");
 
     arcLength->options().setString("Solver","SimplicialLDLT"); // LDLT solver
-    arcLength->options().setInt("BifurcationMethod",0); // 0: determinant, 1: eigenvalue
-    arcLength->options().setReal("Length",dL);
+    arcLength->options().setInt("BifurcationMethod",1); // 0: determinant, 1: eigenvalue
+    arcLength->options().setReal("Length",dLb);
     // arcLength->options().setInt("AngleMethod",0); // 0: step, 1: iteration
     arcLength->options().setInt("AdaptiveIterations",5);
     arcLength->options().setReal("Perturbation",tau);
@@ -380,8 +367,7 @@ int main(int argc, char *argv[])
     real_t indicator = 0.0;
     arcLength->setIndicator(indicator); // RESET INDICATOR
     bool bisected = false;
-    real_t dL0 = dL;
-    real_t dLb = dL;
+    real_t dLb0 = dLb;
 
     std::string output = "solution";
     std::string dirname = "ArcLengthResults";
@@ -396,13 +382,13 @@ int main(int argc, char *argv[])
         // gsInfo<<"m_U = "<<arcLength->solutionU()<<"\n";
         if (!(arcLength->converged()))
         {
-          gsInfo<<"Error: Loop terminated, arc length method did not converge.\n";
-          dL = dL / 2.;
-          arcLength->setLength(dL);
-          arcLength->setSolution(Uold,Lold);
-          bisected = true;
-          k -= 1;
-          continue;
+            gsInfo<<"Error: Loop terminated, arc length method did not converge.\n";
+            dLb = dLb / 2.;
+            arcLength->setLength(dLb);
+            arcLength->setSolution(Uold,Lold);
+            bisected = true;
+            k -= 1;
+            continue;
         }
         arcLength->computeStability(arcLength->solutionU(),quasiNewton);
 
@@ -411,7 +397,7 @@ int main(int argc, char *argv[])
             gsInfo<<"Bifurcation spotted!"<<"\n";
             arcLength->computeSingularPoint(1e-4, 5, Uold, Lold, 1e-7, 0, false);
             arcLength->switchBranch();
-            dL0 = dLb = dL;
+            dLb0 = dLb = dL;
             arcLength->setLength(dLb);
         }
         indicator = arcLength->indicator();
@@ -451,8 +437,8 @@ int main(int argc, char *argv[])
 
         if (!bisected)
         {
-          dL = dL0;
-          arcLength->setLength(dL);
+          dLb = dLb0;
+          arcLength->setLength(dLb);
         }
         bisected = false;
     }
@@ -466,6 +452,4 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 // #endif
-
-
 }
