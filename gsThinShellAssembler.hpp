@@ -257,6 +257,7 @@ void gsThinShellAssembler<d, T, bending>::addUncoupled(const gsBoxTopology::ifCo
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::initInterfaces()
 {
+    this->_getOptions();
     // Find unassigned interfaces and add them to the right containers
     for (gsBoxTopology::const_iiterator it = m_patches.topology().iBegin(); it!=m_patches.topology().iEnd(); it++)
     {
@@ -669,7 +670,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     auto g_N = m_assembler.getBdrFunction(m_ori);
     auto du  = m_def - m_ori;
-    auto dnN = ( usn(m_def).tr()*unv(m_ori) - usn(m_ori).tr()*unv(m_ori) ).val();
+    auto dnN = ( usn(m_def).tr()*nv(m_ori) - usn(m_ori).tr()*nv(m_ori) ).val();
 
     // Weak BCs
     m_assembler.assembleBdr
@@ -684,9 +685,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     (
         m_bcs.get("Weak Clamped")
         ,
-        (
-            - m_alpha_r_bc * dnN * ( var1(m_space,m_def) * usn(m_ori) )
-        ) * tv(m_ori).norm()
+        - m_alpha_r_bc * dnN * ( var1(m_space,m_def) * unv(m_ori) ) * tv(m_ori).norm()
     );
 }
 
@@ -799,7 +798,6 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
                     + // Symmetry
                      m_alpha_r_ifc * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ) * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ).tr() // right right
                      );
-
 }
 
 template <short_t d, class T, bool bending>
