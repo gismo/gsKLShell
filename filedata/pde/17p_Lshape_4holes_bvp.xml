@@ -50,7 +50,7 @@
   <bc type="Collapsed" function="0" unknown="0" component="2">
   </bc>
   <!-- Neumann conditions (patch,side)-->
-  <bc unknown="-1" type="Neumann" function="1">
+  <bc unknown="0" type="Neumann" function="1">
     0 3
   </bc>
 </boundaryConditions>
@@ -79,7 +79,7 @@
 <Matrix rows="3" cols="1" id="31" tag="Loads" >
     0.0
     0.0
-    -0.1
+    -0.4
 </Matrix>
 <!-- Point load patchIds -->
 <Matrix rows="1" cols="1" id="32" tag="Loads" >
