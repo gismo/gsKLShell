@@ -28,7 +28,7 @@
 
 #include <gsAssembler/gsExprAssembler.h>
 
-
+#include <gsStructuralAnalysis/gsStructuralAnalysisUtils.h>
 
 using namespace gismo;
 
@@ -396,13 +396,6 @@ int main(int argc, char *argv[])
 
     if (refPoints.cols()!=0)
     {
-
-        gsMatrix<> ppoints(3,1), result;
-        ppoints<<0.5,0,0.25;
-        mp.patch(refPatches(0,0)).invertPoints(ppoints,result);
-        gsDebugVar(result);
-
-
         gsMatrix<> refs(1,mp.geoDim()*refPoints.cols());
         for (index_t p=0; p!=refPoints.cols(); p++)
             refs.block(0,p*mp.geoDim(),1,mp.geoDim()) = mp.piece(refPatches(0,p)).eval(refPoints.col(p)).transpose();
@@ -432,9 +425,27 @@ int main(int argc, char *argv[])
             for (index_t d=0; d!=mp.geoDim(); d++)
                 gsInfo<<refValue(d,p)<<"\t";
         gsInfo<<"\n";
+
+        std::vector<std::string> headers = {"u_x","u_y","u_z"};
+        gsStaticOutput<real_t> ptsWriter("pointcoordinates.csv",refPoints);
+        ptsWriter.init(headers);
+        gsMatrix<> pointResults(mp.geoDim(),refPoints.cols());
+        for (index_t p=0; p!=refPoints.cols(); p++)
+            pointResults.col(p) = mp.piece(refPatches(0,p)).eval(refPoints.col(p));
+        ptsWriter.add(pointResults);
+
+        gsStaticOutput<real_t> numWriter("numerical.csv",refPoints);
+        numWriter.init(headers);
+        for (index_t p=0; p!=refPoints.cols(); p++)
+            pointResults.col(p) = solField.value(refPoints.col(p),refPatches(0,p));
+        numWriter.add(pointResults);
+
+        gsStaticOutput<real_t> refWriter("reference.csv",refPoints);
+        refWriter.init(headers);
+        refWriter.add(refValue);
     }
 
-    gsInfo << "Number of Dof´s: " << assembler.numDofs() << "\n";
+    gsInfo << "Number of Dofs: " << assembler.numDofs() << "\n";
 
     //! [Export visualization in ParaView]
     if (plot)

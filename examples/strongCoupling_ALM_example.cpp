@@ -29,6 +29,8 @@
 #include <gsStructuralAnalysis/gsALMCrisfield.h>
 #include <gsStructuralAnalysis/gsALMConsistentCrisfield.h>
 
+#include <gsStructuralAnalysis/gsStructuralAnalysisUtils.h>
+
 using namespace gismo;
 
 int main(int argc, char *argv[])
@@ -38,6 +40,7 @@ int main(int argc, char *argv[])
 // #else
 
     bool plot       = false;
+    bool write      = false;
     bool mesh       = false;
     bool last       = false;
     bool info       = false;
@@ -81,6 +84,7 @@ int main(int argc, char *argv[])
     cmd.addInt( "r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
     cmd.addInt( "s", "smooth", "Smoothing method to use",  smoothing );
     cmd.addSwitch("plot", "plot",plot);
+    cmd.addSwitch("write", "write",write);
     cmd.addSwitch("mesh", "Plot mesh?", mesh);
     cmd.addSwitch("last", "last case only",last);
     cmd.addSwitch("writeMat", "Write projection matrix",writeMatrix);
@@ -152,6 +156,19 @@ int main(int argc, char *argv[])
     gsInfo<<"Finished\n";
     for (index_t k =0; k!=points.cols(); k++)
         pLoads.addLoad(points.col(k), loads.col(k), 0 ); // in parametric domain!
+
+    // Reference points
+    gsMatrix<index_t> refPatches;
+    gsMatrix<> refPoints, refValue; // todo: add refValue..
+    gsInfo<<"Reading reference point locations from "<<fn2<<" (ID=50) ...";
+    if ( fd.hasId(50) )
+        fd.getId(50,refPoints);
+    gsInfo<<"Finished\n";
+    gsInfo<<"Reading reference patches from "<<fn2<<" (ID=51) ...";
+    if ( fd.hasId(51) )
+        fd.getId(51,refPatches);
+    gsInfo<<"Finished\n";
+    GISMO_ENSURE(refPatches.cols()==refPoints.cols(),"Number of reference points and patches do not match");
 
     // Material properties
     gsFunctionExpr<> t,E,nu,rho;
@@ -373,6 +390,11 @@ int main(int argc, char *argv[])
     std::string dirname = "ArcLengthResults";
     gsParaviewCollection collection(dirname + "/" + output);
 
+    gsALMOutput<real_t> numWriter(dirname + "/pointdata.csv",refPoints);
+    std::vector<std::string> headers = {"u_x","u_y","u_z"};
+    if (write)
+        numWriter.init(headers);
+
     for (index_t k=0; k<step; k++)
     {
         gsInfo<<"Load step "<< k<<"\n";
@@ -406,7 +428,7 @@ int main(int argc, char *argv[])
         Uold = solVector;
         Lold = arcLength->solutionL();
 
-        if (plot)
+        if (plot || write)
         {
             /// Make a gsMappedSpline to represent the solution
             // 1. Get all the coefficients (including the ones from the eliminated BCs.)
@@ -424,14 +446,28 @@ int main(int argc, char *argv[])
             // 4. Plot the mapped spline on the original geometry
             gsField<> solField(geom, mspline,true);
 
-            std::string fileName = dirname + "/" + output + util::to_string(k);
-            gsWriteParaview<>(solField, fileName, 1000,mesh);
-            for (index_t p = 0; p!=mp.nPatches(); p++)
+            if (plot)
             {
-                fileName = output + util::to_string(k);
-                collection.addTimestep(fileName,p,k,".vts");
-                if (mesh)
-                    collection.addTimestep(fileName,p,k,"_mesh.vtp");
+                std::string fileName = dirname + "/" + output + util::to_string(k);
+                gsWriteParaview<>(solField, fileName, 1000,mesh);
+                for (index_t p = 0; p!=mp.nPatches(); p++)
+                {
+                    fileName = output + util::to_string(k);
+                    collection.addTimestep(fileName,p,k,".vts");
+                    if (mesh)
+                        collection.addTimestep(fileName,p,k,"_mesh.vtp");
+                }
+            }
+
+            if (write)
+            {
+                if (refPoints.cols()!=0)
+                {
+                    gsMatrix<> pointResults(mp.geoDim(),refPoints.cols());
+                    for (index_t p=0; p!=refPoints.cols(); p++)
+                        pointResults.col(p) = solField.value(refPoints.col(p),refPatches(0,p));
+                    numWriter.add(pointResults,arcLength->solutionL());
+                }
             }
         }
 
