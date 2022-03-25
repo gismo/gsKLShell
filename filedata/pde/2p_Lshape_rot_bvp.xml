@@ -81,7 +81,7 @@
 <Matrix rows="3" cols="1" id="31" tag="Loads" >
     0.0
     0.0
-    0.0
+    -1.0
 </Matrix>
 <!-- Point load patchIds -->
 <Matrix rows="1" cols="1" id="32" tag="Loads" >
