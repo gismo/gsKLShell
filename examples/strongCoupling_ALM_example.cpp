@@ -40,6 +40,7 @@ int main(int argc, char *argv[])
 // #else
 
     bool plot       = false;
+    bool stress     = false;
     bool write      = false;
     bool mesh       = false;
     bool last       = false;
@@ -84,6 +85,7 @@ int main(int argc, char *argv[])
     cmd.addInt( "r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
     cmd.addInt( "s", "smooth", "Smoothing method to use",  smoothing );
     cmd.addSwitch("plot", "plot",plot);
+    cmd.addSwitch("stress", "stress",stress);
     cmd.addSwitch("write", "write",write);
     cmd.addSwitch("mesh", "Plot mesh?", mesh);
     cmd.addSwitch("last", "last case only",last);
@@ -389,6 +391,8 @@ int main(int argc, char *argv[])
     std::string output = "solution";
     std::string dirname = "ArcLengthResults";
     gsParaviewCollection collection(dirname + "/" + output);
+    gsParaviewCollection membraneStressCollection(dirname + "/MembraneStress");
+    gsParaviewCollection flexuralStressCollection(dirname + "/FlexuralStress");
 
     gsALMOutput<real_t> numWriter(dirname + "/pointdata.csv",refPoints);
     std::vector<std::string> headers = {"u_x","u_y","u_z"};
@@ -428,7 +432,7 @@ int main(int argc, char *argv[])
         Uold = solVector;
         Lold = arcLength->solutionL();
 
-        if (plot || write)
+        if (plot || write || stress)
         {
             /// Make a gsMappedSpline to represent the solution
             // 1. Get all the coefficients (including the ones from the eliminated BCs.)
@@ -469,6 +473,35 @@ int main(int argc, char *argv[])
                     numWriter.add(pointResults,arcLength->solutionL());
                 }
             }
+
+            if (stress)
+            {
+                std::string fileName;
+                gsPiecewiseFunction<> membraneStresses;
+                assembler.constructStress(def,membraneStresses,stress_type::membrane);
+                fileName = dirname + "/MembraneStress" + util::to_string(k);
+                gsWriteParaview(def,membraneStresses,fileName,1000);
+                for (index_t p = 0; p!=mp.nPatches(); p++)
+                {
+                    fileName = "MembraneStress" + util::to_string(k);
+                    membraneStressCollection.addTimestep(fileName,p,k,".vts");
+                    if (mesh)
+                        membraneStressCollection.addTimestep(fileName,p,k,"_mesh.vtp");
+                }
+
+                gsPiecewiseFunction<> flexuralStresses;
+                assembler.constructStress(def,flexuralStresses,stress_type::flexural);
+                fileName = dirname + "/FlexuralStresses" + util::to_string(k);
+                gsWriteParaview(def,flexuralStresses,fileName,1000);
+                for (index_t p = 0; p!=mp.nPatches(); p++)
+                {
+                    fileName = "FlexuralStress" + util::to_string(k);
+                    flexuralStressCollection.addTimestep(fileName,p,k,".vts");
+                    if (mesh)
+                        flexuralStressCollection.addTimestep(fileName,p,k,"_mesh.vtp");
+                }
+
+            }
         }
 
         if (!bisected)
@@ -482,6 +515,11 @@ int main(int argc, char *argv[])
     if (plot)
     {
         collection.save();
+    }
+    if (stress)
+    {
+        membraneStressCollection.save();
+        flexuralStressCollection.save();
     }
 
     delete arcLength;

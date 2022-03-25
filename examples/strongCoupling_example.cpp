@@ -35,6 +35,8 @@ using namespace gismo;
 int main(int argc, char *argv[])
 {
     bool plot       = false;
+    bool stress     = false;
+    bool write      = false;
     bool last       = false;
     bool info       = false;
     bool writeMatrix= false;
@@ -64,6 +66,8 @@ int main(int argc, char *argv[])
     cmd.addInt( "r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
     cmd.addInt( "s", "smooth", "Smoothing method to use",  smoothing );
     cmd.addSwitch("plot", "plot",plot);
+    cmd.addSwitch("stress", "stress",stress);
+    cmd.addSwitch("write", "write",write);
     cmd.addSwitch("last", "last case only",last);
     cmd.addSwitch("writeMat", "Write projection matrix",writeMatrix);
     cmd.addSwitch( "info", "Print information", info );
@@ -425,7 +429,40 @@ int main(int argc, char *argv[])
             for (index_t d=0; d!=mp.geoDim(); d++)
                 gsInfo<<refValue(d,p)<<"\t";
         gsInfo<<"\n";
+    }
 
+    gsInfo << "Number of Dofs: " << assembler.numDofs() << "\n";
+
+    //! [Export visualization in ParaView]
+    if (plot)
+    {
+        // 4. Plot the mapped spline on the original geometry
+        gsField<> solField(geom, mspline,true);
+        gsInfo<<"Plotting in Paraview...\n";
+        gsWriteParaview<>( solField, "Deformation", 1000, true);
+
+        // 5. Plot the mapped spline on the deformed geometry
+        gsField<> defField(def, def,true);
+        gsInfo<<"Plotting in Paraview...\n";
+        gsWriteParaview<>( defField, "mp_def", 1000, true);
+
+        // QUASI INTERPOLATION
+        // /*
+
+        // gsMultiPatch<> mpatches = mbasis.exportToPatches(tmp);
+        gsMultiPatch<> mp2;
+        for (size_t p = 0; p!=mp.nPatches(); p++)
+        {
+            gsMatrix<> coefs;
+            gsQuasiInterpolate<real_t>::localIntpl(mp.basis(p), mspline.piece(p), coefs);
+            mp2.addPatch(mp.basis(p).makeGeometry( give(coefs) ));
+        }
+
+        gsField<> solfield(mp,mp2,true);
+        gsWriteParaview(solfield,"solfield");
+    }
+    if (write)
+    {
         std::vector<std::string> headers = {"u_x","u_y","u_z"};
         gsStaticOutput<real_t> ptsWriter("pointcoordinates.csv",refPoints);
         ptsWriter.init(headers);
@@ -444,133 +481,15 @@ int main(int argc, char *argv[])
         refWriter.init(headers);
         refWriter.add(refValue);
     }
-
-    gsInfo << "Number of Dofs: " << assembler.numDofs() << "\n";
-
-    //! [Export visualization in ParaView]
-    if (plot)
+    if (stress)
     {
-        // 4. Plot the mapped spline on the original geometry
-        gsField<> solField(geom, mspline,true);
-        gsInfo<<"Plotting in Paraview...\n";
-        gsWriteParaview<>( solField, "Deformation", 1000, true);
+        gsPiecewiseFunction<> membraneStresses;
+        assembler.constructStress(def,membraneStresses,stress_type::membrane);
+        gsWriteParaview(def,membraneStresses,"MembraneStress",1000);
 
-        // 5. Plot the mapped spline on the deformed geometry
-        gsField<> defField(geom, def,true);
-        gsInfo<<"Plotting in Paraview...\n";
-        gsWriteParaview<>( defField, "mp_def", 1000, true);
-
-        // QUASI INTERPOLATION
-        // /*
-
-        // gsMultiPatch<> mpatches = mbasis.exportToPatches(tmp);
-        gsMultiPatch<> mp2;
-        for (size_t p = 0; p!=mp.nPatches(); p++)
-        {
-            gsMatrix<> coefs;
-            gsQuasiInterpolate<real_t>::localIntpl(mp.basis(p), mspline.piece(p), coefs);
-            mp2.addPatch(mp.basis(p).makeGeometry( give(coefs) ));
-        }
-
-        gsField<> solfield(mp,mp2,true);
-        gsWriteParaview(solfield,"solfield");
-
-        // */
-
-
-        /*
-
-        // L2 PROJECTION
-
-
-        gsMultiBasis<> mb(mp);
-        gsBoundaryConditions<> bc_empty;
-
-        typedef gsExprAssembler<>::geometryMap geometryMap;
-        typedef gsExprAssembler<>::space       space;
-        typedef gsExprAssembler<>::solution    solution;
-        gsExprAssembler<> L2Projector(1,1);
-        geometryMap G   = L2Projector.getMap(mp);
-
-        L2Projector.setIntegrationElements(mb);
-        space v = L2Projector.getSpace(bb2, 1);//m-splines
-        space u = L2Projector.getTestSpace(v,mb);//TP splines
-        //solution sol = L2Projector.getSolution(v,solFull);
-        auto sol = L2Projector.getCoeff(mspline);
-
-        u.setup(bc_empty,dirichlet::homogeneous);
-        v.setup(bc_empty,dirichlet::homogeneous);
-
-
-        gsExprEvaluator<> ev(L2Projector);
-        gsMatrix<> pt(2,1);
-        pt.setConstant(0.25);
-        ev.writeParaview(sol,G,"solution");
-
-        L2Projector.initSystem(3);
-        L2Projector.assemble(u * v.tr(), u * sol.tr() );
-        gsMatrix<> result = L2Projector.matrix().toDense().
-            colPivHouseholderQr().solve(L2Projector.rhs());
-
-        gsMultiPatch<> mp_res;
-        gsMatrix<> coefs;
-        index_t offset = 0;
-        index_t blocksize = 0;
-        for (index_t p = 0; p != mp.nPatches(); p++)
-        {
-            blocksize = mp.patch(p).coefs().rows();
-            gsDebugVar(blocksize);
-            gsDebugVar(offset);
-            gsDebugVar(result.rows());
-            gsDebugVar(mb.basis(p).size());
-            coefs = result.block(offset,0,blocksize,result.cols());
-            mp_res.addPatch(mb.basis(p).makeGeometry(give(coefs)));
-            offset += blocksize;
-        }
-
-        gsField<> solfield_L2(mp,mp_res,true);
-        gsWriteParaview(solfield_L2,"solfield_L2");
-
-        // gsSparseSolver<>::QR solver( L2Projector.matrix() );
-        // gsMatrix<> result = solver.solve(L2Projector.rhs().col(k));
-
-        */
-
-        //
-
-        // Interpolate at anchors
-        /*
-        // gsMultiBasis<> mb(mp);
-        gsMultiPatch<> mp2;
-        for (size_t p = 0; p!=mp.nPatches(); ++p)
-        {
-            gsMatrix<> anchors;
-            mb.basis(p).anchors_into(anchors);
-            gsMatrix<> result;
-            bb2.eval_into(p,anchors,result);
-            mp2.addPatch(mb.basis(p).interpolateAtAnchors(result));
-        }
-
-        gsField<> solField(mp,mp2);
-
-        gsWriteParaview(solField,"beer");
-        */
-        // gsDebugVar(solFull.rows());
-        // gsDebugVar(mbasis.size());
-
-        // gsMatrix<> u(2,1);
-        // u.setConstant(0.25);
-
-        // gsMatrix<> B ;
-        // gsMatrix<index_t> actives;
-
-        // mspline.basis().eval_into(u,B);
-        // mbasis.active_into(u,actives);
-
-
-        // gsField<> solField(mp.patch(0),mspline,true);
-
-        // gsWriteParaview(solField,"mspline");
+        gsPiecewiseFunction<> flexuralStresses;
+        assembler.constructStress(def,flexuralStresses,stress_type::flexural);
+        gsWriteParaview(def,flexuralStresses,"FlexuralStress",1000);
     }
     //! [Export visualization in ParaView]
 
