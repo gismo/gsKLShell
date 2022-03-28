@@ -42,9 +42,10 @@ int main(int argc, char *argv[])
     bool writeMatrix= false;
     bool nonlinear  = false;
     index_t numRefine  = 2;
-    index_t numElevate = 1;
+    index_t degree = 3;
+    index_t smoothness = 2;
     index_t geometry = 1;
-    index_t smoothing = 0;
+    index_t method = 0;
     std::string input;
 
     real_t bcDirichlet = 1e3;
@@ -61,10 +62,10 @@ int main(int argc, char *argv[])
     cmd.addString( "G", "geom","File containing the geometry",  fn1 );
     cmd.addString( "B", "bvp", "File containing the Boundary Value Problem (BVP)",  fn2 );
     cmd.addString( "O", "opt", "File containing solver options",  fn3 );
-    cmd.addInt( "e", "degreeElevation",
-                "Number of degree elevation steps to perform before solving (0: equalize degree in all directions)", numElevate );
-    cmd.addInt( "r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
-    cmd.addInt( "s", "smooth", "Smoothing method to use",  smoothing );
+    cmd.addInt( "p", "degree", "Set the polynomial degree of the basis.", degree );
+    cmd.addInt( "s", "smoothness", "Set the smoothness of the basis.",  smoothness );
+    cmd.addInt( "r", "numRefine", "Number of refinement-loops.",  numRefine );
+    cmd.addInt( "m", "method", "Smoothing method to use", method );
     cmd.addSwitch("plot", "plot",plot);
     cmd.addSwitch("stress", "stress",stress);
     cmd.addSwitch("write", "write",write);
@@ -80,6 +81,9 @@ int main(int argc, char *argv[])
 
     gsMultiPatch<> mp;
     gsBoundaryConditions<> bc;
+
+    if (method==3 && degree-smoothness > 1)
+        gsWarn<<"Smoothing method 3 with a degree "<<degree<<" and smoothness "<<smoothness<<" does not work, degree-smoothness=regularity=1 is used.\n";
 
     /*
         to do:
@@ -175,20 +179,23 @@ int main(int argc, char *argv[])
 
     gsMultiPatch<> geom = mp;
 
-    // p-refine
-    if (numElevate!=0)
-        mp.degreeElevate(numElevate);
+    GISMO_ENSURE(degree>=mp.patch(0).degree(0),"Degree must be larger than or equal to the degree of the initial geometry, but degree = "<<degree<<" and the original degree = "<<mp.patch(0).degree(0));
+    mp.degreeElevate(degree-mp.patch(0).degree(0));
 
     // h-refine
-    if(smoothing!=3)
+    if(method!=3)
     {
-    for (int r =0; r < numRefine; ++r)
-        mp.uniformRefine();
+        // h-refine each basis
+        for (int r =0; r < numRefine; ++r)
+        {
+            mp.uniformRefine(1,degree-smoothness);
+        }
     }
     else
     {
-    for (int r =0; r < numRefine; ++r)
-        mp.uniformRefine(1, mp.patch(0).degree(0) -1);
+        // Always regularity 1
+        for (int r =0; r < numRefine; ++r)
+            mp.uniformRefine(1, degree-1);
     }
 
 
@@ -217,7 +224,7 @@ int main(int argc, char *argv[])
     gsMultiBasis<> dbasis(mp);
     gsWriteParaview(mp.basis(0),"basis",1000);
 
-    if (smoothing==-1)
+    if (method==-1)
     {
         // identity map
         global2local.resize(dbasis.totalSize(),dbasis.totalSize());
@@ -225,7 +232,7 @@ int main(int argc, char *argv[])
             global2local.coeffRef(k,k) = 1;
         geom = mp;
     }
-    else if (smoothing==0)
+    else if (method==0)
     {
         gsMPBESSpline<2,real_t> cgeom(mp,3);
         gsMappedBasis<2,real_t> basis = cgeom.getMappedBasis();
@@ -235,7 +242,7 @@ int main(int argc, char *argv[])
         auto container = basis.getBasesCopy();
         dbasis = gsMultiBasis<>(container,mp.topology());
     }
-    else if (smoothing==1)
+    else if (method==1)
     {
         gsDPatch<2,real_t> dpatch(mp);
         dpatch.matrix_into(global2local);
@@ -244,7 +251,7 @@ int main(int argc, char *argv[])
         geom = dpatch.exportToPatches();
         dbasis = dpatch.localBasis();
     }
-    else if (smoothing==2) // Pascal
+    else if (method==2) // Pascal
     {
         mp.embed(2);
         gsApproxC1Spline<2,real_t> approxC1(mp,dbasis);
@@ -265,7 +272,7 @@ int main(int argc, char *argv[])
         geom = mp;
         approxC1.getMultiBasis(dbasis);
     }
-    else if (smoothing==3) // Andrea
+    else if (method==3) // Andrea
     {
         gsC1SurfSpline<2,real_t> smoothC1(mp,dbasis);
         smoothC1.init();
@@ -277,7 +284,7 @@ int main(int argc, char *argv[])
         smoothC1.getMultiBasis(dbasis);
     }
     else
-        GISMO_ERROR("Option "<<smoothing<<" for smoothing does not exist");
+        GISMO_ERROR("Option "<<method<<" for method does not exist");
 
     if (writeMatrix)
     {
@@ -291,9 +298,9 @@ int main(int argc, char *argv[])
     // geom = mspline.exportToPatches();
 
     assembler = gsThinShellAssembler<3, real_t, true>(geom,dbasis,bc,force,&materialMatrix);
-    if (smoothing==1)
+    if (method==1)
         assembler.options().setInt("Continuity",-1);
-    else if (smoothing==2)
+    else if (method==2)
         assembler.options().setInt("Continuity",-1);
     assembler.options().setReal("WeakDirichlet",bcDirichlet);
     assembler.options().setReal("WeakClamped",bcClamped);
@@ -441,13 +448,10 @@ int main(int argc, char *argv[])
         gsInfo<<"Plotting in Paraview...\n";
         gsWriteParaview<>( solField, "Deformation", 1000, true);
 
-        // 5. Plot the mapped spline on the deformed geometry
-        gsField<> defField(def, def,true);
-        gsInfo<<"Plotting in Paraview...\n";
-        gsWriteParaview<>( defField, "mp_def", 1000, true);
-
-        // QUASI INTERPOLATION
-        // /*
+        // // 5. Plot the mapped spline on the deformed geometry
+        // gsField<> defField(def, def,true);
+        // gsInfo<<"Plotting in Paraview...\n";
+        // gsWriteParaview<>( defField, "mp_def", 1000, true);
 
         // gsMultiPatch<> mpatches = mbasis.exportToPatches(tmp);
         gsMultiPatch<> mp2;
