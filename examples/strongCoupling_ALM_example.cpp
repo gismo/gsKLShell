@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
     std::string input;
 
     int step          = 10;
-    int method        = 2; // (0: Load control; 1: Riks' method; 2: Crisfield's method; 3: consistent crisfield method)
+    int ALMmethod        = 2; // (0: Load control; 1: Riks' method; 2: Crisfield's method; 3: consistent crisfield method)
     real_t dL         = 0; // Arc length
     real_t dLb        = 0.5; // Arc length to find bifurcation
     real_t tol        = 1e-6;
@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
     cmd.addSwitch( "info", "Print information", info );
 
     cmd.addReal("F","factor", "factor for bifurcation perturbation", tau);
-    cmd.addInt("m","Method", "Arc length method; 1: Crisfield's method; 2: RIks' method.", method);
+    cmd.addInt("M","ALMmethod", "Arc length method; 1: Crisfield's method; 2: RIks' method.", ALMmethod);
     cmd.addReal("L","dLb", "arc length", dLb);
     cmd.addReal("l","dL", "arc length after bifurcation", dL);
     cmd.addInt("N", "maxsteps", "Maximum number of steps", step);
@@ -361,13 +361,13 @@ int main(int argc, char *argv[])
     };
 
     gsALMBase<real_t> * arcLength;
-    if (method==0)
+    if (ALMmethod==0)
       arcLength = new gsALMLoadControl<real_t>(Jacobian, ALResidual, Force);
-    else if (method==1)
+    else if (ALMmethod==1)
       arcLength = new gsALMRiks<real_t>(Jacobian, ALResidual, Force);
-    else if (method==2)
+    else if (ALMmethod==2)
       arcLength = new gsALMCrisfield<real_t>(Jacobian, ALResidual, Force);
-    else if (method==3)
+    else if (ALMmethod==3)
       arcLength = new gsALMConsistentCrisfield<real_t>(Jacobian, ALResidual, Force);
     else
       GISMO_ERROR("Method unknown");
