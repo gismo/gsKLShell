@@ -47,7 +47,7 @@ public:
         _init(m_functions);
     }
 
-    index_t nPieces() const {return m_size;}
+    index_t nPieces() const {return m_functions[0]->nPieces();}
 
     short_t domainDim() const
     { return m_functions[0]->domainDim(); }
