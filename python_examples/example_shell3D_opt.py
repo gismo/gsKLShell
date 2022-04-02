@@ -14,22 +14,27 @@
     Author(s): H.M. Verhelst
 """
 
+# Required for finding pygismo
 import os, sys
-gismo_path=os.path.join(os.path.dirname(__file__), "../../../build/lib")
+# Obtain pygismo
+gismo_path=os.path.join(os.getcwd() , "../../../")
 print("G+Smo path:",gismo_path,"(change if needed).")
-sys.path.append(gismo_path)
+sys.path.append(gismo_path+"build/lib")
 
-import pygismo as gs
+# Import pygismo
+import pygismo as gs ## If this line gives an error, check your path or check if pygismo is compiled
+
+# Import other modules
 import numpy as np
 import scipy.sparse.linalg as la
 from matplotlib import cm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+# for creating a responsive plot
+# %matplotlib widget
 
-import copy
 import scipy.optimize as opt
 
-## See gismo/filedata/surfaces/simple.xml for the geometry
 c1 = np.array([0.,0.,1.,1.])
 c2 = np.array([0.,0.,1.,1.])
 ku1 = gs.nurbs.gsKnotVector(c1,1)
@@ -51,14 +56,17 @@ tspline1 = gs.nurbs.gsTensorBSpline2(tbasis1,coefs)
 mp = gs.core.gsMultiPatch()
 mp.addPatch(tspline1)
 
-mp.degreeElevate()
-# mp.degreeElevate()
-mp.uniformRefine()
-mp.uniformRefine()
+# elevate the degree (starts at 1)
+mp.degreeElevate()     #degree = 2
+# mp.degreeElevate()     #degree = 3
+mp.uniformRefine()     # 4 elements
+# mp.uniformRefine()     # 16 elements
 
+# multibasis
+mb = gs.core.gsMultiBasis(mp)
+
+# store the coefficients
 coefs = mp.patch(0).coefs()
-
-# np.where(mp.patch(0).coefs()[:,0].any() < 1e-12 and mp.patch(0).coefs()[:,1].any() < 1e-12)
 
 mask_00     = (coefs[:,0] < 1e-12  ) & (coefs[:,1] < 1e-12  )
 mask_01     = (coefs[:,0] < 1e-12  ) & (coefs[:,1] > 1-1e-12)
@@ -67,55 +75,44 @@ mask_11     = (coefs[:,0] > 1-1e-12) & (coefs[:,1] > 1-1e-12)
 cornermask  = mask_00 | mask_01 | mask_10 | mask_11
 interiormask= ~cornermask
 
-# print("Coefficients:\n", mp.patch(0).coefs())
+shape = np.shape(coefs[interiormask])
 
-mb = gs.core.gsMultiBasis(mp)
-
+# thickness
 t = gs.core.gsFunctionExpr("1",3)
+# Young's modulus
 E = gs.core.gsFunctionExpr("1",3)
+# Poisson's ratio
 nu = gs.core.gsFunctionExpr("0.3",3)
+# Surface force
 f = gs.core.gsFunctionExpr("0","0","0",3)
+# Point loads
 pload = gs.pde.gsPointLoads()
-pload.addLoad(np.array([0.5,0.5]),np.array([0,0,-10]),0,True)
-null = gs.core.gsFunctionExpr("0",3)
-side = gs.core.side.west
+pload.addLoad(np.array([0.5,0.5]),np.array([0,0,-1]),0,True)
+
+
 bcs = gs.pde.gsBoundaryConditions();
+for corner in [gs.core.corner.northwest,
+             gs.core.corner.northeast,
+             gs.core.corner.southwest,
+             gs.core.corner.southeast]:
+    bcs.addCornerValue(corner,0.0,0,0,-1) # corner, value, patch, unknown, component
 
-for d in range(0,3):
-    for side in [gs.core.side.west, gs.core.side.east, gs.core.side.south, gs.core.side.north]:
-        bcs.addCondition(0,side,gs.pde.bctype.dirichlet,null,0,False,d)
+# null = gs.core.gsFunctionExpr("0",3)
+# side = gs.core.side.west
+# for side in [gs.core.side.west, gs.core.side.east, gs.core.side.south, gs.core.side.north]:
+#     bcs.addCondition(0,side,gs.pde.bctype.dirichlet,null,0,False,-1)
 
-bcs.setGeoMap(mp);
+# assign the geometry to the boundary conditions
+bcs.setGeoMap(mp)
 
 mm = gs.klshell.gsMaterialMatrixLinear3(mp,t)
 mm.setYoungsModulus(E)
 mm.setPoissonsRatio(nu)
 
-
-low = coefs[interiormask]
-upp = coefs[interiormask]
-L = np.max(low[:,0]) - np.min(low[:,0])
-W = np.max(upp[:,1]) - np.min(upp[:,1])
-
-low[:,0] = low[:,0] - 0.5*L
-low[:,1] = low[:,1] - 0.5*W
-low[:,2] = low[:,2] - 0.5*L
-
-upp[:,0] = upp[:,0] + 0.5*L
-upp[:,1] = upp[:,1] + 0.5*W
-upp[:,2] = upp[:,2] + 0.5*L
-
-low = low.flatten()
-upp = upp.flatten()
-
-u = coefs[interiormask]
-u[:,2] = 0.01*L*np.sin(u[:,0] * (np.pi))*np.sin(u[:,1] * (np.pi))
-shape = np.shape(u)
-u = u.flatten()
-
 assembler = gs.klshell.gsThinShellAssembler3(mp,mb,bcs,f,mm)
 assembler.setPointLoads(pload)
 
+# Makes a deformed geometry given a vector of design variables
 def makeGeometry(design):
     design = np.resize(design, shape)
     mp_tmp = gs.core.gsMultiPatch(mp)
@@ -124,12 +121,9 @@ def makeGeometry(design):
     mp_tmp.patch(0).setCoefs(tmp_coefs)
     return mp_tmp
 
-def constructDisplacement(solution):
-    return assembler.constructDisplacement(solution)
 
-def constructSolution(solution):
-    return assembler.constructSolution(solution)
-
+# Computes the deformation given a deformed multipatch
+# (NB: the commented part is a nonlinear solver)
 def computeDeformation(mp_tmp):
     assembler.setGeometry(mp_tmp)
     assembler.assemble()
@@ -178,6 +172,15 @@ def computeDeformation(mp_tmp):
 
     return solution
 
+# Constructs the displacement
+def constructDisplacement(solution):
+    return assembler.constructDisplacement(solution)
+
+# Constructs the displaced shell
+def constructSolution(solution):
+    return assembler.constructSolution(solution)
+
+# Computes the optimization objective
 def computeObjective(design):
     mp_tmp = makeGeometry(design)
     solution = computeDeformation(mp_tmp)
@@ -193,6 +196,7 @@ def computeObjective(design):
     deformation = -sol.patch(0).eval(pts)
     return np.max(deformation[2,:])
 
+# Computes the area constraint
 def computeConstraint(design):
     design = np.resize(design, shape)
     mp_tmp = gs.core.gsMultiPatch(mp)
@@ -201,6 +205,7 @@ def computeConstraint(design):
     mp_tmp.patch(0).setCoefs(tmp_coefs)
     return assembler.getArea(mp_tmp) - assembler.getArea(mp)
 
+# Plots the geometry
 def plotGeometry(design,ax):
     mp_tmp = makeGeometry(design)
     nx = ny = 100
@@ -215,6 +220,7 @@ def plotGeometry(design,ax):
     ax.plot_surface(x,y,z)
     return
 
+# Plots the deformed geometry
 def plotDeformation(design,ax):
     mp_tmp = makeGeometry(design)
     nx = ny = 100
@@ -223,8 +229,7 @@ def plotDeformation(design,ax):
     xv, yv = np.meshgrid(x,y,indexing='xy')
     pts = np.stack((xv.flatten(),yv.flatten()))
 
-    solution = computeDeformation(mp_tmp)
-    sol = constructSolution(solution)
+    sol = constructSolution(design)
 
     deformed = sol.patch(0).eval(pts)
     XX = deformed[0,:].reshape((nx,ny))
@@ -233,9 +238,45 @@ def plotDeformation(design,ax):
     ax.plot_surface(XX,YY,ZZ,cmap=cm.coolwarm)
     return
 
+## Static solve
+# Make vector of design variables
+u = coefs[interiormask]
+u = u.flatten()
+
+mp_tmp = makeGeometry(u)
+soln = computeDeformation(mp_tmp)
+fig = plt.figure(figsize =(14, 9))
+ax = fig.add_subplot(projection ='3d')
+plotDeformation(soln,ax)
+plt.show()
+
+## Shape optimization
+# Define nonlinear constraint
 nlc = opt.NonlinearConstraint(computeConstraint, 0, 0)
+# Define bounds
+low = coefs[interiormask]
+upp = coefs[interiormask]
+L = np.max(low[:,0]) - np.min(low[:,0])
+W = np.max(upp[:,1]) - np.min(upp[:,1])
+
+low[:,0] = low[:,0] - 0.5*L
+low[:,1] = low[:,1] - 0.5*W
+low[:,2] = low[:,2] - 0.5*L
+
+upp[:,0] = upp[:,0] + 0.5*L
+upp[:,1] = upp[:,1] + 0.5*W
+upp[:,2] = upp[:,2] + 0.5*L
+low = low.flatten()
+upp = upp.flatten()
+
 bnd = opt.Bounds(low,upp,keep_feasible=False)
 
+# Set initial design
+u = coefs[interiormask]
+u[:,2] = 0.01*L*np.sin(u[:,0] * (np.pi))*np.sin(u[:,1] * (np.pi))
+u = u.flatten()
+
+# Shape optimization
 sol = opt.minimize(computeObjective, u,
     method = 'trust-constr',
     bounds=bnd,
@@ -247,8 +288,7 @@ sol = opt.minimize(computeObjective, u,
                 # 'barrier_tol':1e-5,
                 })
 
-
-# PLOTTING -------------------------------------------------
+# Plotting
 fig = plt.figure(figsize =(14, 9))
 ax11 = plt.subplot(221,projection ='3d')
 ax12 = plt.subplot(222,projection ='3d')

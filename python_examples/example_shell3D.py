@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 
 
 mp = gs.core.gsMultiPatch()
-fd = gs.io.gsFileData(os.path.join(os.getcwd() , "../../../filedata/3dm/BB2.3dm"))
+fd = gs.io.gsFileData(os.path.join(os.getcwd() , "../../../filedata/3dm/BB2_clean.3dm"))
 # fd.getId(0,mp)
 fd.dump()
 
