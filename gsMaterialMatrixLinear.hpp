@@ -143,7 +143,7 @@ void gsMaterialMatrixLinear<dim,T>::_initialize()
 template <short_t dim, class T >
 void gsMaterialMatrixLinear<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool basis) const
 {
-    GISMO_ASSERT(m_pars.size()==2,"Two material parameters should be assigned!");
+    GISMO_ASSERT(m_pars.size()==2,"Two material parameters should be assigned, but only "<<m_pars.size()<<" were given");
     gsMatrix<T> tmp;
 
     this->_computeMetricUndeformed(patch,u,basis);
