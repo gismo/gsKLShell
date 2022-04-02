@@ -30,6 +30,9 @@
 
 #include <gsStructuralAnalysis/gsStructuralAnalysisUtils.h>
 
+#include <gsKLShell/gsThinShellUtils.h>
+
+
 using namespace gismo;
 
 int main(int argc, char *argv[])
@@ -401,7 +404,15 @@ int main(int argc, char *argv[])
     // 3. Make the mapped spline
     gsMappedSpline<2,real_t> mspline(bb2,solFull);
 
-    gsFunctionSum<real_t> def(&mp,&mspline);
+    gsFunctionSum<real_t> def(&geom,&mspline);
+
+    gsMultiPatch<> mp_def;
+    for (size_t p = 0; p!=mp.nPatches(); p++)
+    {
+        gsMatrix<> coefs;
+        gsQuasiInterpolate<real_t>::localIntpl(geom.basis(p), def.piece(p), coefs);
+        mp_def.addPatch(geom.basis(p).makeGeometry( give(coefs) ));
+    }
 
     gsField<> solField(geom, mspline,true);
 
@@ -439,6 +450,30 @@ int main(int argc, char *argv[])
     }
 
     gsInfo << "Number of Dofs: " << assembler.numDofs() << "\n";
+            gsDebugVar(def.nPieces());
+
+    gsExprEvaluator<> ev;
+    typedef gsExprAssembler<>::geometryMap geometryMap;
+    geometryMap m_ori   = ev.getMap(geom);
+    geometryMap m_def   = ev.getMap(def);
+
+    gsMatrix<> pts(2,4);
+    pts.col(0)<<0.1,0.1;
+    pts.col(1)<<0.1,0.9;
+    pts.col(2)<<0.9,0.1;
+    pts.col(3)<<0.9,0.9;
+    auto test = (flat(jac(m_def).tr()*jac(m_def))).tr();
+    auto That   = cartcon(m_ori);
+    auto Ttilde = cartcov(m_ori);
+    auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) * That;
+
+    ev.setIntegrationElements(dbasis);
+    // ev.writeParaview(E_m,m_ori,"test");
+    // ev.writeParaview(flat(ijac(m_def,m_ori).tr()*ijac(m_def,m_ori)),m_ori,"test");
+    ev.writeParaview(flat(jac(m_def).tr()*jac(m_def)) * meas(m_ori),m_ori,"test");
+
+    TO DO:
+        make an XML file that models uniaxial tension and verify the stress plot
 
     //! [Export visualization in ParaView]
     if (plot)
@@ -448,22 +483,40 @@ int main(int argc, char *argv[])
         gsInfo<<"Plotting in Paraview...\n";
         gsWriteParaview<>( solField, "Deformation", 1000, true);
 
+        // 4. Plot the mapped spline on the original geometry
+        gsField<> solField2(mp_def, def,true);
+        gsInfo<<"Plotting in Paraview...\n";
+        gsWriteParaview<>( solField2, "Deformation_", 1000, true);
+
+
         // // 5. Plot the mapped spline on the deformed geometry
         // gsField<> defField(def, def,true);
         // gsInfo<<"Plotting in Paraview...\n";
         // gsWriteParaview<>( defField, "mp_def", 1000, true);
 
         // gsMultiPatch<> mpatches = mbasis.exportToPatches(tmp);
-        gsMultiPatch<> mp2;
-        for (size_t p = 0; p!=mp.nPatches(); p++)
-        {
-            gsMatrix<> coefs;
-            gsQuasiInterpolate<real_t>::localIntpl(mp.basis(p), mspline.piece(p), coefs);
-            mp2.addPatch(mp.basis(p).makeGeometry( give(coefs) ));
-        }
 
-        gsField<> solfield(mp,mp2,true);
-        gsWriteParaview(solfield,"solfield");
+        gsField<> solfield(geom,def,true);
+        gsWriteParaview(solfield,"solfield",1000,true);
+    }
+    if (stress)
+    {
+        gsPiecewiseFunction<> displace;
+        assembler.constructStress(mp,def,displace,stress_type::displacement);
+        gsWriteParaview(geom,displace,"DisplacementFun",1000);
+        gsWriteParaview(def,displace,"DisplacementFunDef",1000);
+
+        gsPiecewiseFunction<> membraneStresses;
+        assembler.constructStress(geom,def,membraneStresses,stress_type::membrane_strain);
+        gsWriteParaview(geom,membraneStresses,"MembraneStress",1000);
+
+        gsPiecewiseFunction<> membraneStresses_;
+        assembler.constructStress(geom,mp_def,membraneStresses_,stress_type::membrane_strain);
+        gsWriteParaview(geom,membraneStresses_,"MembraneStress_",1000);
+
+        gsPiecewiseFunction<> flexuralStresses;
+        assembler.constructStress(geom,def,flexuralStresses,stress_type::flexural);
+        gsWriteParaview(geom,flexuralStresses,"FlexuralStress",1000);
     }
     if (write)
     {
@@ -484,16 +537,6 @@ int main(int argc, char *argv[])
         gsStaticOutput<real_t> refWriter("reference.csv",refPoints);
         refWriter.init(headers);
         refWriter.add(refValue);
-    }
-    if (stress)
-    {
-        gsPiecewiseFunction<> membraneStresses;
-        assembler.constructStress(def,membraneStresses,stress_type::membrane);
-        gsWriteParaview(def,membraneStresses,"MembraneStress",1000);
-
-        gsPiecewiseFunction<> flexuralStresses;
-        assembler.constructStress(def,flexuralStresses,stress_type::flexural);
-        gsWriteParaview(def,flexuralStresses,"FlexuralStress",1000);
     }
     //! [Export visualization in ParaView]
 

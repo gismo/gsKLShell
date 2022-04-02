@@ -350,9 +350,15 @@ public:
 
     //--------------------- SPECIALS ----------------------------------//
     /// See \ref gsThinShellAssemblerBase for details
-    void constructStress(const gsFunctionSet<T> & deformed,
-                               gsPiecewiseFunction<T> & result,
-                               stress_type::type type);
+    void constructStress(   const gsFunctionSet<T> & deformed,
+                            gsPiecewiseFunction<T> & result,
+                            stress_type::type type);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void constructStress(   const gsFunctionSet<T> & original,
+                            const gsFunctionSet<T> & deformed,
+                            gsPiecewiseFunction<T> & result,
+                            stress_type::type type);
 
     /// See \ref gsThinShellAssemblerBase for details
     gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsFunctionSet<T> & deformed, const T z=0);

@@ -16,7 +16,6 @@
 #pragma once
 
 #include <gsAssembler/gsExprEvaluator.h>
-#include <gsAssembler/gsExprAssembler.h>
 
 namespace gismo
 {
@@ -25,29 +24,26 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
 {
     result.setZero(targetDim(),u.cols());
 
-    m_assembler.cleanUp();
+    gsExprEvaluator<T> ev;
 
-    geometryMap m_ori   = m_assembler.getMap(m_patches);
-    geometryMap m_def   = m_assembler.getMap(*m_defpatches);
-
-    // Initialize stystem
-    // m_assembler.initSystem(false);
+    geometryMap m_ori   = ev.getMap(*m_patches);
+    geometryMap m_def   = ev.getMap(*m_defpatches);
 
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,m_defpatches);
-    variable S0 = m_assembler.getCoeff(m_S0);
+    variable S0 = ev.getVariable(m_S0);
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMatrices,m_defpatches);
-    variable S1 = m_assembler.getCoeff(m_S1);
+    variable S1 = ev.getVariable(m_S1);
     gsMaterialMatrixIntegrate<T,MaterialOutput::PStressN> m_Sp0(m_materialMatrices,m_defpatches);
-    variable Sp0 = m_assembler.getCoeff(m_Sp0);
+    variable Sp0 = ev.getVariable(m_Sp0);
     gsMaterialMatrixIntegrate<T,MaterialOutput::PStressM> m_Sp1(m_materialMatrices,m_defpatches);
-    variable Sp1 = m_assembler.getCoeff(m_Sp1);
+    variable Sp1 = ev.getVariable(m_Sp1);
     gsMaterialMatrixIntegrate<T,MaterialOutput::Stretch> m_lambda(m_materialMatrices,m_defpatches);
-    variable lambda = m_assembler.getCoeff(m_lambda);
+    variable lambda = ev.getVariable(m_lambda);
     gsMaterialMatrixIntegrate<T,MaterialOutput::StretchDir> m_lambdadir(m_materialMatrices,m_defpatches);
-    variable lambdadir = m_assembler.getCoeff(m_lambdadir);
+    variable lambdadir = ev.getVariable(m_lambdadir);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
-    variable m_m2 = m_assembler.getCoeff(mult2t);
+    variable m_m2 = ev.getVariable(mult2t);
 
     auto That   = cartcon(m_ori);
     auto Ttilde = cartcov(m_ori);
@@ -58,11 +54,15 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     auto S_m    = S0.tr() * Ttilde;
     auto S_f    = S1.tr() * Ttilde;
 
-    gsExprEvaluator<T> ev(m_assembler);
     gsMatrix<T> tmp;
 
     switch (m_stress_type)
     {
+        case stress_type::displacement :
+            for (index_t k = 0; k != u.cols(); ++k)
+                result.col(k) = ev.eval(m_def,u.col(k),m_patchID);
+            break;
+
         case stress_type::membrane :
             for (index_t k = 0; k != u.cols(); ++k)
                 result.col(k) = (ev.eval(S_m,u.col(k),m_patchID)).transpose();

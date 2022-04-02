@@ -748,55 +748,55 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 
     // C^0 coupling
     m_assembler.assembleIfc(m_weakC0,
-                     m_alpha_d_ifc * m_space.left() * m_space.left().tr()
+                     m_alpha_d_ifc * m_space.left() * m_space.left().tr() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.right()* m_space.left() .tr()
+                    -m_alpha_d_ifc * m_space.right()* m_space.left() .tr() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.left() * m_space.right().tr()
+                    -m_alpha_d_ifc * m_space.left() * m_space.right().tr() * tv(m_ori).norm()
                     ,
-                     m_alpha_d_ifc * m_space.right()* m_space.right().tr()
+                     m_alpha_d_ifc * m_space.right()* m_space.right().tr() * tv(m_ori).norm()
                      );
 
     // C^1 coupling
     // Penalty of out-of-plane coupling
     // dW^pr / du_r --> second line
     m_assembler.assembleIfc(m_weakC1,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr()    // left left
+                     m_alpha_r_ifc * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr() * tv(m_ori).norm()    // left left
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr()   // left right
+                     m_alpha_r_ifc * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr() * tv(m_ori).norm()  // left right
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr()   // right left
+                     m_alpha_r_ifc * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr() * tv(m_ori).norm()  // right left
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr()  // right right
+                     m_alpha_r_ifc * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr() * tv(m_ori).norm() // right right
                     ,
                     // Symmetry
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr()    // right right
+                     m_alpha_r_ifc * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr() * tv(m_ori).norm()   // right right
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr()   // right left
+                     m_alpha_r_ifc * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr() * tv(m_ori).norm()  // right left
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr()   // left right
+                     m_alpha_r_ifc * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr() * tv(m_ori).norm()  // left right
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr()  // left left
+                     m_alpha_r_ifc * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr() * tv(m_ori).norm() // left left
                      );
 
     // Penalty of in-plane coupling
     // dW^pr / du_r --> fourth line
     m_assembler.assembleIfc(m_weakC1,
-                     m_alpha_r_ifc * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ) * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ).tr() // left left
+                     m_alpha_r_ifc * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ) * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ).tr() * tv(m_ori).norm() // left left
                     + // Symmetry
-                     m_alpha_r_ifc * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ) * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ).tr() // left left
+                     m_alpha_r_ifc * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ) * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ).tr() * tv(m_ori).norm() // left left
                     ,
-                     m_alpha_r_ifc * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ) * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ).tr() // left right
+                     m_alpha_r_ifc * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ) * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ).tr() * tv(m_ori).norm() // left right
                     + // Symmetry
-                     m_alpha_r_ifc * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ) * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ).tr() // left right
+                     m_alpha_r_ifc * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ) * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ).tr() * tv(m_ori).norm() // left right
                     ,
-                     m_alpha_r_ifc * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ) * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ).tr() // right left
+                     m_alpha_r_ifc * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ) * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ).tr() * tv(m_ori).norm() // right left
                     + // Symmetry
-                     m_alpha_r_ifc * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ) * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ).tr() // right left
+                     m_alpha_r_ifc * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ) * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ).tr() * tv(m_ori).norm() // right left
                     ,
-                     m_alpha_r_ifc * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ) * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ).tr() // right right
+                     m_alpha_r_ifc * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ) * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ).tr() * tv(m_ori).norm() // right right
                     + // Symmetry
-                     m_alpha_r_ifc * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ) * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ).tr() // right right
+                     m_alpha_r_ifc * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ) * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ).tr() * tv(m_ori).norm() // right right
                      );
 }
 
@@ -815,17 +815,18 @@ template<int _d, bool matrix>
 typename std::enable_if<!(_d==3) && matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 {
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
     // C^0 coupling
     m_assembler.assembleIfc(m_weakC0,
-                     m_alpha_d_ifc * m_space.left() * m_space.left().tr()
+                     m_alpha_d_ifc * m_space.left() * m_space.left().tr() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.right()* m_space.left() .tr()
+                    -m_alpha_d_ifc * m_space.right()* m_space.left() .tr() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.left() * m_space.right().tr()
+                    -m_alpha_d_ifc * m_space.left() * m_space.right().tr() * tv(m_ori).norm()
                     ,
-                     m_alpha_d_ifc * m_space.right()* m_space.right().tr()
+                     m_alpha_d_ifc * m_space.right()* m_space.right().tr() * tv(m_ori).norm()
                      );
 
     // C^1 coupling DOES NOT CONTRIBUTE IN 2D PROBLEMS
@@ -875,96 +876,96 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     // C^0 coupling
     m_assembler.assembleIfc(m_weakC0,
-                     m_alpha_d_ifc * m_space.left() * m_space.left().tr()
+                     m_alpha_d_ifc * m_space.left() * m_space.left().tr() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.right()* m_space.left() .tr()
+                    -m_alpha_d_ifc * m_space.right()* m_space.left() .tr() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.left() * m_space.right().tr()
+                    -m_alpha_d_ifc * m_space.left() * m_space.right().tr() * tv(m_ori).norm()
                     ,
-                     m_alpha_d_ifc * m_space.right()* m_space.right().tr()
+                     m_alpha_d_ifc * m_space.right()* m_space.right().tr() * tv(m_ori).norm()
                      );
 
     // C^1 coupling
     // Penalty of out-of-plane coupling
     // dW^pr / du_r --> first line
     m_assembler.assembleIfc(m_weakC1,
-                     m_alpha_r_ifc * dN_lr * var2(m_space.left() ,m_space.left() ,m_def.left() ,usn(m_def.right()).tr() )      // left left
+                     m_alpha_r_ifc * dN_lr * var2(m_space.left() ,m_space.left() ,m_def.left() ,usn(m_def.right()).tr() ) * tv(m_ori).norm()      // left left
                     ,
-                     m_alpha_r_ifc * dN_lr * ( var1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() )// left right
+                     m_alpha_r_ifc * dN_lr * ( var1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() ) * tv(m_ori).norm()// left right
                     ,
-                     m_alpha_r_ifc * dN_lr * ( var1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() )// right left
+                     m_alpha_r_ifc * dN_lr * ( var1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() ) * tv(m_ori).norm()// right left
                     ,
-                     m_alpha_r_ifc * dN_lr * var2( m_space.right(),m_space.right(),m_def.right(),usn(m_def.left() ).tr() )     // right right
+                     m_alpha_r_ifc * dN_lr * var2( m_space.right(),m_space.right(),m_def.right(),usn(m_def.left() ).tr() ) * tv(m_ori).norm()     // right right
                     ,
                     // Symmetry
-                     m_alpha_r_ifc * dN_rl * var2(m_space.right() ,m_space.right() ,m_def.right() ,usn(m_def.left()).tr() )      // right right
+                     m_alpha_r_ifc * dN_rl * var2(m_space.right() ,m_space.right() ,m_def.right() ,usn(m_def.left()).tr() ) * tv(m_ori).norm()      // right right
                     ,
-                     m_alpha_r_ifc * dN_rl * ( var1(m_space.right() ,m_def.right() ) * var1(m_space.left(),m_def.left()).tr() )// right left
+                     m_alpha_r_ifc * dN_rl * ( var1(m_space.right() ,m_def.right() ) * var1(m_space.left(),m_def.left()).tr() ) * tv(m_ori).norm()// right left
                     ,
-                     m_alpha_r_ifc * dN_rl * ( var1(m_space.left(),m_def.left()) * var1(m_space.right() ,m_def.right() ).tr() )// left right
+                     m_alpha_r_ifc * dN_rl * ( var1(m_space.left(),m_def.left()) * var1(m_space.right() ,m_def.right() ).tr() ) * tv(m_ori).norm()// left right
                     ,
-                     m_alpha_r_ifc * dN_rl * var2( m_space.left(),m_space.left(),m_def.left(),usn(m_def.right() ).tr() )     // left left
+                     m_alpha_r_ifc * dN_rl * var2( m_space.left(),m_space.left(),m_def.left(),usn(m_def.right() ).tr() ) * tv(m_ori).norm()     // left left
                      );
 
     // Penalty of out-of-plane coupling
     // dW^pr / du_r --> second line
     m_assembler.assembleIfc(m_weakC1,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr()    // left left
+                     m_alpha_r_ifc * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr() * tv(m_ori).norm()    // left left
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr()   // left right
+                     m_alpha_r_ifc * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr() * tv(m_ori).norm()   // left right
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr()   // right left
+                     m_alpha_r_ifc * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr() * tv(m_ori).norm()   // right left
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr()  // right right
+                     m_alpha_r_ifc * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr() * tv(m_ori).norm()  // right right
                     ,
                     // Symmetry
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr()    // right right
+                     m_alpha_r_ifc * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr() * tv(m_ori).norm()    // right right
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr()   // right left
+                     m_alpha_r_ifc * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr() * tv(m_ori).norm()   // right left
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr()   // left right
+                     m_alpha_r_ifc * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr() * tv(m_ori).norm()   // left right
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr()  // left left
+                     m_alpha_r_ifc * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr() * tv(m_ori).norm()  // left left
                      );
 
     // Penalty of in-plane coupling
     // dW^pr / du_r --> third line
     m_assembler.assembleIfc(m_weakC1,
-                     m_alpha_r_ifc * dnN_lr * ovar2(m_space.left(),m_space.left(),m_def.left(),usn(m_def.right()).tr()) // left left
+                     m_alpha_r_ifc * dnN_lr * ovar2(m_space.left(),m_space.left(),m_def.left(),usn(m_def.right()).tr()) * tv(m_ori).norm() // left left
                     + // Symmetry
-                     m_alpha_r_ifc * dnN_rl * ovar2(m_space.left(),m_space.left(),m_def.left(),usn(m_def.right()).tr()) // left left
+                     m_alpha_r_ifc * dnN_rl * ovar2(m_space.left(),m_space.left(),m_def.left(),usn(m_def.right()).tr()) * tv(m_ori).norm() // left left
                     ,
-                     m_alpha_r_ifc * dnN_lr * ( ovar1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() ) // left right
+                     m_alpha_r_ifc * dnN_lr * ( ovar1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() ) * tv(m_ori).norm() // left right
                     + // Symmetry
-                     m_alpha_r_ifc * dnN_rl * ( ovar1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() ) // right left
+                     m_alpha_r_ifc * dnN_rl * ( ovar1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() ) * tv(m_ori).norm() // right left
                     ,
-                     m_alpha_r_ifc * dnN_lr * ( ovar1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() ) // right left
+                     m_alpha_r_ifc * dnN_lr * ( ovar1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() ) * tv(m_ori).norm() // right left
                     + // Symmetry
-                     m_alpha_r_ifc * dnN_rl * ( ovar1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() ) // right left
+                     m_alpha_r_ifc * dnN_rl * ( ovar1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() ) * tv(m_ori).norm() // right left
                     ,
-                     m_alpha_r_ifc * dnN_lr * ovar2(m_space.right(),m_space.right(),m_def.right(),usn(m_def.left()).tr()) // right right
+                     m_alpha_r_ifc * dnN_lr * ovar2(m_space.right(),m_space.right(),m_def.right(),usn(m_def.left()).tr()) * tv(m_ori).norm() // right right
                     + // Symmetry
-                     m_alpha_r_ifc * dnN_rl * ovar2(m_space.right(),m_space.right(),m_def.right(),usn(m_def.left()).tr()) // right right
+                     m_alpha_r_ifc * dnN_rl * ovar2(m_space.right(),m_space.right(),m_def.right(),usn(m_def.left()).tr()) * tv(m_ori).norm() // right right
                      );
 
     // Penalty of in-plane coupling
     // dW^pr / du_r --> fourth line
     m_assembler.assembleIfc(m_weakC1,
-                     m_alpha_r_ifc * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ) * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ).tr() // left left
+                     m_alpha_r_ifc * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ) * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ).tr() * tv(m_ori).norm() // left left
                     + // Symmetry
-                     m_alpha_r_ifc * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ) * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ).tr() // left left
+                     m_alpha_r_ifc * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ) * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ).tr() * tv(m_ori).norm() // left left
                     ,
-                     m_alpha_r_ifc * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ) * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ).tr() // left right
+                     m_alpha_r_ifc * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ) * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ).tr() * tv(m_ori).norm() // left right
                     + // Symmetry
-                     m_alpha_r_ifc * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ) * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ).tr() // left right
+                     m_alpha_r_ifc * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ) * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ).tr() * tv(m_ori).norm() // left right
                     ,
-                     m_alpha_r_ifc * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ) * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ).tr() // right left
+                     m_alpha_r_ifc * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ) * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ).tr() * tv(m_ori).norm() // right left
                     + // Symmetry
-                     m_alpha_r_ifc * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ) * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ).tr() // right left
+                     m_alpha_r_ifc * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ) * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ).tr() * tv(m_ori).norm() // right left
                     ,
-                     m_alpha_r_ifc * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ) * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ).tr() // right right
+                     m_alpha_r_ifc * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ) * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ).tr() * tv(m_ori).norm() // right right
                     + // Symmetry
-                     m_alpha_r_ifc * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ) * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ).tr() // right right
+                     m_alpha_r_ifc * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ) * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ).tr() * tv(m_ori).norm() // right right
                      );
 }
 
@@ -994,34 +995,34 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     // C^0 coupling
     m_assembler.assembleIfc(m_weakC0,
-                    -m_alpha_d_ifc * m_space.left() * du
+                    -m_alpha_d_ifc * m_space.left() * du * tv(m_ori).norm()
                     ,
-                     m_alpha_d_ifc * m_space.right()* du
+                     m_alpha_d_ifc * m_space.right()* du * tv(m_ori).norm()
                      );
 
    // C^1 coupling
     m_assembler.assembleIfc(m_weakC1,
-                    -m_alpha_r_ifc * dN_lr * var1(m_space.left(),m_def.left())   * usn(m_def.right())
+                    -m_alpha_r_ifc * dN_lr * var1(m_space.left(),m_def.left())   * usn(m_def.right()) * tv(m_ori).norm()
                     ,
-                    -m_alpha_r_ifc * dN_lr * var1(m_space.right(),m_def.right()) * usn(m_def.left() )
+                    -m_alpha_r_ifc * dN_lr * var1(m_space.right(),m_def.right()) * usn(m_def.left() ) * tv(m_ori).norm()
                     ,
                     // Symmetry
-                    -m_alpha_r_ifc * dN_rl * var1(m_space.right(),m_def.right())   * usn(m_def.left())
+                    -m_alpha_r_ifc * dN_rl * var1(m_space.right(),m_def.right())   * usn(m_def.left()) * tv(m_ori).norm()
                     ,
-                    -m_alpha_r_ifc * dN_rl * var1(m_space.left(),m_def.left()) * usn(m_def.right() )
+                    -m_alpha_r_ifc * dN_rl * var1(m_space.left(),m_def.left()) * usn(m_def.right() ) * tv(m_ori).norm()
                      );
 
     // Penalty of in-plane coupling
     // dW^pr / du_r --> second line
     m_assembler.assembleIfc(m_weakC1,
-                    -m_alpha_r_ifc * dnN_lr* ovar1(m_space.left(),m_def.left())  * usn(m_def.right())
+                    -m_alpha_r_ifc * dnN_lr* ovar1(m_space.left(),m_def.left())  * usn(m_def.right()) * tv(m_ori).norm()
                     ,
-                    -m_alpha_r_ifc * dnN_lr* var1(m_space.right(),m_def.right()) * unv(m_def.left() )
+                    -m_alpha_r_ifc * dnN_lr* var1(m_space.right(),m_def.right()) * unv(m_def.left() ) * tv(m_ori).norm()
                     ,
                     // Symmetry
-                    -m_alpha_r_ifc * dnN_rl* ovar1(m_space.right(),m_def.right())  * usn(m_def.left())
+                    -m_alpha_r_ifc * dnN_rl* ovar1(m_space.right(),m_def.right())  * usn(m_def.left()) * tv(m_ori).norm()
                     ,
-                    -m_alpha_r_ifc * dnN_rl* var1(m_space.left(),m_def.left()) * unv(m_def.right() )
+                    -m_alpha_r_ifc * dnN_rl* var1(m_space.left(),m_def.left()) * unv(m_def.right() ) * tv(m_ori).norm()
                      );
 }
 
@@ -1039,13 +1040,13 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     // C^0 coupling
     m_assembler.assembleIfc(m_weakC0,
-                     m_alpha_d_ifc * m_space.left() * m_space.left().tr()
+                     m_alpha_d_ifc * m_space.left() * m_space.left().tr() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.right()* m_space.left() .tr()
+                    -m_alpha_d_ifc * m_space.right()* m_space.left() .tr() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.left() * m_space.right().tr()
+                    -m_alpha_d_ifc * m_space.left() * m_space.right().tr() * tv(m_ori).norm()
                     ,
-                     m_alpha_d_ifc * m_space.right()* m_space.right().tr()
+                     m_alpha_d_ifc * m_space.right()* m_space.right().tr() * tv(m_ori).norm()
                      );
 
     // C^1 coupling DOES NOT CONTRIBUTE IN 2D PROBLEMS
@@ -1065,9 +1066,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     // C^0 coupling
      m_assembler.assembleIfc(m_weakC0,
-                      m_alpha_d_ifc * m_space.left() * du
+                      m_alpha_d_ifc * m_space.left() * du * tv(m_ori).norm()
                      ,
-                     -m_alpha_d_ifc * m_space.right()* du
+                     -m_alpha_d_ifc * m_space.right()* du * tv(m_ori).norm()
                       );
 
     // C^1 coupling DOES NOT CONTRIBUTE IN 2D PROBLEMS
@@ -1080,6 +1081,7 @@ void gsThinShellAssembler<d, T, bending>::_assembleDirichlet()
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // if statement
     m_space.setup(m_bcs, dirichlet::l2Projection, m_continuity);
+    m_assembler.initSystem();
 }
 
 template <short_t d, class T, bool bending>
@@ -2361,10 +2363,20 @@ void gsThinShellAssembler<d, T, bending>::constructStress(const gsFunctionSet<T>
                                                     gsPiecewiseFunction<T> & result,
                                                     stress_type::type type)
 {
+    constructStress(m_patches,deformed,result,type);
+}
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::constructStress(
+                                                    const gsFunctionSet<T> & original,
+                                                    const gsFunctionSet<T> & deformed,
+                                                    gsPiecewiseFunction<T> & result,
+                                                    stress_type::type type)
+{
     result.clear();
 
     for (size_t p = 0; p < m_patches.nPatches(); ++p )
-        result.addPiecePointer(new gsShellStressFunction<T>(m_patches,deformed,m_materialMatrices,p,type,m_assembler));
+        result.addPiecePointer(new gsShellStressFunction<T>(original,deformed,m_materialMatrices,p,type));
 
 }
 
