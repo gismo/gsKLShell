@@ -743,9 +743,6 @@ int main(int argc, char *argv[])
     {
         mp.clearTopology();
         mp.computeTopology();
-        gsVector<> neu(3);
-        neu<<0,0,1;
-        gsConstantFunction<> neuData(neu,3);
         for (index_t d = 0; d!=3; d++)
             for (size_t p=0; p!=mp.nPatches(); ++p)
                 bc.addCondition(p, boundary::east, condition_type::dirichlet, 0, 0, false, d);
@@ -760,16 +757,7 @@ int main(int argc, char *argv[])
                 bc.addCondition(p, boundary::east, condition_type::clamped, 0, 0, false, 2);
         }
 
-        /// DO NOT WORK!!!
-        // bc.addCondition(0, boundary::west, condition_type::neumann, &neuData, 0, 0);
-        // bc.addCondition(1, boundary::west, condition_type::neumann, &neuData);
-        // bc.addCondition(2, boundary::west, condition_type::neumann, &neuData);
-
-
-        // if (weak)
-        //     bc.addCondition(1, boundary::west, condition_type::weak_clamped, 0, 0, false, 2);
-        // else
-        //     bc.addCondition(1, boundary::west, condition_type::clamped, 0, 0, false, 2);
+        PoissonRatio = 0.3;
 
         tmp << 0,0,0;
         gsConstantFunction<> piece0(tmp,3);
