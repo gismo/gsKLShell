@@ -531,6 +531,7 @@ protected:
     typedef gsExprAssembler<>::geometryMap geometryMap;
     typedef gsExprAssembler<>::space       space;
     typedef gsExprAssembler<>::solution    solution;
+    typedef gsExprAssembler<>::element     element;
 
     std::vector<gsDofMapper>  m_dofMappers;
     gsDofMapper m_mapper;
