@@ -15,6 +15,7 @@
 
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/gsMaterialMatrixLinear.h>
+#include <gsKLShell/gsThinShellUtils.h>
 
 using namespace gismo;
 
@@ -81,7 +82,7 @@ int main(int argc, char *argv[])
         mp.computeTopology();
     }
     gsInfo<<"Finished\n";
-    if (mp.domainDim()==2)
+    if (mp.geoDim()==2)
         mp.embed(3);
 
     fd.read(fn2);

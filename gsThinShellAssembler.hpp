@@ -1287,6 +1287,7 @@ void gsThinShellAssembler<d, T, bending>::_applyLoads()
     for (size_t i = 0; i< m_pLoads.numLoads(); ++i )
     {
         GISMO_ASSERT(m_pLoads[i].value.size()==d,"Point load has wrong dimension "<<m_pLoads[i].value.size()<<" instead of "<<d<<"\n");
+        GISMO_ASSERT((size_t)m_pLoads[i].patch<m_patches.nPatches(),"Point load is defined on a patch with index "<<m_pLoads[i].patch<<" while the geometry has "<<m_patches.nPatches()<<" patches\n");
         // Compute actives and values of basis functions on point load location.
         if ( m_pLoads[i].parametric )   // in parametric space
         {
