@@ -83,6 +83,11 @@ namespace gismo
     .def("setSpaceBasis"   , &Class::setSpaceBasis   , "Sets the basis for the space")
 
     .def("setPointLoads"   , &Class::setPointLoads   , "Sets point loads")
+
+    .def("geometry"   , static_cast<const gsMultiPatch<real_t> & (Class::*)() const> (&Class::geometry), "Gets the geometry")
+    .def("geometry"   , static_cast<      gsMultiPatch<real_t> & (Class::*)()      > (&Class::geometry), "Gets the geometry")
+    .def("basis"      , static_cast<const gsMultiBasis<real_t> & (Class::*)() const> (&Class::basis)   , "Gets the basis")
+    .def("basis"      , static_cast<      gsMultiBasis<real_t> & (Class::*)()      > (&Class::basis)   , "Gets the basis")
     ;
   }
 
