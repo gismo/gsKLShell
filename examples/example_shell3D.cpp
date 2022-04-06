@@ -1447,7 +1447,6 @@ gsMultiPatch<T> PlateGirderL(T PanelLength, T PanelWidth, T GirderHeight, T Gird
 
     result.computeTopology();
     result.addAutoBoundaries();
-    gsWrite(result,"result");
 
     return result;
 }

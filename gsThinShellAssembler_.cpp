@@ -75,6 +75,14 @@ namespace gismo
           "Constructs the displacements as a gsMultiPatch")
     .def("constructDisplacement", static_cast<gsMultiPatch<real_t> (Class::*)(const gsMatrix<real_t> &                        ) const> (&Class::constructDisplacement),
           "Constructs the displacements as a gsMultiPatch")
+    .def("getArea"   , &Class::getArea   , "Returns the area of a geometry")
+
+
+    .def("setGeometry"   , &Class::setGeometry   , "Sets the geometry")
+    .def("setBasis"   , &Class::setBasis   , "Sets the basis")
+    .def("setSpaceBasis"   , &Class::setSpaceBasis   , "Sets the basis for the space")
+
+    .def("setPointLoads"   , &Class::setPointLoads   , "Sets point loads")
     ;
   }
 

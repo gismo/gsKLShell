@@ -301,6 +301,14 @@ public:
     //--------------------- GEOMETRY ACCESS --------------------------------//
     /// See \ref gsThinShellAssemblerBase for details
     const gsMultiPatch<T> & geometry()      const  {return m_patches;}
+    gsMultiPatch<T> & geometry()  {return m_patches;}
+    void setGeometry(const gsMultiPatch<T> & patches) { m_patches = patches; }
+
+    //--------------------- BASIS ACCESS --------------------------------//
+    /// See \ref gsThinShellAssemblerBase for details
+    const gsMultiBasis<T> & basis()      const  {return m_basis;}
+    gsMultiBasis<T> & basis()  {return m_basis;}
+    void setBasis(const gsMultiBasis<T> & basis) { m_basis = basis; }
 
     // / See \ref gsThinShellAssemblerBase for details
     // const gsFunctionSet<T> & defGeometry()   const  {return *m_defpatches;}
@@ -757,6 +765,15 @@ public:
 
     /// Returns the undeformed geometry
     virtual const gsMultiPatch<T> & geometry()    const = 0;
+    virtual gsMultiPatch<T> & geometry() = 0;
+
+    ///
+    virtual const gsMultiBasis<T> & basis()      const  = 0;
+    virtual gsMultiBasis<T> & basis() = 0;
+
+    virtual void setGeometry(const gsMultiPatch<T> & patches) = 0;
+    virtual void setBasis(const gsMultiBasis<T> & basis) = 0;
+
 
     // /// Returns the deformed geometry
     // virtual const gsFunctionSet<T> & defGeometry() const = 0;
