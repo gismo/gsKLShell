@@ -234,6 +234,8 @@ int main(int argc, char *argv[])
         for (size_t k=0; k!=dbasis.totalSize(); ++k)
             global2local.coeffRef(k,k) = 1;
         geom = mp;
+        gsInfo << "Basis Patch: " << dbasis.basis(0).component(0) << "\n";
+
     }
     else if (method==0)
     {

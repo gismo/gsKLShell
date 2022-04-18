@@ -88,6 +88,15 @@
 </Matrix>
 
 
+<Matrix rows="2" cols="3" id="50" >
+  1.0   1.0   1.0
+  1.0   1.0   1.0
+</Matrix>
+<!-- Reference point patch indices -->
+<Matrix rows="1" cols="3" id="51" >
+  6     8    11
+</Matrix>
+
 <!-- Manufactured solution -->
 <Function type="FunctionExpr" id="41" tag="Loads" dim="3">
   <c> 0 </c>
