@@ -45,8 +45,8 @@
     10 3
   </bc>
   <bc type="Weak Clamped" function="0" unknown="0" component="2">
-    0 3
-    10 3
+    <!-- 0 3
+    10 3 -->
   </bc>
   <bc type="Collapsed" function="0" unknown="0" component="2">
   </bc>
