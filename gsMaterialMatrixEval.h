@@ -36,10 +36,9 @@ public:
     :
     m_materialMatrices(materialMatrices),
     m_deformed(deformed),
-    m_z(z),
-    m_piece(nullptr)
+    m_z(z)
     {
-        gsDebugVar("Container");
+        this->_makePieces();
     }
 
     /// Constructor
@@ -49,12 +48,12 @@ public:
     :
     m_materialMatrices(deformed->nPieces()),
     m_deformed(deformed),
-    m_z(z),
-    m_piece(nullptr)
+    m_z(z)
     {
-        gsDebugVar("Single");
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
             m_materialMatrices.add(materialMatrix);
+
+        this->_makePieces();
     }
 
     /// Domain dimension, always 2 for shells
@@ -72,22 +71,29 @@ public:
     /// Implementation of piece, see \ref gsFunction
     const gsFunction<T> & piece(const index_t p) const
     {
-        m_piece = new gsMaterialMatrixEvalSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed,m_z);
-        return *m_piece;
+        return m_pieces[p];
     }
 
     /// Destructor
-    ~gsMaterialMatrixEval() { delete m_piece; }
+    ~gsMaterialMatrixEval() {  }
 
     /// Implementation of eval_into, see \ref gsFunction
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
     { GISMO_NO_IMPLEMENTATION; }
 
 protected:
+    void _makePieces()
+    {
+        m_pieces.resize(m_deformed->nPieces());
+        for (size_t p = 0; p!=m_pieces.size(); ++p)
+            m_pieces.at(p) = gsMaterialMatrixEvalSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed,m_z);
+    }
+
+protected:
     gsMaterialMatrixContainer<T> m_materialMatrices;
     const gsFunctionSet<T> * m_deformed;
     gsMatrix<T> m_z;
-    mutable gsMaterialMatrixEvalSingle<T,out> * m_piece;
+    std::vector<gsMaterialMatrixEvalSingle<T,out>> m_pieces;
 };
 
 /**
@@ -108,6 +114,8 @@ public:
                                 gsMaterialMatrixBase<T> * materialMatrix,
                                 const gsFunctionSet<T> * deformed,
                                 const gsMatrix<T> z);
+
+    gsMaterialMatrixEvalSingle(){};
 
     /// Domain dimension, always 2 for shells
     short_t domainDim() const {return 2;}

@@ -63,9 +63,7 @@ public:
 
     gsMaterialMatrixContainer(const gsMaterialMatrixContainer & other)
     {
-        m_container.resize(other.m_container.size() );
-        cloneAll( other.m_container.begin(), other.m_container.end(),
-                  m_container.begin() );
+        m_container = other.m_container;
     }
 
     gsMaterialMatrixContainer(Container & funcs)
@@ -102,7 +100,6 @@ public:
     /// Clear (delete) all functions
     void clear()
     {
-        freeAll(m_container);
         m_container.clear();
     }
 

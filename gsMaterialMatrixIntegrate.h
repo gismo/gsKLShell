@@ -34,10 +34,9 @@ public:
                             const gsFunctionSet<T> * deformed)
     :
     m_materialMatrices(materialMatrices),
-    m_deformed(deformed),
-    m_piece(nullptr)
+    m_deformed(deformed)
     {
-
+        this->_makePieces();
     }
 
     /// Constructor
@@ -45,11 +44,11 @@ public:
                             const gsFunctionSet<T> * deformed)
     :
     m_materialMatrices(deformed->nPieces()),
-    m_deformed(deformed),
-    m_piece(nullptr)
+    m_deformed(deformed)
     {
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
             m_materialMatrices.add(materialMatrix);
+        this->_makePieces();
     }
 
     /// Domain dimension, always 2 for shells
@@ -67,21 +66,28 @@ public:
     /// Implementation of piece, see \ref gsFunction
     const gsFunction<T> & piece(const index_t p) const
     {
-        m_piece = new gsMaterialMatrixIntegrateSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed);
-        return *m_piece;
+        return m_pieces[p];
     }
 
     /// Destructor
-    ~gsMaterialMatrixIntegrate() { delete m_piece; }
+    ~gsMaterialMatrixIntegrate() {  }
 
     /// Implementation of eval_into, see \ref gsFunction
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
     { GISMO_NO_IMPLEMENTATION; }
 
 protected:
+    void _makePieces()
+    {
+        m_pieces.resize(m_deformed->nPieces());
+        for (size_t p = 0; p!=m_pieces.size(); ++p)
+            m_pieces.at(p) = gsMaterialMatrixIntegrateSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed);
+    }
+
+protected:
     gsMaterialMatrixContainer<T> m_materialMatrices;
     const gsFunctionSet<T> * m_deformed;
-    mutable gsMaterialMatrixIntegrateSingle<T,out> * m_piece;
+    std::vector<gsMaterialMatrixIntegrateSingle<T,out>> m_pieces;
 };
 
 /**
@@ -101,6 +107,8 @@ public:
     gsMaterialMatrixIntegrateSingle(  index_t patch,
                                 gsMaterialMatrixBase<T> * materialMatrix,
                                 const gsFunctionSet<T> * deformed);
+
+    gsMaterialMatrixIntegrateSingle(){};
 
     /// Domain dimension, always 2 for shells
     short_t domainDim() const {return 2;}
