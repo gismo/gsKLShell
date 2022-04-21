@@ -566,7 +566,6 @@ protected:
     typedef gsExprAssembler<>::solution    solution;
     typedef gsExprAssembler<>::element     element;
 
-    std::vector<gsDofMapper>  m_dofMappers;
     gsDofMapper m_mapper;
 
     gsExprAssembler<> m_assembler;
@@ -584,11 +583,8 @@ protected:
     gsSparseMatrix<T> m_mass;
 
     const gsFunction<T> * m_forceFun;
-    const gsFunction<T> * m_thickFun;
     const gsFunction<T> * m_foundFun;
     const gsFunction<T> * m_pressFun;
-    typename gsFunction<T>::Ptr m_YoungsModulus;
-    typename gsFunction<T>::Ptr m_PoissonsRatio;
 
     gsMaterialMatrixContainer<T> m_materialMatrices;
 

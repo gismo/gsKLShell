@@ -81,24 +81,41 @@ gsThinShellAssembler<d, T, bending>& gsThinShellAssembler<d, T, bending>::operat
 {
     if (this!=&other)
     {
+        m_mapper=other.m_mapper;
+        m_assembler=other.m_assembler;
+        m_evaluator=other.m_evaluator;
         m_patches=other.m_patches;
+        m_itpatches=other.m_itpatches;
         m_basis=other.m_basis;
         m_spaceBasis=other.m_spaceBasis;
         m_bcs=other.m_bcs;
+        m_ddofs=other.m_ddofs;
+        m_mass=other.m_mass;
         m_forceFun=other.m_forceFun;
+        m_foundFun=other.m_foundFun;
+        m_pressFun=other.m_pressFun;
         m_materialMatrices=other.m_materialMatrices;
+        m_pLoads=other.m_pLoads;
+        m_pMass=other.m_pMass;
+        m_solvector=other.m_solvector;
+        m_rhs=other.m_rhs;
         m_options=other.m_options;
+        m_foundInd=other.m_foundInd;
+        m_pressInd=other.m_pressInd;
+        m_continuity=other.m_continuity;
         m_alpha_d_bc=other.m_alpha_d_bc;
         m_alpha_r_bc=other.m_alpha_r_bc;
         m_alpha_d_ifc=other.m_alpha_d_ifc;
         m_alpha_r_ifc=other.m_alpha_r_ifc;
-        m_continuity=other.m_continuity;
         m_IfcDefault=other.m_IfcDefault;
-        // m_assembler=other.m_assembler;
-        m_ddofs=other.m_ddofs;
-        m_mapper=other.m_mapper;
-        m_foundInd=other.m_foundInd;
-        m_pressInd=other.m_pressInd;
+        m_inPlane=other.m_inPlane;
+        m_outPlane=other.m_outPlane;
+        m_uncoupled=other.m_uncoupled;
+        m_strongC0=other.m_strongC0;
+        m_weakC0=other.m_weakC0;
+        m_strongC1=other.m_strongC1;
+        m_weakC1=other.m_weakC1;
+        m_unassigned=other.m_unassigned;
 
         // To do: make copy constructor for the gsExprAssembler
         m_assembler.setIntegrationElements(m_basis);
@@ -110,25 +127,41 @@ gsThinShellAssembler<d, T, bending>& gsThinShellAssembler<d, T, bending>::operat
 template <short_t d, class T, bool bending>
 gsThinShellAssembler<d, T, bending>& gsThinShellAssembler<d, T, bending>::operator=( gsThinShellAssembler&& other )
 {
+    m_mapper=give(other.m_mapper);
+    m_assembler=give(other.m_assembler);
+    m_evaluator=give(other.m_evaluator);
     m_patches=give(other.m_patches);
+    m_itpatches=give(other.m_itpatches);
     m_basis=give(other.m_basis);
     m_spaceBasis=give(other.m_spaceBasis);
     m_bcs=give(other.m_bcs);
+    m_ddofs=give(other.m_ddofs);
+    m_mass=give(other.m_mass);
     m_forceFun=give(other.m_forceFun);
+    m_foundFun=give(other.m_foundFun);
+    m_pressFun=give(other.m_pressFun);
     m_materialMatrices=give(other.m_materialMatrices);
+    m_pLoads=give(other.m_pLoads);
+    m_pMass=give(other.m_pMass);
+    m_solvector=give(other.m_solvector);
+    m_rhs=give(other.m_rhs);
     m_options=give(other.m_options);
+    m_foundInd=give(other.m_foundInd);
+    m_pressInd=give(other.m_pressInd);
+    m_continuity=give(other.m_continuity);
     m_alpha_d_bc=give(other.m_alpha_d_bc);
     m_alpha_r_bc=give(other.m_alpha_r_bc);
     m_alpha_d_ifc=give(other.m_alpha_d_ifc);
     m_alpha_r_ifc=give(other.m_alpha_r_ifc);
-    m_continuity=give(other.m_continuity);
     m_IfcDefault=give(other.m_IfcDefault);
-    // m_assembler=give(other.m_assembler);
-    m_ddofs=give(other.m_ddofs);
-    m_mapper=give(other.m_mapper);
-    m_foundInd=give(other.m_foundInd);
-    m_pressInd=give(other.m_pressInd);
-
+    m_inPlane=give(other.m_inPlane);
+    m_outPlane=give(other.m_outPlane);
+    m_uncoupled=give(other.m_uncoupled);
+    m_strongC0=give(other.m_strongC0);
+    m_weakC0=give(other.m_weakC0);
+    m_strongC1=give(other.m_strongC1);
+    m_weakC1=give(other.m_weakC1);
+    m_unassigned=give(other.m_unassigned);
     // To do: make copy constructor for the gsExprAssembler
     m_assembler.setIntegrationElements(m_basis);
     m_assembler.setOptions(m_options);
