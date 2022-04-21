@@ -31,15 +31,19 @@
   <Function type="FunctionExpr" dim="3" index="1">0</Function>
   <bc type="Dirichlet" function="0" unknown="0" component="0">
     0 1
+    1 4
   </bc>
   <bc type="Dirichlet" function="0" unknown="0" component="1">
     0 1
+    1 4
   </bc>
   <bc type="Dirichlet" function="0" unknown="0" component="2">
     0 1
+    1 4
   </bc>
   <bc type="Weak Clamped" function="0" unknown="0" component="2">
     0 1  
+    1 4
   </bc>
   <bc type="Collapsed" function="0" unknown="0" component="2">
   </bc>
