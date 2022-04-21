@@ -32,24 +32,6 @@
 
 using namespace gismo;
 
-
-void writeToCSVfile(std::string name, gsMatrix<> matrix)
-{
-    std::ofstream file(name.c_str());
-    for(int  i = 0; i < matrix.rows(); i++){
-        for(int j = 0; j < matrix.cols(); j++){
-           std::string str = std::to_string(matrix(i,j));
-           if(j+1 == matrix.cols()){
-               file<<str;
-           }else{
-               file<<str<<',';
-           }
-        }
-        file<<'\n';
-    }
-  }
-
-
 int main(int argc, char *argv[])
 {
     bool plot       = false;
@@ -260,7 +242,6 @@ int main(int argc, char *argv[])
     gsStopwatch time;
 
     gsMultiBasis<> dbasis(mp);
-    gsWriteParaview(mp.basis(0),"basis",1000);
 
     for( index_t r = 0; r<=numRefine; ++r)
     {

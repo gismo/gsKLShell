@@ -161,6 +161,18 @@ int main(int argc, char *argv[])
     gsInfo<<"Finished\n";
     GISMO_ENSURE(refPatches.cols()==refPoints.cols(),"Number of reference points and patches do not match");
 
+//         gsMatrix<> ppoints(3,3), result;
+//         ppoints.col(0)<<0,0,0;
+//         ppoints.col(1)<<0.25,0,0.0625;
+//         ppoints.col(2)<<0.5,0,0.25;
+//         for (index_t p=0; p!=refPatches.cols(); p++)
+//         {
+//             mp.patch(refPatches(0,p)).invertPoints(ppoints.col(p),result,1e-15);
+//             gsDebugVar(result);
+//         }
+
+// return 0;
+
     // Material properties
     gsFunctionExpr<> t,E,nu,rho;
     gsInfo<<"Reading thickness from "<<fn2<<" (ID=10) ...";
