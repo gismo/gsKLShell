@@ -78,12 +78,13 @@
 </Matrix>
 
 <!-- Reference point coordinates -->
-<Matrix rows="2" cols="1" id="50" >
-  0.90909091 0
+<Matrix rows="2" cols="3" id="50" >
+  0.852013 0.4518205  0.9090909090
+  0.934228 0.0605511  0
 </Matrix>
 <!-- Reference point patch indices -->
-<Matrix rows="1" cols="1" id="51" >
-  1
+<Matrix rows="1" cols="3" id="51" >
+  3 2 1
 </Matrix>
 <!-- Reference values -->
 <Matrix rows="3" cols="1" id="52" >
