@@ -38,6 +38,7 @@ using namespace gismo;
 int main(int argc, char *argv[])
 {
     bool plot       = false;
+    bool mesh       = false;
     bool stress     = false;
     bool write      = false;
     bool last       = false;
@@ -70,6 +71,7 @@ int main(int argc, char *argv[])
     cmd.addInt( "r", "numRefine", "Number of refinement-loops.",  numRefine );
     cmd.addInt( "m", "method", "Smoothing method to use", method );
     cmd.addSwitch("plot", "plot",plot);
+    cmd.addSwitch("mesh", "mesh",mesh);
     cmd.addSwitch("stress", "stress",stress);
     cmd.addSwitch("write", "write",write);
     cmd.addSwitch("last", "last case only",last);
@@ -177,7 +179,7 @@ int main(int argc, char *argv[])
     fd.getId(13,rho);
     gsInfo<<"Finished\n";
 
-    if (mp.domainDim()==2)
+    if (mp.geoDim()==2)
         mp.embed(3);
 
     gsMultiPatch<> geom = mp;
@@ -398,22 +400,31 @@ int main(int argc, char *argv[])
     /// Make a gsMappedSpline to represent the solution
     // 1. Get all the coefficients (including the ones from the eliminated BCs.)
     gsMatrix<real_t> solFull = assembler.fullSolutionVector(solVector);
+    gsMatrix<real_t> solZero = solFull;
+    solZero.setZero();
 
     // 2. Reshape all the coefficients to a Nx3 matrix
     GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
+    solZero.resize(solZero.rows()/3,3);
     solFull.resize(solFull.rows()/3,3);
 
     // 3. Make the mapped spline
     gsMappedSpline<2,real_t> mspline(bb2,solFull);
+    gsMappedSpline<2,real_t> mspline_ori(bb2,solZero);
+    gsMappedSpline<2,real_t> mspline_def(bb2,solFull);
 
-    gsFunctionSum<real_t> def(&geom,&mspline);
+    gsFunctionSum<real_t> ori(&geom,&mspline_ori);
+    gsFunctionSum<real_t> def(&geom,&mspline_def);
 
-    gsMultiPatch<> mp_def;
+    gsMultiPatch<> mp_ori = mp;
+    gsMultiPatch<> mp_def = mp;
     for (size_t p = 0; p!=mp.nPatches(); p++)
     {
         gsMatrix<> coefs;
-        gsQuasiInterpolate<real_t>::localIntpl(geom.basis(p), def.piece(p), coefs);
-        mp_def.addPatch(geom.basis(p).makeGeometry( give(coefs) ));
+        gsQuasiInterpolate<real_t>::localIntpl(mp.basis(p), ori.piece(p), coefs);
+        mp_ori.patch(p).coefs() += coefs;
+        gsQuasiInterpolate<real_t>::localIntpl(mp.basis(p), def.piece(p), coefs);
+        mp_def.patch(p).coefs() += coefs;
     }
 
     gsField<> solField(geom, mspline,true);
@@ -456,8 +467,8 @@ int main(int argc, char *argv[])
 
     gsExprEvaluator<> ev;
     typedef gsExprAssembler<>::geometryMap geometryMap;
-    geometryMap m_ori   = ev.getMap(geom);
-    geometryMap m_def   = ev.getMap(def);
+    geometryMap m_ori   = ev.getMap(mp_ori);
+    geometryMap m_def   = ev.getMap(mp_def);
 
     gsMatrix<> pts(2,4);
     pts.col(0)<<0.1,0.1;
@@ -469,13 +480,17 @@ int main(int argc, char *argv[])
     auto Ttilde = cartcov(m_ori);
     auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) * That;
 
-    ev.setIntegrationElements(dbasis);
-    // ev.writeParaview(E_m,m_ori,"test");
-    // ev.writeParaview(flat(ijac(m_def,m_ori).tr()*ijac(m_def,m_ori)),m_ori,"test");
-    ev.writeParaview(flat(jac(m_def).tr()*jac(m_def)) * meas(m_ori),m_ori,"test");
-
-    TO DO:
-        make an XML file that models uniaxial tension and verify the stress plot
+    // ev.setIntegrationElements(dbasis);
+    // ev.options().setSwitch("plot.elements",mesh);
+    // ev.options().setInt("plot.npts",1000);
+    // ev.writeParaview(That.asDiag(),m_ori,"test-1");
+    // ev.writeParaview(Ttilde.asDiag(),m_ori,"test0");
+    // ev.writeParaview(E_m,m_ori,"test1");
+    // ev.writeParaview(flat(jac(m_ori).tr()*jac(m_ori))*That,m_ori,"test2");
+    // ev.writeParaview(flat(jac(m_def).tr()*jac(m_def))*That,m_ori,"test3");
+    // ev.writeParaview(E_m2,m_ori,"test4");
+    // ev.writeParaview(flat(jac(m_ori).tr()*jac(m_ori))*Ttilde,m_ori,"test5");
+    // ev.writeParaview(flat(jac(m_def).tr()*jac(m_def))*Ttilde,m_ori,"test6");
 
     //! [Export visualization in ParaView]
     if (plot)
@@ -504,21 +519,26 @@ int main(int argc, char *argv[])
     if (stress)
     {
         gsPiecewiseFunction<> displace;
-        assembler.constructStress(mp,def,displace,stress_type::displacement);
-        gsWriteParaview(geom,displace,"DisplacementFun",1000);
-        gsWriteParaview(def,displace,"DisplacementFunDef",1000);
+        gsDebugVar("DisplacementFun construction");
+        assembler.constructStress(mp_ori,mp_def,displace,stress_type::displacement);
+        gsWriteParaview(mp_ori,displace,"DisplacementFun",10000);
+        gsDebugVar("DisplacementFunDef construction");
+        gsWriteParaview(mp_def,displace,"DisplacementFunDef",10000);
+
+        gsPiecewiseFunction<> membraneStrains;
+        gsDebugVar("MembraneStrain construction");
+        assembler.constructStress(mp_ori,mp_def,membraneStrains,stress_type::membrane_strain);
+        gsWriteParaview(geom,membraneStrains,"MembraneStrain",10000);
 
         gsPiecewiseFunction<> membraneStresses;
-        assembler.constructStress(geom,def,membraneStresses,stress_type::membrane_strain);
-        gsWriteParaview(geom,membraneStresses,"MembraneStress",1000);
-
-        gsPiecewiseFunction<> membraneStresses_;
-        assembler.constructStress(geom,mp_def,membraneStresses_,stress_type::membrane_strain);
-        gsWriteParaview(geom,membraneStresses_,"MembraneStress_",1000);
+        gsDebugVar("MembraneStress construction");
+        assembler.constructStress(mp_ori,mp_def,membraneStresses,stress_type::membrane);
+        gsWriteParaview(geom,membraneStresses,"MembraneStress",10000);
 
         gsPiecewiseFunction<> flexuralStresses;
+        gsDebugVar("FlexuralStress construction");
         assembler.constructStress(geom,def,flexuralStresses,stress_type::flexural);
-        gsWriteParaview(geom,flexuralStresses,"FlexuralStress",1000);
+        gsWriteParaview(geom,flexuralStresses,"FlexuralStress",10000);
     }
     if (write)
     {

@@ -35,25 +35,23 @@ class gsMaterialMatrixBaseDim : public gsMaterialMatrixBase<T>
 
 public:
 
-    gsMaterialMatrixBaseDim() : m_patches(nullptr)
+    gsMaterialMatrixBaseDim()
     {
         membersSetZero();
     }
 
 
     gsMaterialMatrixBaseDim(const gsFunctionSet<T> & mp)
-    :
-    m_patches(&mp)
     {
+        this->setUndeformed(&mp);
         membersSetZero();
     }
 
     gsMaterialMatrixBaseDim(const gsFunctionSet<T> & mp,
                             const gsFunctionSet<T> & mp_def)
-    :
-    m_patches(&mp)
     {
         membersSetZero();
+        this->setUndeformed(&mp);
         this->setDeformed(&mp_def);
     }
 
@@ -141,7 +139,7 @@ protected:
 
     }
 
-    const gsFunctionSet<T> * m_patches;
+    using Base::m_patches;
     using Base::m_defpatches;
     // const gsFunctionSet<T> * m_defpatches;
 

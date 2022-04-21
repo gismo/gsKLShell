@@ -87,6 +87,12 @@ public:
 
     }
 
+    ~gsShellStressFunction()
+    {
+        // delete m_patches;
+        // delete m_defpatches;
+    }
+
     virtual short_t domainDim() const
     {
         return 2;

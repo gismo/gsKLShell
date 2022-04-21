@@ -210,9 +210,14 @@ public:
      */
     inline virtual void info() const = 0;
 
+    void setUndeformed(const gsFunctionSet<T> * undeformed) {m_patches = undeformed; }
     void setDeformed(const gsFunctionSet<T> * deformed) {m_defpatches = deformed; }
 
+    const gsFunctionSet<T> * getUndeformed() { return m_patches; }
+    const gsFunctionSet<T> * getDeformed() { return m_defpatches; }
+
 protected:
+    const gsFunctionSet<T> * m_patches;
     const gsFunctionSet<T> * m_defpatches;
 };
 

@@ -44,6 +44,23 @@ m_piece(nullptr)
     // m_materialMat = new gsMaterialMatrix(materialMatrix);
 }
 
+// Linear material models
+template <class T, enum MaterialOutput out>
+gsMaterialMatrixIntegrateSingle<T,out>::gsMaterialMatrixIntegrateSingle(index_t patch,
+                                                                        gsMaterialMatrixBase<T> * materialMatrix, //??
+                                                                        const gsFunctionSet<T> * undeformed,
+                                                                        const gsFunctionSet<T> * deformed
+                                                                        )
+:
+m_pIndex(patch),
+m_materialMat(materialMatrix),
+m_piece(nullptr)
+{
+    m_materialMat->setUndeformed(undeformed);
+    m_materialMat->setDeformed(deformed);
+    // m_materialMat = new gsMaterialMatrix(materialMatrix);
+}
+
 template <class T, enum MaterialOutput out>
 void gsMaterialMatrixIntegrateSingle<T,out>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {

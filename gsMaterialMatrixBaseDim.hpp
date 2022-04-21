@@ -148,7 +148,7 @@ void gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed(const index_t patc
 {
     m_map.mine().flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
     m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
+    static_cast<const gsFunction<T>&>(Base::m_patches->piece(patch)   ).computeMap(m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
 
     _computeMetricUndeformed_impl<dim>(patch,u,basis);
 }

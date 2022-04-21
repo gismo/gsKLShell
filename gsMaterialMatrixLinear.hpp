@@ -170,7 +170,7 @@ void gsMaterialMatrixLinear<dim,T>::density_into(const index_t patch, const gsMa
 {
     m_map.mine().flags = NEED_VALUE;
     m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
+    static_cast<const gsFunction<T>&>(Base::m_patches->piece(patch)   ).computeMap(m_map);
 
     result.resize(1, u.cols());
     m_thickness->piece(patch).eval_into(m_map.mine().values[0], m_Tmat);
@@ -186,7 +186,7 @@ template <short_t dim, class T >
 void gsMaterialMatrixLinear<dim,T>::stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
+    static_cast<const gsFunction<T>&>(Base::m_patches->piece(patch)   ).computeMap(m_map);
 
     this->_computePoints(patch,u,true);
 
@@ -210,7 +210,7 @@ template <short_t dim, class T >
 void gsMaterialMatrixLinear<dim,T>::stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
+    static_cast<const gsFunction<T>&>(Base::m_patches->piece(patch)   ).computeMap(m_map);
 
     this->_computePoints(patch,u,true);
 
@@ -235,7 +235,7 @@ void gsMaterialMatrixLinear<dim,T>::thickness_into(const index_t patch, const gs
 {
     m_map.mine().flags = NEED_VALUE;
     m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
+    static_cast<const gsFunction<T>&>(Base::m_patches->piece(patch)   ).computeMap(m_map);
     m_thickness->piece(patch).eval_into(m_map.mine().values[0], result);
 }
 
@@ -244,7 +244,7 @@ void gsMaterialMatrixLinear<dim,T>::parameters_into(const index_t patch, const g
 {
     m_map.mine().flags = NEED_VALUE;
     m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
+    static_cast<const gsFunction<T>&>(Base::m_patches->piece(patch)   ).computeMap(m_map);
 
     gsMatrix<T> tmp;
     result.resize(m_pars.size(),m_map.mine().values[0].cols());

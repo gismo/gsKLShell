@@ -26,15 +26,13 @@ int main(int argc, char *argv[])
     bool plot       = false;
     bool stress     = false;
     bool nonlinear  = false;
-    bool membrane = false;
 
     index_t numRefine  = 0;
-    index_t numElevate = 0;
+    index_t degree = 3;
+    index_t smoothness = 2;
 
     real_t bcDirichlet = 1e3;
     real_t bcClamped = 1e3;
-
-    index_t testCase = 1;
 
     std::string fn1,fn2,fn3;
     fn1 = "pde/2p_square_geom.xml";
@@ -55,12 +53,9 @@ int main(int argc, char *argv[])
     cmd.addString( "B", "bvp", "File containing the Boundary Value Problem (BVP)",  fn2 );
     cmd.addString( "O", "opt", "File containing solver options",  fn3 );
 
-    cmd.addInt( "t", "testCase", "Test case to run: 0 = square plate with pressure; 1 = Scordelis Lo Roof; 2 = quarter hemisphere; 3 = pinched cylinder",  testCase );
-    cmd.addSwitch("membrane", "Use membrane model (no bending)", membrane);
-
-    cmd.addInt( "e", "degreeElevation",
-                "Number of degree elevation steps to perform before solving (0: equalize degree in all directions)", numElevate );
-    cmd.addInt( "r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
+    cmd.addInt( "p", "degree", "Set the polynomial degree of the basis.", degree );
+    cmd.addInt( "s", "smoothness", "Set the smoothness of the basis.",  smoothness );
+    cmd.addInt( "r", "numRefine", "Number of refinement-loops.",  numRefine );
     cmd.addSwitch("plot", "plot",plot);
     cmd.addSwitch("stress", "stress",stress);
     cmd.addSwitch( "nl", "Print information", nonlinear );
@@ -161,12 +156,13 @@ int main(int argc, char *argv[])
 
     //! [Refine and elevate]
     // p-refine
-    if (numElevate!=0)
-        mp.degreeElevate(numElevate);
+    mp.degreeElevate(degree-mp.patch(0).degree(0));
 
-    // h-refine
+    // h-refine each basis
     for (int r =0; r < numRefine; ++r)
-        mp.uniformRefine();
+    {
+        mp.uniformRefine(1,degree-smoothness);
+    }
 
     mp_def = mp;
     gsWriteParaview<>( mp_def    , "mp", 1000, true);
@@ -186,23 +182,19 @@ int main(int argc, char *argv[])
     gsMaterialMatrixLinear<3,real_t> materialMatrix(mp,t,parameters,rho);
 
     // Construct the gsThinShellAssembler
-    gsThinShellAssemblerBase<real_t>* assembler;
-    if(membrane) // no bending term
-        assembler = new gsThinShellAssembler<3, real_t, false>(mp,dbasis,bc,force,&materialMatrix);
-    else
-        assembler = new gsThinShellAssembler<3, real_t, true >(mp,dbasis,bc,force,&materialMatrix);
+    gsThinShellAssembler<3, real_t, true> assembler(mp,dbasis,bc,force,&materialMatrix);
 
-    assembler->options().setReal("WeakDirichlet",bcDirichlet);
-    assembler->options().setReal("WeakClamped",bcClamped);
+    assembler.options().setReal("WeakDirichlet",bcDirichlet);
+    assembler.options().setReal("WeakClamped",bcClamped);
     // Set the penalty parameter for the interface C1 continuity
-    assembler->options().setInt("Continuity",-1);
-    assembler->options().setReal("IfcDirichlet",ifcDirichlet);
-    assembler->options().setReal("IfcClamped",ifcClamped);
-    assembler->addWeakC0(mp.topology().interfaces());
-    assembler->addWeakC1(mp.topology().interfaces());
-    assembler->initInterfaces();
+    assembler.options().setInt("Continuity",-1);
+    assembler.options().setReal("IfcDirichlet",ifcDirichlet);
+    assembler.options().setReal("IfcClamped",ifcClamped);
+    assembler.addWeakC0(mp.topology().interfaces());
+    assembler.addWeakC1(mp.topology().interfaces());
+    assembler.initInterfaces();
 
-    assembler->setPointLoads(pLoads);
+    assembler.setPointLoads(pLoads);
     //! [Make assembler]
 
     // Set stopwatch
@@ -217,35 +209,35 @@ int main(int argc, char *argv[])
     Jacobian_t Jacobian = [&time,&stopwatch,&assembler,&mp_def](gsVector<real_t> const &x)
     {
       stopwatch.restart();
-      assembler->constructSolution(x,mp_def);
-      assembler->assembleMatrix(mp_def);
+      assembler.constructSolution(x,mp_def);
+      assembler.assembleMatrix(mp_def);
       time += stopwatch.stop();
-      gsSparseMatrix<real_t> m = assembler->matrix();
+      gsSparseMatrix<real_t> m = assembler.matrix();
       return m;
     };
     // Function for the Residual
     Residual_t Residual = [&time,&stopwatch,&assembler,&mp_def](gsVector<real_t> const &x)
     {
       stopwatch.restart();
-      assembler->constructSolution(x,mp_def);
-      assembler->assembleVector(mp_def);
+      assembler.constructSolution(x,mp_def);
+      assembler.assembleVector(mp_def);
       time += stopwatch.stop();
-      return assembler->rhs();
+      return assembler.rhs();
     };
     //! [Define jacobian and residual]
 
     stopwatch.restart();
     stopwatch2.restart();
-    assembler->assemble();
+    assembler.assemble();
     time += stopwatch.stop();
 
     //! [Assemble linear part]
-    gsSparseMatrix<> matrix = assembler->matrix();
-    gsVector<> vector = assembler->rhs();
+    gsSparseMatrix<> matrix = assembler.matrix();
+    gsVector<> vector = assembler.rhs();
     //! [Assemble linear part]
 
     //! [Solve linear problem]
-    gsInfo<<"Solving system with "<<assembler->numDofs()<<" DoFs\n";
+    gsInfo<<"Solving system with "<<assembler.numDofs()<<" DoFs\n";
     gsVector<> solVector;
     gsSparseSolver<>::CGDiagonal solver;
     solver.compute( matrix );
@@ -292,9 +284,35 @@ int main(int argc, char *argv[])
     totaltime += stopwatch2.stop();
 
     //! [Construct and evaluate solution]
-    mp_def = assembler->constructSolution(solVector);
-    gsMultiPatch<> deformation = assembler->constructDisplacement(solVector);
+    mp_def = assembler.constructSolution(solVector);
+    gsMultiPatch<> deformation = assembler.constructDisplacement(solVector);
     //! [Construct and evaluate solution]
+
+    gsExprEvaluator<> ev;
+    typedef gsExprAssembler<>::geometryMap geometryMap;
+    geometryMap m_ori   = ev.getMap(mp);
+    geometryMap m_def   = ev.getMap(mp_def);
+
+    gsMatrix<> pts(2,4);
+    pts.col(0)<<0.1,0.1;
+    pts.col(1)<<0.1,0.9;
+    pts.col(2)<<0.9,0.1;
+    pts.col(3)<<0.9,0.9;
+    auto test = (flat(jac(m_def).tr()*jac(m_def))).tr();
+    auto That   = cartcon(m_ori);
+    auto Ttilde = cartcov(m_ori);
+    auto cartJac_ori = That * jac(m_ori);
+    auto cartJac_def = That * jac(m_def);
+    auto E_m    = 0.5 * ( flat(cartJac_def.tr()*cartJac_def) - flat(cartJac_ori.tr()*cartJac_ori) );
+    // auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) );
+
+    ev.setIntegrationElements(dbasis);
+    ev.writeParaview(E_m,m_ori,"test1");
+    ev.writeParaview(flat(cartJac_ori.tr()*cartJac_ori) * meas(m_ori),m_ori,"test2");
+    ev.writeParaview(flat(cartJac_def.tr()*cartJac_def) * meas(m_ori),m_ori,"test3");
+
+    ev.writeParaview(flat(jac(m_ori).tr()*jac(m_ori)) * meas(m_ori),m_ori,"test4");
+    ev.writeParaview(flat(jac(m_def).tr()*jac(m_def)) * meas(m_ori),m_ori,"test5");
 
 
     //! [Construct and evaluate solution]
@@ -349,11 +367,11 @@ int main(int argc, char *argv[])
     if (stress)
     {
         gsPiecewiseFunction<> membraneStresses;
-        assembler->constructStress(mp_def,membraneStresses,stress_type::membrane);
+        assembler.constructStress(mp_def,membraneStresses,stress_type::membrane);
         gsField<> membraneStress(mp_def,membraneStresses, true);
 
         gsPiecewiseFunction<> flexuralStresses;
-        assembler->constructStress(mp_def,flexuralStresses,stress_type::flexural);
+        assembler.constructStress(mp_def,flexuralStresses,stress_type::flexural);
         gsField<> flexuralStress(mp_def,flexuralStresses, true);
 
         gsWriteParaview(membraneStress,"MembraneStress",1000);
@@ -364,7 +382,6 @@ int main(int argc, char *argv[])
     gsInfo<<"Total ellapsed assembly time: \t\t"<<time<<" s\n";
     gsInfo<<"Total ellapsed solution time (incl. assembly): \t"<<totaltime<<" s\n";
 
-    delete assembler;
     return EXIT_SUCCESS;
 
 }// end main
