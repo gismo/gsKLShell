@@ -9,9 +9,9 @@ mkdir -p Output
 for file in ${Filenames[@]}; do
     for (( p=2; p<4; p++)) do  
         for m in ${Methods[@]}; do
-            echo "$Runname" -m $m -p $p -s $(($p-1)) -G ../extensions/gsKLShell/filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 5
+            echo "$Runname" -m $m -p $p -s $(($p-1)) -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 5
             
-            "$Runname" -m $m -p $p -s $(($p-1)) -G ../extensions/gsKLShell/filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 5 1> Output/"$file"_p"$p"_m"$m".log 2> Output/"$file"_p"$p"_m"$m".log
+            "$Runname" -m $m -p $p -s $(($p-1)) -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 5 1> Output/"$file"_p"$p"_m"$m".log 2> Output/"$file"_p"$p"_m"$m".log
         done
     done
 done
