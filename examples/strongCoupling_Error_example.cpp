@@ -13,11 +13,12 @@
 
 #include <gismo.h>
 
-#include <gsUnstructuredSplines/gsMPBESBasis.h>
-#include <gsUnstructuredSplines/gsMPBESSpline.h>
-#include <gsUnstructuredSplines/gsDPatch.h>
-#include <gsUnstructuredSplines/gsApproxC1Spline.h>
-#include <gsUnstructuredSplines/gsC1SurfSpline.h>
+#include <gsUnstructuredSplines/src/gsMPBESBasis.h>
+#include <gsUnstructuredSplines/src/gsMPBESSpline.h>
+#include <gsUnstructuredSplines/src/gsDPatch.h>
+#include <gsUnstructuredSplines/src/gsAlmostC1.h>
+#include <gsUnstructuredSplines/src/gsApproxC1Spline.h>
+#include <gsUnstructuredSplines/src/gsC1SurfSpline.h>
 
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/gsMaterialMatrixLinear.h>
@@ -317,6 +318,16 @@ int main(int argc, char *argv[])
             global2local = smoothC1.getSystem();
             global2local = global2local.transpose();
             smoothC1.getMultiBasis(dbasis);
+        }
+        else if (method==4)
+        {
+            geom = mp;
+            gsAlmostC1<2,real_t> almostC1(geom);
+            almostC1.matrix_into(global2local);
+
+            global2local = global2local.transpose();
+            geom = almostC1.exportToPatches();
+            dbasis = almostC1.localBasis();
         }
         else
             GISMO_ERROR("Option "<<method<<" for method does not exist");
