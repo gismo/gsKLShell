@@ -11,7 +11,7 @@ for file in ${Filenames[@]}; do
         for m in ${Methods[@]}; do
             echo "$Runname" -m $m -p $p -s $(($p-1)) -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 5
             
-            "$Runname" -m $m -p $p -s $(($p-1)) -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 5 1> Output/"$file"_p"$p"_m"$m".log 2> Output/"$file"_p"$p"_m"$m".log
+            "$Runname" -m $m -p $p -s $(($p-1)) -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 6 -R 2 1> Output/"$file"_p"$p"_m"$m".log 2> Output/"$file"_p"$p"_m"$m".log
         done
     done
 done
