@@ -11,9 +11,9 @@ for file in ${Filenames[@]}; do
         for m in ${Methods[@]}; do
             mkdir -p "$Outname"/"$file"_p"$p"_m"$m"            
         
-            echo "$Runname" -m $m -p $p -s $(($p-1)) -r 2 -L 5e-3 -l 2e-1 -N 20 --plot --write -F 1e1 -C 1e3 -G ../extensions/gsKLShell/filedata/pde/"$file"_geom.xml -B ../extensions/gsKLShell/filedata/pde/"$file"_bvp.xml -o "$Outname"/"$file"_p"$p"_m"$m"  
+            echo "$Runname" -m $m -p $p -s $(($p-1)) -r 2 -L 5e-3 -l 2e-1 -N 20 --plot --write -F 1e1 -C 1e3 -G ../filedata/pde/"$file"_geom.xml -B ../extensions/gsKLShell/filedata/pde/"$file"_bvp.xml -o "$Outname"/"$file"_p"$p"_m"$m"
             
-            "$Runname" -m $m -p $p -s $(($p-1)) -r 2 -L 5e-3 -l 2e-1 -N 20 --plot --write -F 1e1 -C 1e3 -G ../extensions/gsKLShell/filedata/pde/"$file"_geom.xml -B ../extensions/gsKLShell/filedata/pde/"$file"_bvp.xml -o "$Outname"/"$file"_p"$p"_m"$m"  1> Output/"$file"_p"$p"_m"$m".log 2> Output/"$file"_p"$p"_m"$m".log
+            "$Runname" -m $m -p $p -s $(($p-1)) -r 2 -L 5e-3 -l 2e-1 -N 20 --plot --write -F 1e1 -C 1e3 -G ../filedata/pde/"$file"_geom.xml -B ../extensions/gsKLShell/filedata/pde/"$file"_bvp.xml -o "$Outname"/"$file"_p"$p"_m"$m"  1> Output/"$file"_p"$p"_m"$m".log 2> Output/"$file"_p"$p"_m"$m".log
         done
     done
 done
