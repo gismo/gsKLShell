@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
     bool writeMatrix= false;
     bool nonlinear  = false;
     index_t numRefine  = 2;
+    index_t numRefine0 = 1;
     index_t degree = 3;
     index_t smoothness = 2;
     index_t geometry = 1;
@@ -66,6 +67,7 @@ int main(int argc, char *argv[])
     cmd.addInt( "p", "degree", "Set the polynomial degree of the basis.", degree );
     cmd.addInt( "s", "smoothness", "Set the smoothness of the basis.",  smoothness );
     cmd.addInt( "r", "numRefine", "Number of refinement-loops.",  numRefine );
+    cmd.addInt( "R", "preRefine", "Refinement before the loop.",  numRefine0);
     cmd.addInt( "m", "method", "Smoothing method to use", method );
     cmd.addSwitch("plot", "plot",plot);
     cmd.addSwitch("mesh", "mesh",mesh);
@@ -185,15 +187,23 @@ int main(int argc, char *argv[])
     GISMO_ENSURE(degree>=mp.patch(0).degree(0),"Degree must be larger than or equal to the degree of the initial geometry, but degree = "<<degree<<" and the original degree = "<<mp.patch(0).degree(0));
     mp.degreeElevate(degree-mp.patch(0).degree(0));
 
-    if (method==3)
+    // h-refine each basis
+    if(method!=3)
     {
         // h-refine each basis
-        for (int r =0; r < 2; ++r)
+        for (int r =0; r < numRefine0; ++r)
         {
-            mp.uniformRefine(1,degree-1);
+            mp.uniformRefine(1,degree-smoothness);
         }
-        numRefine -= 2;
     }
+    else
+    {
+        // Always regularity 1
+        for (int r =0; r < numRefine0; ++r)
+            mp.uniformRefine(1, degree-1);
+    }
+    numRefine -= numRefine0;
+
     if (last)
     {
         // h-refine
@@ -269,7 +279,8 @@ int main(int argc, char *argv[])
         }
         else if (method==1)
         {
-            gsDPatch<2,real_t> dpatch(mp);
+            geom = mp;
+            gsDPatch<2,real_t> dpatch(geom);
             dpatch.matrix_into(global2local);
 
             global2local = global2local.transpose();
