@@ -70,6 +70,7 @@ int main(int argc, char *argv[])
     fn1 = "pde/2p_square_geom.xml";
     fn2 = "pde/2p_square_bvp.xml";
     fn3 = "options/solver_options.xml";
+    std::string dirname = "ArcLengthResults";
 
     real_t bcDirichlet = 1e3;
     real_t bcClamped = 1e3;
@@ -81,6 +82,7 @@ int main(int argc, char *argv[])
     cmd.addString( "G", "geom","File containing the geometry",  fn1 );
     cmd.addString( "B", "bvp", "File containing the Boundary Value Problem (BVP)",  fn2 );
     cmd.addString( "O", "opt", "File containing solver options",  fn3 );
+    cmd.addString( "o", "out", "Dir name of the output",  dirname );
     cmd.addInt( "p", "degree", "Set the polynomial degree of the basis.", degree );
     cmd.addInt( "s", "smoothness", "Set the smoothness of the basis.",  smoothness );
     cmd.addInt( "r", "numRefine", "Number of refinement-loops.",  numRefine );
@@ -405,7 +407,6 @@ int main(int argc, char *argv[])
     real_t dLb0 = dLb;
 
     std::string output = "solution";
-    std::string dirname = "ArcLengthResults";
     gsParaviewCollection collection(dirname + "/" + output);
     gsParaviewCollection membraneStressCollection(dirname + "/MembraneStress");
     gsParaviewCollection flexuralStressCollection(dirname + "/FlexuralStress");
