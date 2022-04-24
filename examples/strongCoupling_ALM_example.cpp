@@ -303,6 +303,15 @@ int main(int argc, char *argv[])
         global2local = global2local.transpose();
         smoothC1.getMultiBasis(dbasis);
     }
+    else if (method==4)
+    {
+        gsAlmostC1<2,real_t> almostC1(mp);
+        almostC1.matrix_into(global2local);
+
+        global2local = global2local.transpose();
+        geom = almostC1.exportToPatches();
+        dbasis = almostC1.localBasis();
+    }
     else
         GISMO_ERROR("Option "<<method<<" for method does not exist");
 
