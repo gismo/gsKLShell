@@ -6,9 +6,9 @@ declare -a Filenames=("1p_hyperboloid" "3p_hyperboloid" "4p_hyperboloid" "6p_hyp
 mkdir -p Output
   
 for file in ${Filenames[@]}; do
-    for (( p=2; p<4; p++)) do  
+    for (( p=2; p<5; p++)) do
         echo "$Runname" -p $p -s $(($p-1)) -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 5
             
-        "$Runname" -p $p -s $(($p-1)) -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 5 1> Output/"$file"_p"$p"_weak.log 2> Output/"$file"_p"$p"_weak.log
+        eval "$Runname" -p $p -s $(($p-1)) -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 5 > Output/"$file"_p"$p"_weak.log
     done
 done

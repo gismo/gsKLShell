@@ -240,7 +240,6 @@ int main(int argc, char *argv[])
     gsMatrix<> coefs;
 
     gsMultiBasis<> dbasis(mp);
-    gsWriteParaview(mp.basis(0),"basis",1000);
 
     if (method==-1)
     {
