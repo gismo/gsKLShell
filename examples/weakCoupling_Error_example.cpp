@@ -13,11 +13,11 @@
 
 #include <gismo.h>
 
-#include <gsUnstructuredSplines/gsMPBESBasis.h>
-#include <gsUnstructuredSplines/gsMPBESSpline.h>
-#include <gsUnstructuredSplines/gsDPatch.h>
-#include <gsUnstructuredSplines/gsApproxC1Spline.h>
-#include <gsUnstructuredSplines/gsC1SurfSpline.h>
+#include <gsUnstructuredSplines/src/gsMPBESBasis.h>
+#include <gsUnstructuredSplines/src/gsMPBESSpline.h>
+#include <gsUnstructuredSplines/src/gsDPatch.h>
+#include <gsUnstructuredSplines/src/gsApproxC1Spline.h>
+#include <gsUnstructuredSplines/src/gsC1SurfSpline.h>
 
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/gsMaterialMatrixLinear.h>

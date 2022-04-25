@@ -16,6 +16,7 @@
 #include <gsUnstructuredSplines/src/gsMPBESBasis.h>
 #include <gsUnstructuredSplines/src/gsMPBESSpline.h>
 #include <gsUnstructuredSplines/src/gsDPatch.h>
+#include <gsUnstructuredSplines/src/gsAlmostC1.h>
 #include <gsUnstructuredSplines/src/gsApproxC1Spline.h>
 #include <gsUnstructuredSplines/src/gsC1SurfSpline.h>
 

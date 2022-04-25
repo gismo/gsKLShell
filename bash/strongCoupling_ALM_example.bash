@@ -3,7 +3,7 @@
 declare -a Runname="../../../build/bin/strongCoupling_ALM_example"
 declare -a Outname="../../../build/ArcLengthResults"
 declare -a Filenames=("17p_Lshape_4holes" )
-declare -a Methods=(1 3 4)
+declare -a Methods=(4)
   
 mkdir -p Output
 for file in ${Filenames[@]}; do
