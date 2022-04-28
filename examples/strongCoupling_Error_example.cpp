@@ -267,6 +267,7 @@ int main(int argc, char *argv[])
                 global2local.coeffRef(k,k) = 1;
             geom = mp;
             gsInfo << "Basis Patch: " << dbasis.basis(0).component(0) << "\n";
+            bb2.init(dbasis,global2local);
         }
         else if (method==0)
         {
@@ -277,6 +278,7 @@ int main(int argc, char *argv[])
             geom = cgeom.exportToPatches();
             auto container = basis.getBasesCopy();
             dbasis = gsMultiBasis<>(container,mp.topology());
+            bb2.init(dbasis,global2local);
         }
         else if (method==1)
         {
@@ -287,27 +289,18 @@ int main(int argc, char *argv[])
             global2local = global2local.transpose();
             geom = dpatch.exportToPatches();
             dbasis = dpatch.localBasis();
+            bb2.init(dbasis,global2local);
         }
         else if (method==2) // Pascal
         {
-            mp.embed(2);
+            // The approx. C1 space
             gsApproxC1Spline<2,real_t> approxC1(mp,dbasis);
-            approxC1.options().setSwitch("info",info);
-            approxC1.options().setSwitch("plot",plot);
-            // approxC1.options().setInt("gluingDataDegree",)
-            // approxC1.options().setInt("gluingDataRegularity",)
-
-            gsDebugVar(approxC1.options());
-
-            approxC1.init();
-            approxC1.compute();
-            mp.embed(3);
-
-            global2local = approxC1.getSystem();
-            global2local = global2local.transpose();
-            global2local.pruned(1,1e-10);
-            geom = mp;
-            approxC1.getMultiBasis(dbasis);
+            // approxC1.options().setSwitch("info",info);
+            // approxC1.options().setSwitch("plot",plot);
+            approxC1.options().setSwitch("interpolation",true);
+            approxC1.options().setInt("gluingDataDegree",-1);
+            approxC1.options().setInt("gluingDataSmoothness",-1);
+            approxC1.update(bb2);
         }
         else if (method==3) // Andrea
         {
@@ -318,6 +311,7 @@ int main(int argc, char *argv[])
             global2local = smoothC1.getSystem();
             global2local = global2local.transpose();
             smoothC1.getMultiBasis(dbasis);
+            bb2.init(dbasis,global2local);
         }
         else if (method==4)
         {
@@ -328,6 +322,7 @@ int main(int argc, char *argv[])
             global2local = global2local.transpose();
             geom = almostC1.exportToPatches();
             dbasis = almostC1.localBasis();
+            bb2.init(dbasis,global2local);
         }
         else
             GISMO_ERROR("Option "<<method<<" for method does not exist");
@@ -341,7 +336,6 @@ int main(int argc, char *argv[])
             //gsWrite(dbasis,"dbasis");
         }
 
-        bb2.init(dbasis,global2local);
         // gsMappedSpline<2,real_t> mspline(bb2,coefs);
         // geom = mspline.exportToPatches();
 
@@ -489,7 +483,7 @@ int main(int argc, char *argv[])
         gsInfo<<numDofs(k);
         for (index_t p=0; p!=refPoints.cols(); ++p)
         {
-            gsInfo<<","<<refs(k,3*p)<<","<<refs(k,3*p+1)<<","<<refs(k,3*p+2)<<",";
+            gsInfo<<","<<refs(k,3*p)<<","<<refs(k,3*p+1)<<","<<refs(k,3*p+2);
         }
         gsInfo<<"\n";
     }

@@ -223,6 +223,7 @@ int main(int argc, char *argv[])
     }
 
     if (plot) gsWriteParaview(mp,"mp",1000,true,false);
+
     // for (size_t p = 0; p!=mp.nPatches(); ++p)
     //     gsDebugVar(mp.patch(p));
 
@@ -253,6 +254,7 @@ int main(int argc, char *argv[])
         for (size_t k=0; k!=dbasis.totalSize(); ++k)
             global2local.coeffRef(k,k) = 1;
         geom = mp;
+        bb2.init(dbasis,global2local);
     }
     else if (method==0)
     {
@@ -263,36 +265,29 @@ int main(int argc, char *argv[])
         geom = cgeom.exportToPatches();
         auto container = basis.getBasesCopy();
         dbasis = gsMultiBasis<>(container,mp.topology());
+        bb2.init(dbasis,global2local);
     }
     else if (method==1)
     {
-        gsDPatch<2,real_t> dpatch(mp);
+        geom = mp;
+        gsDPatch<2,real_t> dpatch(geom);
         dpatch.matrix_into(global2local);
 
         global2local = global2local.transpose();
         geom = dpatch.exportToPatches();
         dbasis = dpatch.localBasis();
+        bb2.init(dbasis,global2local);
     }
     else if (method==2) // Pascal
     {
-        mp.embed(2);
+        // The approx. C1 space
         gsApproxC1Spline<2,real_t> approxC1(mp,dbasis);
-        approxC1.options().setSwitch("info",info);
+        // approxC1.options().setSwitch("info",info);
         // approxC1.options().setSwitch("plot",plot);
-        // approxC1.options().setInt("gluingDataDegree",)
-        // approxC1.options().setInt("gluingDataRegularity",)
-
-        gsDebugVar(approxC1.options());
-
-        approxC1.init();
-        approxC1.compute();
-        mp.embed(3);
-
-        global2local = approxC1.getSystem();
-        global2local = global2local.transpose();
-        global2local.pruned(1,1e-10);
-        geom = mp;
-        approxC1.getMultiBasis(dbasis);
+        approxC1.options().setSwitch("interpolation",true);
+        approxC1.options().setInt("gluingDataDegree",-1);
+        approxC1.options().setInt("gluingDataSmoothness",-1);
+        approxC1.update(bb2);
     }
     else if (method==3) // Andrea
     {
@@ -303,6 +298,7 @@ int main(int argc, char *argv[])
         global2local = smoothC1.getSystem();
         global2local = global2local.transpose();
         smoothC1.getMultiBasis(dbasis);
+        bb2.init(dbasis,global2local);
     }
     else if (method==4)
     {
@@ -312,6 +308,7 @@ int main(int argc, char *argv[])
         global2local = global2local.transpose();
         geom = almostC1.exportToPatches();
         dbasis = almostC1.localBasis();
+        bb2.init(dbasis,global2local);
     }
     else
         GISMO_ERROR("Option "<<method<<" for method does not exist");
@@ -323,7 +320,8 @@ int main(int argc, char *argv[])
         //gsWrite(dbasis,"dbasis");
     }
 
-    bb2.init(dbasis,global2local);
+
+    if (plot) gsWriteParaview(geom,"geom",1000,true,false);
 
     assembler = gsThinShellAssembler<3, real_t, true>(geom,dbasis,bc,force,&materialMatrix);
     if (method==1)
@@ -344,27 +342,27 @@ int main(int argc, char *argv[])
     typedef std::function<gsSparseMatrix<real_t> (gsVector<real_t> const &)>                                Jacobian_t;
     typedef std::function<gsVector<real_t> (gsVector<real_t> const &) >                                     Residual_t;
     typedef std::function<gsVector<real_t> (gsVector<real_t> const &, real_t, gsVector<real_t> const &force) >                             ALResidual_t;
-    Jacobian_t Jacobian = [&mp,&bb2,&assembler](gsVector<real_t> const &x)
+    Jacobian_t Jacobian = [&geom,&bb2,&assembler](gsVector<real_t> const &x)
     {
         gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
         GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
         solFull.resize(solFull.rows()/3,3);
         gsMappedSpline<2,real_t> mspline(bb2,solFull);
-        gsFunctionSum<real_t> def(&mp,&mspline);
+        gsFunctionSum<real_t> def(&geom,&mspline);
 
         assembler.assembleMatrix(def);
         // gsSparseMatrix<real_t> m =
         return assembler.matrix();
     };
     // Function for the Residual
-    ALResidual_t ALResidual = [&geom,&mp,&bb2,&assembler](gsVector<real_t> const &x, real_t lam, gsVector<real_t> const &force)
+    ALResidual_t ALResidual = [&geom,&bb2,&assembler](gsVector<real_t> const &x, real_t lam, gsVector<real_t> const &force)
     {
         gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
         GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
         solFull.resize(solFull.rows()/3,3);
 
         gsMappedSpline<2,real_t> mspline(bb2,solFull);
-        gsFunctionSum<real_t> def(&mp,&mspline);
+        gsFunctionSum<real_t> def(&geom,&mspline);
 
         assembler.assembleVector(def);
         gsVector<real_t> Fint = -(assembler.rhs() - force);
@@ -384,7 +382,7 @@ int main(int argc, char *argv[])
     else
       GISMO_ERROR("Method unknown");
 
-    arcLength->options().setString("Solver","SimplicialLDLT"); // LDLT solver
+    arcLength->options().setString("Solver","CGDiagonal"); // LDLT solver
     arcLength->options().setInt("BifurcationMethod",1); // 0: determinant, 1: eigenvalue
     arcLength->options().setReal("Length",dLb);
     // arcLength->options().setInt("AngleMethod",0); // 0: step, 1: iteration
