@@ -399,6 +399,7 @@ int main(int argc, char *argv[])
       arcLength->options().setInt("QuasiIterations",quasiNewtonInt);
     }
     arcLength->options().setSwitch("Quasi",quasiNewton);
+    arcLength->options().setReal("Shift",1.0);
 
     gsInfo<<arcLength->options();
     arcLength->applyOptions();

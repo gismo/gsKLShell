@@ -5,6 +5,8 @@ declare -a Outname="../../../build/ArcLengthResults"
 declare -a Filenames=("17p_Lshape_4holes" )
 declare -a Methods=(4)
   
+    # use $GISMO_BUILD_DIR??
+
 mkdir -p Output
 for file in ${Filenames[@]}; do
     for (( p=2; p<5; p++)) do

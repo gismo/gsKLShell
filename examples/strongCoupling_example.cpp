@@ -338,10 +338,6 @@ int main(int argc, char *argv[])
     gsSparseMatrix<> matrix = assembler.matrix();
     gsVector<> vector = assembler.rhs();
 
-    // gsDebugVar(matrix.toDense());
-    // gsDebugVar(vector.transpose());
-
-
     // Nonlinear
     // Function for the Jacobian
     typedef std::function<gsSparseMatrix<real_t> (gsVector<real_t> const &)>    Jacobian_t;
