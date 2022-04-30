@@ -87,8 +87,12 @@ int main(int argc, char *argv[])
     gsMultiPatch<> mp;
     gsBoundaryConditions<> bc;
 
-    if (method==3 && degree-smoothness > 1)
-        gsWarn<<"Smoothing method 3 with a degree "<<degree<<" and smoothness "<<smoothness<<" does not work, degree-smoothness=regularity=1 is used.\n";
+    GISMO_ENSURE(degree>smoothness,"Degree must be larger than the smoothness!");
+    GISMO_ENSURE(smoothness>=0,"Degree must be larger than the smoothness!");
+    if (method==3)
+        GISMO_ENSURE(smoothness>=1 || smoothness <= degree-2,"Exact C1 method only works for smoothness <= p-2, but smoothness="<<smoothness<<" and p-2="<<degree-2);
+    if (method==2 || method==3)
+        GISMO_ENSURE(degree > 2,"Degree must be larger than 2 for the approx and exact C1 methods, but it is "<<degree);
 
     /*
         to do:

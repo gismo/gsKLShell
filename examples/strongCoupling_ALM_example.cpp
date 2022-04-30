@@ -110,8 +110,12 @@ int main(int argc, char *argv[])
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
 
-    if (method==3 && degree-smoothness > 1)
-        gsWarn<<"Smoothing method 3 with a degree "<<degree<<" and smoothness "<<smoothness<<" does not work, degree-smoothness=regularity=1 is used.\n";
+    GISMO_ENSURE(degree>smoothness,"Degree must be larger than the smoothness!");
+    GISMO_ENSURE(smoothness>=0,"Degree must be larger than the smoothness!");
+    if (method==3)
+        GISMO_ENSURE(smoothness>=1 || smoothness <= degree-2,"Exact C1 method only works for smoothness <= p-2, but smoothness="<<smoothness<<" and p-2="<<degree-2);
+    if (method==2 || method==3)
+        GISMO_ENSURE(degree > 2,"Degree must be larger than 2 for the approx and exact C1 methods, but it is "<<degree);
 
 
     if (dL==0)
@@ -207,19 +211,9 @@ int main(int argc, char *argv[])
     mp.degreeElevate(degree-mp.patch(0).degree(0));
 
     // h-refine
-    if(method!=3)
+    for (int r =0; r < numRefine; ++r)
     {
-        // h-refine each basis
-        for (int r =0; r < numRefine; ++r)
-        {
-            mp.uniformRefine(1,degree-smoothness);
-        }
-    }
-    else
-    {
-        // Always regularity 1
-        for (int r =0; r < numRefine; ++r)
-            mp.uniformRefine(1, degree-1);
+        mp.uniformRefine(1,degree-smoothness);
     }
 
     if (plot) gsWriteParaview(mp,"mp",1000,true,false);
