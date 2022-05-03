@@ -204,22 +204,9 @@ int main(int argc, char *argv[])
     GISMO_ENSURE(degree>=mp.patch(0).degree(0),"Degree must be larger than or equal to the degree of the initial geometry, but degree = "<<degree<<" and the original degree = "<<mp.patch(0).degree(0));
     mp.degreeElevate(degree-mp.patch(0).degree(0));
 
-    // h-refine
-    if(method!=3)
-    {
-        // h-refine each basis
-        for (int r =0; r < numRefine; ++r)
-        {
-            mp.uniformRefine(1,degree-smoothness);
-        }
-    }
-    else
-    {
-        // Always regularity 1
-        for (int r =0; r < numRefine; ++r)
-            mp.uniformRefine(1, degree-1);
-    }
-
+    // h-refine each basis
+    for (int r =0; r < numRefine; ++r)
+        mp.uniformRefine(1,degree-smoothness);
 
     if (plot) gsWriteParaview(mp,"mp",1000,true,false);
     // for (size_t p = 0; p!=mp.nPatches(); ++p)

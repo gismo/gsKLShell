@@ -66,6 +66,7 @@ int main(int argc, char *argv[])
     real_t tolU       = 1e-6;
     real_t tolF       = 1e-3;
     real_t tau = 1e4;
+    real_t shift = -1e2;
 
     std::string fn1,fn2,fn3;
     fn1 = "pde/2p_square_geom.xml";
@@ -96,6 +97,7 @@ int main(int argc, char *argv[])
     cmd.addSwitch("writeMat", "Write projection matrix",writeMatrix);
     cmd.addSwitch( "info", "Print information", info );
 
+    cmd.addReal("S","shift", "Shift for stability eigenvalue computation", shift);
     cmd.addReal("F","factor", "factor for bifurcation perturbation", tau);
     cmd.addInt("M","ALMmethod", "Arc length method; 1: Crisfield's method; 2: RIks' method.", ALMmethod);
     cmd.addReal("L","dLb", "arc length", dLb);
@@ -393,7 +395,7 @@ int main(int argc, char *argv[])
       arcLength->options().setInt("QuasiIterations",quasiNewtonInt);
     }
     arcLength->options().setSwitch("Quasi",quasiNewton);
-    arcLength->options().setReal("Shift",1.0);
+    arcLength->options().setReal("Shift",shift);
 
     gsInfo<<arcLength->options();
     arcLength->applyOptions();

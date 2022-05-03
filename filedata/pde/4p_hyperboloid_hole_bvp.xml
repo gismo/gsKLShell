@@ -38,6 +38,12 @@
   <bc type="Dirichlet" function="0" unknown="0" component="2">
     2 4
   </bc>
+  <bc type="Clamped" function="0" unknown="0" component="0">
+    2 4
+  </bc>
+  <bc type="Clamped" function="0" unknown="0" component="1">
+    2 4
+  </bc>
   <bc type="Clamped" function="0" unknown="0" component="2">
     2 4
   </bc>

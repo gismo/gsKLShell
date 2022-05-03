@@ -193,44 +193,16 @@ int main(int argc, char *argv[])
     mp.degreeElevate(degree-mp.patch(0).degree(0));
 
     // h-refine each basis
-    if(method!=3)
-    {
-        // h-refine each basis
-        for (int r =0; r < numRefine0; ++r)
-        {
-            mp.uniformRefine(1,degree-smoothness);
-        }
-    }
-    else
-    {
-        // Always regularity 1
-        for (int r =0; r < numRefine0; ++r)
-            mp.uniformRefine(1, degree-1);
-    }
+    for (int r =0; r < numRefine0; ++r)
+        mp.uniformRefine(1,degree-smoothness);
     numRefine -= numRefine0;
 
     if (last)
-    {
-        // h-refine
-        if(method!=3)
-        {
-            // h-refine each basis
-            for (int r =0; r < numRefine; ++r)
-            {
-                mp.uniformRefine(1,degree-smoothness);
-            }
-        }
-        else
-        {
-            // Always regularity 1
-            for (int r =0; r < numRefine; ++r)
-                mp.uniformRefine(1, degree-1);
-        }
-    }
+        // h-refine each basis
+        for (int r =0; r < numRefine; ++r)
+            mp.uniformRefine(1,degree-smoothness);
 
     if (plot) gsWriteParaview(mp,"mp",1000,true,false);
-    // for (size_t p = 0; p!=mp.nPatches(); ++p)
-    //     gsDebugVar(mp.patch(p));
 
     std::vector<gsFunction<>*> parameters(2);
     parameters[0] = &E;
@@ -260,7 +232,6 @@ int main(int argc, char *argv[])
 
     for( index_t r = 0; r<=numRefine; ++r)
     {
-
         gsInfo<<"--------------------------------------------------------------\n";
         time.restart();
         if (method==-1)
@@ -270,7 +241,6 @@ int main(int argc, char *argv[])
             for (size_t k=0; k!=dbasis.totalSize(); ++k)
                 global2local.coeffRef(k,k) = 1;
             geom = mp;
-            gsInfo << "Basis Patch: " << dbasis.basis(0).component(0) << "\n";
             bb2.init(dbasis,global2local);
         }
         else if (method==0)
@@ -330,6 +300,8 @@ int main(int argc, char *argv[])
         }
         else
             GISMO_ERROR("Option "<<method<<" for method does not exist");
+
+        gsInfo << "Basis Patch 0: " << dbasis.basis(0).component(0) << "\n";
 
         gsInfo<<"\tAssembly of mapping:\t"<<time.stop()<<"\t[s]\n";
 
@@ -462,16 +434,7 @@ int main(int argc, char *argv[])
         numDofs[r] = assembler.numDofs();
 
         // h-refine
-        if(method!=3)
-        {
-            mp.uniformRefine(1,degree-smoothness);
-        }
-        else
-        {
-            mp.uniformRefine(1, degree-1);
-        }
-
-
+        mp.uniformRefine(1,degree-smoothness);
 
         dbasis = gsMultiBasis<>(mp);
     }
