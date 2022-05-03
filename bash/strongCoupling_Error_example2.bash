@@ -1,19 +1,22 @@
 #!/bin/bash
 # Declare an array of string with type
 declare -a Runname="../../../build/bin/strongCoupling_Error_example"
-declare -a Filenames=("1p_hyperboloid" "4p_hyperboloid" "6p_hyperboloid")
+declare -a Filenames=("3p_hyperboloid")
+# "4p_hyperboloid_hole_deg4deg4")
 declare -a Methods=(3)
 
+mkdir -p Output
+  
 for file in ${Filenames[@]}; do
     for (( p=2; p<5; p++)) do
         for m in ${Methods[@]}; do
-            # Set smoothness
-            if (($m==3))
-            then
-                declare s=$(($p-2))
-            else
-                declare s=$(($p-1))
-            fi
+	    # Set smoothness
+	    if (($m==3))
+	    then
+		declare s=$(($p-2))
+	    else
+		declare s=$(($p-1))
+	    fi
 
             # Define initial refinement level
             if (($m==2 || $m==3))
@@ -26,13 +29,13 @@ for file in ${Filenames[@]}; do
             # Options per method
 #            if (($m==1))
 #            then
-#               if  (("$file"=="3p_hyperboloid" || "$file"=="4p_hyperboloid_hole_deg4deg4"))
-#               then
-#                   continue
-#               fi
-            if (($m==2))
+#		if  (("$file"=="3p_hyperboloid" || "$file"=="4p_hyperboloid_hole_deg4deg4"))
+#		then
+#	            continue
+#		fi
+	    if (($m==2))
             then
-                if (($p<3))
+		if (($p<3))
                 then
                     continue
                 fi
@@ -50,9 +53,9 @@ for file in ${Filenames[@]}; do
                 fi
             fi
 
-            echo "$Runname" -m $m -p $p -s $s -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 7 -R $R0
-
-            eval "$Runname" -m $m -p $p -s $s -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 7 -R $R0 > Output/"$file"_p"$p"_s"$s"_m"$m".log
+            echo "$Runname" -m $m -p $p -s $s -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 6 -R $R0
+            
+            eval "$Runname" -m $m -p $p -s $s -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 6 -R $R0 > Output/"$file"_p"$p"_s"$s"_m"$m".log
         done
     done
 done
