@@ -198,9 +198,12 @@ int main(int argc, char *argv[])
     numRefine -= numRefine0;
 
     if (last)
+    {
         // h-refine each basis
         for (int r =0; r < numRefine; ++r)
             mp.uniformRefine(1,degree-smoothness);
+        numRefine = 0;
+    }
 
     if (plot) gsWriteParaview(mp,"mp",1000,true,false);
 
