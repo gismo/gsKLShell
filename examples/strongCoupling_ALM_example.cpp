@@ -474,11 +474,11 @@ int main(int argc, char *argv[])
 
             if (plot)
             {
-                std::string fileName = dirname + "/" + output + util::to_string(k);
+                std::string fileName = dirname + "/" + output + util::to_string(k) + "_";
                 gsWriteParaview<>(solField, fileName, 1000,mesh);
                 for (index_t p = 0; p!=mp.nPatches(); p++)
                 {
-                    fileName = output + util::to_string(k);
+                    fileName = output + util::to_string(k) + "_";
                     collection.addTimestep(fileName,p,k,".vts");
                     if (mesh)
                         collection.addTimestep(fileName,p,k,"_mesh.vtp");
@@ -501,11 +501,11 @@ int main(int argc, char *argv[])
                 std::string fileName;
                 gsPiecewiseFunction<> membraneStresses;
                 assembler.constructStress(def,membraneStresses,stress_type::membrane);
-                fileName = dirname + "/MembraneStress" + util::to_string(k);
+                fileName = dirname + "/MembraneStress" + util::to_string(k) + "_";
                 gsWriteParaview(def,membraneStresses,fileName,1000);
                 for (index_t p = 0; p!=mp.nPatches(); p++)
                 {
-                    fileName = "MembraneStress" + util::to_string(k);
+                    fileName = "MembraneStress" + util::to_string(k) + "_";
                     membraneStressCollection.addTimestep(fileName,p,k,".vts");
                     if (mesh)
                         membraneStressCollection.addTimestep(fileName,p,k,"_mesh.vtp");
@@ -513,11 +513,11 @@ int main(int argc, char *argv[])
 
                 gsPiecewiseFunction<> flexuralStresses;
                 assembler.constructStress(def,flexuralStresses,stress_type::flexural);
-                fileName = dirname + "/FlexuralStresses" + util::to_string(k);
+                fileName = dirname + "/FlexuralStresses" + util::to_string(k) + "_";
                 gsWriteParaview(def,flexuralStresses,fileName,1000);
                 for (index_t p = 0; p!=mp.nPatches(); p++)
                 {
-                    fileName = "FlexuralStress" + util::to_string(k);
+                    fileName = "FlexuralStress" + util::to_string(k) + "_";
                     flexuralStressCollection.addTimestep(fileName,p,k,".vts");
                     if (mesh)
                         flexuralStressCollection.addTimestep(fileName,p,k,"_mesh.vtp");
