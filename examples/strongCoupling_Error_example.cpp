@@ -38,7 +38,6 @@ int main(int argc, char *argv[])
     bool plot       = false;
     bool mesh       = false;
     bool stress     = false;
-    bool write      = false;
     bool last       = false;
     bool info       = false;
     bool writeMatrix= false;
@@ -59,6 +58,8 @@ int main(int argc, char *argv[])
     fn2 = "pde/2p_square_bvp.xml";
     fn3 = "options/solver_options.xml";
 
+    std::string write;
+
     gsCmdLine cmd("Composite basis tests.");
     cmd.addReal( "D", "Dir", "Dirichlet BC penalty scalar",  bcDirichlet );
     cmd.addReal( "C", "Cla", "Clamped BC penalty scalar",  bcClamped );
@@ -73,11 +74,11 @@ int main(int argc, char *argv[])
     cmd.addSwitch("plot", "plot",plot);
     cmd.addSwitch("mesh", "mesh",mesh);
     cmd.addSwitch("stress", "stress",stress);
-    cmd.addSwitch("write", "write",write);
     cmd.addSwitch("last", "last case only",last);
     cmd.addSwitch("writeMat", "Write projection matrix",writeMatrix);
     cmd.addSwitch( "info", "Print information", info );
     cmd.addSwitch( "nl", "Print information", nonlinear );
+    cmd.addString("w", "write", "Write to csv", write);
 
     // to do:
     // smoothing method add nitsche @Pascal
@@ -456,6 +457,25 @@ int main(int argc, char *argv[])
             gsInfo<<","<<refs(k,3*p)<<","<<refs(k,3*p+1)<<","<<refs(k,3*p+2);
         }
         gsInfo<<"\n";
+    }
+
+    if (!write.empty())
+    {
+        std::ofstream file(write.c_str());
+
+        file<<"numDoFs";
+        for (index_t p=0; p!=refPoints.cols(); ++p)
+            file<<",x"<<std::to_string(p)<<",y"<<std::to_string(p)<<",z"<<std::to_string(p);
+        file<<"\n";
+
+        for (index_t k=0; k<=numRefine; ++k)
+        {
+            file<<numDofs(k);
+            for (index_t p=0; p!=refPoints.cols(); ++p)
+                file<<","<<refs(k,3*p)<<","<<refs(k,3*p+1)<<","<<refs(k,3*p+2);
+            file<<"\n";
+        }
+        file.close();
     }
 
     //! [Export visualization in ParaView]
