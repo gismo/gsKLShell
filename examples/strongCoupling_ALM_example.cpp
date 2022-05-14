@@ -66,6 +66,7 @@ int main(int argc, char *argv[])
     real_t tolU       = 1e-6;
     real_t tolF       = 1e-3;
     real_t tau = 1e4;
+    real_t shift = -1e2;
 
     std::string fn1,fn2,fn3;
     fn1 = "pde/2p_square_geom.xml";
@@ -96,6 +97,7 @@ int main(int argc, char *argv[])
     cmd.addSwitch("writeMat", "Write projection matrix",writeMatrix);
     cmd.addSwitch( "info", "Print information", info );
 
+    cmd.addReal("S","shift", "Shift for stability eigenvalue computation", shift);
     cmd.addReal("F","factor", "factor for bifurcation perturbation", tau);
     cmd.addInt("M","ALMmethod", "Arc length method; 1: Crisfield's method; 2: RIks' method.", ALMmethod);
     cmd.addReal("L","dLb", "arc length", dLb);
@@ -110,8 +112,12 @@ int main(int argc, char *argv[])
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
 
-    if (method==3 && degree-smoothness > 1)
-        gsWarn<<"Smoothing method 3 with a degree "<<degree<<" and smoothness "<<smoothness<<" does not work, degree-smoothness=regularity=1 is used.\n";
+    GISMO_ENSURE(degree>smoothness,"Degree must be larger than the smoothness!");
+    GISMO_ENSURE(smoothness>=0,"Degree must be larger than the smoothness!");
+    if (method==3)
+        GISMO_ENSURE(smoothness>=1 || smoothness <= degree-2,"Exact C1 method only works for smoothness <= p-2, but smoothness="<<smoothness<<" and p-2="<<degree-2);
+    if (method==2 || method==3)
+        GISMO_ENSURE(degree > 2,"Degree must be larger than 2 for the approx and exact C1 methods, but it is "<<degree);
 
 
     if (dL==0)
@@ -207,22 +213,13 @@ int main(int argc, char *argv[])
     mp.degreeElevate(degree-mp.patch(0).degree(0));
 
     // h-refine
-    if(method!=3)
+    for (int r =0; r < numRefine; ++r)
     {
-        // h-refine each basis
-        for (int r =0; r < numRefine; ++r)
-        {
-            mp.uniformRefine(1,degree-smoothness);
-        }
-    }
-    else
-    {
-        // Always regularity 1
-        for (int r =0; r < numRefine; ++r)
-            mp.uniformRefine(1, degree-1);
+        mp.uniformRefine(1,degree-smoothness);
     }
 
     if (plot) gsWriteParaview(mp,"mp",1000,true,false);
+
     // for (size_t p = 0; p!=mp.nPatches(); ++p)
     //     gsDebugVar(mp.patch(p));
 
@@ -253,6 +250,7 @@ int main(int argc, char *argv[])
         for (size_t k=0; k!=dbasis.totalSize(); ++k)
             global2local.coeffRef(k,k) = 1;
         geom = mp;
+        bb2.init(dbasis,global2local);
     }
     else if (method==0)
     {
@@ -263,36 +261,29 @@ int main(int argc, char *argv[])
         geom = cgeom.exportToPatches();
         auto container = basis.getBasesCopy();
         dbasis = gsMultiBasis<>(container,mp.topology());
+        bb2.init(dbasis,global2local);
     }
     else if (method==1)
     {
-        gsDPatch<2,real_t> dpatch(mp);
+        geom = mp;
+        gsDPatch<2,real_t> dpatch(geom);
         dpatch.matrix_into(global2local);
 
         global2local = global2local.transpose();
         geom = dpatch.exportToPatches();
         dbasis = dpatch.localBasis();
+        bb2.init(dbasis,global2local);
     }
     else if (method==2) // Pascal
     {
-        mp.embed(2);
+        // The approx. C1 space
         gsApproxC1Spline<2,real_t> approxC1(mp,dbasis);
-        approxC1.options().setSwitch("info",info);
+        // approxC1.options().setSwitch("info",info);
         // approxC1.options().setSwitch("plot",plot);
-        // approxC1.options().setInt("gluingDataDegree",)
-        // approxC1.options().setInt("gluingDataRegularity",)
-
-        gsDebugVar(approxC1.options());
-
-        approxC1.init();
-        approxC1.compute();
-        mp.embed(3);
-
-        global2local = approxC1.getSystem();
-        global2local = global2local.transpose();
-        global2local.pruned(1,1e-10);
-        geom = mp;
-        approxC1.getMultiBasis(dbasis);
+        approxC1.options().setSwitch("interpolation",true);
+        approxC1.options().setInt("gluingDataDegree",-1);
+        approxC1.options().setInt("gluingDataSmoothness",-1);
+        approxC1.update(bb2);
     }
     else if (method==3) // Andrea
     {
@@ -303,6 +294,7 @@ int main(int argc, char *argv[])
         global2local = smoothC1.getSystem();
         global2local = global2local.transpose();
         smoothC1.getMultiBasis(dbasis);
+        bb2.init(dbasis,global2local);
     }
     else if (method==4)
     {
@@ -312,6 +304,7 @@ int main(int argc, char *argv[])
         global2local = global2local.transpose();
         geom = almostC1.exportToPatches();
         dbasis = almostC1.localBasis();
+        bb2.init(dbasis,global2local);
     }
     else
         GISMO_ERROR("Option "<<method<<" for method does not exist");
@@ -323,7 +316,8 @@ int main(int argc, char *argv[])
         //gsWrite(dbasis,"dbasis");
     }
 
-    bb2.init(dbasis,global2local);
+
+    if (plot) gsWriteParaview(geom,"geom",1000,true,false);
 
     assembler = gsThinShellAssembler<3, real_t, true>(geom,dbasis,bc,force,&materialMatrix);
     if (method==1)
@@ -344,27 +338,27 @@ int main(int argc, char *argv[])
     typedef std::function<gsSparseMatrix<real_t> (gsVector<real_t> const &)>                                Jacobian_t;
     typedef std::function<gsVector<real_t> (gsVector<real_t> const &) >                                     Residual_t;
     typedef std::function<gsVector<real_t> (gsVector<real_t> const &, real_t, gsVector<real_t> const &force) >                             ALResidual_t;
-    Jacobian_t Jacobian = [&mp,&bb2,&assembler](gsVector<real_t> const &x)
+    Jacobian_t Jacobian = [&geom,&bb2,&assembler](gsVector<real_t> const &x)
     {
         gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
         GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
         solFull.resize(solFull.rows()/3,3);
         gsMappedSpline<2,real_t> mspline(bb2,solFull);
-        gsFunctionSum<real_t> def(&mp,&mspline);
+        gsFunctionSum<real_t> def(&geom,&mspline);
 
         assembler.assembleMatrix(def);
         // gsSparseMatrix<real_t> m =
         return assembler.matrix();
     };
     // Function for the Residual
-    ALResidual_t ALResidual = [&geom,&mp,&bb2,&assembler](gsVector<real_t> const &x, real_t lam, gsVector<real_t> const &force)
+    ALResidual_t ALResidual = [&geom,&bb2,&assembler](gsVector<real_t> const &x, real_t lam, gsVector<real_t> const &force)
     {
         gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
         GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
         solFull.resize(solFull.rows()/3,3);
 
         gsMappedSpline<2,real_t> mspline(bb2,solFull);
-        gsFunctionSum<real_t> def(&mp,&mspline);
+        gsFunctionSum<real_t> def(&geom,&mspline);
 
         assembler.assembleVector(def);
         gsVector<real_t> Fint = -(assembler.rhs() - force);
@@ -384,7 +378,7 @@ int main(int argc, char *argv[])
     else
       GISMO_ERROR("Method unknown");
 
-    arcLength->options().setString("Solver","SimplicialLDLT"); // LDLT solver
+    arcLength->options().setString("Solver","CGDiagonal"); // LDLT solver
     arcLength->options().setInt("BifurcationMethod",1); // 0: determinant, 1: eigenvalue
     arcLength->options().setReal("Length",dLb);
     // arcLength->options().setInt("AngleMethod",0); // 0: step, 1: iteration
@@ -401,6 +395,7 @@ int main(int argc, char *argv[])
       arcLength->options().setInt("QuasiIterations",quasiNewtonInt);
     }
     arcLength->options().setSwitch("Quasi",quasiNewton);
+    arcLength->options().setReal("Shift",shift);
 
     gsInfo<<arcLength->options();
     arcLength->applyOptions();
@@ -479,11 +474,11 @@ int main(int argc, char *argv[])
 
             if (plot)
             {
-                std::string fileName = dirname + "/" + output + util::to_string(k);
+                std::string fileName = dirname + "/" + output + util::to_string(k) + "_";
                 gsWriteParaview<>(solField, fileName, 1000,mesh);
                 for (index_t p = 0; p!=mp.nPatches(); p++)
                 {
-                    fileName = output + util::to_string(k);
+                    fileName = output + util::to_string(k) + "_";
                     collection.addTimestep(fileName,p,k,".vts");
                     if (mesh)
                         collection.addTimestep(fileName,p,k,"_mesh.vtp");
@@ -506,11 +501,11 @@ int main(int argc, char *argv[])
                 std::string fileName;
                 gsPiecewiseFunction<> membraneStresses;
                 assembler.constructStress(def,membraneStresses,stress_type::membrane);
-                fileName = dirname + "/MembraneStress" + util::to_string(k);
+                fileName = dirname + "/MembraneStress" + util::to_string(k) + "_";
                 gsWriteParaview(def,membraneStresses,fileName,1000);
                 for (index_t p = 0; p!=mp.nPatches(); p++)
                 {
-                    fileName = "MembraneStress" + util::to_string(k);
+                    fileName = "MembraneStress" + util::to_string(k) + "_";
                     membraneStressCollection.addTimestep(fileName,p,k,".vts");
                     if (mesh)
                         membraneStressCollection.addTimestep(fileName,p,k,"_mesh.vtp");
@@ -518,11 +513,11 @@ int main(int argc, char *argv[])
 
                 gsPiecewiseFunction<> flexuralStresses;
                 assembler.constructStress(def,flexuralStresses,stress_type::flexural);
-                fileName = dirname + "/FlexuralStresses" + util::to_string(k);
+                fileName = dirname + "/FlexuralStresses" + util::to_string(k) + "_";
                 gsWriteParaview(def,flexuralStresses,fileName,1000);
                 for (index_t p = 0; p!=mp.nPatches(); p++)
                 {
-                    fileName = "FlexuralStress" + util::to_string(k);
+                    fileName = "FlexuralStress" + util::to_string(k) + "_";
                     flexuralStressCollection.addTimestep(fileName,p,k,".vts");
                     if (mesh)
                         flexuralStressCollection.addTimestep(fileName,p,k,"_mesh.vtp");

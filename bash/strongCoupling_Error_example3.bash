@@ -1,11 +1,13 @@
 #!/bin/bash
 # Declare an array of string with type
-declare -a Runname="../../../build_deb/bin/strongCoupling_Error_example"
-declare -a Filenames=("1p_hyperboloid" "4p_hyperboloid" "6p_hyperboloid")
-declare -a Methods=(1 2 3 4)
+declare -a Runname="../../../build/bin/strongCoupling_Error_example"
+declare -a Filenames=("4p_hyperboloid_hole_deg4deg4")
+declare -a Methods=(2 3 4)
 
+mkdir -p Output
+  
 for file in ${Filenames[@]}; do
-    for (( p=2; p<5; p++)) do
+    for (( p=4; p<5; p++)) do
         for (( s=$(($p-2)); s<$p; s++ )) do
             for m in ${Methods[@]}; do
                 # Set smoothness

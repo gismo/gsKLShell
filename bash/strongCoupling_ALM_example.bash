@@ -5,6 +5,8 @@ declare -a Outname="../../../build/ArcLengthResults"
 declare -a Filenames=("17p_Lshape_4holes" )
 declare -a Methods=(4)
   
+    # use $GISMO_BUILD_DIR??
+
 mkdir -p Output
 for file in ${Filenames[@]}; do
     for (( p=2; p<5; p++)) do
@@ -32,9 +34,9 @@ for file in ${Filenames[@]}; do
 
             mkdir -p "$Outname"/"$file"_p"$p"_m"$m"            
         
-            echo "$Runname" -m $m -p $p -s $(($p-1)) -r 2 -L 5e-3 -l 2e-1 -N 20 --plot --write -F 1e1 -C 1e3 -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -o "$Outname"/"$file"_p"$p"_m"$m"
+            echo "$Runname" -m $m -p $p -s $(($p-1)) -r 3 -L 5e-3 -l 2e-1 -N 20 --plot --write -F 1e1 -C 1e3 -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -o "$Outname"/"$file"_p"$p"_m"$m"
             
-            eval "$Runname" -m $m -p $p -s $(($p-1)) -r 2 -L 5e-3 -l 2e-1 -N 20 --plot --write -F 1e1 -C 1e3 -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -o "$Outname"/"$file"_p"$p"_m"$m"  > Output/"$file"_p"$p"_m"$m".log
+            eval "$Runname" -m $m -p $p -s $(($p-1)) -r 3 -L 5e-3 -l 2e-1 -N 20 --plot --write -F 1e1 -C 1e3 -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -o "$Outname"/"$file"_p"$p"_m"$m"  > Output/"$file"_p"$p"_m"$m".log
         done
     done
 done

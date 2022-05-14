@@ -344,7 +344,7 @@ int main(int argc, char *argv[])
         gsInfo<<numDofs(k);
         for (index_t p=0; p!=refPoints.cols(); ++p)
         {
-            gsInfo<<","<<refs(k,3*p)<<","<<refs(k,3*p+1)<<","<<refs(k,3*p+2)<<",";
+            gsInfo<<","<<refs(k,3*p)<<","<<refs(k,3*p+1)<<","<<refs(k,3*p+2);
         }
         gsInfo<<"\n";
     }
