@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
     {
         // Always regularity 1
         for (int r =0; r < numRefine; ++r)
-            mp.uniformRefine(1, degree-1);
+            mp.uniformRefine(1, degree-smoothness);
     }
 
 
