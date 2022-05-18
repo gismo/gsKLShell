@@ -271,11 +271,12 @@ int main(int argc, char *argv[])
         }
         else if (method==2) // Pascal
         {
+            gsInfo << dbasis.basis(0) << "\n";
             // The approx. C1 space
-            gsApproxC1Spline<2,real_t> approxC1(mp,dbasis);
-            // approxC1.options().setSwitch("info",info);
+            gsApproxC1Spline<2,real_t> approxC1(geom,dbasis);
+            approxC1.options().setSwitch("info",false);
             // approxC1.options().setSwitch("plot",plot);
-            approxC1.options().setSwitch("interpolation",true);
+            approxC1.options().setSwitch("interpolation",false);
             approxC1.options().setInt("gluingDataDegree",-1);
             approxC1.options().setInt("gluingDataSmoothness",-1);
             approxC1.update(bb2);
