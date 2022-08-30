@@ -26,6 +26,16 @@ from matplotlib import cm
 import matplotlib.pyplot as plt
 # from mpl_toolkits.mplot3d import Axes3D
 
+
+
+mp = gs.core.gsMultiPatch()
+fd = gs.io.gsFileData(os.path.join(os.getcwd() , "../../../filedata/3dm/BB2_clean.3dm"))
+# fd.getId(0,mp)
+fd.dump()
+
+
+exit(0);
+
 ## See gismo/filedata/surfaces/simple.xml for the geometry
 c1 = np.array([0.,0.,1.,1.])
 c2 = np.array([0.,0.,1.,1.])
