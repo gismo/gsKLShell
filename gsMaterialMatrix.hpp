@@ -1754,6 +1754,8 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_dPsi_impl(const index_t i, const in
     return mu / 2.0 * _dI_1(i,j) - mu / 2.0 * cinv(i,j) + lambda / 4.0 * ( m_J_sq - 1 ) * cinv(i,j);
 }
 
+// To do: add more models for volumetric part.
+// Here, beta=2.
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 T gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_dPsi_vol(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
 {

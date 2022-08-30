@@ -267,6 +267,7 @@ int main(int argc, char *argv[])
     {
         geom = mp;
         gsDPatch<2,real_t> dpatch(geom);
+        dpatch.compute();
         dpatch.matrix_into(global2local);
 
         global2local = global2local.transpose();
@@ -299,6 +300,7 @@ int main(int argc, char *argv[])
     else if (method==4)
     {
         gsAlmostC1<2,real_t> almostC1(mp);
+        almostC1.compute();
         almostC1.matrix_into(global2local);
 
         global2local = global2local.transpose();

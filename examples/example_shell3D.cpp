@@ -52,6 +52,8 @@ int main(int argc, char *argv[])
 {
     //! [Parse command line]
     bool plot  = false;
+    bool mesh  = false;
+    bool cnet  = false;
     bool stress= false;
     index_t numRefine  = 1;
     index_t numElevate = 1;
@@ -78,6 +80,8 @@ int main(int argc, char *argv[])
     cmd.addInt( "r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
     cmd.addInt( "t", "testCase", "Test case to run: 0 = square plate with pressure; 1 = Scordelis Lo Roof; 2 = quarter hemisphere; 3 = pinched cylinder",  testCase );
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
+    cmd.addSwitch("mesh", "Plot the mesh", mesh);
+    cmd.addSwitch("cnet", "Plot the control net", cnet);
     cmd.addSwitch("stress", "Create a ParaView visualization file with the stresses", stress);
     cmd.addSwitch("membrane", "Use membrane model (no bending)", membrane);
     cmd.addSwitch("composite", "Composite material", composite);
@@ -212,7 +216,7 @@ int main(int argc, char *argv[])
         mp.uniformRefine();
 
     mp_def = mp;
-    gsWriteParaview<>( mp_def    , "mp", 1000, true);
+    gsWriteParaview<>( mp_def    , "mp", 1000, mesh,cnet);
     //! [Refine and elevate]
 
     gsMultiBasis<> dbasis(mp);
@@ -1082,8 +1086,8 @@ int main(int argc, char *argv[])
         gsField<> solField(mp_def, deformation);
         // gsField<> solField(mp, deformation);
         gsInfo<<"Plotting in Paraview...\n";
-        // gsWriteParaview<>( solField, "Deformation", 1000, true);
-        gsWriteParaview<>( solField, "Deformation", 1000, false);
+        gsWriteParaview<>( solField, "Deformation", 1000, mesh);
+        gsWriteParaview<>( mp_def, "mp_def", 1000, mesh,cnet);
 
         if (testCase==3)
             gsWarn<<"Deformations are possibly zero in Paraview, due to the default precision (1e-5).\n";

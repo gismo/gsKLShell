@@ -257,6 +257,7 @@ int main(int argc, char *argv[])
         {
             geom = mp;
             gsDPatch<2,real_t> dpatch(geom);
+            dpatch.compute();
             dpatch.matrix_into(global2local);
 
             global2local = global2local.transpose();
@@ -290,6 +291,7 @@ int main(int argc, char *argv[])
         {
             geom = mp;
             gsAlmostC1<2,real_t> almostC1(geom);
+            almostC1.compute();
             almostC1.matrix_into(global2local);
 
             global2local = global2local.transpose();
@@ -333,27 +335,27 @@ int main(int argc, char *argv[])
     // Function for the Jacobian
     typedef std::function<gsSparseMatrix<real_t> (gsVector<real_t> const &)>    Jacobian_t;
     typedef std::function<gsVector<real_t> (gsVector<real_t> const &) >         Residual_t;
-    Jacobian_t Jacobian = [&mp,&bb2,&assembler](gsVector<real_t> const &x)
+    Jacobian_t Jacobian = [&geom,&bb2,&assembler](gsVector<real_t> const &x)
     {
         gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
         GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
         solFull.resize(solFull.rows()/3,3);
         gsMappedSpline<2,real_t> mspline(bb2,solFull);
-        gsFunctionSum<real_t> def(&mp,&mspline);
+        gsFunctionSum<real_t> def(&geom,&mspline);
 
         assembler.assembleMatrix(def);
         // gsSparseMatrix<real_t> m =
         return assembler.matrix();
     };
     // Function for the Residual
-    Residual_t Residual = [&geom,&mp,&bb2,&assembler](gsVector<real_t> const &x)
+    Residual_t Residual = [&geom,&bb2,&assembler](gsVector<real_t> const &x)
     {
         gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
         GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
         solFull.resize(solFull.rows()/3,3);
 
         gsMappedSpline<2,real_t> mspline(bb2,solFull);
-        gsFunctionSum<real_t> def(&mp,&mspline);
+        gsFunctionSum<real_t> def(&geom,&mspline);
 
         assembler.assembleVector(def);
         return assembler.rhs();
