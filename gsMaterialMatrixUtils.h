@@ -112,6 +112,7 @@ enum class MaterialOutput : short_t
     Transformation = 12,
     Thickness = 100,
     Parameters = 101,
+    Deformation = 102,
 };
 
 

@@ -101,22 +101,10 @@ public:
     void setOptions(gsOptionList opt) {m_options.update(opt,gsOptionList::addIfUnknown); }
 
     /// See \ref gsMaterialMatrixBase for details
-    void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
-
-    /// See \ref gsMaterialMatrixBase for details
     void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
     void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
-
-    /// See \ref gsMaterialMatrixBase for details
-    void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
-
-    /// See \ref gsMaterialMatrixBase for details
-    void parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
-
-    /// See \ref gsMaterialMatrixBase for details
-    void transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
@@ -154,31 +142,6 @@ public:
 
     /// Gets Alpha_i
     gsFunction<T> * getAlpha(const index_t & i) {return _getAlpha_impl<mat>(i);}
-
-    /// Sets the Density
-    void setDensity(const gsFunction<T> & Density)
-    {
-        m_density = const_cast<gsFunction<T> *>(&Density);
-    }
-    /// Gets the Density
-    gsFunction<T> * getDensity() {return const_cast<gsFunction<T> *>(m_density);}
-
-
-    /// See \ref gsMaterialMatrixBase for details
-    void setParameters(const std::vector<gsFunction<T>*> &pars)
-    {
-        m_pars = pars;
-    }
-
-    /// See \ref gsMaterialMatrixBase for details
-    index_t numParameters() { return m_pars.size(); }
-
-    /// See \ref gsMaterialMatrixBase for details
-    void resetParameters()
-    {
-        m_pars.clear();
-        m_pars.resize(0);
-    }
 
     /// See \ref gsMaterialMatrixBase for details
     void info() const;
@@ -1092,37 +1055,19 @@ private:
     // ----------------------------------------------------------------------------------
 
 protected:
-
-    /**
-     * @brief      Computes the map, the metric quantities and the parameters on
-     *             specified points.
-     *
-     * @param[in]  patch  The patch index
-     * @param[in]  u      The in-plane point coordinates
-     */
-    void _computePoints(const index_t patch, const gsMatrix<T> & u) const;
-
-
-private:
-    /// Implementation of \ref _computePoints for planar geometries
-    template<enum Material _mat>
-    typename std::enable_if<_mat==Material::OG, void>::type _computePoints_impl(const gsMatrix<T> & u) const;
-
-    /// Implementation of \ref _computePoints for surface geometries
-    template<enum Material _mat>
-    typename std::enable_if<_mat!=Material::OG, void>::type _computePoints_impl(const gsMatrix<T> & u) const;
-
-protected:
     // constructor
     using Base::m_patches;
     using Base::m_defpatches;
-    const gsFunction<T> * m_thickness;
-    std::vector<gsFunction<T>* > m_pars; // stores the parameters: 0=YoungsModulus, 1=Poisson's ratio,
+    // const gsFunction<T> * m_thickness;
+    using Base::m_thickness;
+    // std::vector<gsFunction<T>* > m_pars; // stores the parameters: 0=YoungsModulus, 1=Poisson's ratio,
                                          //                                                           MR: 2= Ratio
                                          //                                                           OG: for i=0...n
                                          //                                                                 2+2i  =mu_i
                                          //                                                                 2+2i+1=alpha_i
-    const gsFunction<T> * m_density;
+    using Base::m_pars;
+    // const gsFunction<T> * m_density;
+    using Base::m_density;
 
     // // Geometric data point
     // mutable gsMapData<T> m_map, m_map_def;
@@ -1136,10 +1081,14 @@ protected:
     // mutable T           m_J0_sq;
 
 
-    // Material parameters and kinematics
-    mutable gsMatrix<T> m_parmat;
-    mutable gsVector<T> m_parvals;
-    mutable gsMatrix<T> m_Tmat,m_rhomat;
+    // // Material parameters and kinematics
+    // mutable gsMatrix<T> m_parmat;
+    // mutable gsVector<T> m_parvals;
+    // mutable gsMatrix<T> m_Tmat,m_rhomat;
+    using Base::m_parmat;
+    using Base::m_parvals;
+    using Base::m_Tmat;
+    using Base::m_rhomat;
 
     // Geometric data point
     using Base::m_map;

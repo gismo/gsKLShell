@@ -39,7 +39,6 @@ public:
     m_z(z),
     m_piece(nullptr)
     {
-        gsDebugVar("Container");
     }
 
     /// Constructor
@@ -52,7 +51,6 @@ public:
     m_z(z),
     m_piece(nullptr)
     {
-        gsDebugVar("Single");
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
             m_materialMatrices.add(materialMatrix);
     }
@@ -165,6 +163,10 @@ private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Parameters, short_t>::type targetDim_impl() const { return m_materialMat->numParameters(); };
 
+    /// Implementation of \ref targetDim for principal stress directions
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Deformation, short_t>::type targetDim_impl() const { return 9; };
+
 public:
     /// Implementation of piece, see \ref gsFunction
     const gsFunction<T> & piece(const index_t p) const
@@ -227,6 +229,11 @@ private:
     /// Specialisation of \ref eval_into for the parameters
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Parameters, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the deformation gradient
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Deformation, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
 
 protected:
     index_t m_pIndex;

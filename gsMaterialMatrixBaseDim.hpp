@@ -30,6 +30,143 @@ namespace gismo
 
 //--------------------------------------------------------------------------------------------------------------------------------------
 
+template <short_t dim, class T >
+void gsMaterialMatrixBaseDim<dim,T>::density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    m_map.mine().flags = NEED_VALUE;
+    m_map.mine().points = u;
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
+
+    result.resize(1, u.cols());
+    m_thickness->piece(patch).eval_into(m_map.mine().values[0], m_Tmat);
+    m_density->piece(patch).eval_into(m_map.mine().values[0], m_rhomat);
+    for (index_t i = 0; i != u.cols(); ++i) // points
+    {
+        result(0,i) = m_Tmat(0,i)*m_rhomat(0,i);
+    }
+
+}
+
+template <short_t dim, class T >
+void gsMaterialMatrixBaseDim<dim,T>::thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+{
+    m_map.mine().flags = NEED_VALUE;
+    m_map.mine().points = u;
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
+    m_thickness->piece(patch).eval_into(m_map.mine().values[0], result);
+}
+
+template <short_t dim, class T >
+void gsMaterialMatrixBaseDim<dim,T>::stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    result.resize(3, u.cols());
+    gsMatrix<T> tmp, C;
+    std::pair<gsMatrix<T>,gsMatrix<T>> res;
+    deformation_into(patch,u,tmp);
+    for (index_t i=0; i!= u.cols(); i++)
+    {
+        _getMetric(i,0.0,true); // on point i, with height 0.0
+        C = tmp.reshapeCol(i,3,3);
+        res = this->_evalStretch(C);
+        result.col(i) = res.second.reshape(3,1);
+    }
+}
+
+template <short_t dim, class T >
+void gsMaterialMatrixBaseDim<dim,T>::stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    result.resize(9, u.cols());
+    gsMatrix<T> tmp, C;
+    std::pair<gsMatrix<T>,gsMatrix<T>> res;
+    deformation_into(patch,u,tmp);
+    for (index_t i=0; i!= u.cols(); i++)
+    {
+        _getMetric(i,0.0,true); // on point i, with height 0.0
+        C = tmp.reshapeCol(i,3,3);
+        res = this->_evalStretch(C);
+        result.col(i) = res.second.reshape(9,1);
+    }
+}
+
+// Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) convariant basis
+template <short_t dim, class T >
+void gsMaterialMatrixBaseDim<dim,T>::transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+{
+    result.resize(9, u.cols());
+    gsMatrix<T> tmp, conbasis,sbasis;
+    stretchDir_into(patch,u,tmp);
+    for (index_t i=0; i!= u.cols(); i++)
+    {
+        _getMetric(i,0.0,true); // on point i, with height 0.0
+        sbasis = tmp.reshapeCol(i,3,3);
+        conbasis = m_gcon_ori;
+        result.col(i) = _transformation(conbasis,sbasis).reshape(9,1);
+    }
+}
+
+template <short_t dim, class T >
+void gsMaterialMatrixBaseDim<dim,T>::parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+{
+    m_map.mine().flags = NEED_VALUE;
+    m_map.mine().points = u;
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
+
+    gsMatrix<T> tmp;
+    result.resize(m_pars.size(),m_map.mine().values[0].cols());
+    result.setZero();
+    for (size_t v=0; v!=m_pars.size(); v++)
+    {
+        m_pars[v]->piece(patch).eval_into(m_map.mine().values[0], tmp);
+        result.row(v) = tmp;
+    }
+}
+
+// Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) convariant basis
+template <short_t dim, class T >
+void gsMaterialMatrixBaseDim<dim,T>::deformation_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+{
+    m_map.mine().points = u;
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
+
+    _computePoints(patch,u,true);
+
+    result.resize(9, u.cols());
+    std::pair<gsVector<T>,gsMatrix<T>> res;
+    for (index_t i=0; i!= u.cols(); i++)
+    {
+        _getMetric(i,0.0,true); // on point i, with height 0.0
+
+        gsAsMatrix<T> C = result.reshapeCol(i,3,3);
+        C.setZero();
+        C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+        C(2,2) = 1./m_J0_sq;
+    }
+}
+
+template <short_t dim, class T >
+void gsMaterialMatrixBaseDim<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool basis) const
+{
+    gsMatrix<T> tmp;
+
+    this->_computeMetricUndeformed(patch,u,basis);
+
+    if (Base::m_defpatches->nPieces()!=0)
+        this->_computeMetricDeformed(patch,u,basis);
+
+    m_thickness->piece(patch).eval_into(m_map.mine().values[0], m_Tmat);
+
+    m_parmat.resize(m_pars.size(),m_map.mine().values[0].cols());
+    m_parmat.setZero();
+
+    for (size_t v=0; v!=m_pars.size(); v++)
+    {
+        m_pars[v]->piece(patch).eval_into(m_map.mine().values[0], tmp);
+        m_parmat.row(v) = tmp;
+    }
+
+    m_parvals.resize(m_pars.size());
+}
+
 template <short_t dim, class T>
 void gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed(const index_t patch, const gsMatrix<T> & u, bool basis) const
 {

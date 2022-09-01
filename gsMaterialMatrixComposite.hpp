@@ -38,7 +38,7 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                         const std::vector< gsFunctionSet<T> *>  & alpha,
                         const std::vector< gsFunctionSet<T> *>  & rho           )
                         :
-                        Base(mp),
+                        Base(&mp,nullptr,nullptr,nullptr),
                         m_Ts(give(thickness)),
                         m_Gs(give(G)),
                         m_As(give(alpha)),
@@ -54,7 +54,7 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                         const std::vector< gsFunctionSet<T> *>  & G,
                         const std::vector< gsFunctionSet<T> *>  & alpha         )
                         :
-                        Base(mp),
+                        Base(&mp,nullptr,nullptr,nullptr),
                         m_Ts(give(thickness)),
                         m_Gs(give(G)),
                         m_As(give(alpha))

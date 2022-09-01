@@ -125,5 +125,13 @@ gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix
     m_materialMat->parameters_into(m_pIndex,u,result);
 }
 
+template <class T, enum MaterialOutput out>
+template <enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::Deformation, void>::type
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    m_materialMat->deformation_into(m_pIndex,u,result);
+}
+
 
 } // end namespace
