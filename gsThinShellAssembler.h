@@ -316,6 +316,12 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     T getArea(const gsFunctionSet<T> & geometry);
 
+    /// See \ref gsThinShellAssemblerBase for details
+    T getDisplacementNorm(const gsFunctionSet<T> & deformed);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    T getElasticEnergy(const gsFunctionSet<T> & deformed);
+
     //--------------------- MATERIAL ACCESS --------------------------------//
     gsMaterialMatrixContainer<T> materials()    const  {return m_materialMatrices;}
     gsMaterialMatrixBase<T> * material(const index_t p)    const  {return m_materialMatrices.piece(p);}
@@ -785,6 +791,12 @@ public:
 
     /// Returns the area of \a geometry
     virtual T getArea(const gsFunctionSet<T> & geometry) = 0;
+
+    /// Returns the displacement norm, i.e. norm = sqrt(u'*u/area)
+    virtual T getDisplacementNorm(const gsFunctionSet<T> & deformed) = 0;
+
+    /// Returns the elastic energy norm, i.e. norm = 0.5 * u'*F_int
+    virtual T getElasticEnergy(const gsFunctionSet<T> & deformed) = 0;
 
     /// Returns a reference to the system matrix that is assembled
     virtual const gsSparseMatrix<T> & matrix()  const  = 0;

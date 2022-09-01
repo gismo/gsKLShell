@@ -2335,10 +2335,51 @@ T gsThinShellAssembler<d, T, bending>::getArea(const gsFunctionSet<T> & geometry
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
 
-    geometryMap defG    = m_assembler.getMap(geometry);
+    geometryMap G = m_assembler.getMap(geometry);
 
     gsExprEvaluator<T> evaluator(m_assembler);
-    T result = evaluator.integral(meas(defG));
+    T result = evaluator.integral(meas(G));
+    return result;
+}
+
+template <short_t d, class T, bool bending>
+T gsThinShellAssembler<d, T, bending>::getDisplacementNorm(const gsFunctionSet<T> & deformed)
+{
+    m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
+
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_def   = m_assembler.getMap(deformed);
+
+    auto u   = m_def - m_ori;
+
+    gsExprEvaluator<T> evaluator(m_assembler);
+    T result = evaluator.integral( u.tr() * u * meas(m_def));
+    T area = evaluator.integral(meas(m_ori));
+
+    return std::pow(result/area,0.5);
+}
+
+template <short_t d, class T, bool bending>
+T gsThinShellAssembler<d, T, bending>::getElasticEnergy(const gsFunctionSet<T> & deformed)
+{
+    m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
+
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_def   = m_assembler.getMap(deformed);
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMatrices,&deformed);
+    auto S0  = m_assembler.getCoeff(m_S0);
+    auto S1  = m_assembler.getCoeff(m_S1);
+    auto u   = m_def - m_ori;
+
+    auto m_N        = S0.tr();
+    auto m_M        = S1.tr(); // output is a column
+
+    gsExprEvaluator<T> evaluator(m_assembler);
+    T result = evaluator.integral(0.5 * ( u.tr() * ( m_N + m_M ).tr() ) * meas(m_def));
     return result;
 }
 
