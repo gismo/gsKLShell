@@ -2156,7 +2156,7 @@ T gsThinShellAssembler<d, T, bending>::getArea(const gsFunctionSet<T> & geometry
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
 
-    geometryMap G    = m_assembler.getMap(geometry);
+    geometryMap G = m_assembler.getMap(geometry);
 
     gsExprEvaluator<T> evaluator(m_assembler);
     T result = evaluator.integral(meas(G));
