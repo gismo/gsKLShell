@@ -1269,9 +1269,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
             // S33_old = (S33 == 0.0) ? 1.0 : S33;
             C3333   = _Cijkl3D(2,2,2,2,c,cinv);
 
-            gsDebugVar(S33);
-            gsDebugVar(C3333);
-
             dc33 = -2. * S33 / C3333;
             for (index_t it = 0; it < itmax; it++)
             {
@@ -1286,11 +1283,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
                 C3333   = _Cijkl3D(2,2,2,2,c,cinv); //  or _Cijkl???
 
                 dc33 = -2. * S33 / C3333;
-
-                gsDebugVar(c);
-                gsDebugVar(S33);
-                gsDebugVar(C3333);
-
                 // if (abs(S33/S33_old) < tol)
                 if (abs(dc33) < tol)
                 {
