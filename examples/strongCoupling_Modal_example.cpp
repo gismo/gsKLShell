@@ -66,6 +66,7 @@ int main(int argc, char *argv[])
     fn1 = "pde/2p_square_geom.xml";
     fn2 = "pde/2p_square_bvp.xml";
     fn3 = "options/solver_options.xml";
+    std::string out = "ModalResults";
 
     gsCmdLine cmd("Composite basis tests.");
     cmd.addReal( "D", "Dir", "Dirichlet BC penalty scalar",  bcDirichlet );
@@ -73,6 +74,7 @@ int main(int argc, char *argv[])
     cmd.addString( "G", "geom","File containing the geometry",  fn1 );
     cmd.addString( "B", "bvp", "File containing the Boundary Value Problem (BVP)",  fn2 );
     cmd.addString( "O", "opt", "File containing solver options",  fn3 );
+    cmd.addString( "o", "out", "Output directory",  out );
     cmd.addInt( "p", "degree", "Set the polynomial degree of the basis.", degree );
     cmd.addInt( "s", "smoothness", "Set the smoothness of the basis.",  smoothness );
     cmd.addInt( "r", "numRefine", "Number of refinement-loops.",  numRefine );
@@ -161,7 +163,7 @@ int main(int argc, char *argv[])
         mp.uniformRefine(1,degree-smoothness);
     gsInfo<<"Finished\n";
 
-    if (plot) gsWriteParaview(mp,"mp",10,true,false);
+    if (plot) gsWriteParaview(mp,out + "/" + "mp",10,true,false);
     // for (size_t p = 0; p!=mp.nPatches(); ++p)
     //     gsDebugVar(mp.patch(p));
 
@@ -265,7 +267,7 @@ int main(int argc, char *argv[])
         //gsWrite(dbasis,"dbasis");
     }
     if (plot)
-        gsWriteParaview(geom,"geom",200,true);
+        gsWriteParaview(geom,out + "/" + "geom",200,true);
 
     // gsMappedSpline<2,real_t> mspline(bb2,coefs);
     // geom = mspline.exportToPatches();
@@ -339,11 +341,11 @@ int main(int argc, char *argv[])
     if (plot)
     {
         gsInfo<<"Plotting in Paraview...\n";
-        int systemRet = system("mkdir -p ModalResults");
+        int systemRet = system("mkdir -p " + out);
         GISMO_ASSERT(systemRet!=-1,"Something went wrong with calling the system argument");
 
         gsMatrix<> modeShape;
-        std::string dirname = "ModalResults";
+        std::string dirname = out;
         std::string output = "modes";
         gsParaviewCollection collection(dirname + "/" + output);
 
@@ -386,7 +388,7 @@ int main(int argc, char *argv[])
     if (write)
     {
         std::ofstream file;
-        file.open("ModalResults/eigenvalues.csv",std::ofstream::out | std::ofstream::app);
+        file.open(out + "/" + "eigenvalues.csv",std::ofstream::out | std::ofstream::app);
         for (index_t k=0; k!=values.size(); k++)
             file<<std::setprecision(12)<<values.at(k)<<"\n";
 
