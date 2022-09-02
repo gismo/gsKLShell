@@ -42,7 +42,7 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
                                         :
                                         m_patches(patches),
                                         m_basis(basis),
-                                        m_spaceBasis(&basis),
+                                        m_spaceBasis(&m_basis),
                                         m_bcs(bconditions),
                                         m_forceFun(&surface_force),
                                         m_materialMat(materialmatrix)
@@ -191,6 +191,7 @@ template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::setBasis(const gsMultiBasis<T> & basis)
 {
     m_basis = basis;
+    m_spaceBasis = &m_basis;
     _initialize();
 }
 
