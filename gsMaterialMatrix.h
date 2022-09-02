@@ -127,6 +127,12 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
+    /// Sets the thickness
+    void setThickness(const gsFunction<T> & thickness);
+
+    /// Gets the thickness
+    gsFunction<T> * getThickness();
+
     /// Sets the YoungsModulus
     void setYoungsModulus(const gsFunction<T> & YoungsModulus);
 

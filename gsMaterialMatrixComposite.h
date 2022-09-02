@@ -99,6 +99,13 @@ public:
 
     void info() const;
 
+    /// Sets the thickness
+    void setThickness(const gsFunction<T> & thickness)
+    {
+        m_thickness = const_cast<gsFunction<T> *>(&thickness);
+    }
+
+
 public:
     /// Shared pointer for gsMaterialMatrixComposite
     typedef memory::shared_ptr< gsMaterialMatrixComposite > Ptr;

@@ -165,6 +165,8 @@ public:
      */
     inline virtual gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
 
+    virtual void setThickness(const gsFunction<T> & Thickness)
+    { GISMO_NO_IMPLEMENTATION; }
     virtual void setYoungsModulus(const gsFunction<T> & YoungsModulus)
     { GISMO_NO_IMPLEMENTATION; }
     virtual gsFunction<T> * getYoungsModulus()

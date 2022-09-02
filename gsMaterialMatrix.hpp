@@ -544,6 +544,12 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_pstress_impl(const index_t p
 
 //////// Material getters and setters
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::setThickness(const gsFunction<T> & thickness)
+{
+    m_thickness = const_cast<gsFunction<T> *>(&thickness);
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::setYoungsModulus(const gsFunction<T> & YoungsModulus)
 {
     if ((index_t)m_pars.size() < 1)
