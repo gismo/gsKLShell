@@ -110,11 +110,11 @@ int main(int argc, char *argv[])
      */
 
     gsFileData<> fd;
-    gsInfo<<"Reading geometry from "<<fn1<<"...";
+    gsInfo<<"Reading geometry from "<<fn1<<"..."<<std::flush;
     gsReadFile<>(fn1, mp);
     if (mp.nInterfaces()==0 && mp.nBoundary()==0)
     {
-        gsInfo<<"No topology found. Computing it...";
+        gsInfo<<"No topology found. Computing it..."<<std::flush;
         mp.computeTopology();
     }
     gsInfo<<"Finished\n";
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
 
     fd.read(fn2);
     index_t num = 0;
-    gsInfo<<"Reading BCs from "<<fn2<<"...";
+    gsInfo<<"Reading BCs from "<<fn2<<"..."<<std::flush;
     num = fd.template count<gsBoundaryConditions<>>();
     GISMO_ENSURE(num==1,"Number of boundary condition objects in XML should be 1, but is "<<num);
     fd.template getFirst<gsBoundaryConditions<>>(bc); // Multipatch domain
@@ -134,25 +134,25 @@ int main(int argc, char *argv[])
 
     // Material properties
     gsFunctionExpr<> t,E,nu,rho;
-    gsInfo<<"Reading thickness from "<<fn2<<" (ID=10) ...";
+    gsInfo<<"Reading thickness from "<<fn2<<" (ID=10) ..."<<std::flush;
     fd.getId(10,t);
     gsInfo<<"Finished\n";
 
-    gsInfo<<"Reading Young's Modulus from "<<fn2<<" (ID=11) ...";
+    gsInfo<<"Reading Young's Modulus from "<<fn2<<" (ID=11) ..."<<std::flush;
     fd.getId(11,E);
     gsInfo<<"Finished\n";
 
-    gsInfo<<"Reading Poisson ratio from "<<fn2<<" (ID=12) ...";
+    gsInfo<<"Reading Poisson ratio from "<<fn2<<" (ID=12) ..."<<std::flush;
     fd.getId(12,nu);
     gsInfo<<"Finished\n";
 
-    gsInfo<<"Reading density from "<<fn2<<" (ID=13) ...";
+    gsInfo<<"Reading density from "<<fn2<<" (ID=13) ..."<<std::flush;
     fd.getId(13,rho);
     gsInfo<<"Finished\n";
 
     gsMultiPatch<> geom = mp;
 
-    gsInfo<<"Setting degree and refinement...";
+    gsInfo<<"Setting degree and refinement..."<<std::flush;
     GISMO_ENSURE(degree>=mp.patch(0).degree(0),"Degree must be larger than or equal to the degree of the initial geometry, but degree = "<<degree<<" and the original degree = "<<mp.patch(0).degree(0));
     mp.degreeElevate(degree-mp.patch(0).degree(0));
 
@@ -181,11 +181,11 @@ int main(int argc, char *argv[])
     gsSparseMatrix<> global2local;
     gsMatrix<> coefs;
 
-    gsInfo<<"Making gsMultiBasis...";
+    gsInfo<<"Making gsMultiBasis..."<<std::flush;
     gsMultiBasis<> dbasis(mp);
     gsInfo<<"Finished\n";
 
-    gsInfo<<"Constructing Map...";
+    gsInfo<<"Constructing Map..."<<std::flush;
         if (method==-1)
         {
             // identity map
@@ -264,6 +264,8 @@ int main(int argc, char *argv[])
         //gsWrite(geom,"geom");
         //gsWrite(dbasis,"dbasis");
     }
+    if (plot)
+        gsWriteParaview(geom,"geom",200,true);
 
     // gsMappedSpline<2,real_t> mspline(bb2,coefs);
     // geom = mspline.exportToPatches();
@@ -283,18 +285,22 @@ int main(int argc, char *argv[])
 
     // Initialize the system
 
-    gsInfo<<"Assembling...";
+    gsInfo<<"Assembling stiffness matrix..."<<std::flush;
     assembler.assemble();
     gsSparseMatrix<> matrix = assembler.matrix();
+    gsInfo<<"Finished\n";
+    // gsDebugVar(matrix.toDense());
     gsVector<> vector = assembler.rhs();
+    gsInfo<<"Assembling mass matrix..."<<std::flush;
     assembler.assembleMass();
     gsSparseMatrix<> mass   = assembler.massMatrix();
     gsInfo<<"Finished\n";
+    // gsDebugVar(mass.toDense());
 
     gsVector<> values;
     gsMatrix<> vectors;
 
-    gsInfo<<"Computing Eigenmodes...";
+    gsInfo<<"Computing Eigenmodes..."<<std::flush;
 #ifdef GISMO_WITH_SPECTRA
     Spectra::SortRule selectionRule = Spectra::SortRule::LargestMagn;
     Spectra::SortRule sortRule = Spectra::SortRule::SmallestMagn;
@@ -376,6 +382,15 @@ int main(int argc, char *argv[])
             }
         }
         collection.save();
+    }
+    if (write)
+    {
+        std::ofstream file;
+        file.open("ModalResults/eigenvalues.csv",std::ofstream::out | std::ofstream::app);
+        for (index_t k=0; k!=values.size(); k++)
+            file<<std::setprecision(12)<<values.at(k)<<"\n";
+
+        file.close();
     }
 
     //! [Export visualization in ParaView]
