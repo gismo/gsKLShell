@@ -163,7 +163,14 @@ int main(int argc, char *argv[])
         mp.uniformRefine(1,degree-smoothness);
     gsInfo<<"Finished\n";
 
-    if (plot) gsWriteParaview(mp,out + "/" + "mp",10,true,false);
+    if (plot)
+    {
+        std::string commands = "mkdir -p " + out;
+        const char *command = commands.c_str();
+        int systemRet = system(command);
+        GISMO_ASSERT(systemRet!=-1,"Something went wrong with calling the system argument");
+        gsWriteParaview(mp,out + "/" + "mp",10,true,false);
+    }
     // for (size_t p = 0; p!=mp.nPatches(); ++p)
     //     gsDebugVar(mp.patch(p));
 
@@ -341,9 +348,6 @@ int main(int argc, char *argv[])
     if (plot)
     {
         gsInfo<<"Plotting in Paraview...\n";
-        int systemRet = system("mkdir -p " + out);
-        GISMO_ASSERT(systemRet!=-1,"Something went wrong with calling the system argument");
-
         gsMatrix<> modeShape;
         std::string dirname = out;
         std::string output = "modes";
