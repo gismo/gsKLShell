@@ -195,75 +195,75 @@ int main(int argc, char *argv[])
     gsInfo<<"Finished\n";
 
     gsInfo<<"Constructing Map..."<<std::flush;
-        if (method==-1)
-        {
-            // identity map
-            global2local.resize(dbasis.totalSize(),dbasis.totalSize());
-            for (size_t k=0; k!=dbasis.totalSize(); ++k)
-                global2local.coeffRef(k,k) = 1;
-            geom = mp;
-            gsInfo << "Basis Patch: " << dbasis.basis(0).component(0) << "\n";
-            bb2.init(dbasis,global2local);
-        }
-        else if (method==0)
-        {
-            gsMPBESSpline<2,real_t> cgeom(mp,3);
-            gsMappedBasis<2,real_t> basis = cgeom.getMappedBasis();
+    if (method==-1)
+    {
+        // identity map
+        global2local.resize(dbasis.totalSize(),dbasis.totalSize());
+        for (size_t k=0; k!=dbasis.totalSize(); ++k)
+            global2local.coeffRef(k,k) = 1;
+        geom = mp;
+        gsInfo << "Basis Patch: " << dbasis.basis(0).component(0) << "\n";
+        bb2.init(dbasis,global2local);
+    }
+    else if (method==0)
+    {
+        gsMPBESSpline<2,real_t> cgeom(mp,3);
+        gsMappedBasis<2,real_t> basis = cgeom.getMappedBasis();
 
-            global2local = basis.getMapper().asMatrix();
-            geom = cgeom.exportToPatches();
-            auto container = basis.getBasesCopy();
-            dbasis = gsMultiBasis<>(container,mp.topology());
-            bb2.init(dbasis,global2local);
-        }
-        else if (method==1)
-        {
-            geom = mp;
-            gsDPatch<2,real_t> dpatch(geom);
-            dpatch.compute();
-            dpatch.matrix_into(global2local);
+        global2local = basis.getMapper().asMatrix();
+        geom = cgeom.exportToPatches();
+        auto container = basis.getBasesCopy();
+        dbasis = gsMultiBasis<>(container,mp.topology());
+        bb2.init(dbasis,global2local);
+    }
+    else if (method==1)
+    {
+        geom = mp;
+        gsDPatch<2,real_t> dpatch(geom);
+        dpatch.compute();
+        dpatch.matrix_into(global2local);
 
-            global2local = global2local.transpose();
-            geom = dpatch.exportToPatches();
-            dbasis = dpatch.localBasis();
-            bb2.init(dbasis,global2local);
-        }
-        else if (method==2) // Pascal
-        {
-            // The approx. C1 space
-            gsApproxC1Spline<2,real_t> approxC1(mp,dbasis);
-            // approxC1.options().setSwitch("info",info);
-            // approxC1.options().setSwitch("plot",plot);
-            approxC1.options().setSwitch("interpolation",true);
-            approxC1.options().setInt("gluingDataDegree",-1);
-            approxC1.options().setInt("gluingDataSmoothness",-1);
-            approxC1.update(bb2);
-        }
-        else if (method==3) // Andrea
-        {
-            gsC1SurfSpline<2,real_t> smoothC1(mp,dbasis);
-            smoothC1.init();
-            smoothC1.compute();
+        global2local = global2local.transpose();
+        geom = dpatch.exportToPatches();
+        dbasis = dpatch.localBasis();
+        bb2.init(dbasis,global2local);
+    }
+    else if (method==2) // Pascal
+    {
+        // The approx. C1 space
+        gsApproxC1Spline<2,real_t> approxC1(mp,dbasis);
+        // approxC1.options().setSwitch("info",info);
+        // approxC1.options().setSwitch("plot",plot);
+        approxC1.options().setSwitch("interpolation",true);
+        approxC1.options().setInt("gluingDataDegree",-1);
+        approxC1.options().setInt("gluingDataSmoothness",-1);
+        approxC1.update(bb2);
+    }
+    else if (method==3) // Andrea
+    {
+        gsC1SurfSpline<2,real_t> smoothC1(mp,dbasis);
+        smoothC1.init();
+        smoothC1.compute();
 
-            global2local = smoothC1.getSystem();
-            global2local = global2local.transpose();
-            smoothC1.getMultiBasis(dbasis);
-            bb2.init(dbasis,global2local);
-        }
-        else if (method==4)
-        {
-            geom = mp;
-            gsAlmostC1<2,real_t> almostC1(geom);
-            almostC1.compute();
-            almostC1.matrix_into(global2local);
+        global2local = smoothC1.getSystem();
+        global2local = global2local.transpose();
+        smoothC1.getMultiBasis(dbasis);
+        bb2.init(dbasis,global2local);
+    }
+    else if (method==4)
+    {
+        geom = mp;
+        gsAlmostC1<2,real_t> almostC1(geom);
+        almostC1.compute();
+        almostC1.matrix_into(global2local);
 
-            global2local = global2local.transpose();
-            geom = almostC1.exportToPatches();
-            dbasis = almostC1.localBasis();
-            bb2.init(dbasis,global2local);
-        }
-        else
-            GISMO_ERROR("Option "<<method<<" for method does not exist");
+        global2local = global2local.transpose();
+        geom = almostC1.exportToPatches();
+        dbasis = almostC1.localBasis();
+        bb2.init(dbasis,global2local);
+    }
+    else
+        GISMO_ERROR("Option "<<method<<" for method does not exist");
 
     gsInfo<<"Finished\n";
 
@@ -392,7 +392,7 @@ int main(int argc, char *argv[])
     if (write)
     {
         std::ofstream file;
-        file.open(out + "/" + "eigenvalues.csv",std::ofstream::out | std::ofstream::app);
+        file.open(out + "/" + "eigenvalues.csv",std::ofstream::out);
         for (index_t k=0; k!=values.size(); k++)
             file<<std::setprecision(12)<<values.at(k)<<"\n";
 
