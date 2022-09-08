@@ -254,6 +254,7 @@ int main(int argc, char *argv[])
     {
         geom = mp;
         gsAlmostC1<2,real_t> almostC1(geom);
+        almostC1.options().setSwitch("SharpCorners",false);
         almostC1.compute();
         almostC1.matrix_into(global2local);
 
