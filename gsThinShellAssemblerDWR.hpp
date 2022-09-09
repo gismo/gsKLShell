@@ -37,8 +37,6 @@ gsThinShellAssemblerDWR<d, T, bending>::gsThinShellAssemblerDWR(
                                                             )
                                                             :
                                                             Base(patches,basisL,bconditions,surface_force,materialmatrix),
-                                                            m_basisL(basisL),
-                                                            m_basisH(basisH),
                                                             m_bcs(bconditions)
 {
     m_assemblerL = new gsThinShellAssembler<d,T,bending>(patches,basisL,bconditions,surface_force,materialmatrix);
@@ -61,15 +59,15 @@ gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleMass(gsThinSh
 //     gsExprAssembler<T> assembler(1,1);
 //     // Elements used for numerical integration
 
-//     assembler.setIntegrationElements(m_basisH);
+//     assembler.setIntegrationElements(m_assemblerH->getBasis());
 //     assembler.setOptions(m_assemblerL->options());
 
 //     // Initialize the geometry maps
 //     geometryMap m_ori   = assembler.getMap(m_patches);           // this map is used for integrals
 
 //     // Set the discretization space
-//     space spaceL = assembler.getSpace(m_basisL, d, 0); // last argument is the space ID
-//     space spaceH = assembler.getTestSpace(spaceL , m_basisH);
+//     space spaceL = assembler.getSpace(m_assemblerL->getBasis(), d, 0); // last argument is the space ID
+//     space spaceH = assembler.getTestSpace(spaceL , m_assemblerH->getBasis());
 
 //     this->_assembleDirichlet();
 
@@ -2561,11 +2559,11 @@ void gsThinShellAssemblerDWR<d, T, bending>::_applyLoadsToElWiseError(const gsMu
         else                            // in physical space
             m_patches.patch(m_pLoads[i].patch).invertPoints(m_pLoads[i].point,forcePoint);
 
-        std::vector<T> elements;
+        std::vector<index_t> elements;
 
         #pragma omp parallel
         {
-            std::vector<T> elements_private;
+            std::vector<index_t> elements_private;
 #ifdef _OPENMP
             const int tid = omp_get_thread_num();
             const int nt  = omp_get_num_threads();
@@ -2573,11 +2571,11 @@ void gsThinShellAssemblerDWR<d, T, bending>::_applyLoadsToElWiseError(const gsMu
 #endif
 
             index_t c = 0;
-            for (unsigned patchInd=0; patchInd < m_basisL.nBases(); ++patchInd)
+            for (unsigned patchInd=0; patchInd < m_assemblerL->getBasis().nBases(); ++patchInd)
             {
                 // Initialize domain element iterator
                 typename gsBasis<T>::domainIter domIt =
-                    m_basisL.piece(patchInd).makeDomainIterator();
+                    m_assemblerL->getBasis().piece(patchInd).makeDomainIterator();
 
 #ifdef _OPENMP
                 c = patch_cnt + tid;

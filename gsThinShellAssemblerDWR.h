@@ -342,8 +342,6 @@ protected:
 
     gsPointLoads<T> m_pLoads;
 
-    gsMultiBasis<T> m_basisL, m_basisH;
-
     T m_error;
     std::vector<T> m_errors;
 

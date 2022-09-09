@@ -119,8 +119,10 @@ public:
     void setBasis(const gsMultiBasis<T> & basis);
 
     /// See \ref gsThinShellAssemblerBase for details
-    void setUndeformed(const gsMultiPatch<T> & patches);
+    const gsMultiBasis<T> & getBasis() { return m_basis; }
 
+    /// See \ref gsThinShellAssemblerBase for details
+    void setUndeformed(const gsMultiPatch<T> & patches);
 
     /// See \ref gsThinShellAssemblerBase for details
     void homogenizeDirichlet();
@@ -142,6 +144,9 @@ public:
         this->_getOptions();
         this->_initialize();
     }
+
+    /// See \ref gsThinShellAssemblerBase for details
+    const gsFunctionSet<T> & getSpaceBasis() { return *m_spaceBasis; }
 
     /// See \ref gsThinShellAssemblerBase for details
     gsDofMapper getMapper() const { return m_mapper; } ;
@@ -479,6 +484,12 @@ public:
     virtual void setBasis(const gsMultiBasis<T> & basis) = 0;
 
     /**
+     * @brief      Gets the basis
+     *
+     */
+    virtual const gsMultiBasis<T> & getBasis() = 0;
+
+    /**
      * @brief      Overwrites the undeformed geometry
      *
      * @param[in]  bconditions  The undeformed geometry
@@ -497,6 +508,10 @@ public:
 
     /// Set the basis that is used for assembly (but not for quadrature!)
     virtual void setSpaceBasis(const gsFunctionSet<T> & spaceBasis) = 0;
+
+    /// Get the basis that is used for assembly (but not for quadrature!)
+    virtual const gsFunctionSet<T> & getSpaceBasis()  = 0;
+    // virtual const gsMultiBasis<T> & getSpaceBasis() = 0;
 
     /// Assembles the mass matrix (including density and thickness!); if lumped=true, a lumped mass matrix will be constructed,
     virtual void assembleMass(bool lumped = false) = 0;
