@@ -1154,7 +1154,6 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl( const gsMultiPat
             _applyLoadsToError(dualL,dualH,integral);
 
         m_error = integral+bintegral;
-        return;
     }
     else if (_elWise == 1) // element-wise
     {
@@ -1162,7 +1161,6 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl( const gsMultiPat
         m_errors = ev.elementwise();
         if (m_pLoads.numLoads()!=0)
             _applyLoadsToElWiseError(dualL,dualH,m_errors);
-        return;
     }
     else if (_elWise == 2) // function-wise
     {
@@ -1178,7 +1176,6 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl( const gsMultiPat
         // gsDebugVar(ev.eval( space * zsolL,pt));
 
         // result =
-        return;
     }
     else
         GISMO_ERROR("Unknown");
@@ -1305,7 +1302,6 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
             _applyLoadsToError(dualL,dualH,integral);
 
         m_error = integral+bintegral;
-        return;
     }
     else if (_elWise == 1) // element-wise
     {
@@ -1313,7 +1309,6 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
         m_errors = ev.elementwise();
         if (m_pLoads.numLoads()!=0)
             _applyLoadsToElWiseError(dualL,dualH,m_errors);
-        return;
     }
     else if (_elWise == 2) // function-wise
     {
@@ -1335,7 +1330,6 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
         // std::vector<T> vec( exprAssembler.rhs().data(),
         //                     exprAssembler.rhs().data() + exprAssembler.rhs().rows() * exprAssembler.rhs().cols());
         integral = 0;
-        return;
     }
     else
         GISMO_ERROR("Unknown");
@@ -1423,7 +1417,6 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(  const gsMultiPatch<T
     {
         m_error = ev.integralElWise(expr);
         m_errors = ev.elementwise();
-        return;
     }
     else if (_elWise == 2) // function-wise
     {
@@ -1445,7 +1438,6 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(  const gsMultiPatch<T
         // std::vector<T> vec( exprAssembler.rhs().data(),
         //                     exprAssembler.rhs().data() + exprAssembler.rhs().rows() * exprAssembler.rhs().cols());
         integral = 0;
-        return;
     }
     else
         GISMO_ERROR("Unknown");
@@ -1559,18 +1551,15 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertia_impl(  const gs
     if (_elWise == 0)
     {
         m_error = ev.integral(expr);
-        return;
     }
     else if (_elWise == 1) // element-wise
     {
         m_error = ev.integralElWise(expr);
         m_errors = ev.elementwise();
-        return;
     }
     else if (_elWise == 2) // function-wise
     {
         m_error = 0;
-        return;
     }
     else
         GISMO_ERROR("Unknown");
@@ -1860,18 +1849,15 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
     if (_elWise == 0)
     {
         m_error = ev.integral(expr);
-        return;
     }
     else if (_elWise == 1)
     {
         m_error = ev.integralElWise(expr);
         m_errors = ev.elementwise();
-        return;
     }
     else if (_elWise == 2)
     {
         m_error = 0;
-        return;
     }
     else
         GISMO_ERROR("Unknown");
@@ -2083,21 +2069,14 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
     auto expr   = A  * meas(Gori) - evPrimalL * Bdiff * meas(Gori) + (evDualH - evDualL) * ( Bprimal * meas(Gori)  - one);
 
     if (_elWise == 0)
-    {
         m_error = ev.integral(expr);
-        return;
-    }
     else if (_elWise == 1)
     {
         m_error = ev.integralElWise(expr);
         m_errors = ev.elementwise();
-        return;
     }
     else if (_elWise == 2)
-    {
         m_error = 0;
-        return;
-    }
     else
         GISMO_ERROR("Unknown");
 
