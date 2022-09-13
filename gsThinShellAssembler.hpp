@@ -942,8 +942,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 
     auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
 
-    element el = m_assembler.getElement();
-    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / el.area(m_ori);
+    element el   = m_assembler.getElement();
+    auto h       = (el.area(m_ori.left()) + el.area(m_ori.right())) / 2;
+    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / h;
 
     // C^0 coupling
     m_assembler.assembleIfc(m_weakC0,
@@ -998,10 +999,10 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
     auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
     auto mmDcart = (con2cartI * reshape(mmD,3,3) * cart2cov);
 
-    element el = m_assembler.getElement();
-    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / el.area(m_ori);
-    auto alpha_r = m_alpha_r_ifc * reshape(mmDcart,9,1).max().val() / el.area(m_ori);
-
+    element el   = m_assembler.getElement();
+    auto h       = (el.area(m_ori.left()) + el.area(m_ori.right())) / 2;
+    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / h;
+    auto alpha_r = m_alpha_r_ifc * reshape(mmDcart,9,1).max().val() / h;
 
     auto du = ((m_def.left()-m_ori.left()) - (m_def.right()-m_ori.right()));
 
@@ -1133,10 +1134,10 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
     auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
     auto mmDcart = (con2cartI * reshape(mmD,3,3) * cart2cov);
 
-    element el = m_assembler.getElement();
-    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / el.area(m_ori);
-    auto alpha_r = m_alpha_r_ifc * reshape(mmDcart,9,1).max().val() / el.area(m_ori);
-
+    element el   = m_assembler.getElement();
+    auto h       = (el.area(m_ori.left()) + el.area(m_ori.right())) / 2;
+    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / h;
+    auto alpha_r = m_alpha_r_ifc * reshape(mmDcart,9,1).max().val() / h;
 
     auto du = ((m_def.left()-m_ori.left()) - (m_def.right()-m_ori.right()));
 
@@ -1203,8 +1204,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
 
-    element el = m_assembler.getElement();
-    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / el.area(m_ori);
+    element el   = m_assembler.getElement();
+    auto h       = (el.area(m_ori.left()) + el.area(m_ori.right())) / 2;
+    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / h;
 
     auto du = ((m_def.left()-m_ori.left()) - (m_def.right()-m_ori.right()));
 
@@ -1240,8 +1242,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
 
-    element el = m_assembler.getElement();
-    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / el.area(m_ori);
+    element el   = m_assembler.getElement();
+    auto h       = (el.area(m_ori.left()) + el.area(m_ori.right())) / 2;
+    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / h;
 
     auto du = ((m_def.left()-m_ori.left()) - (m_def.right()-m_ori.right()));
 
