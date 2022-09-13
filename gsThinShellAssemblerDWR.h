@@ -505,7 +505,8 @@ public:
     virtual T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH) = 0;
     virtual T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
     virtual std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH) = 0;
-    virtual std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;    virtual std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH);
+    virtual std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
+    virtual std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH) = 0;
     virtual std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
 
     // Nonlinear elasticity
