@@ -1551,7 +1551,8 @@ public:
 
     gsMatrix<T> eval(const index_t k) const
     {
-        temp = (cartcov_expr<gsGeometryMap<T> >(_G).eval(k)).reshape(3,3).inverse();
+        cartcov_expr<Scalar> cartcov =  cartcov_expr<Scalar>(_G);
+        temp = (cartcov.eval(k)).reshape(3,3).inverse();
         return temp;
     }
 
@@ -1565,13 +1566,14 @@ public:
     void parse(gsExprHelper<Scalar> & evList) const
     {
         //GISMO_ASSERT(NULL!=m_fd, "FeVariable: FuncData member not registered");
+        cartcov(_G).parse(evList); //
+
         evList.add(_G);
         _G.data().flags |= NEED_NORMAL|NEED_DERIV;
     }
 
     void print(std::ostream &os) const { os << "cartcovinv("; _G.print(os); os <<")"; }
 };
-
 
 /// Expression for the transformation matrix FROM local contravariant TO local cartesian bases, based on a geometry map
 template<class T> class cartconinv_expr ;
@@ -1709,12 +1711,14 @@ private:
 public:
     typedef T Scalar;
 
-    cartconinv_expr(const gsGeometryMap<T> & G) : _G(G) { }
+    enum {Space = 0, ScalarValued = 0, ColBlocks = 0};
 
+    cartconinv_expr(const gsGeometryMap<T> & G) : _G(G) { }
 
     gsMatrix<T> eval(const index_t k) const
     {
-        temp = (cartcon_expr<gsGeometryMap<T> >(_G).eval(k)).reshape(3,3).inverse();
+        cartcon_expr<Scalar> cartcon =  cartcon_expr<Scalar>(_G);
+        temp = (cartcon.eval(k)).reshape(3,3).inverse();
         return temp;
     }
 
@@ -1727,6 +1731,8 @@ public:
 
     void parse(gsExprHelper<Scalar> & evList) const
     {
+        cartcon(_G).parse(evList); //
+
         //GISMO_ASSERT(NULL!=m_fd, "FeVariable: FuncData member not registered");
         evList.add(_G);
         _G.data().flags |= NEED_NORMAL|NEED_DERIV;

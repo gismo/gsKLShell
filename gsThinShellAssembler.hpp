@@ -19,6 +19,7 @@
 #include <gsKLShell/gsMaterialMatrix.h>
 #include <gsKLShell/gsMaterialMatrixBase.h>
 #include <gsKLShell/gsMaterialMatrixIntegrate.h>
+#include <gsKLShell/gsMaterialMatrixEval.h>
 
 #include <gsPde/gsBoundaryConditions.h>
 
@@ -166,8 +167,8 @@ void gsThinShellAssembler<d, T, bending>::_getOptions() const
     m_alpha_r_bc = m_options.getReal("WeakClamped");
     m_continuity = m_options.getInt("Continuity");
 
-    m_alpha_d_ifc = m_options.getReal("IfcDirichlet");
-    m_alpha_r_ifc = m_options.getReal("IfcClamped");
+    m_alpha_d_ifc = m_alpha_r_ifc = m_options.getReal("IfcDirichlet");
+    // m_alpha_r_ifc = m_options.getReal("IfcClamped");
     m_IfcDefault = m_options.getInt("IfcDefault");
 }
 
@@ -260,6 +261,7 @@ void gsThinShellAssembler<d, T, bending>::initInterfaces()
     // Find unassigned interfaces and add them to the right containers
     for (gsBoxTopology::const_iiterator it = m_patches.topology().iBegin(); it!=m_patches.topology().iEnd(); it++)
     {
+        gsDebugVar(*it);
         if (
                 std::find(m_strongC0.begin(), m_strongC0.end(), *it) == m_strongC0.end() // m_strongC0 does not contain *it
             &&  std::find(m_strongC1.begin(), m_strongC1.end(), *it) == m_strongC1.end() // m_strongC1 does not contain *it
@@ -532,17 +534,33 @@ template<int _d, bool matrix>
 typename std::enable_if<_d==3 && matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 {
+    gsMultiPatch<T> & defpatches = m_patches;
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // auto g_N = m_assembler.getBdrFunction(m_ori);
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmD(m_materialMatrices,&defpatches);
+    auto mmA = m_assembler.getCoeff(m_mmA);
+    auto mmD = m_assembler.getCoeff(m_mmD);
+
+    auto cart2cov = cartcov(m_ori);
+    auto con2cartI = cartcon(m_ori).inv();
+
+    auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
+    auto mmDcart = (con2cartI * reshape(mmD,3,3) * cart2cov);
+
+    element el = m_assembler.getElement();
+    auto alpha_d = m_alpha_d_bc * reshape(mmAcart,9,1).max().val() / el.area(m_ori);
+    auto alpha_r = m_alpha_r_bc * reshape(mmDcart,9,1).max().val() / el.area(m_ori);
 
     // Weak BCs
     m_assembler.assembleBdr
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -(m_alpha_d_bc * m_space * m_space.tr()) * tv(m_ori).norm()
+        -(alpha_d * m_space * m_space.tr()) * tv(m_ori).norm()
     );
 
     // for weak clamped
@@ -551,7 +569,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
         m_bcs.get("Weak Clamped")
         ,
         (
-            m_alpha_r_bc * ( ( var1(m_space,m_ori) * unv(m_ori) ) * ( var1(m_space,m_ori) * unv(m_ori) ).tr() )
+            alpha_r * ( ( var1(m_space,m_ori) * unv(m_ori) ) * ( var1(m_space,m_ori) * unv(m_ori) ).tr() )
         ) * tv(m_ori).norm()
     );
 }
@@ -561,17 +579,29 @@ template<int _d, bool matrix>
 typename std::enable_if<_d==3 && !matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 {
+    gsMultiPatch<T> & defpatches = m_patches;
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     auto g_N = m_assembler.getBdrFunction(m_ori);
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&defpatches);
+    auto mmA = m_assembler.getCoeff(m_mmA);
+
+    auto cart2cov = cartcov(m_ori);
+    auto con2cartI = cartcon(m_ori).inv();
+
+    auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
+
+    element el = m_assembler.getElement();
+    auto alpha_d = m_alpha_d_bc * reshape(mmAcart,9,1).max().val() / el.area(m_ori);
 
     // Weak BCs
     m_assembler.assembleBdr
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -(m_alpha_d_bc * m_space * g_N         ) * tv(m_ori).norm()
+        -(alpha_d * m_space * g_N         ) * tv(m_ori).norm()
     );
 
     // for weak clamped
@@ -583,17 +613,29 @@ template<int _d, bool matrix>
 typename std::enable_if<!(_d==3) && matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 {
+    gsMultiPatch<T> & defpatches = m_patches;
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // auto g_N = m_assembler.getBdrFunction(m_ori);
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&defpatches);
+    auto mmA = m_assembler.getCoeff(m_mmA);
+
+    auto cart2cov = cartcov(m_ori);
+    auto con2cartI = cartcon(m_ori).inv();
+
+    auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
+
+    element el = m_assembler.getElement();
+    auto alpha_d = m_alpha_d_bc * reshape(mmAcart,9,1).max().val() / el.area(m_ori);
 
     // Weak BCs
     m_assembler.assembleBdr
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -(m_alpha_d_bc * m_space * m_space.tr()) * tv(m_ori).norm()
+        -(alpha_d * m_space * m_space.tr()) * tv(m_ori).norm()
     );
 }
 
@@ -634,6 +676,23 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // auto g_N = m_assembler.getBdrFunction(m_ori);
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmD(m_materialMatrices,&deformed);
+    auto mmA = m_assembler.getCoeff(m_mmA);
+    auto mmD = m_assembler.getCoeff(m_mmD);
+
+    auto cart2cov = cartcov(m_ori);
+    auto con2cartI = cartcon(m_ori).inv();
+
+    auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
+    auto mmDcart = (con2cartI * reshape(mmD,3,3) * cart2cov);
+
+    element el = m_assembler.getElement();
+    auto alpha_d = m_alpha_d_bc * reshape(mmAcart,9,1).max().val() / el.area(m_ori);
+    auto alpha_r = m_alpha_r_bc * reshape(mmDcart,9,1).max().val() / el.area(m_ori);
+
+
     auto du  = m_def - m_ori;
     auto dnN = ( usn(m_def).tr()*unv(m_ori) - usn(m_ori).tr()*unv(m_ori) ).val();
 
@@ -642,7 +701,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -m_alpha_d_bc * m_space * m_space.tr() * tv(m_ori).norm()
+        -alpha_d * m_space * m_space.tr() * tv(m_ori).norm()
     );
 
     // for weak clamped
@@ -651,9 +710,9 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
         m_bcs.get("Weak Clamped")
         ,
         (
-            m_alpha_r_bc * dnN * ( var2deriv2(m_space,m_space,m_def,unv(m_ori).tr()) )
+            alpha_r * dnN * ( var2deriv2(m_space,m_space,m_def,unv(m_ori).tr()) )
             +
-            m_alpha_r_bc * ( ( var1(m_space,m_def) * unv(m_ori) ) * ( var1(m_space,m_def) * unv(m_ori) ).tr() )
+            alpha_r * ( ( var1(m_space,m_def) * unv(m_ori) ) * ( var1(m_space,m_def) * unv(m_ori) ).tr() )
         ) * tv(m_ori).norm()
     );
 }
@@ -668,6 +727,22 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     auto g_N = m_assembler.getBdrFunction(m_ori);
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmD(m_materialMatrices,&deformed);
+    auto mmA = m_assembler.getCoeff(m_mmA);
+    auto mmD = m_assembler.getCoeff(m_mmD);
+
+    auto cart2cov = cartcov(m_ori);
+    auto con2cartI = cartcon(m_ori).inv();
+
+    auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
+    auto mmDcart = (con2cartI * reshape(mmD,3,3) * cart2cov);
+
+    element el = m_assembler.getElement();
+    auto alpha_d = m_alpha_d_bc * reshape(mmAcart,9,1).max().val() / el.area(m_ori);
+    auto alpha_r = m_alpha_r_bc * reshape(mmDcart,9,1).max().val() / el.area(m_ori);
+
     auto du  = m_def - m_ori;
     auto dnN = ( usn(m_def).tr()*unv(m_ori) - usn(m_ori).tr()*unv(m_ori) ).val();
 
@@ -676,7 +751,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        m_alpha_d_bc * (m_space * du - m_space * (g_N) ) * tv(m_ori).norm()
+        alpha_d * (m_space * du - m_space * (g_N) ) * tv(m_ori).norm()
     );
 
     // for weak clamped
@@ -685,7 +760,7 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
         m_bcs.get("Weak Clamped")
         ,
         (
-            - m_alpha_r_bc * dnN * ( var1(m_space,m_def) * usn(m_ori) )
+            - alpha_r * dnN * ( var1(m_space,m_def) * usn(m_ori) )
         ) * tv(m_ori).norm()
     );
 }
@@ -696,17 +771,26 @@ typename std::enable_if<!(_d==3) && matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
-    // geometryMap m_def   = m_assembler.getMap(deformed);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
-    // auto g_N = m_assembler.getBdrFunction(m_ori);
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&deformed);
+    auto mmA = m_assembler.getCoeff(m_mmA);
+
+    auto cart2cov = cartcov(m_ori);
+    auto con2cartI = cartcon(m_ori).inv();
+
+    auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
+
+    element el = m_assembler.getElement();
+    auto alpha_d = m_alpha_d_bc * reshape(mmAcart,9,1).max().val() / el.area(m_ori);
 
     // Weak BCs
     m_assembler.assembleBdr
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        -m_alpha_d_bc * m_space * m_space.tr() * tv(m_ori).norm()
+        -alpha_d * m_space * m_space.tr() * tv(m_ori).norm()
     );
 }
 
@@ -721,12 +805,23 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     auto g_N = m_assembler.getBdrFunction(m_ori);
 
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&deformed);
+    auto mmA = m_assembler.getCoeff(m_mmA);
+
+    auto cart2cov = cartcov(m_ori);
+    auto con2cartI = cartcon(m_ori).inv();
+
+    auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
+
+    element el = m_assembler.getElement();
+    auto alpha_d = m_alpha_d_bc * reshape(mmAcart,9,1).max().val() / el.area(m_ori);
+
     // Weak BCs
     m_assembler.assembleBdr
     (
         m_bcs.get("Weak Dirichlet")
         ,
-        m_alpha_d_bc * (m_space * (m_def - m_ori) - m_space * (g_N) ) * tv(m_ori).norm()
+        alpha_d * (m_space * (m_def - m_ori) - m_space * (g_N) ) * tv(m_ori).norm()
     );
 }
 
@@ -743,61 +838,78 @@ template<int _d, bool matrix>
 typename std::enable_if<_d==3 && matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 {
+    gsMultiPatch<T> & defpatches = m_patches;
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    // auto g_N = m_assembler.getBdrFunction(m_ori);
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmD(m_materialMatrices,&defpatches);
+    auto mmA = m_assembler.getCoeff(m_mmA);
+    auto mmD = m_assembler.getCoeff(m_mmD);
+
+    auto cart2cov = cartcov(m_ori);
+    auto con2cartI = cartcon(m_ori).inv();
+
+    auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
+    auto mmDcart = (con2cartI * reshape(mmD,3,3) * cart2cov);
+
+    element el = m_assembler.getElement();
+    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / el.area(m_ori);
+    auto alpha_r = m_alpha_r_ifc * reshape(mmDcart,9,1).max().val() / el.area(m_ori);
 
     // C^0 coupling
     m_assembler.assembleIfc(m_weakC0,
-                     m_alpha_d_ifc * m_space.left() * m_space.left().tr()
+                     alpha_d * m_space.left() * m_space.left().tr() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.right()* m_space.left() .tr()
+                    -alpha_d * m_space.right()* m_space.left() .tr() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.left() * m_space.right().tr()
+                    -alpha_d * m_space.left() * m_space.right().tr() * tv(m_ori).norm()
                     ,
-                     m_alpha_d_ifc * m_space.right()* m_space.right().tr()
+                     alpha_d * m_space.right()* m_space.right().tr() * tv(m_ori).norm()
                      );
 
     // C^1 coupling
     // Penalty of out-of-plane coupling
     // dW^pr / du_r --> second line
     m_assembler.assembleIfc(m_weakC1,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr()    // left left
+                     alpha_r * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr() * tv(m_ori).norm()    // left left
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr()   // left right
+                     alpha_r * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr() * tv(m_ori).norm()   // left right
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr()   // right left
+                     alpha_r * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr() * tv(m_ori).norm()   // right left
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr()  // right right
+                     alpha_r * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr() * tv(m_ori).norm()  // right right
                     ,
                     // Symmetry
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr()    // right right
+                     alpha_r * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr() * tv(m_ori).norm()    // right right
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr()   // right left
+                     alpha_r * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr() * tv(m_ori).norm()   // right left
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr()   // left right
+                     alpha_r * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.right(),m_ori.right()) * usn(m_ori.left()) ).tr() * tv(m_ori).norm()   // left right
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr()  // left left
+                     alpha_r * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ) * ( var1(m_space.left(),m_ori.left()) * usn(m_ori.right()) ).tr() * tv(m_ori).norm()  // left left
                      );
 
     // Penalty of in-plane coupling
     // dW^pr / du_r --> fourth line
     m_assembler.assembleIfc(m_weakC1,
-                     m_alpha_r_ifc * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ) * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ).tr() // left left
+                     alpha_r * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ) * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ).tr() * tv(m_ori).norm() // left left
                     + // Symmetry
-                     m_alpha_r_ifc * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ) * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ).tr() // left left
+                     alpha_r * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ) * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ).tr() * tv(m_ori).norm() // left left
                     ,
-                     m_alpha_r_ifc * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ) * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ).tr() // left right
+                     alpha_r * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ) * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ).tr() * tv(m_ori).norm() // left right
                     + // Symmetry
-                     m_alpha_r_ifc * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ) * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ).tr() // left right
+                     alpha_r * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ) * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ).tr() * tv(m_ori).norm() // left right
                     ,
-                     m_alpha_r_ifc * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ) * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ).tr() // right left
+                     alpha_r * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ) * ( ovar1(m_space.left() ,m_ori.left() ) * usn(m_ori.right()) ).tr() * tv(m_ori).norm() // right left
                     + // Symmetry
-                     m_alpha_r_ifc * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ) * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ).tr() // right left
+                     alpha_r * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ) * (  var1(m_space.left() ,m_ori.left() ) * unv(m_ori.right()) ).tr() * tv(m_ori).norm() // right left
                     ,
-                     m_alpha_r_ifc * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ) * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ).tr() // right right
+                     alpha_r * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ) * (  var1(m_space.right(),m_ori.right()) * unv(m_ori.left() ) ).tr() * tv(m_ori).norm() // right right
                     + // Symmetry
-                     m_alpha_r_ifc * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ) * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ).tr() // right right
+                     alpha_r * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ) * ( ovar1(m_space.right(),m_ori.right()) * usn(m_ori.left() ) ).tr() * tv(m_ori).norm() // right right
                      );
 
 }
@@ -817,17 +929,32 @@ template<int _d, bool matrix>
 typename std::enable_if<!(_d==3) && matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 {
+    gsMultiPatch<T> & defpatches = m_patches;
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&defpatches);
+    auto mmA = m_assembler.getCoeff(m_mmA);
+
+    auto cart2cov = cartcov(m_ori);
+    auto con2cartI = cartcon(m_ori).inv();
+
+    auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
+
+    element el   = m_assembler.getElement();
+    auto h       = (el.area(m_ori.left()) + el.area(m_ori.right())) / 2;
+    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / h;
 
     // C^0 coupling
     m_assembler.assembleIfc(m_weakC0,
-                     m_alpha_d_ifc * m_space.left() * m_space.left().tr()
+                     alpha_d * m_space.left() * m_space.left().tr() * tv(m_ori).norm() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.right()* m_space.left() .tr()
+                    -alpha_d * m_space.right()* m_space.left() .tr() * tv(m_ori).norm() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.left() * m_space.right().tr()
+                    -alpha_d * m_space.left() * m_space.right().tr() * tv(m_ori).norm() * tv(m_ori).norm()
                     ,
-                     m_alpha_d_ifc * m_space.right()* m_space.right().tr()
+                     alpha_d * m_space.right()* m_space.right().tr() * tv(m_ori).norm() * tv(m_ori).norm()
                      );
 
     // C^1 coupling DOES NOT CONTRIBUTE IN 2D PROBLEMS
@@ -861,6 +988,22 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmD(m_materialMatrices,&deformed);
+    auto mmA = m_assembler.getCoeff(m_mmA);
+    auto mmD = m_assembler.getCoeff(m_mmD);
+
+    auto cart2cov = cartcov(m_ori);
+    auto con2cartI = cartcon(m_ori).inv();
+
+    auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
+    auto mmDcart = (con2cartI * reshape(mmD,3,3) * cart2cov);
+
+    element el   = m_assembler.getElement();
+    auto h       = (el.area(m_ori.left()) + el.area(m_ori.right())) / 2;
+    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / h;
+    auto alpha_r = m_alpha_r_ifc * reshape(mmDcart,9,1).max().val() / h;
+
     auto du = ((m_def.left()-m_ori.left()) - (m_def.right()-m_ori.right()));
 
     auto dN_lr = (usn(m_def.left()).tr()*usn(m_def.right())
@@ -877,96 +1020,96 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     // C^0 coupling
     m_assembler.assembleIfc(m_weakC0,
-                     m_alpha_d_ifc * m_space.left() * m_space.left().tr()
+                     alpha_d * m_space.left() * m_space.left().tr() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.right()* m_space.left() .tr()
+                    -alpha_d * m_space.right()* m_space.left() .tr() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.left() * m_space.right().tr()
+                    -alpha_d * m_space.left() * m_space.right().tr() * tv(m_ori).norm()
                     ,
-                     m_alpha_d_ifc * m_space.right()* m_space.right().tr()
+                     alpha_d * m_space.right()* m_space.right().tr() * tv(m_ori).norm()
                      );
 
     // C^1 coupling
     // Penalty of out-of-plane coupling
     // dW^pr / du_r --> first line
     m_assembler.assembleIfc(m_weakC1,
-                     m_alpha_r_ifc * dN_lr * var2(m_space.left() ,m_space.left() ,m_def.left() ,usn(m_def.right()).tr() )      // left left
+                     alpha_r * dN_lr * var2(m_space.left() ,m_space.left() ,m_def.left() ,usn(m_def.right()).tr() ) * tv(m_ori).norm()      // left left
                     ,
-                     m_alpha_r_ifc * dN_lr * ( var1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() )// left right
+                     alpha_r * dN_lr * ( var1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() ) * tv(m_ori).norm()// left right
                     ,
-                     m_alpha_r_ifc * dN_lr * ( var1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() )// right left
+                     alpha_r * dN_lr * ( var1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() ) * tv(m_ori).norm()// right left
                     ,
-                     m_alpha_r_ifc * dN_lr * var2( m_space.right(),m_space.right(),m_def.right(),usn(m_def.left() ).tr() )     // right right
+                     alpha_r * dN_lr * var2( m_space.right(),m_space.right(),m_def.right(),usn(m_def.left() ).tr() ) * tv(m_ori).norm()     // right right
                     ,
                     // Symmetry
-                     m_alpha_r_ifc * dN_rl * var2(m_space.right() ,m_space.right() ,m_def.right() ,usn(m_def.left()).tr() )      // right right
+                     alpha_r * dN_rl * var2(m_space.right() ,m_space.right() ,m_def.right() ,usn(m_def.left()).tr() ) * tv(m_ori).norm()      // right right
                     ,
-                     m_alpha_r_ifc * dN_rl * ( var1(m_space.right() ,m_def.right() ) * var1(m_space.left(),m_def.left()).tr() )// right left
+                     alpha_r * dN_rl * ( var1(m_space.right() ,m_def.right() ) * var1(m_space.left(),m_def.left()).tr() ) * tv(m_ori).norm()// right left
                     ,
-                     m_alpha_r_ifc * dN_rl * ( var1(m_space.left(),m_def.left()) * var1(m_space.right() ,m_def.right() ).tr() )// left right
+                     alpha_r * dN_rl * ( var1(m_space.left(),m_def.left()) * var1(m_space.right() ,m_def.right() ).tr() ) * tv(m_ori).norm()// left right
                     ,
-                     m_alpha_r_ifc * dN_rl * var2( m_space.left(),m_space.left(),m_def.left(),usn(m_def.right() ).tr() )     // left left
+                     alpha_r * dN_rl * var2( m_space.left(),m_space.left(),m_def.left(),usn(m_def.right() ).tr() ) * tv(m_ori).norm()     // left left
                      );
 
     // Penalty of out-of-plane coupling
     // dW^pr / du_r --> second line
     m_assembler.assembleIfc(m_weakC1,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr()    // left left
+                     alpha_r * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr() * tv(m_ori).norm()    // left left
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr()   // left right
+                     alpha_r * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr() * tv(m_ori).norm()   // left right
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr()   // right left
+                     alpha_r * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr() * tv(m_ori).norm()   // right left
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr()  // right right
+                     alpha_r * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr() * tv(m_ori).norm()  // right right
                     ,
                     // Symmetry
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr()    // right right
+                     alpha_r * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr() * tv(m_ori).norm()    // right right
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr()   // right left
+                     alpha_r * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr() * tv(m_ori).norm()   // right left
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr()   // left right
+                     alpha_r * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.right(),m_def.right()) * usn(m_def.left()) ).tr() * tv(m_ori).norm()   // left right
                     ,
-                     m_alpha_r_ifc * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr()  // left left
+                     alpha_r * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ) * ( var1(m_space.left(),m_def.left()) * usn(m_def.right()) ).tr() * tv(m_ori).norm()  // left left
                      );
 
     // Penalty of in-plane coupling
     // dW^pr / du_r --> third line
     m_assembler.assembleIfc(m_weakC1,
-                     m_alpha_r_ifc * dnN_lr * ovar2(m_space.left(),m_space.left(),m_def.left(),usn(m_def.right()).tr()) // left left
+                     alpha_r * dnN_lr * ovar2(m_space.left(),m_space.left(),m_def.left(),usn(m_def.right()).tr()) * tv(m_ori).norm() // left left
                     + // Symmetry
-                     m_alpha_r_ifc * dnN_rl * ovar2(m_space.left(),m_space.left(),m_def.left(),usn(m_def.right()).tr()) // left left
+                     alpha_r * dnN_rl * ovar2(m_space.left(),m_space.left(),m_def.left(),usn(m_def.right()).tr()) * tv(m_ori).norm() // left left
                     ,
-                     m_alpha_r_ifc * dnN_lr * ( ovar1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() ) // left right
+                     alpha_r * dnN_lr * ( ovar1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() ) * tv(m_ori).norm() // left right
                     + // Symmetry
-                     m_alpha_r_ifc * dnN_rl * ( ovar1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() ) // right left
+                     alpha_r * dnN_rl * ( ovar1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() ) * tv(m_ori).norm() // right left
                     ,
-                     m_alpha_r_ifc * dnN_lr * ( ovar1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() ) // right left
+                     alpha_r * dnN_lr * ( ovar1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() ) * tv(m_ori).norm() // right left
                     + // Symmetry
-                     m_alpha_r_ifc * dnN_rl * ( ovar1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() ) // right left
+                     alpha_r * dnN_rl * ( ovar1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() ) * tv(m_ori).norm() // right left
                     ,
-                     m_alpha_r_ifc * dnN_lr * ovar2(m_space.right(),m_space.right(),m_def.right(),usn(m_def.left()).tr()) // right right
+                     alpha_r * dnN_lr * ovar2(m_space.right(),m_space.right(),m_def.right(),usn(m_def.left()).tr()) * tv(m_ori).norm() // right right
                     + // Symmetry
-                     m_alpha_r_ifc * dnN_rl * ovar2(m_space.right(),m_space.right(),m_def.right(),usn(m_def.left()).tr()) // right right
+                     alpha_r * dnN_rl * ovar2(m_space.right(),m_space.right(),m_def.right(),usn(m_def.left()).tr()) * tv(m_ori).norm() // right right
                      );
 
     // Penalty of in-plane coupling
     // dW^pr / du_r --> fourth line
     m_assembler.assembleIfc(m_weakC1,
-                     m_alpha_r_ifc * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ) * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ).tr() // left left
+                     alpha_r * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ) * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ).tr() * tv(m_ori).norm() // left left
                     + // Symmetry
-                     m_alpha_r_ifc * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ) * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ).tr() // left left
+                     alpha_r * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ) * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ).tr() * tv(m_ori).norm() // left left
                     ,
-                     m_alpha_r_ifc * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ) * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ).tr() // left right
+                     alpha_r * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ) * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ).tr() * tv(m_ori).norm() // left right
                     + // Symmetry
-                     m_alpha_r_ifc * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ) * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ).tr() // left right
+                     alpha_r * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ) * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ).tr() * tv(m_ori).norm() // left right
                     ,
-                     m_alpha_r_ifc * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ) * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ).tr() // right left
+                     alpha_r * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ) * ( ovar1(m_space.left() ,m_def.left() ) * usn(m_def.right()) ).tr() * tv(m_ori).norm() // right left
                     + // Symmetry
-                     m_alpha_r_ifc * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ) * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ).tr() // right left
+                     alpha_r * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ) * (  var1(m_space.left() ,m_def.left() ) * unv(m_def.right()) ).tr() * tv(m_ori).norm() // right left
                     ,
-                     m_alpha_r_ifc * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ) * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ).tr() // right right
+                     alpha_r * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ) * (  var1(m_space.right(),m_def.right()) * unv(m_def.left() ) ).tr() * tv(m_ori).norm() // right right
                     + // Symmetry
-                     m_alpha_r_ifc * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ) * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ).tr() // right right
+                     alpha_r * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ) * ( ovar1(m_space.right(),m_def.right()) * usn(m_def.left() ) ).tr() * tv(m_ori).norm() // right right
                      );
 }
 
@@ -980,6 +1123,22 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_mmD(m_materialMatrices,&deformed);
+    auto mmA = m_assembler.getCoeff(m_mmA);
+    auto mmD = m_assembler.getCoeff(m_mmD);
+
+    auto cart2cov = cartcov(m_ori);
+    auto con2cartI = cartcon(m_ori).inv();
+
+    auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
+    auto mmDcart = (con2cartI * reshape(mmD,3,3) * cart2cov);
+
+    element el   = m_assembler.getElement();
+    auto h       = (el.area(m_ori.left()) + el.area(m_ori.right())) / 2;
+    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / h;
+    auto alpha_r = m_alpha_r_ifc * reshape(mmDcart,9,1).max().val() / h;
+
     auto du = ((m_def.left()-m_ori.left()) - (m_def.right()-m_ori.right()));
 
     auto dN_lr = (usn(m_def.left()).tr()*usn(m_def.right())
@@ -996,34 +1155,34 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     // C^0 coupling
     m_assembler.assembleIfc(m_weakC0,
-                    -m_alpha_d_ifc * m_space.left() * du
+                    -alpha_d * m_space.left() * du * tv(m_ori).norm()
                     ,
-                     m_alpha_d_ifc * m_space.right()* du
+                     alpha_d * m_space.right()* du * tv(m_ori).norm()
                      );
 
    // C^1 coupling
     m_assembler.assembleIfc(m_weakC1,
-                    -m_alpha_r_ifc * dN_lr * var1(m_space.left(),m_def.left())   * usn(m_def.right())
+                    -alpha_r * dN_lr * var1(m_space.left(),m_def.left())   * usn(m_def.right()) * tv(m_ori).norm()
                     ,
-                    -m_alpha_r_ifc * dN_lr * var1(m_space.right(),m_def.right()) * usn(m_def.left() )
+                    -alpha_r * dN_lr * var1(m_space.right(),m_def.right()) * usn(m_def.left() ) * tv(m_ori).norm()
                     ,
                     // Symmetry
-                    -m_alpha_r_ifc * dN_rl * var1(m_space.right(),m_def.right())   * usn(m_def.left())
+                    -alpha_r * dN_rl * var1(m_space.right(),m_def.right())   * usn(m_def.left()) * tv(m_ori).norm()
                     ,
-                    -m_alpha_r_ifc * dN_rl * var1(m_space.left(),m_def.left()) * usn(m_def.right() )
+                    -alpha_r * dN_rl * var1(m_space.left(),m_def.left()) * usn(m_def.right() ) * tv(m_ori).norm()
                      );
 
     // Penalty of in-plane coupling
     // dW^pr / du_r --> second line
     m_assembler.assembleIfc(m_weakC1,
-                    -m_alpha_r_ifc * dnN_lr* ovar1(m_space.left(),m_def.left())  * usn(m_def.right())
+                    -alpha_r * dnN_lr* ovar1(m_space.left(),m_def.left())  * usn(m_def.right()) * tv(m_ori).norm()
                     ,
-                    -m_alpha_r_ifc * dnN_lr* var1(m_space.right(),m_def.right()) * unv(m_def.left() )
+                    -alpha_r * dnN_lr* var1(m_space.right(),m_def.right()) * unv(m_def.left() ) * tv(m_ori).norm()
                     ,
                     // Symmetry
-                    -m_alpha_r_ifc * dnN_rl* ovar1(m_space.right(),m_def.right())  * usn(m_def.left())
+                    -alpha_r * dnN_rl* ovar1(m_space.right(),m_def.right())  * usn(m_def.left()) * tv(m_ori).norm()
                     ,
-                    -m_alpha_r_ifc * dnN_rl* var1(m_space.left(),m_def.left()) * unv(m_def.right() )
+                    -alpha_r * dnN_rl* var1(m_space.left(),m_def.left()) * unv(m_def.right() ) * tv(m_ori).norm()
                      );
 }
 
@@ -1037,17 +1196,29 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&deformed);
+    auto mmA = m_assembler.getCoeff(m_mmA);
+
+    auto cart2cov = cartcov(m_ori);
+    auto con2cartI = cartcon(m_ori).inv();
+
+    auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
+
+    element el   = m_assembler.getElement();
+    auto h       = (el.area(m_ori.left()) + el.area(m_ori.right())) / 2;
+    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / h;
+
     auto du = ((m_def.left()-m_ori.left()) - (m_def.right()-m_ori.right()));
 
     // C^0 coupling
     m_assembler.assembleIfc(m_weakC0,
-                     m_alpha_d_ifc * m_space.left() * m_space.left().tr()
+                     alpha_d * m_space.left() * m_space.left().tr() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.right()* m_space.left() .tr()
+                    -alpha_d * m_space.right()* m_space.left() .tr() * tv(m_ori).norm()
                     ,
-                    -m_alpha_d_ifc * m_space.left() * m_space.right().tr()
+                    -alpha_d * m_space.left() * m_space.right().tr() * tv(m_ori).norm()
                     ,
-                     m_alpha_d_ifc * m_space.right()* m_space.right().tr()
+                     alpha_d * m_space.right()* m_space.right().tr() * tv(m_ori).norm()
                      );
 
     // C^1 coupling DOES NOT CONTRIBUTE IN 2D PROBLEMS
@@ -1063,13 +1234,25 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
-     auto du = ((m_def.left()-m_ori.left()) - (m_def.right()-m_ori.right()));
+    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMatrices,&deformed);
+    auto mmA = m_assembler.getCoeff(m_mmA);
+
+    auto cart2cov = cartcov(m_ori);
+    auto con2cartI = cartcon(m_ori).inv();
+
+    auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
+
+    element el   = m_assembler.getElement();
+    auto h       = (el.area(m_ori.left()) + el.area(m_ori.right())) / 2;
+    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / h;
+
+    auto du = ((m_def.left()-m_ori.left()) - (m_def.right()-m_ori.right()));
 
     // C^0 coupling
      m_assembler.assembleIfc(m_weakC0,
-                      m_alpha_d_ifc * m_space.left() * du
+                      alpha_d * m_space.left() * du * tv(m_ori).norm()
                      ,
-                     -m_alpha_d_ifc * m_space.right()* du
+                     -alpha_d * m_space.right()* du * tv(m_ori).norm()
                       );
 
     // C^1 coupling DOES NOT CONTRIBUTE IN 2D PROBLEMS
@@ -1105,8 +1288,7 @@ void gsThinShellAssembler<d, T, bending>::_applyLoads()
 
     for (size_t i = 0; i< m_pLoads.numLoads(); ++i )
     {
-        if (m_pLoads[i].value.size()!=d)
-            gsWarn<<"Point load has wrong dimension "<<m_pLoads[i].value.size()<<" instead of "<<d<<"\n";
+        GISMO_ASSERT(m_pLoads[i].value.size()==d,"Point load has wrong dimension "<<m_pLoads[i].value.size()<<" instead of "<<d<<"\n");
         // Compute actives and values of basis functions on point load location.
         if ( m_pLoads[i].parametric )   // in parametric space
         {
