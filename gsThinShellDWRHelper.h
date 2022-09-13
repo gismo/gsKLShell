@@ -49,7 +49,7 @@ public:
     void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL)
     {
         std::string empty;
-        this->computeError(deformed,primalL);
+        this->computeError(deformed,primalL,empty);
     }
 
     void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL,
