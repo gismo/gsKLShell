@@ -48,6 +48,13 @@ public:
 
     void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL)
     {
+        std::string empty;
+        this->computeError(deformed,primalL);
+    }
+
+    void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL,
+                        std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false)
+    {
         gsMultiPatch<T> dualL, dualH;
         gsVector<T> solVector;
         gsSparseSolver<>::LU solver;
@@ -76,7 +83,7 @@ public:
         m_assembler->constructMultiPatchH(solVector,dualH);
         gsInfo << "done.\n";
 
-        m_assembler->computeErrorElements(dualL,dualH,deformed);
+        m_assembler->computeErrorElements(dualL,dualH,deformed,filename,np,parametric,mesh);
     }
 
     T error() { return m_assembler->error(); }
