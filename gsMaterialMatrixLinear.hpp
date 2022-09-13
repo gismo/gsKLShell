@@ -35,9 +35,7 @@ gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                         const gsFunction<T> & thickness
                                         )
                                         :
-                                        Base(mp),
-                                        m_thickness(&thickness),
-                                        m_density(nullptr)
+                                        Base(&mp,nullptr,&thickness,nullptr)
 {
 
 }
@@ -50,13 +48,11 @@ gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                         const gsFunction<T> & PoissonsRatio
                                         )
                                         :
-                                        gsMaterialMatrixLinear( mp,
-                                                                thickness)
+                                        Base(&mp,nullptr,&thickness,nullptr)
 {
     m_pars.resize(2);
     m_pars[0] = const_cast<gsFunction<T> *>(&YoungsModulus);
     m_pars[1] = const_cast<gsFunction<T> *>(&PoissonsRatio);
-
     _initialize();
 }
 
@@ -69,12 +65,12 @@ gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                         const gsFunction<T> & Density
                                         )
                                         :
-                                        gsMaterialMatrixLinear( mp,
-                                                                thickness,
-                                                                YoungsModulus,
-                                                                PoissonsRatio)
+                                        Base(&mp,nullptr,&thickness,&Density)
 {
-    m_density = &Density;
+    m_pars.resize(2);
+    m_pars[0] = const_cast<gsFunction<T> *>(&YoungsModulus);
+    m_pars[1] = const_cast<gsFunction<T> *>(&PoissonsRatio);
+    _initialize();
 }
 
 template <short_t dim, class T >
@@ -84,11 +80,10 @@ gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                         const std::vector<gsFunction<T>*> &pars
                                         )
                                         :
-                                        Base(mp),
-                                        m_thickness(&thickness),
-                                        m_pars(pars),
-                                        m_density(nullptr)
+                                        Base(&mp,nullptr,&thickness,nullptr)
 {
+    GISMO_ASSERT(pars.size()==2,"Two material parameters should be assigned!");
+    m_pars = pars;
     _initialize();
 }
 
@@ -100,11 +95,10 @@ gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                     const gsFunction<T> & density
                                     )
                                     :
-                                    Base(mp),
-                                    m_thickness(&thickness),
-                                    m_pars(pars),
-                                    m_density(&density)
+                                    Base(&mp,nullptr,&thickness,&density)
 {
+    GISMO_ASSERT(pars.size()==2,"Two material parameters should be assigned!");
+    m_pars = pars;
     _initialize();
 }
 
@@ -139,139 +133,6 @@ void gsMaterialMatrixLinear<dim,T>::_initialize()
     m_map.mine().flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
 }
 
-
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool basis) const
-{
-    GISMO_ASSERT(m_pars.size()==2,"Two material parameters should be assigned, but only "<<m_pars.size()<<" were given");
-    gsMatrix<T> tmp;
-
-    this->_computeMetricUndeformed(patch,u,basis);
-
-    if (Base::m_defpatches->nPieces()!=0)
-        this->_computeMetricDeformed(patch,u,basis);
-
-    m_thickness->piece(patch).eval_into(m_map.mine().values[0], m_Tmat);
-
-    m_parmat.resize(m_pars.size(),m_map.mine().values[0].cols());
-    m_parmat.setZero();
-
-    for (size_t v=0; v!=m_pars.size(); v++)
-    {
-        m_pars[v]->piece(patch).eval_into(m_map.mine().values[0], tmp);
-        m_parmat.row(v) = tmp;
-    }
-
-    m_parvals.resize(m_pars.size());
-}
-
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-{
-    m_map.mine().flags = NEED_VALUE;
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-
-    result.resize(1, u.cols());
-    m_thickness->piece(patch).eval_into(m_map.mine().values[0], m_Tmat);
-    m_density->piece(patch).eval_into(m_map.mine().values[0], m_rhomat);
-    for (index_t i = 0; i != u.cols(); ++i) // points
-    {
-        result(0,i) = m_Tmat(0,i)*m_rhomat(0,i);
-    }
-
-}
-
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-{
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-
-    this->_computePoints(patch,u,true);
-
-    result.resize(3, u.cols());
-    std::pair<gsVector<T>,gsMatrix<T>> res;
-    for (index_t i=0; i!= u.cols(); i++)
-    {
-        this->_getMetric(i,0.0,true); // on point i, with height 0.0
-
-        gsMatrix<T> C(3,3);
-        C.setZero();
-        C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
-        C(2,2) = 1./m_J0_sq;
-
-        res = this->_evalStretch(C);
-        result.col(i) = res.first;
-    }
-}
-
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-{
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-
-    this->_computePoints(patch,u,true);
-
-    result.resize(9, u.cols());
-    std::pair<gsVector<T>,gsMatrix<T>> res;
-    for (index_t i=0; i!= u.cols(); i++)
-    {
-        this->_getMetric(i,0.0,true); // on point i, with height 0.0
-
-        gsMatrix<T> C(3,3);
-        C.setZero();
-        C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
-        C(2,2) = 1./m_J0_sq;
-
-        res = this->_evalStretch(C);
-        result.col(i) = res.second.reshape(9,1);
-    }
-}
-
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
-{
-    m_map.mine().flags = NEED_VALUE;
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-    m_thickness->piece(patch).eval_into(m_map.mine().values[0], result);
-}
-
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
-{
-    m_map.mine().flags = NEED_VALUE;
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-
-    gsMatrix<T> tmp;
-    result.resize(m_pars.size(),m_map.mine().values[0].cols());
-    result.setZero();
-    for (size_t v=0; v!=m_pars.size(); v++)
-    {
-        m_pars[v]->piece(patch).eval_into(m_map.mine().values[0], tmp);
-        result.row(v) = tmp;
-    }
-}
-
-// Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) convariant basis
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
-{
-    result.resize(9, u.cols());
-    gsMatrix<T> tmp, conbasis,sbasis;
-    this->stretchDir_into(patch,u,tmp);
-    for (index_t i=0; i!= u.cols(); i++)
-    {
-        this->_getMetric(i,0.0,true); // on point i, with height 0.0
-        sbasis = tmp.reshapeCol(i,3,3);
-        conbasis = m_gcon_ori;
-        result.col(i) = this->_transformation(conbasis,sbasis).reshape(9,1);
-    }
-}
-
 template <short_t dim, class T >
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
@@ -281,7 +142,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
     // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    this->_computePoints(patch,u,false);
+    _computePoints(patch,u,false);
     gsMatrix<T> result(9, u.cols() * z.rows());
     result.setZero();
 
@@ -293,8 +154,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-                // this->_getMetric(k, z(j, k), false); // on point i, on height z(0,j)
-                this->_getMetric(k, z(j, k) * m_Tmat(0, k), false); // on point i, on height z(0,j)
+                // _getMetric(k, z(j, k), false); // on point i, on height z(0,j)
+                _getMetric(k, z(j, k) * m_Tmat(0, k), false); // on point i, on height z(0,j)
 
                 gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
                 /*
@@ -323,7 +184,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, co
     // Output: (n=u.cols(), m=z.cols())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    this->_computePoints(patch,u,false);
+    _computePoints(patch,u,false);
     gsMatrix<T> result(3, u.cols() * z.rows());
     result.setZero();
 
@@ -335,8 +196,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, co
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // this->_getMetric(k, z(j, k), false); // on point i, on height z(0,j)
-            this->_getMetric(k, z(j, k) * m_Tmat(0, k), false); // on point i, on height z(0,j)
+            // _getMetric(k, z(j, k), false); // on point i, on height z(0,j)
+            _getMetric(k, z(j, k) * m_Tmat(0, k), false); // on point i, on height z(0,j)
 
             result(0, j * u.cols() + k) = _Sij(0, 0, z(j, k), out);
             result(1, j * u.cols() + k) = _Sij(1, 1, z(j, k), out);
@@ -350,9 +211,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, co
 template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
-
-    this->_computePoints(patch,u,true);
-    gsMatrix<T> result(3, u.cols() * z.rows());
+    _computePoints(patch,u,true);
+    gsMatrix<T> result(2, u.cols() * z.rows());
     result.setZero();
     gsMatrix<T,3,3> S;
     std::pair<gsVector<T>,gsMatrix<T>> res;
@@ -364,8 +224,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // this->_getMetric(k, z(j, k), true); // on point i, on height z(0,j)
-            this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
+            // _getMetric(k, z(j, k), true); // on point i, on height z(0,j)
+            _getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
 
             S.setZero();
             S(0, 0) = _Sij(0, 0, 0, out);
@@ -436,36 +296,38 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalPStress(c
     gsVector<T> pstresses;
     gsMatrix<T> pstressvec;
     std::pair<gsVector<T>,gsMatrix<T>> result;
-    pstresses.resize(3,1);    pstresses.setZero();
+    pstresses.resize(2,1);    pstresses.setZero();
     pstressvec.resize(3,3);   pstressvec.setZero();
 
-    Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
+    // Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
 
-    gsMatrix<T> B(3,3);
-    B.setZero();
-    for (index_t k = 0; k != 2; k++)
-        for (index_t l = 0; l != 2; l++)
-            B += S(k,l) * m_gcov_ori.col(k) * m_gcov_ori.col(l).transpose();
+    // gsMatrix<T> B(3,3);
+    // B.setZero();
+    // for (index_t k = 0; k != 2; k++)
+    //     for (index_t l = 0; l != 2; l++)
+    //         B += S(k,l) * m_gcov_ori.col(k) * m_gcov_ori.col(l).transpose();
 
-    eigSolver.compute(B);
+    // eigSolver.compute(B);
 
-    index_t zeroIdx = -1;
-    for (index_t k=0; k!=3; k++)
-        zeroIdx = eigSolver.eigenvalues()[k] == 0 ? k : zeroIdx;
+    // index_t zeroIdx = -1;
+    // for (index_t k=0; k!=3; k++)
+    //     zeroIdx = eigSolver.eigenvalues()[k] == 0 ? k : zeroIdx;
 
-    GISMO_ASSERT(zeroIdx!=-1,"No zero found?");
+    // GISMO_ASSERT(zeroIdx!=-1,"No zero found?");
 
-    index_t count = 0;
-    pstressvec.col(2) = m_gcon_ori.col(2);
-    pstresses(2,0) = S(2,2);
+    // index_t count = 0;
+    // pstressvec.col(2) = m_gcon_ori.col(2);
+    // pstresses(2,0) = S(2,2);
 
-    for (index_t k=0; k!=3; k++)
-    {
-        if (k==zeroIdx) continue;
-        pstressvec.col(count) = eigSolver.eigenvectors().col(k);
-        pstresses(count,0) = eigSolver.eigenvalues()(k,0);
-        count++;
-    }
+    // for (index_t k=0; k!=3; k++)
+    // {
+    //     if (k==zeroIdx) continue;
+    //     pstressvec.col(count) = eigSolver.eigenvectors().col(k);
+    //     pstresses(count,0) = eigSolver.eigenvalues()(k,0);
+    //     count++;
+    // }
+
+    // BUG: targetDim of pstresses is 2, not 3!
 
     result.first = pstresses;
     result.second = pstressvec;

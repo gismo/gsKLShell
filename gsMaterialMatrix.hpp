@@ -34,9 +34,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
                                         const gsFunction<T> & thickness
                                         )
                                         :
-                                        Base(mp),
-                                        m_thickness(&thickness),
-                                        m_density(nullptr)
+                                        Base(&mp,nullptr,&thickness,nullptr)
 {
     _initialize();
 }
@@ -48,11 +46,10 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
                                         const std::vector<gsFunction<T>*> &pars
                                         )
                                         :
-                                        Base(mp),
-                                        m_thickness(&thickness),
-                                        m_pars(pars),
-                                        m_density(nullptr)
+                                        Base(&mp,nullptr,&thickness,nullptr)
 {
+    GISMO_ASSERT(pars.size()>=2,"Two or more material parameters should be assigned!");
+    m_pars = pars;
     _initialize();
 }
 
@@ -64,11 +61,10 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
                                     const gsFunction<T> & Density
                                     )
                                     :
-                                    Base(mp),
-                                    m_thickness(&thickness),
-                                    m_pars(pars),
-                                    m_density(&Density)
+                                    Base(&mp,nullptr,&thickness,&Density)
 {
+    GISMO_ASSERT(pars.size()>=2,"Two or more material parameters should be assigned!");
+    m_pars = pars;
     _initialize();
 }
 
@@ -128,87 +124,6 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_initialize()
 
     // set flags
     m_map.mine().flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
-}
-
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_computePoints(const index_t patch, const gsMatrix<T> & u) const
-{
-    GISMO_ASSERT(m_pars.size()>=2,"Two or more material parameters should be assigned!");
-    gsMatrix<T> tmp;
-
-    this->_computeMetricUndeformed(patch,u);
-
-    if (Base::m_defpatches->nPieces()!=0)
-        this->_computeMetricDeformed(patch,u);
-
-    m_thickness->piece(patch).eval_into(m_map.mine().values[0], m_Tmat);
-
-    m_parmat.resize(m_pars.size(),m_map.mine().values[0].cols());
-    m_parmat.setZero();
-
-    for (size_t v=0; v!=m_pars.size(); v++)
-    {
-        m_pars[v]->piece(patch).eval_into(m_map.mine().values[0], tmp);
-        m_parmat.row(v) = tmp;
-    }
-
-    m_parvals.resize(m_pars.size());
-
-    _computePoints_impl<mat>(u);
-}
-
-// CHECK ONLY
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-template <enum Material _mat>
-typename std::enable_if<_mat==Material::OG, void>::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_computePoints_impl(const gsMatrix<T>& u) const
-{
-    // // T prod, sum, mu;
-    // for (index_t c=0; c!=m_parmat.cols(); c++)
-    // {
-    //     for (index_t r=0; r!=m_parmat.rows(); r++)
-    //         m_parvals.at(r) = m_parmat(r,c);
-
-    //     // mu = m_parvals.at(0) / (2 * (1 + m_parvals.at(1)));
-    //     GISMO_ENSURE((m_pars.size()-2 )% 2 ==0, "Ogden material models must have an even number of parameters (tuples of alpha_i and mu_i). m_pars.size() = "<< m_pars.size());
-
-    //     /// THIS CHECK IS NOT NECESSARY
-    //     // int n = (m_pars.size()-2)/2;
-    //     // sum = 0.0;
-    //     // for (index_t k=0; k!=n; k++)
-    //     // {
-    //     //     prod = m_parvals.at(2*(k+1))*m_parvals.at(2*(k+1)+1);
-    //     //     GISMO_ENSURE(prod > 0.0,"Product of coefficients must be positive for all indices");
-    //     //     sum += prod;
-    //     // }
-    //     // GISMO_ENSURE((sum-2.*mu)/sum<1e-10,"Sum of products must be equal to 2*mu! sum = "<<sum<<"; 2*mu = "<<2.*mu);
-    // }
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-template <enum Material _mat>
-typename std::enable_if<_mat!=Material::OG, void>::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_computePoints_impl(const gsMatrix<T>& u) const
-{
-
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-{
-    m_map.mine().flags = NEED_VALUE;
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-
-    result.resize(1, u.cols());
-    m_thickness->piece(patch).eval_into(m_map.mine().values[0], m_Tmat);
-    m_density->piece(patch).eval_into(m_map.mine().values[0], m_rhomat);
-    for (index_t i = 0; i != u.cols(); ++i) // points
-    {
-        result(0,i) = m_Tmat(0,i)*m_rhomat(0,i);
-    }
-
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
@@ -399,47 +314,6 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_stretchDir_into_impl(const gsMatrix
             }
             GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, abs(dc33) = "<<abs(dc33)<<" and tolerance = "<<tol<<"\n");
         }
-    }
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
-{
-    m_map.mine().flags = NEED_VALUE;
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-    m_thickness->piece(patch).eval_into(m_map.mine().values[0], result);
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
-{
-    m_map.mine().flags = NEED_VALUE;
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-
-    gsMatrix<T> tmp;
-    result.resize(m_pars.size(),m_map.mine().values[0].cols());
-    result.setZero();
-    for (size_t v=0; v!=m_pars.size(); v++)
-    {
-        m_pars[v]->piece(patch).eval_into(m_map.mine().values[0], tmp);
-        result.row(v) = tmp;
-    }
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
-{
-    result.resize(9, u.cols());
-    gsMatrix<T> tmp, conbasis,sbasis;
-    this->stretchDir_into(patch,u,tmp);
-    for (index_t i=0; i!= u.cols(); i++)
-    {
-        this->_getMetric(i,0.0,true); // on point i, with height 0.0
-        sbasis = tmp.reshapeCol(i,3,3);
-        conbasis = m_gcon_ori;
-        result.col(i) = this->_transformation(conbasis,sbasis).reshape(9,1);
     }
 }
 
