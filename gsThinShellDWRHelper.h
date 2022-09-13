@@ -83,15 +83,25 @@ public:
         m_assembler->constructMultiPatchH(solVector,dualH);
         gsInfo << "done.\n";
 
-        m_assembler->computeErrorElements(dualL,dualH,deformed,filename,np,parametric,mesh);
+        m_errors = m_assembler->computeErrorElements(dualL,dualH,deformed,filename,np,parametric,mesh);
+        m_error = m_assembler->error();
     }
 
-    T error() { return m_assembler->error(); }
-    std::vector<T> absErrors() { return m_assembler->absErrors(); }
+    T error() const { return  m_error; }
+    std::vector<T> errors() const { return m_errors; }
+    std::vector<T> absErrors() const
+    { 
+        std::vector<T> result = m_errors;
+        for (typename std::vector<T>::iterator it = result.begin(); it!=result.end(); it++)
+            *it = std::abs(*it);
+        return result;
+    }
 
 protected:
     // bool m_verbose;
     gsThinShellAssemblerDWRBase<T> * m_assembler;
+    T m_error;
+    std::vector<T> m_errors;
 };
 
 } // namespace gismo
