@@ -24,6 +24,7 @@ namespace gismo
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Transformation>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Thickness>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Parameters>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Deformation>;
 
   // Material matrix <dimension, real_t, material model, compressibility>
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Generic>;
@@ -42,5 +43,6 @@ namespace gismo
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Transformation>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Thickness>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Parameters>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Deformation>;
 }
 

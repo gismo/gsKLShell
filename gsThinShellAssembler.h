@@ -301,12 +301,26 @@ public:
     //--------------------- GEOMETRY ACCESS --------------------------------//
     /// See \ref gsThinShellAssemblerBase for details
     const gsMultiPatch<T> & geometry()      const  {return m_patches;}
+    gsMultiPatch<T> & geometry()  {return m_patches;}
+    void setGeometry(const gsMultiPatch<T> & patches) { m_patches = patches; }
+
+    //--------------------- BASIS ACCESS --------------------------------//
+    /// See \ref gsThinShellAssemblerBase for details
+    const gsMultiBasis<T> & basis()      const  {return m_basis;}
+    gsMultiBasis<T> & basis()  {return m_basis;}
+    void setBasis(const gsMultiBasis<T> & basis) { m_basis = basis; }
 
     // / See \ref gsThinShellAssemblerBase for details
     // const gsFunctionSet<T> & defGeometry()   const  {return *m_defpatches;}
 
     /// See \ref gsThinShellAssemblerBase for details
     T getArea(const gsFunctionSet<T> & geometry);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    T getDisplacementNorm(const gsFunctionSet<T> & deformed);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    T getElasticEnergy(const gsFunctionSet<T> & deformed);
 
     //--------------------- MATERIAL ACCESS --------------------------------//
     gsMaterialMatrixContainer<T> materials()    const  {return m_materialMatrices;}
@@ -791,6 +805,15 @@ public:
 
     /// Returns the undeformed geometry
     virtual const gsMultiPatch<T> & geometry()    const = 0;
+    virtual gsMultiPatch<T> & geometry() = 0;
+
+    ///
+    virtual const gsMultiBasis<T> & basis()      const  = 0;
+    virtual gsMultiBasis<T> & basis() = 0;
+
+    virtual void setGeometry(const gsMultiPatch<T> & patches) = 0;
+    virtual void setBasis(const gsMultiBasis<T> & basis) = 0;
+
 
     // /// Returns the deformed geometry
     // virtual const gsFunctionSet<T> & defGeometry() const = 0;
@@ -802,6 +825,12 @@ public:
 
     /// Returns the area of \a geometry
     virtual T getArea(const gsFunctionSet<T> & geometry) = 0;
+
+    /// Returns the displacement norm, i.e. norm = sqrt(u'*u/area)
+    virtual T getDisplacementNorm(const gsFunctionSet<T> & deformed) = 0;
+
+    /// Returns the elastic energy norm, i.e. norm = 0.5 * u'*F_int
+    virtual T getElasticEnergy(const gsFunctionSet<T> & deformed) = 0;
 
     /// Returns a reference to the system matrix that is assembled
     virtual const gsSparseMatrix<T> & matrix()  const  = 0;

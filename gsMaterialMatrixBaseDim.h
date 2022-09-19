@@ -36,30 +36,92 @@ class gsMaterialMatrixBaseDim : public gsMaterialMatrixBase<T>
 public:
 
     gsMaterialMatrixBaseDim()
+    :
+    m_thickness(nullptr),
+    m_density(nullptr)
     {
         membersSetZero();
     }
 
-
-    gsMaterialMatrixBaseDim(const gsFunctionSet<T> & mp)
+    gsMaterialMatrixBaseDim(const gsFunctionSet<T> * mp)
+    :
+    m_thickness(nullptr),
+    m_density(nullptr)
     {
-        this->setUndeformed(&mp);
+        this->setUndeformed(mp);
         membersSetZero();
     }
 
-    gsMaterialMatrixBaseDim(const gsFunctionSet<T> & mp,
-                            const gsFunctionSet<T> & mp_def)
+    gsMaterialMatrixBaseDim(const gsFunctionSet<T> * mp,
+                            const gsFunctionSet<T> * mp_def,
+                            const gsFunction<T> * thickness,
+                            const gsFunction<T> * Density)
+    :
+    m_thickness(thickness),
+    m_density(Density)
     {
         membersSetZero();
-        this->setUndeformed(&mp);
-        this->setDeformed(&mp_def);
+        this->setUndeformed(mp);
+        this->setDeformed(mp_def);
     }
-
 
     /// Destructor
     virtual ~gsMaterialMatrixBaseDim() {}
 
 public:
+    /// See \ref gsMaterialMatrixBase for details
+    virtual void    density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// See \ref gsMaterialMatrixBase for details
+    virtual void  thickness_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// See \ref gsMaterialMatrixBase for details
+    virtual void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// See \ref gsMaterialMatrixBase for details
+    virtual void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// See \ref gsMaterialMatrixBase for details
+    virtual void parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+
+    /// See \ref gsMaterialMatrixBase for details
+    virtual void transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+
+    /// See \ref gsMaterialMatrixBase for details
+    virtual void deformation_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+
+    virtual void setDensity(const gsFunction<T> & Density)
+    {
+        m_density = const_cast<gsFunction<T> *>(&Density);
+    }
+    /// Gets the Density
+    virtual gsFunction<T> * getDensity() {return const_cast<gsFunction<T> *>(m_density);}
+
+    /**
+     * @brief      Sets the material parameters.
+     *
+     * @param[in]  pars  Function pointers for the parameters in a container
+     */
+    inline virtual void setParameters(const std::vector<gsFunction<T>*> &pars)
+    {
+        m_pars = pars;
+    }
+    /**
+     * @brief      Gets the number of parameters
+     *
+     */
+    inline virtual index_t numParameters() { return m_pars.size(); }
+    /// See \ref gsMaterialMatrixBase for details
+    inline virtual void resetParameters()
+    {
+        m_pars.clear();
+        m_pars.resize(0);
+    }
+
+
+public:
+
+    void _computePoints(const index_t patch, const gsMatrix<T> & u, bool basis = true) const;
 
     /// Computes metric quantities on the deformed geometry
     void _computeMetricDeformed(const index_t patch, const gsMatrix<T> & u, bool basis = true) const;
@@ -141,7 +203,14 @@ protected:
 
     using Base::m_patches;
     using Base::m_defpatches;
-    // const gsFunctionSet<T> * m_defpatches;
+
+    std::vector<gsFunction<T>* > m_pars;
+    const gsFunction<T> * m_thickness;
+    const gsFunction<T> * m_density;
+    // Material parameters and kinematics
+    mutable gsMatrix<T> m_parmat;
+    mutable gsVector<T> m_parvals;
+    mutable gsMatrix<T> m_Tmat,m_rhomat;
 
     // Geometric data point
     mutable util::gsThreaded<gsMapData<T> > m_map, m_map_def;
@@ -157,7 +226,6 @@ protected:
     mutable gsMatrix<T> m_stretches, m_stretchvec;
 
     mutable T           m_J0_sq, m_J_sq;
-
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW //must be present whenever the class contains fixed size matrices
 

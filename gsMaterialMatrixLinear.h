@@ -123,24 +123,6 @@ public:
     void setOptions(gsOptionList opt) {m_options.update(opt,gsOptionList::addIfUnknown); }
 
     /// See \ref gsMaterialMatrixBase for details
-    void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
-
-    /// See \ref gsMaterialMatrixBase for details
-    void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
-
-    /// See \ref gsMaterialMatrixBase for details
-    void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
-
-    /// See \ref gsMaterialMatrixBase for details
-    void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
-
-    /// See \ref gsMaterialMatrixBase for details
-    void parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
-
-    /// See \ref gsMaterialMatrixBase for details
-    void transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
-
-    /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     /// See \ref gsMaterialMatrixBase for details
@@ -187,6 +169,7 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     void setParameters(const std::vector<gsFunction<T>*> &pars)
     {
+        GISMO_ASSERT(pars.size()==2,"Two material parameters should be assigned!");
         m_pars = pars;
     }
 
@@ -245,14 +228,11 @@ protected:
      */
     T _Sij    (const index_t i, const index_t j, const T z, enum MaterialOutput out) const;
 
-    /**
-     * @brief      Computes the map, the metric quantities and the parameters on
-     *             specified points.
-     *
-     * @param[in]  patch  The patch index
-     * @param[in]  u      The in-plane point coordinates
-     */
-    void _computePoints(const index_t patch, const gsMatrix<T> & u, bool basis = true) const;
+    // See \a gsMaterialMatrixBaseDim for details
+    using Base::_computePoints;
+
+    using Base::_getMetric;
+
 
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     void _computePStress(const gsMatrix<T> & C ) const;
@@ -264,15 +244,16 @@ protected:
     // constructor
     using Base::m_patches;
     using Base::m_defpatches;
-    const gsFunction<T> * m_thickness;
-    std::vector<gsFunction<T>* > m_pars;
-    const gsFunction<T> * m_density;
+    using Base::m_thickness;
+    using Base::m_pars;
+    using Base::m_density;
 
-    mutable gsMatrix<T> m_Emat,m_Nmat,m_Tmat,m_rhomat;
     mutable real_t m_lambda, m_mu, m_Cconstant;
 
-    mutable gsMatrix<T>                 m_parmat;
-    mutable gsVector<T>                 m_parvals;
+    using Base::m_parmat;
+    using Base::m_parvals;
+    using Base::m_Tmat;
+    using Base::m_rhomat;
 
     mutable gsMatrix<T> m_pstress, m_pstressvec;
 

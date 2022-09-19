@@ -43,20 +43,31 @@ int main (int argc, char** argv)
     mp_def = mp;
     mp_def.patch(0).coefs().col(0) *= 2;
 
-    real_t thickness = 1.0;
+    real_t thickness = 1e-2;
     real_t E_modulus = 1.0;
-    real_t PoissonRatio = 0.499;
+    real_t PoissonRatio = (Compressibility==1 || material==0) ? 0.45 : 0.5;
     real_t Ratio = 2;
     gsFunctionExpr<> t(std::to_string(thickness), 3);
     gsFunctionExpr<> E(std::to_string(E_modulus),3);
     gsFunctionExpr<> nu(std::to_string(PoissonRatio),3);
     gsConstantFunction<> ratio(Ratio,3);
 
-
-    std::vector<gsFunction<>*> parameters(3);
-    parameters[0] = &E;
-    parameters[1] = &nu;
-    parameters[2] = &ratio;
+    std::vector<gsFunction<>*> parameters;
+    if (material==0 || material==1 || material==2)
+    {
+        parameters.resize(2);
+        parameters[0] = &E;
+        parameters[1] = &nu;
+    }
+    else if (material==3)
+    {
+        parameters.resize(3);
+        parameters[0] = &E;
+        parameters[1] = &nu;
+        parameters[2] = &ratio;
+    }
+    else
+        GISMO_ERROR("Material unknown");
 
     gsMaterialMatrixBase<real_t>* materialMatrix;
     gsOptionList options;
@@ -64,51 +75,6 @@ int main (int argc, char** argv)
     options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",Compressibility);
     options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",impl);
     materialMatrix = getMaterialMatrix<3,real_t>(mp,t,parameters,options);
-
-    // gsMaterialMatrixBase<real_t>* materialMatrix;
-    // if (material==0)
-    // {
-    //     materialMatrix = new gsMaterialMatrixLinear<3,real_t>(mp,t);
-    //     materialMatrix->setYoungsModulus(E);
-    //     materialMatrix->setPoissonsRatio(nu);
-    // }
-    // else if (material==1)
-    // {
-    //     constexpr int id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
-    //     materialMatrix = new gsMaterialMatrix<3,real_t,id,true>(mp,t);
-    //     materialMatrix->setYoungsModulus(E);
-    //     materialMatrix->setPoissonsRatio(nu);
-    // }
-    // else if (material==2)
-    // {
-    //     constexpr int id = encodeMat_id<Material::NH_ext, Implementation::Analytical>::id;
-    //     materialMatrix = new gsMaterialMatrix<3,real_t,id,true>(mp,t);
-    //     materialMatrix->setYoungsModulus(E);
-    //     materialMatrix->setPoissonsRatio(nu);
-    // }
-    // else if (material==3)
-    // {
-    //     constexpr int id = encodeMat_id<Material::MR, Implementation::Analytical>::id;
-    //     materialMatrix = new gsMaterialMatrix<3,real_t,id,true>(mp,t);
-    //     materialMatrix->setYoungsModulus(E);
-    //     materialMatrix->setPoissonsRatio(nu);
-    //     materialMatrix->setRatio(ratio);
-    // }
-    // else if (material==4)
-    // {
-    //     constexpr int id = encodeMat_id<Material::OG, Implementation::Spectral>::id;
-    //     materialMatrix = new gsMaterialMatrix<3,real_t,id,true>(mp,t);
-    //     materialMatrix->setYoungsModulus(E);
-    //     materialMatrix->setPoissonsRatio(nu);
-    //     materialMatrix->setMu(0,nu);
-    //     materialMatrix->setAlpha(0,E);
-    //     materialMatrix->setMu(1,nu);
-    //     materialMatrix->setAlpha(1,E);
-    //     materialMatrix->setMu(2,nu);
-    //     materialMatrix->setAlpha(2,E);
-    //     materialMatrix->setMu(3,nu);
-    //     materialMatrix->setAlpha(3,E);
-    // }
 
 
     gsVector<> pt(2);

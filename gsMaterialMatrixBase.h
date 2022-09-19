@@ -82,7 +82,7 @@ public:
      *
      * @param[in]  patch   The patch to be evaluated on
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The resut
+     * @param      result  The result
      */
     inline virtual void    density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
     /**
@@ -90,7 +90,7 @@ public:
      *
      * @param[in]  patch   The patch to be evaluated on
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The resut
+     * @param      result  The result
      */
     inline virtual void    stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
     /**
@@ -98,7 +98,7 @@ public:
      *
      * @param[in]  patch   The patch to be evaluated on
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The resut
+     * @param      result  The result
      */
     inline virtual void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
     /**
@@ -106,7 +106,7 @@ public:
      *
      * @param[in]  patch   The patch to be evaluated on
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The resut
+     * @param      result  The result
      */
     inline virtual void  thickness_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
     /**
@@ -114,19 +114,29 @@ public:
      *
      * @param[in]  patch   The patch to be evaluated on
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The resut
+     * @param      result  The result
      */
     inline virtual void  parameters_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
 
 
     /**
-     * @brief      ???????????????
+     * @brief      Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) convariant basis
      *
      * @param[in]  patch   The patch to be evaluated on
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The resut
+     * @param      result  The result
      */
     inline virtual void  transform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+
+    /**
+     * @brief      Computes the deformation tensor C = F'F
+     *
+     * @param[in]  patch   The patch to be evaluated on
+     * @param[in]  u       The in-plane shell coordinates to be eveluated on
+     * @param      result  The result
+     */
+    inline virtual void  deformation_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+
 
     /**
      * @brief      Evaluates the matrix on \a patch on in-plane points \a u with height \a z
