@@ -9,7 +9,7 @@
   <!-- Poisson ratio -->
   <Function type="FunctionExpr" id="12" tag="Material" dim="3">0.3</Function>
   <!-- Density -->
-  <Function type="FunctionExpr" id="13" tag="Material" dim="3">1.0</Function>
+  <Function type="FunctionExpr" id="13" tag="Material" dim="3">7850</Function>
 
   <!-- Mooney-Rivlin -->
     <!-- Ratio -->
