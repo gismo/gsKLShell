@@ -48,6 +48,7 @@ int main(int argc, char *argv[])
     bool info       = false;
     bool writeMatrix= false;
     bool nonlinear  = false;
+    bool dense      = false;
     index_t numRefine  = 2;
     index_t degree = 3;
     index_t smoothness = 2;
@@ -90,6 +91,7 @@ int main(int argc, char *argv[])
     cmd.addSwitch("writeMat", "Write projection matrix",writeMatrix);
     cmd.addSwitch( "info", "Print information", info );
     cmd.addSwitch( "nl", "Print information", nonlinear );
+    cmd.addSwitch("dense", "Dense eigenvalue computation",dense);
 
     // to do:
     // smoothing method add nitsche @Pascal
@@ -311,32 +313,43 @@ int main(int argc, char *argv[])
     gsMatrix<> vectors;
 
     gsInfo<<"Computing Eigenmodes..."<<std::flush;
+    if (dense)
+    {
+        Eigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  eigSolver;
+        eigSolver.compute(matrix-shift*mass,mass);
+        values = eigSolver.eigenvalues();
+        vectors = eigSolver.eigenvectors();
+    }
+    else
+    {
 #ifdef GISMO_WITH_SPECTRA
-    Spectra::SortRule selectionRule = Spectra::SortRule::LargestMagn;
-    Spectra::SortRule sortRule = Spectra::SortRule::SmallestMagn;
+        Spectra::SortRule selectionRule = Spectra::SortRule::LargestMagn;
+        Spectra::SortRule sortRule = Spectra::SortRule::SmallestMagn;
 
-    index_t ncvFac = 10;
-    index_t number = nmodes;
-    gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> solver(matrix-shift*mass,mass,number,ncvFac*number, shift);
-    // gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> solver(matrix,mass,number,ncvFac*number, shift);
-    solver.init();
-    solver.compute(selectionRule,1000,1e-6,sortRule);
+        index_t ncvFac = 10;
+        index_t number = nmodes;
+        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> solver(matrix-shift*mass,mass,number,ncvFac*number, shift);
+        // gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> solver(matrix,mass,number,ncvFac*number, shift);
+        solver.init();
+        solver.compute(selectionRule,1000,1e-6,sortRule);
 
-    if (solver.info()==Spectra::CompInfo::Successful)         { gsDebug<<"Spectra converged in "<<solver.num_iterations()<<" iterations and with "<<solver.num_operations()<<"operations. \n"; }
-    else if (solver.info()==Spectra::CompInfo::NumericalIssue){ GISMO_ERROR("Spectra did not converge! Error code: NumericalIssue"); }
-    else if (solver.info()==Spectra::CompInfo::NotConverging) { GISMO_ERROR("Spectra did not converge! Error code: NotConverging"); }
-    else if (solver.info()==Spectra::CompInfo::NotComputed)   { GISMO_ERROR("Spectra did not converge! Error code: NotComputed");   }
-    else                                                      { GISMO_ERROR("No error code known"); }
+        if (solver.info()==Spectra::CompInfo::Successful)         { gsDebug<<"Spectra converged in "<<solver.num_iterations()<<" iterations and with "<<solver.num_operations()<<"operations. \n"; }
+        else if (solver.info()==Spectra::CompInfo::NumericalIssue){ GISMO_ERROR("Spectra did not converge! Error code: NumericalIssue"); }
+        else if (solver.info()==Spectra::CompInfo::NotConverging) { GISMO_ERROR("Spectra did not converge! Error code: NotConverging"); }
+        else if (solver.info()==Spectra::CompInfo::NotComputed)   { GISMO_ERROR("Spectra did not converge! Error code: NotComputed");   }
+        else                                                      { GISMO_ERROR("No error code known"); }
 
-    values  = solver.eigenvalues();
-    values.array() += shift;
-    vectors = solver.eigenvectors();
+        values  = solver.eigenvalues();
+        values.array() += shift;
+        vectors = solver.eigenvectors();
 #else
-    Eigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  eigSolver;
-    eigSolver.compute(matrix-shift*mass,mass);
-    values = eigSolver.eigenvalues();
-    vectors = eigSolver.eigenvectors();
+        Eigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  eigSolver;
+        eigSolver.compute(matrix-shift*mass,mass);
+        values = eigSolver.eigenvalues();
+        vectors = eigSolver.eigenvectors();
 #endif
+    }
+
     gsInfo<<"Finished\n";
 
 
