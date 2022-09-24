@@ -156,14 +156,18 @@ int main(int argc, char *argv[])
 
     gsMultiPatch<> geom = mp;
 
+    gsInfo<<"Patch 0 has basis: "<<mp.basis(0)<<"\n";
+
     gsInfo<<"Setting degree and refinement..."<<std::flush;
     GISMO_ENSURE(degree>=mp.patch(0).degree(0),"Degree must be larger than or equal to the degree of the initial geometry, but degree = "<<degree<<" and the original degree = "<<mp.patch(0).degree(0));
-    mp.degreeElevate(degree-mp.patch(0).degree(0));
+    mp.degreeIncrease(degree-mp.patch(0).degree(0));
 
     // h-refine each basis
     for (int r =0; r < numRefine; ++r)
         mp.uniformRefine(1,degree-smoothness);
     gsInfo<<"Finished\n";
+
+    gsInfo<<"Patch 0 has basis: "<<mp.basis(0)<<"\n";
 
     if (plot)
     {
