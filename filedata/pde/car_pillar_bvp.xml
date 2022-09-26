@@ -29,7 +29,7 @@
 <boundaryConditions id="20" multipatch="1">
   <Function type="FunctionExpr" dim="3" index="0">0</Function>
   <Function type="FunctionExpr" dim="3" index="1">0</Function>
-  <bc type="Dirichlet" function="0" unknown="0" component="0">
+  <bc type="Dirichlet" function="0" unknown="0" component="-1">
     76 4
     64 4
     105 4
@@ -71,94 +71,20 @@
     120 2
     22 2
     23 2
+    76 2
+    126 2
+    127 2
+    129 2
+    26 2
+    48 2
+    6 2
+    40 2
+    41 2
+    10 2
+    20 2
+    49 2
   </bc>
-  <bc type="Dirichlet" function="0" unknown="0" component="1">
-    76 4
-    64 4
-    105 4
-    51 4
-    97 2
-    99 2
-    87 2
-    62 2
-    67 2
-    31 2
-    11 1
-    17 1
-    19 1
-    43 1
-    12 1
-    28 3
-    5 3
-    45 3
-    40 3
-    78 3
-    112 3
-    118 4
-    69 3
-    94 3
-    68 2
-    100 2
-    0 3
-    131 3
-    41 3
-    49 4
-    133 4
-    124 4
-    95 2
-    65 2
-    114 2
-    102 2
-    103 3
-    53 3
-    120 2
-    22 2
-    23 2
-  </bc>
-  <bc type="Dirichlet" function="0" unknown="0" component="2">
-    76 4
-    64 4
-    105 4
-    51 4
-    97 2
-    99 2
-    87 2
-    62 2
-    67 2
-    31 2
-    11 1
-    17 1
-    19 1
-    43 1
-    12 1
-    28 3
-    5 3
-    45 3
-    40 3
-    78 3
-    112 3
-    118 4
-    69 3
-    94 3
-    68 2
-    100 2
-    0 3
-    131 3
-    41 3
-    49 4
-    133 4
-    124 4
-    95 2
-    65 2
-    114 2
-    102 2
-    103 3
-    53 3
-    120 2
-    22 2
-    23 2
-  </bc>
-  <bc type="Clamped" function="0" unknown="0" component="0">
+  <bc type="Clamped" function="0" unknown="0" component="-1">
     76 4
         64 4
         105 4
@@ -200,92 +126,19 @@
         120 2
         22 2
         23 2
+        76 2
+        126 2
+        127 2
+        129 2
+        26 2
+        48 2
+        6 2
+        40 2
+        41 2
+        10 2
+        20 2
+        49 2
   </bc>
-  <bc type="Clamped" function="0" unknown="0" component="1">
-    76 4
-    64 4
-    105 4
-    51 4
-    97 2
-    99 2
-    62 2
-    67 2
-    11 1
-    17 1
-    19 1
-    43 1
-    12 1
-    28 3
-    5 3
-    45 3
-    40 3
-    78 3
-    112 3
-    118 4
-    69 3
-    94 3
-    68 2
-    100 2
-    0 3
-    131 3
-    41 3
-    49 4
-    133 4
-    124 4
-    95 2
-    65 2
-    114 2
-    102 2
-    103 3
-    53 3
-    120 2
-    22 2
-    23 3
-  </bc>
-  <bc type="Clamped" function="0" unknown="0" component="2">
-    76 4
-    64 4
-    105 4
-    51 4
-    97 2
-    99 2
-    87 2
-    62 2
-    67 2
-    31 2
-    11 1
-    17 1
-    19 1
-    43 1
-    12 1
-    28 3
-    5 3
-    45 3
-    40 3
-    78 3
-    112 3
-    118 4
-    69 3
-    94 3
-    68 2
-    100 2
-    0 3
-    131 3
-    41 3
-    49 4
-    133 4
-    124 4
-    95 2
-    65 2
-    114 2
-    102 2
-    103 3
-    53 3
-    120 2
-    22 2
-    23 2
-  </bc>
-
   <bc type="Collapsed" function="0" unknown="0" component="2">
   </bc>
   <!-- Neumann conditions (patch,side)-->

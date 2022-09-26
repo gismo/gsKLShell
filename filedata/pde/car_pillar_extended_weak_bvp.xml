@@ -27,7 +27,14 @@
 
 <!-- Boundary conditions and loads -->
 <boundaryConditions id="20" multipatch="1">
+<!--   <Function type="FunctionExpr" dim="3" index="0">
+  <c> 0 </c>
+  <c> 0 </c>
+  <c> 0 </c>
+  </Function>
+ -->
   <Function type="FunctionExpr" dim="3" index="0">0</Function>
+  <Function type="FunctionExpr" dim="3" index="1">0</Function>
   <bc type="Dirichlet" function="0" unknown="0" component="-1">
     182 4
     173 4
