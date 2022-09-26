@@ -165,6 +165,8 @@ int main(int argc, char *argv[])
         mp.uniformRefine(1,degree-smoothness);
     gsInfo<<"Finished\n";
 
+    gsInfo<<"First basis: "<<mp.basis(0)<<"\n";
+    
     if (plot)
     {
         std::string commands = "mkdir -p " + out;
@@ -234,7 +236,7 @@ int main(int argc, char *argv[])
     {
         // The approx. C1 space
         gsApproxC1Spline<2,real_t> approxC1(mp,dbasis);
-        // approxC1.options().setSwitch("info",info);
+        approxC1.options().setSwitch("info",info);
         // approxC1.options().setSwitch("plot",plot);
         approxC1.options().setSwitch("interpolation",true);
         approxC1.options().setInt("gluingDataDegree",-1);
@@ -369,7 +371,8 @@ int main(int argc, char *argv[])
 
         int N = 1;
         if (!first)
-            N = vectors.cols();
+	      N = nmodes;
+        //    N = vectors.cols();
         for (index_t m=0; m<N; m++)
         {
             solVector = vectors.col(m).normalized();
