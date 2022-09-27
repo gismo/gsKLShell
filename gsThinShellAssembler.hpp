@@ -295,7 +295,6 @@ void gsThinShellAssembler<d, T, bending>::initInterfaces()
     // Find unassigned interfaces and add them to the right containers
     for (gsBoxTopology::const_iiterator it = m_patches.topology().iBegin(); it!=m_patches.topology().iEnd(); it++)
     {
-        gsDebugVar(*it);
         if (
                 std::find(m_strongC0.begin(), m_strongC0.end(), *it) == m_strongC0.end() // m_strongC0 does not contain *it
             &&  std::find(m_strongC1.begin(), m_strongC1.end(), *it) == m_strongC1.end() // m_strongC1 does not contain *it

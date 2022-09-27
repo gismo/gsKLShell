@@ -190,13 +190,11 @@ int main(int argc, char *argv[])
     assembler.assemble();
     gsSparseMatrix<> matrix = assembler.matrix();
     gsInfo<<"Finished\n";
-    gsDebugVar(matrix.toDense());
     gsVector<> vector = assembler.rhs();
     gsInfo<<"Assembling mass matrix..."<<std::flush;
     assembler.assembleMass();
     gsSparseMatrix<> mass   = assembler.massMatrix();
     gsInfo<<"Finished\n";
-    gsDebugVar(mass.toDense());
 
     gsVector<> values;
     gsMatrix<> vectors;
@@ -255,7 +253,7 @@ int main(int argc, char *argv[])
         std::string dirname = out;
         std::string output = "modes";
         gsParaviewCollection collection(dirname + "/" + output);
-        gsMultiPatch<> solution, deformation;
+        gsMultiPatch<> deformation;
 
         int N = 1;
         if (!first)
@@ -266,16 +264,16 @@ int main(int argc, char *argv[])
             deformation = assembler.constructDisplacement(solVector);
 
             // compute the deformation spline
-            // real_t maxAmpl = std::max(math::abs(deformation.patch(0).coefs().col(2).maxCoeff()),math::abs(deformation.patch(0).coefs().col(2).minCoeff()));
-            // for (size_t p=1; p!=mp.nPatches(); p++)
-            // {
-            //     // deformation.patch(p).coefs() -= mp.patch(p).coefs();// assuming 1 patch here
-            //     // Normalize mode shape amplitude in z coordinate
-            //     maxAmpl = std::max(maxAmpl,std::max(math::abs(deformation.patch(p).coefs().col(2).maxCoeff()),math::abs(deformation.patch(p).coefs().col(2).minCoeff())));
-            // }
-            // for (size_t p=0; p!=mp.nPatches(); p++)
-            //     if (maxAmpl!=0.0)
-            //         deformation.patch(p).coefs() = deformation.patch(p).coefs()/maxAmpl;
+            real_t maxAmpl = std::max(math::abs(deformation.patch(0).coefs().col(2).maxCoeff()),math::abs(deformation.patch(0).coefs().col(2).minCoeff()));
+            for (size_t p=1; p!=mp.nPatches(); p++)
+            {
+                // deformation.patch(p).coefs() -= mp.patch(p).coefs();// assuming 1 patch here
+                // Normalize mode shape amplitude in z coordinate
+                maxAmpl = std::max(maxAmpl,std::max(math::abs(deformation.patch(p).coefs().col(2).maxCoeff()),math::abs(deformation.patch(p).coefs().col(2).minCoeff())));
+            }
+            for (size_t p=0; p!=mp.nPatches(); p++)
+                if (maxAmpl!=0.0)
+                    deformation.patch(p).coefs() = deformation.patch(p).coefs()/maxAmpl;
 
             gsField<> solField(mp,deformation);
 
