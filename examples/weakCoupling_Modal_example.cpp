@@ -84,11 +84,11 @@ int main(int argc, char *argv[])
     gsFileData<> fd;
     gsInfo<<"Reading geometry from "<<fn1<<"...";
     gsReadFile<>(fn1, mp);
-    // if (mp.nInterfaces()==0 && mp.nBoundary()==0)
-    // {
+    if (mp.nInterfaces()==0 && mp.nBoundary()==0)
+    {
         gsInfo<<"No topology found. Computing it...";
         mp.computeTopology();
-    // }
+    }
     gsInfo<<"Finished\n";
     if (mp.geoDim()==2)
         mp.embed(3);
