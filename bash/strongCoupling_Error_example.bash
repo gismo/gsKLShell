@@ -49,9 +49,9 @@ for file in ${Filenames[@]}; do
                     fi
                 fi
 
-                echo "$Runname" -m $m -p $p -s $s -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 6 -R $R0
+                echo "$Runname" -m $m -p $p -s $s -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e13 -r 6 -R $R0
 
-                eval "$Runname" -m $m -p $p -s $s -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e3 -r 6 -R $R0 > Output/"$file"_p"$p"_s"$s"_m"$m".log
+                eval "$Runname" -m $m -p $p -s $s -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e13 -r 6 -R $R0 > Output/"$file"_p"$p"_s"$s"_m"$m".log
             done
         done
     done
