@@ -327,6 +327,8 @@ int main(int argc, char *argv[])
             assembler.options().setInt("Continuity",-1);
         else if (method==2)
             assembler.options().setInt("Continuity",-1);
+        assembler.options().setReal("WeakDirichlet",bcDirichlet);
+        assembler.options().setReal("WeakClamped",bcClamped);
         assembler.setSpaceBasis(bb2);
         assembler.setPointLoads(pLoads);
         // gsOptionList options = assembler.options();
