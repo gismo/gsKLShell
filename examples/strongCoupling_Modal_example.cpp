@@ -46,6 +46,7 @@ int main(int argc, char *argv[])
     bool write      = false;
     bool info       = false;
     bool writeMatrix= false;
+    bool writeGeo   = false;
     bool dense      = false;
     index_t numRefine  = 2;
     index_t degree = 3;
@@ -85,6 +86,7 @@ int main(int argc, char *argv[])
     cmd.addSwitch("mesh", "mesh",mesh);
     cmd.addSwitch("first", "Plot only first mode",first);
     cmd.addSwitch("write", "write",write);
+    cmd.addSwitch("writeGeo", "write geometry",writeGeo);
     cmd.addSwitch("writeMat", "Write projection matrix",writeMatrix);
     cmd.addSwitch( "info", "Print information", info );
     cmd.addSwitch("dense", "Dense eigenvalue computation",dense);
@@ -274,6 +276,10 @@ int main(int argc, char *argv[])
         gsWrite(global2local,"mat");
         //gsWrite(geom,"geom");
         //gsWrite(dbasis,"dbasis");
+    }
+    if (writeGeo)
+    {
+        gsWrite(geom,"geom");
     }
     if (plot)
         gsWriteParaview(geom,out + "/" + "geom",200,true);
