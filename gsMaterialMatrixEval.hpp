@@ -132,5 +132,15 @@ gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& r
     result = m_materialMat->eval3D_tensionfield(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
 }
 
+template <class T, enum MaterialOutput out>
+template<enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::Strain  ||
+                        _out==MaterialOutput::StrainN ||
+                        _out==MaterialOutput::StrainM   , void>::type
+gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    result = m_materialMat->eval3D_strain(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
+}
+
 
 } // end namespace

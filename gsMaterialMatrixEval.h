@@ -93,10 +93,15 @@ private:
     typename std::enable_if<_out==MaterialOutput::CovTransform ||
                             _out==MaterialOutput::ConTransform, short_t>::type targetDim_impl() const { return 9; };
 
-    /// Implementation of \ref targetDim for the tension field
+    /// Implementation of \ref targetDim for the tension field indicator
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::TensionField, short_t>::type targetDim_impl() const { return 1; };
 
+    /// Specialisation of \ref targetDim for strain
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Strain  ||
+                            _out==MaterialOutput::StrainN ||
+                            _out==MaterialOutput::StrainM   , short_t>::type targetDim_impl() const { return 3; };
 
 
 public:
@@ -163,9 +168,15 @@ private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::ConTransform, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
-    /// Specialisation of \ref eval_into for tension
+    /// Specialisation of \ref eval_into for tension field indicator
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::TensionField, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for strain
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Strain  ||
+                            _out==MaterialOutput::StrainN ||
+                            _out==MaterialOutput::StrainM   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
 
 protected:

@@ -20,6 +20,9 @@
 #include <gsKLShell/gsMaterialMatrixTFT.h>
 #include <gsKLShell/gsMaterialMatrixLinear.h>
 
+#include <gsKLShell/gsGLStrain.h>
+
+
 #ifdef GISMO_WITH_IPOPT
 #include <gsIpopt/gsOptProblem.h>
 #endif
@@ -853,47 +856,69 @@ int main(int argc, char *argv[])
     ///////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////
 
+    gsMatrix<> z(1,1);
+    z.setZero();
 
+    gsVector<> pt(2);
+    pt<<0.5,0.5;
+
+    gsMaterialMatrixBaseDim<2,real_t> baseDim(mp,mp_def);
+    baseDim._computeMetricUndeformed(0,pt,true);
+    baseDim._computeMetricDeformed(0,pt,true);
+    gsDebugVar(baseDim._getGcov_ori(0,0.0));
+    gsDebugVar(baseDim._getGcov_def(0,0.0));
+
+    gsGLStrain<2,real_t> strain(mp,mp_def);
+    gsDebugVar(strain.eval(0,pt,z));
+
+    gsMatrix<> Emat = strain.eval(0,pt,z);
+    gsDebugVar(Emat);
+    strain.toMatrix(Emat);
+    gsDebugVar(Emat);
+
+    gsMatrix<> result;
+
+    // GLStrain.eval_into(pt,result);
+    // gsDebugVar(result);
+
+
+
+
+
+
+    return 0;
 
     gsMaterialMatrixLinear<2,real_t> * materialMatrixLinear = new gsMaterialMatrixLinear<2,real_t>(mp,t,parameters,rho);
     gsMaterialMatrixTFT<2,real_t> * materialMatrixTFT = new gsMaterialMatrixTFT<2,real_t>(materialMatrixLinear);
 
-    gsMatrix<> z(1,1);
-    z.setZero();
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> matA(materialMatrixTFT,mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB> matB(materialMatrixTFT,mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC> matC(materialMatrixTFT,mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD> matD(materialMatrixTFT,mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> vecN(materialMatrixTFT,mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::VectorM> vecM(materialMatrixTFT,mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::PStrainN> pstrain(materialMatrix,mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::PStressN> pstress(materialMatrix,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> matA(materialMatrixTFT,&mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB> matB(materialMatrixTFT,&mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC> matC(materialMatrixTFT,&mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD> matD(materialMatrixTFT,&mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> vecN(materialMatrixTFT,&mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::VectorM> vecM(materialMatrixTFT,&mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::PStrainN> pstrain(materialMatrix,&mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::PStressN> pstress(materialMatrix,&mp_def,z);
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> matAL(materialMatrixLinear,mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB> matBL(materialMatrixLinear,mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC> matCL(materialMatrixLinear,mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD> matDL(materialMatrixLinear,mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> vecNL(materialMatrixLinear,mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::VectorM> vecML(materialMatrixLinear,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> matAL(materialMatrixLinear,&mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB> matBL(materialMatrixLinear,&mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC> matCL(materialMatrixLinear,&mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD> matDL(materialMatrixLinear,&mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> vecNL(materialMatrixLinear,&mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::VectorM> vecML(materialMatrixLinear,&mp_def,z);
 
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::TensionField> tensionfield(materialMatrixLinear,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::TensionField> tensionfield(materialMatrixLinear,&mp_def,z);
 
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> mat(materialMatrixLinear,mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::StretchDir> pdir(materialMatrixLinear,mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> mat(materialMatrixLinear,&mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::StretchDir> pdir(materialMatrixLinear,&mp_def,z);
 
 
 
     gsField<> tensionField(mp_def, tensionfield, true);
     gsInfo<<"Plotting in Paraview...\n";
     gsWriteParaview<>( tensionField, "TensionField", 10000, true);
-
-
-    gsVector<> pt(2);
-    pt<<0.5,0.5;
-
-    gsMatrix<> result;
 
     matA.eval_into(pt,result);
     gsMatrix<real_t,3,3> Amat = result.reshape(3,3);

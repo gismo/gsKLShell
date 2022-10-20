@@ -1054,7 +1054,7 @@ protected:
     mutable gsMatrix<T> m_Tmat,m_rhomat;
 
     // Geometric data point
-    using Base::m_map;
+    using Base::m_map_ori;
     using Base::m_map_def;
 
     using Base::m_Acov_ori;

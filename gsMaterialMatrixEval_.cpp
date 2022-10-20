@@ -26,5 +26,8 @@ namespace gismo
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::CovTransform>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::ConTransform>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::TensionField>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Strain>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StrainN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StrainM>;
 }
 

@@ -16,6 +16,7 @@
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/getMaterialMatrix.h>
 #include <gsKLShell/gsMaterialMatrixEval.h>
+#include <gsKLShell/gsGLStrain.h>
 
 #ifdef GISMO_WITH_IPOPT
 #include <gsIpopt/gsOptProblem.h>
@@ -25,76 +26,15 @@
 
 using namespace gismo;
 
-/**
- * @brief
- * Simple optimization example, to demonstrate the definition of an
- * optimization problem using the base class gsOptProblem.
- *
- *  This class implements the following NLP.
- *
- * min_x f(x) = (... )^2     (objetive function) --> square minimize it to zero
- *  s.t.
- *       beta > 0
- *       t sigma t > 0
- *       0.5 * pi <= theta <= 0.5 * pi
- *
- */
-#ifdef GISMO_WITH_IPOPT
-
-template <typename T>
-class gsTFTMat
+template<typename T>
+void toMatrix(gsMatrix<T> & voight)
 {
-public:
-    gsTFTMat(const gsMatrix<T> & C, const gsMatrix<T> & e)
-    :
-    m_C(C),
-    m_e(e)
-    { }
-
-    void compute(T theta)
-    {
-        T n1 = math::cos(theta);
-        T n2 = math::sin(theta);
-        T m1 = -math::sin(theta);
-        T m2 = math::cos(theta);
-        gsVector<T,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-        gsVector<T,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-        gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
-
-        gsMatrix<T,1,1> denum = n1_vec.transpose() * m_C * n1_vec;
-
-        C_I = m_C - 1 / (  n1_vec.transpose() * m_C * n1_vec ) * m_C * ( n1_vec * n1_vec.transpose() ) * m_C;
-
-
-        gsMatrix<T> gamma_tmp = - ( n1_vec.transpose() * m_C * m_e ) / ( n1_vec.transpose() * m_C * n1_vec );
-        gamma = gamma_tmp(0,0);
-
-        gsMatrix<T,1,1> tmp2 = (n1_vec.transpose() * m_C * n2_vec);
-
-        GISMO_ASSERT(tmp2.rows()==1 && tmp2.cols()==1,"Must be scalar");
-
-        T df =  n4_vec.transpose() * m_C * (m_e + gamma * n1_vec)
-                + 2 * gamma * ( n2_vec.transpose() * m_C * n2_vec
-                - math::pow(tmp2(0,0),2) / (n1_vec.transpose() * m_C * n1_vec)
-                )
-                                ;
-
-
-        gsMatrix<T,3,1> b = n2_vec - ( (n1_vec.transpose() * m_C * n2_vec)(0,0) / ( n1_vec.transpose() * m_C * n1_vec )(0,0)) * n1_vec;
-
-
-        C_II = C_I + 2 * gamma / df * (m_C * b * b.transpose() * m_C);
-
-    }
-
-public:
-    mutable gsMatrix<T> C_I, C_II;
-    mutable T gamma;
-
-private:
-    const gsMatrix<T> m_C;
-    const gsVector<T> m_e;
-};
+    GISMO_ASSERT(voight.rows()==3 && voight.cols()==1, "Vector must be 3x1");
+    voight.conservativeResize(4,1);
+    std::swap(voight(1,0),voight(3,0));
+    voight(1,0) = voight(2,0);
+    voight.resize(2,2);
+}
 
 template <typename T>
 class objective : public gsFunction<T>
@@ -126,8 +66,6 @@ public:
 
             gsMatrix<T,1,1> gamma = - ( n1_vec.transpose() * m_C * m_e ) / ( n1_vec.transpose() * m_C * n1_vec );
 
-            gsDebugVar(gamma);
-
             gsMatrix<T,1,1> res = n2_vec.transpose() * m_C * m_e + gamma * n2_vec.transpose() * m_C * n1_vec;
             GISMO_ASSERT(res.rows()==1 && res.cols() ==1,"f is not scalar!");
 
@@ -149,6 +87,520 @@ private:
     const gsMatrix<T> m_C;
     const gsMatrix<T> m_e;
 };
+
+
+template <typename T>
+class objectiveNL : public gsFunction<T>
+{
+public:
+
+    objectiveNL()
+    {}
+
+
+    objectiveNL(const gsMaterialMatrixBase<T> * mm, const gsMatrix<T> & e)
+    :
+    m_mm(mm),
+    m_e(e)
+    {
+
+    }
+
+    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    {
+        result.resize(2,u.cols());
+        gsMatrix<T> Ep, Sp;
+        T theta, gamma, n1, n2, m1, m2;
+        gsVector<T,3> n1_vec, n2_vec;
+        for (index_t k = 0; k!=u.cols(); k++)
+        {
+            theta = u(0,k);
+            gamma = u(1,k);
+            n1 = math::cos(theta);
+            n2 = math::sin(theta);
+            m1 = -math::sin(theta);
+            m2 = math::cos(theta);
+
+            n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+            n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
+
+            Ep = m_e + gamma * n1_vec;
+            toMatrix(Ep);
+            Sp = m_mm->S(Ep);
+
+            // Make voight notation
+            Sp.resize(4,1);
+
+            std::swap(Sp(3,0),Sp(1,0));
+            Sp.conservativeResize(3,1);
+
+            result(0,k) = (n1_vec.transpose()*Sp)(0,0);
+            result(1,k) = (n2_vec.transpose()*Sp)(0,0);
+        }
+    }
+
+    short_t domainDim() const
+    {
+        return 2;
+    }
+
+    short_t targetDim() const
+    {
+        return 2;
+    }
+
+private:
+    const gsMaterialMatrixBase<T> * m_mm;
+    const gsMatrix<T> m_e;
+};
+
+template <typename T>
+class EfullFun : public gsFunction<T>
+{
+public:
+    EfullFun(const gsMaterialMatrixBase<T> * mm)
+    :
+    m_mm(mm)
+    {
+
+    }
+
+    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    {
+        result.resize(3,u.cols());
+        gsMatrix<T> E, Ep;
+        gsVector<T> value(2),init(2);
+        gsVector<T,3> n1_vec;
+        T n1, n2;
+
+        index_t iter;
+
+        T theta;
+        T gamma;
+        for (index_t k = 0; k!=u.cols(); k++)
+        {
+            E = u.col(k);
+
+            init.setZero();
+            value.setZero();
+
+            objectiveNL<T> obj(m_mm,E);
+            iter = obj.newtonRaphson(value,init,false,1e-12,1000);
+
+            theta = init.at(0);
+            gamma = init.at(1);
+
+            n1 = math::cos(theta);
+            n2 = math::sin(theta);
+
+            n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+
+            Ep = E + gamma * n1_vec;
+            result.col(k) = Ep;
+        }
+    }
+
+    short_t domainDim() const
+    {
+        return 3;
+    }
+
+    short_t targetDim() const
+    {
+        return 3;
+    }
+
+private:
+    const gsMaterialMatrixBase<T> * m_mm;
+};
+
+template <typename T>
+class EwFun : public gsFunction<T>
+{
+public:
+    EwFun(const gsMaterialMatrixBase<T> * mm)
+    :
+    m_mm(mm)
+    {
+
+    }
+
+    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    {
+        result.resize(3,u.cols());
+        gsMatrix<T> E, Ew;
+        gsVector<T> value(2),init(2);
+        gsVector<T,3> n1_vec;
+        T n1, n2;
+
+        index_t iter;
+
+        T theta;
+        T gamma;
+        for (index_t k = 0; k!=u.cols(); k++)
+        {
+            E = u.col(k);
+
+            init.setZero();
+            value.setZero();
+
+            objectiveNL<T> obj(m_mm,E);
+            iter = obj.newtonRaphson(value,init,false,1e-12,1000);
+
+            theta = init.at(0);
+            gamma = init.at(1);
+
+            gsDebugVar(theta);
+            gsDebugVar(gamma);
+
+            n1 = math::cos(theta);
+            n2 = math::sin(theta);
+
+            n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+
+            Ew = gamma * n1_vec;
+            result.col(k) = Ew;
+        }
+    }
+
+    short_t domainDim() const
+    {
+        return 3;
+    }
+
+    short_t targetDim() const
+    {
+        return 3;
+    }
+
+private:
+    const gsMaterialMatrixBase<T> * m_mm;
+};
+
+
+template <typename T>
+class gammaFun : public gsFunction<T>
+{
+public:
+    gammaFun(const gsMaterialMatrixBase<T> * mm)
+    :
+    m_mm(mm)
+    {
+
+    }
+
+    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    {
+        result.resize(1,u.cols());
+        gsMatrix<T> E;
+        gsVector<T> value(2),init(2);
+
+        index_t iter;
+
+        T gamma;
+        for (index_t k = 0; k!=u.cols(); k++)
+        {
+            E = u.col(k);
+
+            init.setZero();
+            value.setZero();
+
+            objectiveNL<T> obj(m_mm,E);
+            iter = obj.newtonRaphson(value,init,false,1e-12,1000);
+
+            gamma = init.at(1);
+
+            result(0,k) = gamma;
+        }
+    }
+
+    short_t domainDim() const
+    {
+        return 3;
+    }
+
+    short_t targetDim() const
+    {
+        return 1;
+    }
+
+private:
+    const gsMaterialMatrixBase<T> * m_mm;
+};
+
+template <typename T>
+class thetaFun : public gsFunction<T>
+{
+public:
+    thetaFun(const gsMaterialMatrixBase<T> * mm)
+    :
+    m_mm(mm)
+    {
+
+    }
+
+    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    {
+        result.resize(1,u.cols());
+        gsMatrix<T> E;
+        gsVector<T> value(2),init(2);
+
+        index_t iter;
+
+        T theta;
+        for (index_t k = 0; k!=u.cols(); k++)
+        {
+            E = u.col(k);
+
+            init.setZero();
+            value.setZero();
+
+
+            objectiveNL<T> obj(m_mm,E);
+            iter = obj.newtonRaphson(value,init,false,1e-12,1000);
+
+            theta = init.at(0);
+
+            result(0,k) = theta;
+        }
+    }
+
+    short_t domainDim() const
+    {
+        return 3;
+    }
+
+    short_t targetDim() const
+    {
+        return 1;
+    }
+
+private:
+    const gsMaterialMatrixBase<T> * m_mm;
+};
+
+/// Takes e
+template <typename T>
+class SwFun : public gsFunction<T>
+{
+public:
+    SwFun(const gsMaterialMatrixBase<T> * mm)
+    :
+    m_mm(mm)
+    {
+
+    }
+
+    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    {
+        result.resize(3,u.cols());
+
+        EfullFun<T> Efull_(m_mm);
+        gsMatrix<T> E, Etmp, S, tmp;
+
+        Efull_.eval_into(u,E);
+        for (index_t k = 0; k!=u.cols(); k++)
+        {
+            Etmp = E.col(k);
+
+            toMatrix(Etmp);
+
+            S = m_mm->S(Etmp);
+
+            // Make voight notation
+            S.resize(4,1);
+
+            std::swap(S(3,0),S(1,0));
+            S.conservativeResize(3,1);
+
+            result.col(k) = S;
+        }
+    }
+
+    short_t domainDim() const
+    {
+        return 3;
+    }
+
+    short_t targetDim() const
+    {
+        return 3;
+    }
+
+private:
+    const gsMaterialMatrixBase<T> * m_mm;
+};
+
+/// Takes e
+template <typename T>
+class SFun : public gsFunction<T>
+{
+public:
+    SFun(const gsMaterialMatrixBase<T> * mm)
+    :
+    m_mm(mm)
+    {
+
+    }
+
+    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    {
+        // result.resize(3,u.cols());
+        result.resize(4,u.cols());
+
+        EfullFun<T> Efull_(m_mm);
+        gsMatrix<T> E, S;
+        for (index_t k = 0; k!=u.cols(); k++)
+        {
+            E = u.col(k);
+
+            S = m_mm->S(E.reshape(2,2));
+
+            // Make voight notation
+            S.resize(4,1);
+
+            result.col(k) = S;
+        }
+    }
+
+    short_t domainDim() const
+    {
+        return 3;
+    }
+
+    short_t targetDim() const
+    {
+        return 4;
+    }
+
+private:
+    const gsMaterialMatrixBase<T> * m_mm;
+};
+
+
+/// Takes e
+template <typename T>
+class vectorS_e : public gsFunction<T>
+{
+public:
+    vectorS_e(const gsMaterialMatrixBase<T> * mm, T gamma, T theta, const gsVector<T> & e)
+    :
+    m_mm(mm),
+    m_gamma(gamma),
+    m_theta(theta),
+    m_e(e)
+    {
+
+    }
+
+    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    {
+        T n1 = math::cos(m_theta);
+        T n2 = math::sin(m_theta);
+
+        gsVector<T> n1_vec(3);
+        n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+        gsVector<T> e_w = m_gamma*n1_vec;
+
+        gsMatrix<T> E, S;
+        result.resize(3,u.cols());
+
+        for (index_t k = 0; k!=u.cols(); k++)
+        {
+            // E = u.col(k) + e_w;
+            E = m_e+e_w;
+            toMatrix(E);
+            S = m_mm->S(E);
+
+            // Make voight notation
+            S.resize(4,1);
+
+            std::swap(S(3,0),S(1,0));
+            S.conservativeResize(3,1);
+
+            result.col(k) = S;
+        }
+    }
+
+    short_t domainDim() const
+    {
+        return 3;
+    }
+
+    short_t targetDim() const
+    {
+        return 3;
+    }
+
+private:
+    const gsMaterialMatrixBase<T> * m_mm;
+    const T m_gamma, m_theta;
+    const gsVector<T> m_e;
+};
+
+// takes e_w
+template <typename T>
+class vectorS_ew : public gsFunction<T>
+{
+public:
+    vectorS_ew(const gsMaterialMatrixBase<T> * mm)
+    :
+    m_mm(mm)
+    {
+
+    }
+
+    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    {
+        gsMatrix<T> E, S;
+        result.resize(3,u.cols());
+        for (index_t k = 0; k!=u.cols(); k++)
+        {
+            E = u.col(k);
+            toMatrix(E);
+            S = m_mm->S(E);
+
+            // Make voight notation
+            S.resize(4,1);
+
+            std::swap(S(3,0),S(1,0));
+            S.conservativeResize(3,1);
+
+            result.col(k) = S;
+        }
+    }
+
+    short_t domainDim() const
+    {
+        return 3;
+    }
+
+    short_t targetDim() const
+    {
+        return 3;
+    }
+
+private:
+    const gsMaterialMatrixBase<T> * m_mm;
+};
+
+
+
+/**
+ * @brief
+ * Simple optimization example, to demonstrate the definition of an
+ * optimization problem using the base class gsOptProblem.
+ *
+ *  This class implements the following NLP.
+ *
+ * min_x f(x) = (... )^2     (objetive function) --> square minimize it to zero
+ *  s.t.
+ *       beta > 0
+ *       t sigma t > 0
+ *       0.5 * pi <= theta <= 0.5 * pi
+ *
+ */
+#ifdef GISMO_WITH_IPOPT
 
 template <typename T>
 class gsOptProblemExample : public gsOptProblem<T>
@@ -295,6 +747,71 @@ private:
     const gsMatrix<T> m_e;
 };
 #endif
+
+template <typename T>
+class gsTFTMat
+{
+public:
+    gsTFTMat(const gsMatrix<T> & C, const gsMatrix<T> & e)
+    :
+    m_C(C),
+    m_e(e)
+    { }
+
+    void compute(T theta)
+    {
+        T n1 = math::cos(theta);
+        T n2 = math::sin(theta);
+        T m1 = -math::sin(theta);
+        T m2 = math::cos(theta);
+        gsVector<T,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+        gsVector<T,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
+        gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
+
+        gsMatrix<T,1,1> denum = n1_vec.transpose() * m_C * n1_vec;
+
+        C_I = m_C - 1 / (  n1_vec.transpose() * m_C * n1_vec ) * m_C * ( n1_vec * n1_vec.transpose() ) * m_C;
+
+
+        gsMatrix<T> gamma_tmp = - ( n1_vec.transpose() * m_C * m_e ) / ( n1_vec.transpose() * m_C * n1_vec );
+        gamma = gamma_tmp(0,0);
+
+        gsMatrix<T,1,1> tmp2 = (n1_vec.transpose() * m_C * n2_vec);
+
+        GISMO_ASSERT(tmp2.rows()==1 && tmp2.cols()==1,"Must be scalar");
+
+        T df =  n4_vec.transpose() * m_C * (m_e + gamma * n1_vec)
+                + 2 * gamma * ( n2_vec.transpose() * m_C * n2_vec
+                - math::pow(tmp2(0,0),2) / (n1_vec.transpose() * m_C * n1_vec)
+                )
+                                ;
+
+
+        gsMatrix<T,3,1> b = n2_vec - ( (n1_vec.transpose() * m_C * n2_vec)(0,0) / ( n1_vec.transpose() * m_C * n1_vec )(0,0)) * n1_vec;
+
+
+        C_II = C_I + 2 * gamma / df * (m_C * b * b.transpose() * m_C);
+
+        gsMatrix<T> Sp = m_C * (m_e + gamma * n1_vec);
+        gsDebugVar(Sp);
+        gsDebugVar(theta);
+        gsDebugVar(gamma);
+        gsDebugVar(n1_vec);
+        gsDebugVar(n2_vec);
+        gsDebugVar(n1_vec.transpose() * Sp);
+        gsDebugVar(n2_vec.transpose() * Sp);
+
+    }
+
+public:
+    mutable gsMatrix<T> C_I, C_II;
+    mutable T gamma;
+
+private:
+    const gsMatrix<T> m_C;
+    const gsVector<T> m_e;
+};
+
 
 template<class T>
 T findMod(T a, T b)
@@ -508,10 +1025,10 @@ int main(int argc, char *argv[])
     {
         E_modulus = 1;
         thickness = 1;
-        if (!Compressibility)
-          PoissonRatio = 0.499;
-        else
-          PoissonRatio = 0.45;
+        // if (!Compressibility)
+        //   PoissonRatio = 0.499;
+        // else
+          PoissonRatio = 0.3;
 
       L = 1;
       B = 1;
@@ -997,9 +1514,14 @@ int main(int argc, char *argv[])
     gsVector<> init(1);
     init<<0;
 
+    gsVector<> e4(4);
+    e4<<e(0),0.5*e(2),0.5*e(2),e(1);
+
     gsTFTMat<real_t> matCompute(C,e);
 
-    index_t iter = obj.newtonRaphson(value,init,false,1e-12,1000);
+    index_t iter;
+
+    iter = obj.newtonRaphson(value,init,false,1e-12,1000);
     gsDebugVar(iter);
 
     matCompute.compute(init(0));
@@ -1010,49 +1532,199 @@ int main(int argc, char *argv[])
     gsDebugVar(init);
     gsDebugVar(obj.eval(init));
 
-    gsVector<> x = gsVector<>::LinSpaced(100,-0.5 * M_PI,0.5 * M_PI);
 
-#ifdef GISMO_WITH_IPOPT
-    gsOptProblemExample<real_t> opt(C,e);
+    gammaFun<real_t> gamma(materialMatrix);
+    gamma.eval_into(e,result);
+    gsDebugVar(result);
 
-    // for (index_t k = 0; k!=x.size(); k++)
-    // {
-    //     std::vector<real_t> X,dX,C,dC;
-    //     X.push_back(x[k]);
-    //     dX.resize(1);
-    //     gsAsVector<> der(dX);
-
-    //     C.resize(1);
-    //     gsAsVector<> con(C);
-
-    //     dC.resize(1);
-    //     gsAsVector<> dcon(dC);
+    thetaFun<real_t> theta(materialMatrix);
+    theta.eval_into(e,result);
+    gsDebugVar(result);
 
 
-    //     opt.gradObj_into(gsAsConstVector<>(X),der);
-    //     opt.evalCon_into(gsAsConstVector<>(X),con);
-    //     opt.jacobCon_into(gsAsConstVector<>(X),dcon);
-    //     gsInfo<<x[k]<<","<<opt.evalObj(gsAsConstVector<>(X))<<","<<der<<","<<con<<","<<dcon<<"\n";
-    // }
+    EwFun<real_t> Ew(materialMatrix);
+    Ew.eval_into(e,result);
+    gsDebugVar(result);
 
 
-    // Run optimizer
-    opt.solve();
+    EfullFun<real_t> Efull(materialMatrix);
+    Efull.eval_into(e,result);
+    gsDebugVar(result);
 
-    // Print some details in the output
-    gsDebugVar(opt.objective());
-    gsDebugVar(opt.iterations());
-    gsDebugVar(opt.currentDesign());
-    real_t theta = opt.currentDesign()(0,0);
+    SwFun<real_t> Sw(materialMatrix);
+    Sw.eval_into(e,result);
+    gsDebugVar(result);
 
-    matCompute.compute(theta);
-    gsDebugVar(matCompute.C_I);
+    Sw.deriv_into(e,result);
+    gsDebugVar(result.reshape(3,3));
+    gsDebugVar(result.reshape(3,3) * e);
+
+    gsDebugVar(matCompute.C_I );
     gsDebugVar(matCompute.C_II);
-    gsDebugVar(matCompute.gamma);
 
-#else
-    gsInfo<<"GISMO_WITH_IPOPT is not enabled\n";
-#endif
+    gsDebugVar(matCompute.C_I  * e);
+    gsDebugVar(matCompute.C_II * e);
+
+    SFun<real_t> S(materialMatrix);
+    S.eval_into(e4,result);
+    gsDebugVar(result);
+
+    S.deriv_into(e4,result);
+    gsDebugVar(result.reshape(4,4));
+    gsDebugVar(result.reshape(4,4) * e4);
+    // gsDebugVar(result.reshape(3,3) * e);
+
+    gsDebugVar(C );
+    gsDebugVar(C * e );
+
+
+    // gsDebugVar(Cnew * e);
+
+    return 0;
+
+    // value.resize(2);
+    // value<<0,0;
+    // init.resize(2);
+    // init<<0,0;
+
+    // objectiveNL<real_t> objNL(materialMatrix,e);
+    // iter = objNL.newtonRaphson(value,init,false,1e-12,1000);
+    // gsDebugVar(iter);
+    // gsDebugVar(init);
+
+
+
+    // gsMaterialMatrixBaseDim<2,real_t> baseDim(mp,mp_def);
+    // baseDim._computeMetricUndeformed(0,pt,false);
+    // baseDim._computeMetricDeformed(0,pt,false);
+
+    // real_t lambda = E_modulus * PoissonRatio / ( (1. + PoissonRatio)*(1.-2.*PoissonRatio)) ;
+    // real_t Cconstant = 2*lambda*mu/(lambda+2*mu);
+    // gsDebugVar(Cconstant);
+    // gsDebugVar(mu);
+
+    // real_t theta = init.at(0);
+    // real_t gamma = init.at(1);
+    // gsMatrix<> Acon = baseDim._getAcon_ori(0,0.0);
+    // gsDebugVar(Acon);
+    // gsVector<> n(2);
+    // n<<math::cos(theta),math::sin(theta);
+    // gsMatrix<> Aconp= 2*gamma * n * n.transpose();
+    // Acon += Aconp;
+    // gsDebugVar(Acon);
+    // gsDebugVar(Aconp);
+    // gsDebugVar(n);
+
+    // real_t n1 = math::cos(theta);
+    // real_t n2 = math::sin(theta);
+
+    // gsVector<> n1_vec(3);
+    // n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+    // gsVector<> e_w = e + gamma*n1_vec;
+
+    // gsDebugVar(e);
+    // gsDebugVar(e_w);
+
+    // // S_num.eval_into(e,result);
+    // // gsDebugVar(result);
+
+    // vectorS_e<real_t>  S_e (materialMatrix,gamma,theta,e);
+    // vectorS_ew<real_t> S_ew(materialMatrix);
+
+    // gsMatrix<> result1, result2, result3, result4;
+
+    // S_e .eval_into(e,result1);
+    // gsDebugVar(result1);
+    // S_ew.eval_into(e_w,result2);
+    // gsDebugVar(result2);
+
+    // S_e .deriv_into(e,result3);
+    // gsDebugVar(result3.reshape(3,3));
+    // gsDebugVar(result3.reshape(3,3) * e);
+    // gsDebugVar(result3.reshape(3,3) * e_w);
+
+    // S_ew.deriv_into(e_w,result4);
+    // gsDebugVar(result4.reshape(3,3));
+    // gsDebugVar(result4.reshape(3,3) * e);
+    // gsDebugVar(result4.reshape(3,3) * e_w);
+
+    // gsDebugVar(C);
+
+
+    // gsMatrix<> Cnew(3,3);
+    // Cnew(0,0)             = Cconstant*Acon(0,0)*Acon(0,0) + mu*(Acon(0,0)*Acon(0,0) + Acon(0,0)*Acon(0,0)); // C1111
+    // Cnew(1,1)             = Cconstant*Acon(1,1)*Acon(1,1) + mu*(Acon(1,1)*Acon(1,1) + Acon(1,1)*Acon(1,1)); // C2222
+    // Cnew(2,2)             = Cconstant*Acon(0,1)*Acon(0,1) + mu*(Acon(0,0)*Acon(1,1) + Acon(0,1)*Acon(1,0)); // C1212
+    // Cnew(1,0) = Cnew(0,1) = Cconstant*Acon(0,0)*Acon(1,1) + mu*(Acon(0,1)*Acon(0,1) + Acon(0,1)*Acon(0,1)); // C1122
+    // Cnew(2,0) = Cnew(0,2) = Cconstant*Acon(0,0)*Acon(0,1) + mu*(Acon(0,0)*Acon(0,1) + Acon(0,1)*Acon(0,0)); // C1112
+    // Cnew(2,1) = Cnew(1,2) = Cconstant*Acon(1,1)*Acon(0,1) + mu*(Acon(1,0)*Acon(1,1) + Acon(1,1)*Acon(1,0)); // C2212
+
+
+    // gsMatrix<> Cnewp(3,3);
+    // Cnewp(0,0)              = Cconstant*Aconp(0,0)*Aconp(0,0) + mu*(Aconp(0,0)*Aconp(0,0) + Aconp(0,0)*Aconp(0,0)); // C1111
+    // Cnewp(1,1)              = Cconstant*Aconp(1,1)*Aconp(1,1) + mu*(Aconp(1,1)*Aconp(1,1) + Aconp(1,1)*Aconp(1,1)); // C2222
+    // Cnewp(2,2)              = Cconstant*Aconp(0,1)*Aconp(0,1) + mu*(Aconp(0,0)*Aconp(1,1) + Aconp(0,1)*Aconp(1,0)); // C1212
+    // Cnewp(1,0) = Cnewp(0,1) = Cconstant*Aconp(0,0)*Aconp(1,1) + mu*(Aconp(0,1)*Aconp(0,1) + Aconp(0,1)*Aconp(0,1)); // C1122
+    // Cnewp(2,0) = Cnewp(0,2) = Cconstant*Aconp(0,0)*Aconp(0,1) + mu*(Aconp(0,0)*Aconp(0,1) + Aconp(0,1)*Aconp(0,0)); // C1112
+    // Cnewp(2,1) = Cnewp(1,2) = Cconstant*Aconp(1,1)*Aconp(0,1) + mu*(Aconp(1,0)*Aconp(1,1) + Aconp(1,1)*Aconp(1,0)); // C2212
+
+    // gsDebugVar(C);
+    // gsDebugVar(Cnew);
+    // gsDebugVar(Cnewp);
+
+    // gsDebugVar(matCompute.C_I  * e);
+    // gsDebugVar(matCompute.C_II * e);
+    // gsDebugVar(Cnew * e);
+
+    // objNL.eval_into(init,result);
+
+    // gsVector<> x = gsVector<>::LinSpaced(100,-0.5 * M_PI,0.5 * M_PI);
+
+
+    return 0;
+
+
+// #ifdef GISMO_WITH_IPOPT
+//     gsOptProblemExample<real_t> opt(C,e);
+
+//     // for (index_t k = 0; k!=x.size(); k++)
+//     // {
+//     //     std::vector<real_t> X,dX,C,dC;
+//     //     X.push_back(x[k]);
+//     //     dX.resize(1);
+//     //     gsAsVector<> der(dX);
+
+//     //     C.resize(1);
+//     //     gsAsVector<> con(C);
+
+//     //     dC.resize(1);
+//     //     gsAsVector<> dcon(dC);
+
+
+//     //     opt.gradObj_into(gsAsConstVector<>(X),der);
+//     //     opt.evalCon_into(gsAsConstVector<>(X),con);
+//     //     opt.jacobCon_into(gsAsConstVector<>(X),dcon);
+//     //     gsInfo<<x[k]<<","<<opt.evalObj(gsAsConstVector<>(X))<<","<<der<<","<<con<<","<<dcon<<"\n";
+//     // }
+
+
+//     // Run optimizer
+//     opt.solve();
+
+//     // Print some details in the output
+//     gsDebugVar(opt.objective());
+//     gsDebugVar(opt.iterations());
+//     gsDebugVar(opt.currentDesign());
+//     real_t theta = opt.currentDesign()(0,0);
+
+//     matCompute.compute(theta);
+//     gsDebugVar(matCompute.C_I);
+//     gsDebugVar(matCompute.C_II);
+//     gsDebugVar(matCompute.gamma);
+
+// #else
+//     gsInfo<<"GISMO_WITH_IPOPT is not enabled\n";
+// #endif
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////

@@ -114,8 +114,9 @@ enum class MaterialOutput : short_t
     CovTransform = 14,  // Transformation matrix from spectral to covariant basis
     ConTransform = 15,  // Transformation matrix from spectral to contravariant basis
     TensionField = 16,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
-    // StrainN = 98,
-    // StrainM = 99,
+    Strain  = 97,
+    StrainN = 98,
+    StrainM = 99,
 };
 
 

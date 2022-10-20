@@ -28,7 +28,7 @@ namespace gismo
  *
  * @ingroup    KLShell
  */
-template <short_t dim, class T>
+template <short_t dim, class T, bool TFT = false>
 class gsMaterialMatrixBaseDim : public gsMaterialMatrixBase<T>
 {
     using Base = gsMaterialMatrixBase<T>;
@@ -63,6 +63,72 @@ public:
 
 public:
 
+    /// Sets the Tension Field Theory parameter theta for the evaluation points to be used (note; can this be done better?)
+    void setTheta(gsVector<T> & thetas) { m_thetas = thetas; }
+
+    /// Sets the Tension Field Theory parameter gamma for the evaluation points to be used (note; can this be done better?)
+    void setGamma(gsVector<T> & gammas) { m_gammas = gammas; }
+
+    /// Returns the covariant a tensor on the deformed geometry
+    gsMatrix<T,2,2> _getAcov_def(index_t k, T z) const;
+
+    /// Returns the contravariant a tensor on the deformed geometry
+    gsMatrix<T,2,2> _getAcon_def(index_t k, T z) const;
+
+    /// Returns the covariant b tensor on the deformed geometry
+    gsMatrix<T,2,2> _getBcov_def(index_t k, T z) const;
+
+    /// Returns the covariant n tensor on the deformed geometry
+    gsMatrix<T,3,2> _getncov_def(index_t k, T z) const;
+
+    /// Returns the covariant metric tensor on the deformed geometry
+    gsMatrix<T,3,3> _getGcov_def(index_t k, T z) const;
+
+    /// Returns the contravariant metric tensor on the deformed geometry
+    gsMatrix<T,3,3> _getGcon_def(index_t k, T z) const;
+
+    /// Returns the covariant basis vector a on the deformed geometry
+    gsMatrix<T,3,2> _getacov_def(index_t k, T z) const;
+
+    /// Returns the contravariant basis vector a on the deformed geometry
+    gsMatrix<T,3,2> _getacon_def(index_t k, T z) const;
+
+    /// Returns the covariant basis vector g on the deformed geometry
+    gsMatrix<T,3,3> _getgcov_def(index_t k, T z) const;
+
+    /// Returns the contravariant basis vector g on the deformed geometry
+    gsMatrix<T,3,3> _getgcon_def(index_t k, T z) const;
+
+    /// Returns the covariant a tensor on the original geometry
+    gsMatrix<T,2,2> _getAcov_ori(index_t k, T z) const;
+
+    /// Returns the contravariant a tensor on the original geometry
+    gsMatrix<T,2,2> _getAcon_ori(index_t k, T z) const;
+
+    /// Returns the covariant b tensor on the original geometry
+    gsMatrix<T,2,2> _getBcov_ori(index_t k, T z) const;
+
+    /// Returns the covariant n tensor on the original geometry
+    gsMatrix<T,3,2> _getncov_ori(index_t k, T z) const;
+
+    /// Returns the covariant metric tensor on the original geometry
+    gsMatrix<T,3,3> _getGcov_ori(index_t k, T z) const;
+
+    /// Returns the contravariant metric tensor on the original geometry
+    gsMatrix<T,3,3> _getGcon_ori(index_t k, T z) const;
+
+    /// Returns the covariant basis vector a on the original geometry
+    gsMatrix<T,3,2> _getacov_ori(index_t k, T z) const;
+
+    /// Returns the contravariant basis vector a on the original geometry
+    gsMatrix<T,3,2> _getacon_ori(index_t k, T z) const;
+
+    /// Returns the covariant basis vector g on the original geometry
+    gsMatrix<T,3,3> _getgcov_ori(index_t k, T z) const;
+
+    /// Returns the contravariant basis vector g on the original geometry
+    gsMatrix<T,3,3> _getgcon_ori(index_t k, T z) const;
+
     /// Computes metric quantities on the deformed geometry
     void _computeMetricDeformed(const index_t patch, const gsMatrix<T> & u, bool basis = true) const;
 
@@ -89,22 +155,32 @@ public:
 
     // void setDeformed(const gsFunctionSet<T> & deformed) {this->setDeformed(deformed);}
 
+    bool hasDeformed() const { return m_defpatches->nPieces()!=0; }
+
 private:
     /// Implementation of \ref _computeMetricUndeformed for planar geometries
-    template<short_t _dim>
-    typename std::enable_if<_dim==2, void>::type _computeMetricDeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const;
+    template<short_t _dim, bool _TFT>
+    typename std::enable_if<_dim==2 && !_TFT, void>::type _computeMetricDeformed_impl(const index_t patch, bool basis) const;
 
     /// Implementation of \ref _computeMetricUndeformed for surface geometries
-    template<short_t _dim>
-    typename std::enable_if<_dim==3, void>::type _computeMetricDeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const;
+    template<short_t _dim, bool _TFT>
+    typename std::enable_if<_dim==3 && !_TFT, void>::type _computeMetricDeformed_impl(const index_t patch, bool basis) const;
+
+    /// Implementation of \ref _computeMetricUndeformed for planar geometries
+    template<short_t _dim, bool _TFT>
+    typename std::enable_if<_dim==2 &&  _TFT, void>::type _computeMetricDeformed_impl(const index_t patch, bool basis) const;
+
+    /// Implementation of \ref _computeMetricUndeformed for surface geometries
+    template<short_t _dim, bool _TFT>
+    typename std::enable_if<_dim==3 &&  _TFT, void>::type _computeMetricDeformed_impl(const index_t patch, bool basis) const;
 
     /// Implementation of \ref _getMetric for planar geometries
     template<short_t _dim>
-    typename std::enable_if<_dim==2, void>::type _computeMetricUndeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const;
+    typename std::enable_if<_dim==2, void>::type _computeMetricUndeformed_impl(const index_t patch, bool basis) const;
 
     /// Implementation of \ref _getMetric for surface geometries
     template<short_t _dim>
-    typename std::enable_if<_dim==3, void>::type _computeMetricUndeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const;
+    typename std::enable_if<_dim==3, void>::type _computeMetricUndeformed_impl(const index_t patch, bool basis) const;
 
     /// Implementation of \ref _getMetricDeformed for planar geometries
     template<short_t _dim>
@@ -129,6 +205,91 @@ private:
     template<short_t _dim>
     typename std::enable_if<_dim==3, void>::type _getMetricUndeformed_impl(index_t k, T z, bool basis) const;
 
+    // -------------------------------------------------------------------------------------------------------------
+    // Separate getters
+    // -------------------------------------------------------------------------------------------------------------
+
+    /// Implementation of \ref _getMetricUndeformed for planar geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, gsMatrix<T,2,2>>::type _getBcov_def_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for surface geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, gsMatrix<T,2,2>>::type _getBcov_def_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for planar geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, gsMatrix<T,3,2>>::type _getncov_def_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for surface geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, gsMatrix<T,3,2>>::type _getncov_def_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for planar geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, gsMatrix<T,3,3>>::type _getGcov_def_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for surface geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, gsMatrix<T,3,3>>::type _getGcov_def_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for planar geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, gsMatrix<T,3,3>>::type _getGcon_def_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for surface geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, gsMatrix<T,3,3>>::type _getGcon_def_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for planar geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, gsMatrix<T,3,3>>::type _getgcov_def_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for surface geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, gsMatrix<T,3,3>>::type _getgcov_def_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for planar geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, gsMatrix<T,2,2>>::type _getBcov_ori_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for surface geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, gsMatrix<T,2,2>>::type _getBcov_ori_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for planar geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, gsMatrix<T,3,2>>::type _getncov_ori_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for surface geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, gsMatrix<T,3,2>>::type _getncov_ori_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for planar geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, gsMatrix<T,3,3>>::type _getGcov_ori_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for surface geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, gsMatrix<T,3,3>>::type _getGcov_ori_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for planar geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, gsMatrix<T,3,3>>::type _getGcon_ori_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for surface geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, gsMatrix<T,3,3>>::type _getGcon_ori_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for planar geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, gsMatrix<T,3,3>>::type _getgcov_ori_impl(index_t k, T z) const;
+
+    /// Implementation of \ref _getMetricUndeformed for surface geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, gsMatrix<T,3,3>>::type _getgcov_ori_impl(index_t k, T z) const;
+
+
 protected:
 
     void membersSetZero()
@@ -140,15 +301,16 @@ protected:
         m_gcov_ori.setZero(); m_gcov_def.setZero();m_gcon_ori.setZero(); m_gcon_def.setZero();
         m_Acov_ori_mat.setZero(); m_Acon_ori_mat.setZero(); m_Acov_def_mat.setZero(); m_Acon_def_mat.setZero(); m_Bcov_ori_mat.setZero(); m_Bcov_def_mat.setZero();
         m_acov_ori_mat.setZero(); m_acon_ori_mat.setZero(); m_acov_def_mat.setZero(); m_acon_def_mat.setZero(); m_ncov_ori_mat.setZero(); m_ncov_def_mat.setZero();
-
     }
+
+    mutable gsVector<T> m_thetas, m_gammas;
 
     const gsFunctionSet<T> * m_patches;
     using Base::m_defpatches;
     // const gsFunctionSet<T> * m_defpatches;
 
     // Geometric data point
-    mutable util::gsThreaded<gsMapData<T> > m_map, m_map_def;
+    mutable util::gsThreaded<gsMapData<T> > m_map_ori, m_map_def;
 
     mutable gsMatrix<T,2,2> m_Acov_ori, m_Acon_ori, m_Acov_def, m_Acon_def, m_Bcov_ori, m_Bcon_ori, m_Bcov_def, m_Bcon_def;
     mutable gsMatrix<T,dim,2> m_acov_ori, m_acon_ori, m_acov_def, m_acon_def;

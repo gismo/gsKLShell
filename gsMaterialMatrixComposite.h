@@ -139,7 +139,7 @@ protected:
     mutable gsMatrix<T>                 m_Tmat, m_E1mat, m_E2mat, m_G12mat, m_nu12mat, m_nu21mat, m_phiMat, m_rhoMat;
 
     // Geometric data point
-    using Base::m_map;
+    using Base::m_map_ori;
     using Base::m_map_def;
 
     using Base::m_Acov_ori;
