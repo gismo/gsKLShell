@@ -228,6 +228,31 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     void assembleMatrix(const gsMatrix<T> & solVector, const gsMatrix<T> & prevVector);
 
+    /// See \ref gsThinShellAssemblerBase for details
+    void assemblePressureMatrix(const gsFunction<T>   & pressFun  );
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void assemblePressureMatrix(const T pressure);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void assemblePressureMatrix(const gsFunction<T>   & pressFun, const gsFunctionSet<T> & deformed);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void assemblePressureMatrix(const T pressure, const gsFunctionSet<T> & deformed);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void assemblePressureVector(const gsFunction<T>   & pressFun  );
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void assemblePressureVector(const T pressure);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void assemblePressureVector(const gsFunction<T>   & pressFun, const gsFunctionSet<T> & deformed);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void assemblePressureVector(const T pressure, const gsFunctionSet<T> & deformed);
+
+
 private:
     /// Implementation of assembleMatrix for surfaces (3D)
     template<int _d, bool _bending>
@@ -393,9 +418,9 @@ protected:
     void _assembleNeumann();
 
     template <bool matrix>
-    void _assemblePressure();
+    void _assemblePressure(const gsFunction<T> & pressFun);
     template <bool matrix>
-    void _assemblePressure(const gsFunctionSet<T> & deformed);
+    void _assemblePressure(const gsFunction<T> & pressFun,const gsFunctionSet<T> & deformed);
 
     template <bool matrix>
     void _assembleFoundation();
@@ -431,27 +456,27 @@ private:
 
     template<int _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
-    _assemblePressure_impl();
+    _assemblePressure_impl(const gsFunction<T> & pressFun);
 
     template<int _d, bool matrix>
     typename std::enable_if<_d==3 && !matrix, void>::type
-    _assemblePressure_impl();
+    _assemblePressure_impl(const gsFunction<T> & pressFun);
 
     template<int _d, bool matrix>
     typename std::enable_if<!(_d==3), void>::type
-    _assemblePressure_impl();
+    _assemblePressure_impl(const gsFunction<T> & pressFun);
 
     template<int _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
-    _assemblePressure_impl(const gsFunctionSet<T> & deformed);
+    _assemblePressure_impl(const gsFunction<T> & pressFun,const gsFunctionSet<T> & deformed);
 
     template<int _d, bool matrix>
     typename std::enable_if<_d==3 && !matrix, void>::type
-    _assemblePressure_impl(const gsFunctionSet<T> & deformed);
+    _assemblePressure_impl(const gsFunction<T> & pressFun,const gsFunctionSet<T> & deformed);
 
     template<int _d, bool matrix>
     typename std::enable_if<!(_d==3), void>::type
-    _assemblePressure_impl(const gsFunctionSet<T> & deformed);
+    _assemblePressure_impl(const gsFunction<T> & pressFun,const gsFunctionSet<T> & deformed);
 
     template<int _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
@@ -753,6 +778,66 @@ public:
      * @param[in]  deformed  The solution vector
      */
     virtual void assembleVector(const gsMatrix<T>       & solVector ) = 0;
+
+    /**
+     * @brief      Assembles the pressure contribution in the system matrix (linear)
+     *
+     * @param[in]  pressFun  The pressure function
+     */
+    virtual void assemblePressureMatrix(const gsFunction<T>   & pressFun  ) = 0;
+
+    /**
+     * @brief      Assembles the pressure contribution in the system matrix (linear)
+     *
+     * @param[in]  pressure  The pressure value
+     */
+    virtual void assemblePressureMatrix(const T pressure) = 0;
+
+    /**
+     * @brief      Assembles the pressure contribution in the system matrix (non-linear)
+     *
+     * @param[in]  pressFun  The pressure function
+     * @param[in]  deformed  The deformed shape
+     */
+    virtual void assemblePressureMatrix(const gsFunction<T>   & pressFun, const gsFunctionSet<T> & deformed) = 0;
+
+    /**
+     * @brief      Assembles the pressure contribution in the system matrix (non-linear)
+     *
+     * @param[in]  pressure  The pressure value
+     * @param[in]  deformed  The deformed shape
+     */
+    virtual void assemblePressureMatrix(const T pressure, const gsFunctionSet<T> & deformed) = 0;
+
+    /**
+     * @brief      Assembles the pressure contribution in the system vector (linear)
+     *
+     * @param[in]  pressFun  The pressure function
+     */
+    virtual void assemblePressureVector(const gsFunction<T>   & pressFun  ) = 0;
+
+    /**
+     * @brief      Assembles the pressure contribution in the system vector (linear)
+     *
+     * @param[in]  pressure  The pressure value
+     */
+    virtual void assemblePressureVector(const T pressure) = 0;
+
+    /**
+     * @brief      Assembles the pressure contribution in the system vector (non-linear)
+     *
+     * @param[in]  pressFun  The pressure value
+     * @param[in]  deformed  The deformed shape
+     */
+    virtual void assemblePressureVector(const gsFunction<T>   & pressFun, const gsFunctionSet<T> & deformed) = 0;
+
+    /**
+     * @brief      Assembles the pressure contribution in the system vector (non-linear)
+     *
+     * @param[in]  pressure  The pressure value
+     * @param[in]  deformed  The deformed shape
+     */
+    virtual void assemblePressureVector(const T pressure, const gsFunctionSet<T> & deformed) = 0;
 
     /**
      * @brief      Computes the force on a boundary

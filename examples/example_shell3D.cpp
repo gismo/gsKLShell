@@ -270,6 +270,7 @@ int main(int argc, char *argv[])
     }
     else if (testCase == 1)
     {
+        tmp<<0,0,-90;
         // Diaphragm conditions
         bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0 ,false, 1 );
         bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0 ,false, 2 );

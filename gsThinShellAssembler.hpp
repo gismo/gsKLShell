@@ -150,12 +150,16 @@ void gsThinShellAssembler<d, T, bending>::_defaultOptions()
     m_options.addInt("DirichletStrategy","Method for enforcement of Dirichlet BCs [11..14]",11);
     m_options.addInt("DirichletValues","Method for computation of Dirichlet DoF values [100..103]",101);
     m_options.addInt("InterfaceStrategy","Method of treatment of patch interfaces [0..3]",1);
-    m_options.addReal("bdA","Estimated nonzeros per column of the matrix: bdA*deg + bdB",2);
-    m_options.addInt("bdB","Estimated nonzeros per column of the matrix: bdA*deg + bdB",1);
-    m_options.addReal("bdO","Overhead of sparse mem. allocation: (1+bdO)(bdA*deg + bdB) [0..1]",0.333);
-    m_options.addReal("quA","Number of quadrature points: quA*deg + quB",1);
-    m_options.addInt("quB","Number of quadrature points: quA*deg + quB",1);
-    m_options.addInt("quRule","Quadrature rule [1:GaussLegendre,2:GaussLobatto]",1);
+
+    m_options.addReal("quA", "Number of quadrature points: quA*deg + quB; For patchRule: Regularity of the target space", 1.0  );
+    m_options.addInt ("quB", "Number of quadrature points: quA*deg + quB; For patchRule: Degree of the target space", 1    );
+    m_options.addReal("bdA", "Estimated nonzeros per column of the matrix: bdA*deg + bdB", 2.0  );
+    m_options.addInt ("bdB", "Estimated nonzeros per column of the matrix: bdA*deg + bdB", 1    );
+    m_options.addReal("bdO", "Overhead of sparse mem. allocation: (1+bdO)(bdA*deg + bdB) [0..1]", 0.333);
+    m_options.addInt ("quRule", "Quadrature rule used (1) Gauss-Legendre; (2) Gauss-Lobatto; (3) Patch-Rule",1);
+    m_options.addSwitch("overInt", "Apply over-integration or not?", false);
+
+    // Solver options
     m_options.addString("Solver","Sparse linear solver", "CGDiagonal");
 }
 
@@ -315,17 +319,90 @@ gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
 }
 
 template <short_t d, class T, bool bending>
-template <bool matrix>
-void gsThinShellAssembler<d, T, bending>::_assemblePressure()
+void gsThinShellAssembler<d, T, bending>::assemblePressureMatrix(const T pressure)
+{
+    gsConstantFunction<T> pressFun(pressure,d);
+    this->_assemblePressure<false>(pressFun);
+}
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assemblePressureMatrix(const gsFunction<T> & pressFun)
 {
     this->_getOptions();
-    _assemblePressure_impl<d,matrix>();
+
+    m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
+    m_assembler.initSystem();
+    this->_assemblePressure<true>(pressFun);
+}
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assemblePressureMatrix(const T pressure, const gsFunctionSet<T> & deformed)
+{
+    gsConstantFunction<T> pressFun(pressure,d);
+    this->_assemblePressure<false>(pressFun, deformed);
+}
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assemblePressureMatrix(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed)
+{
+    this->_getOptions();
+
+    m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
+    m_assembler.initSystem();
+    this->_assemblePressure<true>(pressFun,deformed);
+}
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assemblePressureVector(const T pressure)
+{
+    gsConstantFunction<T> pressFun(pressure,d);
+    this->_assemblePressure<false>(pressFun);
+}
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assemblePressureVector(const gsFunction<T> & pressFun)
+{
+    this->_getOptions();
+
+    m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
+    m_assembler.initSystem();
+    this->_assemblePressure<true>(pressFun);
+}
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assemblePressureVector(const T pressure, const gsFunctionSet<T> & deformed)
+{
+    gsConstantFunction<T> pressFun(pressure,d);
+    this->_assemblePressure<false>(pressFun, deformed);
+}
+
+template <short_t d, class T, bool bending>
+void gsThinShellAssembler<d, T, bending>::assemblePressureVector(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed)
+{
+    this->_getOptions();
+
+    m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
+    m_assembler.initSystem();
+    this->_assemblePressure<true>(pressFun,deformed);
+}
+
+
+template <short_t d, class T, bool bending>
+template <bool matrix>
+void gsThinShellAssembler<d, T, bending>::_assemblePressure(const gsFunction<T> & pressFun)
+{
+    this->_getOptions();
+    _assemblePressure_impl<d,matrix>(pressFun);
 }
 
 template <short_t d, class T, bool bending>
 template<int _d, bool matrix>
 typename std::enable_if<_d==3 && matrix, void>::type
-gsThinShellAssembler<d, T, bending>::_assemblePressure_impl()
+gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> & pressFun)
 {
     // No matrix contribution for the linear case
 }
@@ -333,88 +410,80 @@ gsThinShellAssembler<d, T, bending>::_assemblePressure_impl()
 template <short_t d, class T, bool bending>
 template<int _d, bool matrix>
 typename std::enable_if<_d==3 && !matrix, void>::type
-gsThinShellAssembler<d, T, bending>::_assemblePressure_impl()
+gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> & pressFun)
 {
-    if (m_pressInd)
-    {
-        gsMultiPatch<T> & defpatches = m_patches;
-        geometryMap m_ori   = m_assembler.getMap(m_patches);
-        geometryMap m_def   = m_assembler.getMap(defpatches);
+    gsMultiPatch<T> & defpatches = m_patches;
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_def   = m_assembler.getMap(defpatches);
 
-        space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
-        auto m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
-        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
+    auto m_pressure = m_assembler.getCoeff(pressFun, m_ori);
+    GISMO_ASSERT(pressFun.targetDim()==1,"Pressure function has dimension "<<pressFun.targetDim()<<", but expected 1");
 
-        m_assembler.assemble(
-            m_pressure.val() * m_space * usn(m_def) * meas(m_ori)
-            );
-    }
+    m_assembler.assemble(
+        m_pressure.val() * m_space * usn(m_def) * meas(m_ori)
+        );
 }
 
 template <short_t d, class T, bool bending>
 template<int _d, bool matrix>
 typename std::enable_if<!(_d==3), void>::type
-gsThinShellAssembler<d, T, bending>::_assemblePressure_impl()
+gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> & pressFun)
 {
     // Since pressure works out-of-plane, this function has no effect
 }
 
 template <short_t d, class T, bool bending>
 template <bool matrix>
-void gsThinShellAssembler<d, T, bending>::_assemblePressure(const gsFunctionSet<T> & deformed)
+void gsThinShellAssembler<d, T, bending>::_assemblePressure(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed)
 {
     this->_getOptions();
-    _assemblePressure_impl<d,matrix>(deformed);
+    _assemblePressure_impl<d,matrix>(pressFun,deformed);
 }
 
 template <short_t d, class T, bool bending>
 template<int _d, bool matrix>
 typename std::enable_if<_d==3 && matrix, void>::type
-gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunctionSet<T> & deformed)
+gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed)
 {
-    if (m_pressInd)
-    {
-        geometryMap m_ori   = m_assembler.getMap(m_patches);
-        geometryMap m_def   = m_assembler.getMap(deformed);
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_def   = m_assembler.getMap(deformed);
 
-        space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
-        auto m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
-        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
+    auto m_pressure = m_assembler.getCoeff(pressFun, m_ori);
+    GISMO_ASSERT(pressFun.targetDim()==1,"Pressure function has dimension "<<pressFun.targetDim()<<", but expected 1");
 
-        m_assembler.assemble(
-                                -m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
-                            );
-    }
+    m_assembler.assemble(
+                            -m_pressure.val() * m_space * var1(m_space,m_def).tr()* meas(m_ori)
+                            //-m_pressure.val() * jac(m_space) * sn(m_def).normalized() * meas(m_ori)
+                        );
 }
 
 template <short_t d, class T, bool bending>
 template<int _d, bool matrix>
 typename std::enable_if<_d==3 && !matrix, void>::type
-gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunctionSet<T> & deformed)
+gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed)
 {
-    if (m_pressInd)
-    {
-        geometryMap m_ori   = m_assembler.getMap(m_patches);
-        geometryMap m_def   = m_assembler.getMap(deformed);
+    geometryMap m_ori   = m_assembler.getMap(m_patches);
+    geometryMap m_def   = m_assembler.getMap(deformed);
 
-        space m_space = m_assembler.trialSpace(0); // last argument is the space ID
+    space m_space = m_assembler.trialSpace(0); // last argument is the space ID
 
-        auto m_pressure = m_assembler.getCoeff(*m_pressFun, m_ori);
-        GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
+    auto m_pressure = m_assembler.getCoeff(pressFun, m_ori);
+    GISMO_ASSERT(pressFun.targetDim()==1,"Pressure function has dimension "<<pressFun.targetDim()<<", but expected 1");
 
-        // Assemble vector
-        m_assembler.assemble(
-                      m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
-                      );
-    }
+    // Assemble vector
+    m_assembler.assemble(
+                  m_pressure.val() * m_space * sn(m_def).normalized() * meas(m_ori)
+                  );
 }
 
 template <short_t d, class T, bool bending>
 template<int _d, bool matrix>
 typename std::enable_if<!(_d==3), void>::type
-gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunctionSet<T> & deformed)
+gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed)
 {
     // Since pressure works out-of-plane, this function has no effect
 }
@@ -1490,8 +1559,8 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
 
     this->_assembleFoundation<true>();
     this->_assembleFoundation<false>();
-    this->_assemblePressure<true>();
-    this->_assemblePressure<false>();
+    if (m_pressInd) this->_assemblePressure<true>(*m_pressFun);
+    if (m_pressInd) this->_assemblePressure<false>(*m_pressFun);
 
     m_assembler.assemble(
         (
@@ -1547,8 +1616,8 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
 
     this->_assembleFoundation<true>();
     this->_assembleFoundation<false>();
-    this->_assemblePressure<true>();
-    this->_assemblePressure<false>();
+    if (m_pressInd) this->_assemblePressure<true>(*m_pressFun);
+    if (m_pressInd) this->_assemblePressure<false>(*m_pressFun);
 
     m_assembler.assemble(
         (
@@ -1631,7 +1700,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
 
     this->_assembleFoundation<true>(deformed);
-    this->_assemblePressure<true>(deformed);
+    if (m_pressInd) this->_assemblePressure<true>(*m_pressFun,deformed);
 
     // Assemble matrix
     m_assembler.assemble(
@@ -1682,7 +1751,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     auto m_N_der    = m_Em_der * reshape(mmA,3,3);
 
     this->_assembleFoundation<true>(deformed);
-    this->_assemblePressure<true>(deformed);
+    if (m_pressInd) this->_assemblePressure<true>(*m_pressFun,deformed);
 
     // Assemble matrix
     m_assembler.assemble(
@@ -1791,7 +1860,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     // gsDebugVar(ev.eval(S1.tr(),pt));
 
     this->_assembleFoundation<true>(deformed);
-    this->_assemblePressure<true>(deformed);
+    if (m_pressInd) this->_assemblePressure<true>(*m_pressFun,deformed);
 
     // Assemble matrix
     m_assembler.assemble(
@@ -1872,7 +1941,7 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     auto m_Ef_der   = -( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
 
     this->_assembleFoundation<false>(deformed);
-    this->_assemblePressure<false>(deformed);
+    if (m_pressInd) this->_assemblePressure<false>(*m_pressFun,deformed);
 
         // Assemble vector
     m_assembler.assemble(m_space * m_force * meas(m_ori) -
@@ -1928,7 +1997,7 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     }
 
     this->_assembleFoundation<false>(deformed);
-    this->_assemblePressure<false>(deformed);
+    if (m_pressInd) this->_assemblePressure<false>(*m_pressFun,deformed);
 
     // Assemble vector
     m_assembler.assemble(m_space * m_force * meas(m_ori) -
