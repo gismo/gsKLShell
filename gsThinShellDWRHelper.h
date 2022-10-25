@@ -25,6 +25,9 @@ class gsThinShellDWRHelper
 
 {
 public:
+    typedef typename gsThinShellAssemblerDWRBase<T>::bContainer bContainer;
+
+
     // empty constructor
     gsThinShellDWRHelper() {};
 
@@ -48,26 +51,62 @@ public:
 
     void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL)
     {
+        gsMatrix<T> points;
+        bContainer bnds;
         std::string empty;
-        this->computeError(deformed,primalL,empty);
+        this->computeError(deformed,primalL,bnds,points,true,empty);
     }
+
+    void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL, const bContainer & bnds, const gsMatrix<T> & points, bool interior)
+    {
+        std::string empty;
+        this->computeError(deformed,primalL,bnds,points,interior,empty);
+    }
+
 
     void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL,
                         std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false)
     {
+        gsMatrix<T> points;
+        bContainer bnds;
+        this->computeError(deformed,primalL,bnds,points,true,filename,np,parametric,mesh);
+    }
+
+    void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL,
+                        const bContainer & bnds, const gsMatrix<T> & points, bool interior,
+                        std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false)
+    {
         gsMultiPatch<T> dualL, dualH;
         gsVector<T> solVector;
+        gsVector<T> rhsL(m_assembler->numDofsL());
+        rhsL.setZero();
+        gsVector<T> rhsH(m_assembler->numDofsH());
+        rhsH.setZero();
         gsSparseSolver<>::LU solver;
 
         gsInfo << "Assembling dual matrix (L)... "<< std::flush;
         m_assembler->assembleMatrixL(deformed);
         gsInfo << "done.\n";
         gsInfo << "Assembling dual vector (L)... "<< std::flush;
-        m_assembler->assembleDualL(primalL,deformed);
+        if (interior)
+        {
+            m_assembler->assembleDualL(primalL,deformed);
+            rhsL+=m_assembler->dualL();
+        }
+        if (bnds.size()!=0)
+        {
+            m_assembler->assembleDualL(bnds,primalL,deformed);
+            rhsL+=m_assembler->dualL();
+        }
+        if (points.cols()!=0)
+        {
+            m_assembler->assembleDualL(points,primalL,deformed);
+            rhsL+=m_assembler->dualL();
+        }
         gsInfo << "done.\n";
         gsInfo << "Solving dual (L), size = "<<m_assembler->matrixL().rows()<<","<<m_assembler->matrixL().cols()<<"... "<< std::flush;
         solver.compute(m_assembler->matrixL());
-        solVector = solver.solve(m_assembler->dualL());
+        solVector = solver.solve(rhsL);
         m_assembler->constructMultiPatchL(solVector,dualL);
         gsInfo << "done.\n";
 
@@ -75,11 +114,26 @@ public:
         m_assembler->assembleMatrixH(deformed);
         gsInfo << "done.\n";
         gsInfo << "Assembling dual vector (H)... "<< std::flush;
-        m_assembler->assembleDualH(primalL,deformed);
+        if (interior)
+        {
+            m_assembler->assembleDualH(primalL,deformed);
+            rhsH+=m_assembler->dualH();
+        }
+        if (bnds.size()!=0)
+        {
+            m_assembler->assembleDualH(bnds,primalL,deformed);
+            rhsH+=m_assembler->dualH();
+        }
+        if (points.cols()!=0)
+        {
+            m_assembler->assembleDualH(points,primalL,deformed);
+            rhsH+=m_assembler->dualH();
+        }
+
         gsInfo << "done.\n";
         gsInfo << "Solving dual (H), size = "<<m_assembler->matrixH().rows()<<","<<m_assembler->matrixH().cols()<<"... "<< std::flush;
         solver.compute(m_assembler->matrixH());
-        solVector = solver.solve(m_assembler->dualH());
+        solVector = solver.solve(rhsH);
         m_assembler->constructMultiPatchH(solVector,dualH);
         gsInfo << "done.\n";
 

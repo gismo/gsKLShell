@@ -48,6 +48,7 @@ class gsThinShellAssemblerDWR : public gsThinShellAssembler<d,T,bending>,
 {
 public:
     typedef gsThinShellAssembler<d,T,bending> Base;
+    typedef typename gsThinShellAssemblerDWRBase<T>::bContainer  bContainer;
 
     virtual ~gsThinShellAssemblerDWR()
     {
@@ -143,6 +144,11 @@ public:
     { m_dL = _assembleDual(m_assemblerL,primal); }
     void assembleDualH(const gsMultiPatch<T> & primal)
     { m_dH = _assembleDual(m_assemblerH,primal); }
+    \
+    void assembleDualL(const bContainer & bnds, const gsMultiPatch<T> & primal)
+    { m_dL = _assembleDual(bnds,m_assemblerL,primal); }
+    void assembleDualH(const bContainer & bnds, const gsMultiPatch<T> & primal)
+    { m_dH = _assembleDual(bnds,m_assemblerH,primal); }
 
     void assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal)
     { m_dL = _assembleDual(points,m_assemblerL,primal); }
@@ -153,6 +159,11 @@ public:
     { m_dL = _assembleDual(m_assemblerL,primal,deformed); }
     void assembleDualH(const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
     { m_dH = _assembleDual(m_assemblerH,primal,deformed); }
+
+    void assembleDualL(const bContainer & bnds, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
+    { m_dL = _assembleDual(bnds,m_assemblerL,primal,deformed); }
+    void assembleDualH(const bContainer & bnds, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
+    { m_dH = _assembleDual(bnds,m_assemblerH,primal,deformed); }
 
     void assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
     { m_dL = _assembleDual(points,m_assemblerL,primal,deformed); }
@@ -253,6 +264,7 @@ public:
                       const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
 
     T computeGoal(const gsMultiPatch<T> & deformed);
+    T computeGoal(const bContainer & bnds, const gsMultiPatch<T> & deformed);
     T computeGoal(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed);
 
     T matrixNorm(const gsMultiPatch<T> &dualL, const gsMultiPatch<T> &dualH) const;
@@ -293,6 +305,8 @@ protected:
     /**
      * @brief      Assembles the dual as a domain integral
      *
+     * @param      assembler  The assembler
+     * @param[in]  primal     The primal
      * @param[in]  basis     The basis
      * @param[in]  deformed  The deformed geometry
      *
@@ -309,8 +323,32 @@ protected:
     gsVector<T>         _assembleDual(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
 
     /**
-     * @brief      Assembles the dual as a domain integral
+     * @brief      Assembles the dual on boundaries
      *
+     * @param[in]  points     The points
+     * @param      assembler  The assembler
+     * @param[in]  primal     The primal
+     * @param[in]  basis     The basis
+     * @param[in]  deformed  The deformed geometry
+     *
+     * @return     RHS vector
+     */
+    gsVector<T>         _assembleDual(const bContainer & bnds, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
+    {
+        gsMultiPatch<T> deformed = m_patches;
+        for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
+            deformed.patch(k).coefs() += primal.patch(k).coefs();  // Gdef points to mp_def, therefore updated
+
+        return _assembleDual(bnds,assembler,primal,deformed);
+    }
+    gsVector<T>         _assembleDual(const bContainer & bnds, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
+
+    /**
+     * @brief      Assembles the dual on points
+     *
+     * @param[in]  points     The points
+     * @param      assembler  The assembler
+     * @param[in]  primal     The primal
      * @param[in]  basis     The basis
      * @param[in]  deformed  The deformed geometry
      *
@@ -411,9 +449,10 @@ template <class T>
 class gsThinShellAssemblerDWRBase //: public virtual gsThinShellAssemblerBase<T>
 {
 public:
+    typedef gsBoxTopology::bContainer  bContainer;
+
     /// Default empty constructor
     virtual ~gsThinShellAssemblerDWRBase() {};
-
 
     virtual gsOptionList & optionsL() =0;
     virtual gsOptionList & optionsH() =0;
@@ -461,15 +500,20 @@ public:
     virtual void assembleDualL(const gsMultiPatch<T> & primal) =0;
     virtual void assembleDualH(const gsMultiPatch<T> & primal) =0;
 
+    virtual void assembleDualL(const bContainer & bnds, const gsMultiPatch<T> & primal) =0;
+    virtual void assembleDualH(const bContainer & bnds, const gsMultiPatch<T> & primal) =0;
+
     virtual void assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal) =0;
     virtual void assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal) =0;
 
     virtual void assembleDualL(const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
     virtual void assembleDualH(const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
 
+    virtual void assembleDualL(const bContainer & bnds, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
+    virtual void assembleDualH(const bContainer & bnds, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
+
     virtual void assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
     virtual void assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
-
 
     virtual const gsSparseMatrix<T> & matrixL() const =0;
     virtual const gsSparseMatrix<T> & matrixH() const =0;
@@ -565,7 +609,7 @@ public:
                       const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
 
     virtual T computeGoal(const gsMultiPatch<T> & deformed) =0;
-
+    virtual T computeGoal(const bContainer & bnds, const gsMultiPatch<T> & deformed) =0;
     virtual T computeGoal(const gsMatrix<T> & points, const gsMultiPatch<T> & deformed) =0;
 
     virtual T matrixNorm(const gsMultiPatch<T> &dualL, const gsMultiPatch<T> &dualH) const = 0;
