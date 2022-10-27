@@ -29,7 +29,10 @@ template <class T>
 gsMultiPatch<T> Plate(T Lp, T Wp, T alpha=0.5, T x = 0, T y = 0, T z = 0);
 
 template <class T>
-gsMultiPatch<T> Panel(T Lp, T Wp, T Hw, T alpha=0.5, T x = 0, T y = 0, T z = 0);
+gsMultiPatch<T> Panel3(T Lp, T Wp, T Hw, T alpha=0.5, T x = 0, T y = 0, T z = 0);
+
+template <class T>
+gsMultiPatch<T> Panel4(T Lp, T Wp, T Hw, T alpha=0.5, T x = 0, T y = 0, T z = 0);
 
 
 // Choose among various shell examples, default = Thin Plate
@@ -81,17 +84,17 @@ int main(int argc, char *argv[])
     if (testCase == 0 )
     {
         std::vector<real_t> k0{0,0,1,1};
-        gsKnotVector<> kv0(k0,2);
+        gsKnotVector<> kv0(k0,1);
         std::vector<real_t> k1{0,0,0.5,1,1};
-        gsKnotVector<> kv1(k1,2);
+        gsKnotVector<> kv1(k1,1);
         gsTensorBSplineBasis<2,real_t> bbasis(kv0,kv1);
 
         gsMatrix<> coefs(6,3);
         coefs.row(0)<< 0.0,0.0,0.0;
-        coefs.row(1)<< 0.5,0.0,0.0;
-        coefs.row(2)<< 1.0,0.0,0.0;
-        coefs.row(3)<< 0.0,1.0,0.0;
-        coefs.row(4)<< 0.5,1.0,0.0;
+        coefs.row(1)<< 0.0,1.0,0.0;
+        coefs.row(2)<< 0.5,0.0,0.0;
+        coefs.row(3)<< 0.5,1.0,0.0;
+        coefs.row(4)<< 1.0,0.0,0.0;
         coefs.row(5)<< 1.0,1.0,0.0;
 
         gsDebugVar(bbasis);
@@ -113,7 +116,19 @@ int main(int argc, char *argv[])
     }
     else if (testCase == 2 )
     {
-        mp = Panel(1.0,1.0,beta,alpha);
+        // mp = Panel3(1.0,1.0,beta,alpha);
+        // PoissonRatio = 0.3;
+        // E_modulus = 1e5;
+        // thickness = 0.01;
+
+        mp = Panel3(1.0,1.0,beta,alpha);
+        PoissonRatio = 0.3;
+        E_modulus = 1e5;
+        thickness = 0.01;
+    }
+    else if (testCase == 3 )
+    {
+        mp = Panel4(1.0,1.0,beta,alpha);
         PoissonRatio = 0.3;
         E_modulus = 1e5;
         thickness = 0.01;
@@ -133,6 +148,7 @@ int main(int argc, char *argv[])
 
     mp_def = mp;
     gsWriteParaview<>( mp_def    , "mp", 1000, true);
+    gsWrite(mp,"mp");
     //! [Refine and elevate]
 
     gsMultiBasis<> dbasis(mp);
@@ -261,6 +277,53 @@ int main(int argc, char *argv[])
         refPoints.col(1)<<1.0,0.5;
         refPoints.col(2)<<0.0,0.5;
     }
+    else if (testCase == 3)
+    {
+        std::vector<index_t> plateIDs{0,1,2};
+        std::vector<index_t> stripIDs{3};
+        for (typename gsBoxTopology::bContainer::iterator bnd = mp.bBegin(); bnd!=mp.bEnd(); bnd++)
+        {
+            std::vector<index_t>::iterator it = std::find_if(plateIDs.begin(), plateIDs.end(), [bnd](const index_t &a) {
+                                           return a == bnd->patch; });
+            if (it!=plateIDs.end())
+                bc.addCondition(bnd->patch,bnd->side(), condition_type::dirichlet, 0, 0, false, -1 );      // stiffener web
+        }
+
+        bc.addCondition(3,boundary::east, condition_type::dirichlet, 0, 0, false, -1 );      // stiffener web
+        bc.addCondition(3,boundary::west, condition_type::dirichlet, 0, 0, false, -1 );      // stiffener web
+
+        gsConstantFunction<> force0(null,3);
+        gsConstantFunction<> force1(tmp,3);
+
+        typedef typename std::vector<gsFunction<real_t>*>       FunctionContainer;
+        FunctionContainer forceContainer(mp.nPatches());
+        // Plates
+        for (typename std::vector<index_t>::iterator it = plateIDs.begin(); it!=plateIDs.end(); it++)
+            forceContainer.at(*it) = &force1;
+        for (typename std::vector<index_t>::iterator it = stripIDs.begin(); it!=stripIDs.end(); it++)
+            forceContainer.at(*it) = &force0;
+        for (size_t p = 0; p != forceContainer.size(); p++)
+            force.addPiece(*forceContainer.at(p));
+
+        FunctionContainer tContainer(mp.nPatches());
+
+        gsFunctionExpr<> tp(std::to_string(thickness), 3);
+        gsFunctionExpr<> ts(std::to_string(thickness), 3);
+        // Plates
+        for (typename std::vector<index_t>::iterator it = plateIDs.begin(); it!=plateIDs.end(); it++)
+            tContainer.at(*it) = &tp;
+        for (typename std::vector<index_t>::iterator it = stripIDs.begin(); it!=stripIDs.end(); it++)
+            tContainer.at(*it) = &ts;
+        for (size_t p = 0; p != tContainer.size(); p++)
+            t.addPiece(*tContainer.at(p));
+
+        // refPatches.resize(mp.nPatches());
+        // refPatches<<0,1,2,3;
+        // refPoints.resize(2,mp.nPatches());
+        // refPoints.col(0)<<0.0,0.5;
+        // refPoints.col(1)<<1.0,0.5;
+        // refPoints.col(2)<<0.0,0.5;
+    }
     else
         GISMO_ERROR("Test case not known");
     //! [Set boundary conditions]
@@ -381,7 +444,6 @@ int main(int argc, char *argv[])
     else
         assembler = new gsThinShellAssembler<3, real_t, true >(mp,dbasis,bc,force,materialMatrix);
 
-
     // Set the penalty parameter for the interface C1 continuity
     assembler->options().setInt("Continuity",-1);
     assembler->options().setReal("IfcDirichlet",ifcDirichlet);
@@ -500,29 +562,19 @@ int main(int argc, char *argv[])
         gsInfo<<"Plotting in Paraview...\n";
         // gsWriteParaview<>( solField, "Deformation", 1000, true);
         gsWriteParaview<>( solField, "Deformation", 1000, false);
-
-        if (testCase==3)
-            gsWarn<<"Deformations are possibly zero in Paraview, due to the default precision (1e-5).\n";
     }
     if (stress)
     {
-        if (testCase==2)
-        {
-            gsWarn<<"Stresses cannot be plotted for this case due to the singularity at the top of the geometry.\n";
-        }
-        else
-        {
-            gsPiecewiseFunction<> membraneStresses;
-            assembler->constructStress(mp_def,membraneStresses,stress_type::membrane);
-            gsField<> membraneStress(mp_def,membraneStresses, true);
+        gsPiecewiseFunction<> membraneStresses;
+        assembler->constructStress(mp_def,membraneStresses,stress_type::membrane);
+        gsField<> membraneStress(mp_def,membraneStresses, true);
 
-            gsPiecewiseFunction<> flexuralStresses;
-            assembler->constructStress(mp_def,flexuralStresses,stress_type::flexural);
-            gsField<> flexuralStress(mp_def,flexuralStresses, true);
+        gsPiecewiseFunction<> flexuralStresses;
+        assembler->constructStress(mp_def,flexuralStresses,stress_type::flexural);
+        gsField<> flexuralStress(mp_def,flexuralStresses, true);
 
-            gsWriteParaview(membraneStress,"MembraneStress",1000);
-            gsWriteParaview(flexuralStress,"FlexuralStress",1000);
-        }
+        gsWriteParaview(membraneStress,"MembraneStress",1000);
+        gsWriteParaview(flexuralStress,"FlexuralStress",1000);
     }
     // ! [Export visualization in ParaView]
 
@@ -597,7 +649,7 @@ gsMultiPatch<T> Strip(T Lb, T Hw, T x, T y, T z)
 }
 
 template <class T>
-gsMultiPatch<T> Panel(T Lp, T Wp, T Hw, T alpha, T x, T y, T z)
+gsMultiPatch<T> Panel3(T Lp, T Wp, T Hw, T alpha, T x, T y, T z)
 
 {
     gsMultiPatch<T> result, tmp;
@@ -620,6 +672,55 @@ gsMultiPatch<T> Panel(T Lp, T Wp, T Hw, T alpha, T x, T y, T z)
 
     // T-Beam
     gsMultiPatch<> beam = Strip(Lp,Hw,Wp*alpha);
+
+    for (size_t p=0; p!=beam.nPatches(); p++)
+        result.addPatch(beam.patch(p));
+
+    for (size_t p = 0; p!=result.nPatches(); p++)
+    {
+        result.patch(p).coefs().col(0).array() += x;
+        result.patch(p).coefs().col(1).array() += y;
+        result.patch(p).coefs().col(2).array() += z;
+    }
+
+    result.computeTopology();
+    result.addAutoBoundaries();
+
+    return result;
+}
+
+template <class T>
+gsMultiPatch<T> Panel4(T Lp, T Wp, T Hw, T alpha, T x, T y, T z)
+
+{
+    gsMultiPatch<T> result, tmp;
+
+    // Base plate, left
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(0).embed(3);
+    result.patch(0).coefs().row(0)<< 0,0,0;
+    result.patch(0).coefs().row(1)<< Wp/2,0,0;
+    result.patch(0).coefs().row(2)<< 0,Lp,0;
+    result.patch(0).coefs().row(3)<< Wp/2,Lp,0;
+
+    // Base plate, middle
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(1).embed(3);
+    result.patch(1).coefs().row(0)<< Wp/2,0,0;
+    result.patch(1).coefs().row(1)<< Wp*alpha,0,0;
+    result.patch(1).coefs().row(2)<< Wp/2,Lp,0;
+    result.patch(1).coefs().row(3)<< Wp*alpha,Lp,0;
+
+    // Base plate, right
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(2).embed(3);
+    result.patch(2).coefs().row(0)<< Wp*alpha,0,0;
+    result.patch(2).coefs().row(1)<< Wp,0,0;
+    result.patch(2).coefs().row(2)<< Wp*alpha,Lp,0;
+    result.patch(2).coefs().row(3)<< Wp,Lp,0;
+
+    // T-Beam
+    gsMultiPatch<> beam = Strip(Lp,Hw,Wp/2);
 
     for (size_t p=0; p!=beam.nPatches(); p++)
         result.addPatch(beam.patch(p));

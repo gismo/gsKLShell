@@ -22,31 +22,6 @@
 
 using namespace gismo;
 
-template <class T>
-gsMultiPatch<T> Plate(T Lp, T Wp, T x = 0, T y = 0, T z = 0);
-
-template <class T>
-gsMultiPatch<T> Strip(T Lb, T Hw, T x = 0, T y = 0, T z = 0);
-
-template <class T>
-gsMultiPatch<T> IBeam(T Lb, T Hw, T Wf, T x = 0, T y = 0, T z = 0);
-
-template <class T>
-gsMultiPatch<T> TBeam(T Lb, T Hw, T Wf, T x = 0, T y = 0, T z = 0);
-
-template <class T>
-gsMultiPatch<T> LBeam(T Lb, T Hw, T Wf, T x = 0, T y = 0, T z = 0);
-
-template <class T>
-gsMultiPatch<T> PanelT(T Lp, T Wp, T Hw, T Wf, T x = 0, T y = 0, T z = 0);
-
-template <class T>
-gsMultiPatch<T> PanelL(T Lp, T Wp, T Hw, T Wf, T x = 0, T y = 0, T z = 0);
-
-template <class T>
-gsMultiPatch<T> PlateGirderL(T PanelLength, T PanelWidth, T GirderHeight, T GirderFlangeWidth, T WebHeight, T WebFlangeWidth, T x = 0, T y = 0, T z = 0);
-
-
 // Choose among various shell examples, default = Thin Plate
 int main(int argc, char *argv[])
 {
@@ -127,10 +102,6 @@ int main(int argc, char *argv[])
         thickness = 1;
         E_modulus = 1;
         PoissonRatio = 0.3;
-
-        // MULTIPATCH CASE plate
-        // mp = TBeam(10.,1.,0.5);
-
         gsReadFile<>("multipatches/T-beam.xml", mp);
     }
     else if (testCase == 6)
@@ -138,57 +109,7 @@ int main(int argc, char *argv[])
         thickness = 1;
         E_modulus = 1;
         PoissonRatio = 0.3;
-
-        // MULTIPATCH CASE plate
         gsReadFile<>("multipatches/I-beam.xml", mp);
-    }
-    else if (testCase == 7)
-    {
-        thickness = 1;
-        E_modulus = 1;
-        PoissonRatio = 0.3;
-
-        mp = PanelT(10.,5.,1.,1.);
-    }
-    else if (testCase == 8)
-    {
-        thickness = 1;
-        E_modulus = 1;
-        PoissonRatio = 0.0;
-
-        // MULTIPATCH CASE plate
-        gsReadFile<>("planar/two_squares.xml", mp);
-        mp.embed(3);
-    }
-    else if (testCase == 9)
-    {
-        thickness = 10.; // plate
-        E_modulus = 206000;
-        PoissonRatio = 0.3;
-        mp = PanelL(3500.,3500.,200.,38.);
-        gsWrite<>(mp,"PanelL");
-    }
-    else if (testCase == 10)
-    {
-        thickness = 10.; // plate
-        E_modulus = 206000;
-        PoissonRatio = 0.3;
-        mp = PlateGirderL(7020.,3500.,580.,250.,200.,38.);
-        gsWrite<>(mp,"PlateGirderL");
-
-        // Plate
-        // t = 10
-        // Girder
-        // tw = 15
-        // Hw = 580
-        // tf = 30
-        // Wf = 250
-        // Stiffener
-        // tw = 10
-        // Hw = 200
-        // tf = 15
-        // Wf = 38
-
     }
     else
     {
@@ -385,10 +306,10 @@ int main(int argc, char *argv[])
         }
 
         // Surface forces
-        tmp << 0,0,-1e-3;
+        tmp << 0,0,-1e0;
         gsConstantFunction<> force0(tmp,3);
         force.addPiece(force0);
-        tmp << 0,0,-1e-3;
+        tmp << 0,0,-1e0;
         gsConstantFunction<> force1(tmp,3);
         force.addPiece(force1);
 
@@ -500,340 +421,6 @@ int main(int argc, char *argv[])
         gsVector<> point(2); point<< 1.0, 1.0 ;
         refPoint = point;
     }
-    else if (testCase == 7)
-    {
-        for (index_t d = 0; d!=3; d++)
-        {
-            bc.addCondition(0, boundary::north, condition_type::dirichlet, 0, 0, false, d);
-            bc.addCondition(0, boundary::south, condition_type::dirichlet, 0, 0, false, d);
-            bc.addCondition(0, boundary::east, condition_type::dirichlet, 0, 0, false, d);
-
-            bc.addCondition(1, boundary::north, condition_type::dirichlet, 0, 0, false, d);
-            bc.addCondition(1, boundary::south, condition_type::dirichlet, 0, 0, false, d);
-            bc.addCondition(1, boundary::west, condition_type::dirichlet, 0, 0, false, d);
-
-            bc.addCondition(2, boundary::east, condition_type::dirichlet, 0, 0, false, d);
-            bc.addCondition(2, boundary::west, condition_type::dirichlet, 0, 0, false, d);
-
-            bc.addCondition(3, boundary::north, condition_type::dirichlet, 0, 0, false, d);
-            bc.addCondition(3, boundary::south, condition_type::dirichlet, 0, 0, false, d);
-
-            bc.addCondition(4, boundary::north, condition_type::dirichlet, 0, 0, false, d);
-            bc.addCondition(4, boundary::south, condition_type::dirichlet, 0, 0, false, d);
-
-        }
-
-        // Point loads
-        tmp << 0,0,1e-2;
-        gsConstantFunction<> piece0(tmp,3);
-        force.addPiece(piece0);
-        tmp << 0,0,1e-2;
-        gsConstantFunction<> piece1(tmp,3);
-        force.addPiece(piece1);
-        tmp << 0,0,0;
-        gsConstantFunction<> piece2(tmp,3);
-        force.addPiece(piece2);
-        tmp << 0,0,0;
-        gsConstantFunction<> piece3(tmp,3);
-        force.addPiece(piece3);
-        tmp << 0,0,0;
-        gsConstantFunction<> piece4(tmp,3);
-        force.addPiece(piece4);
-
-        // thickness
-        gsFunctionExpr<> t0(std::to_string(thickness), 3);
-        t.addPiece(t0);
-        gsFunctionExpr<> t1(std::to_string(thickness), 3);
-        t.addPiece(t1);
-        gsFunctionExpr<> t2(std::to_string(thickness), 3);
-        t.addPiece(t2);
-        gsFunctionExpr<> t3(std::to_string(thickness), 3);
-        t.addPiece(t3);
-        gsFunctionExpr<> t4(std::to_string(thickness), 3);
-        t.addPiece(t4);
-
-        // // material parameters
-        // gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
-        // nu.addPiece(nu0);
-        // gsFunctionExpr<> nu1(std::to_string(PoissonRatio), 3);
-        // nu.addPiece(nu1);
-        // gsFunctionExpr<> nu2(std::to_string(PoissonRatio), 3);
-        // nu.addPiece(nu2);
-        // gsFunctionExpr<> nu3(std::to_string(PoissonRatio), 3);
-        // nu.addPiece(nu3);
-        // gsFunctionExpr<> nu4(std::to_string(PoissonRatio), 3);
-        // nu.addPiece(nu4);
-
-        gsVector<> point(2); point<< 1.0, 1.0 ;
-        refPoint = point;
-    }
-    else if (testCase == 8)
-    {
-        bc.addCondition(1,boundary::west, condition_type::dirichlet, 0, 0 ,false,0);
-
-        bc.addCondition(0,boundary::east, condition_type::collapsed, 0, 0 ,false,0);
-        bc.addCondition(0,boundary::east, condition_type::dirichlet, 0, 0 ,false,1);
-        bc.addCondition(0,boundary::east, condition_type::dirichlet, 0, 0 ,false,2);
-
-        bc.addCondition(1,boundary::west, condition_type::clamped  , 0, 0, false,2);
-        bc.addCondition(0,boundary::east, condition_type::clamped  , 0, 0, false,2);
-
-        bc.addCondition(1,boundary::south, condition_type::dirichlet, 0, 0, false, 1 );
-        bc.addCondition(1,boundary::south, condition_type::dirichlet, 0, 0, false, 2 );
-
-        bc.addCondition(0,boundary::south, condition_type::dirichlet, 0, 0, false, 1 );
-        bc.addCondition(0,boundary::south, condition_type::dirichlet, 0, 0, false, 2 );
-
-        // Surface forces
-        tmp << 0,0,0;
-        gsConstantFunction<> force0(tmp,3);
-        force.addPiece(force0);
-        tmp << 0,0,0;
-        gsConstantFunction<> force1(tmp,3);
-        force.addPiece(force1);
-
-        // thickness
-        gsFunctionExpr<> t0(std::to_string(thickness), 3);
-        t.addPiece(t0);
-        gsFunctionExpr<> t1(std::to_string(thickness), 3);
-        t.addPiece(t1);
-
-        // // material parameters
-        // gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
-        // nu.addPiece(nu0);
-        // gsFunctionExpr<> nu1(std::to_string(PoissonRatio), 3);
-        // nu.addPiece(nu1);
-
-        real_t Load = 1e0;
-        gsVector<> point(2); point<< 1.0, 0.5 ;
-        gsVector<> load (3); load << Load,0.0, 0.0;
-        pLoads.addLoad(point, load,0);
-    }
-    else if (testCase == 9)
-    {
-        // Horizontal displacements
-        bc.addCondition(2,boundary::east, condition_type::dirichlet, 0, 0, false, 1 );      // stiffener web
-        bc.addCondition(2,boundary::west, condition_type::dirichlet, 0, 0, false, 1 );      // stiffener web
-        bc.addCondition(3,boundary::north, condition_type::dirichlet, 0, 0, false, 1 );     // stiffener flange
-        bc.addCondition(3,boundary::south, condition_type::dirichlet, 0, 0, false, 1 );     // stiffener flange
-
-        // Vertical displacements
-        bc.addCondition(0,boundary::north, condition_type::dirichlet, 0, 0, false, 2 );     // plate
-        bc.addCondition(0,boundary::south, condition_type::dirichlet, 0, 0, false, 2 );     // plate
-        bc.addCondition(0,boundary::east, condition_type::dirichlet, 0, 0, false, 2 );      // plate
-        bc.addCondition(1,boundary::north, condition_type::dirichlet, 0, 0, false, 2 );     // plate
-        bc.addCondition(1,boundary::south, condition_type::dirichlet, 0, 0, false, 2 );     // plate
-        bc.addCondition(1,boundary::west, condition_type::dirichlet, 0, 0, false, 2 );      // plate
-        bc.addCondition(2,boundary::east, condition_type::dirichlet, 0, 0, false, 2 );      // stiffener web
-        bc.addCondition(2,boundary::west, condition_type::dirichlet, 0, 0, false, 2 );      // stiffener web
-        bc.addCondition(3,boundary::north, condition_type::dirichlet, 0, 0, false, 2 );     // stiffener flange
-        bc.addCondition(3,boundary::south, condition_type::dirichlet, 0, 0, false, 2 );     // stiffener flange
-
-
-        // Clampings
-        bc.addCondition(0,boundary::north, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(0,boundary::south, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(0,boundary::east, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(1,boundary::north, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(1,boundary::south, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(1,boundary::west, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(2,boundary::east, condition_type::clamped, 0, 0, false, 0 );
-        bc.addCondition(2,boundary::west, condition_type::clamped, 0, 0, false, 0 );
-        bc.addCondition(3,boundary::north, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(3,boundary::south, condition_type::clamped, 0, 0, false, 2 );
-
-        std::vector<index_t> plateIDs{0,1};
-        std::vector<index_t> stiffenerWebIDs{2};
-        std::vector<index_t> stiffenerFlangeIDs{3};
-
-        real_t pressure = 1;
-        // Surface loads
-        gsVector<> pressvec(3);
-        pressvec << 0,0,pressure;
-        tmp << 0,0,0;
-        gsConstantFunction<> forcep(pressvec,3);
-        gsConstantFunction<> force0(tmp,3);
-
-        typedef typename std::vector<gsFunction<real_t>*>       FunctionContainer;
-        FunctionContainer forceContainer(mp.nPatches());
-        // Plates
-        for (typename std::vector<index_t>::iterator it = plateIDs.begin(); it!=plateIDs.end(); it++)
-            forceContainer.at(*it) = &forcep;
-        // Stiffener webs
-        for (typename std::vector<index_t>::iterator it = stiffenerWebIDs.begin(); it!=stiffenerWebIDs.end(); it++)
-            forceContainer.at(*it) = &force0;
-        // Stiffener flanges
-        for (typename std::vector<index_t>::iterator it = stiffenerFlangeIDs.begin(); it!=stiffenerFlangeIDs.end(); it++)
-            forceContainer.at(*it) = &force0;
-
-        for (size_t p = 0; p != forceContainer.size(); p++)
-            force.addPiece(*forceContainer.at(p));
-
-
-        FunctionContainer tContainer(mp.nPatches());
-
-        gsVector<> tmp2(1);
-        gsFunctionExpr<> tp(std::to_string(15.), 3);
-        gsFunctionExpr<> tsw(std::to_string(5.), 3);
-        gsFunctionExpr<> tsf(std::to_string(10.), 3);
-
-        gsDebugVar(tsf.targetDim());
-
-        // Plates
-        for (typename std::vector<index_t>::iterator it = plateIDs.begin(); it!=plateIDs.end(); it++)
-            tContainer.at(*it) = &tp;
-        // Stiffener webs
-        for (typename std::vector<index_t>::iterator it = stiffenerWebIDs.begin(); it!=stiffenerWebIDs.end(); it++)
-            tContainer.at(*it) = &tsw;
-        // Stiffener flanges
-        for (typename std::vector<index_t>::iterator it = stiffenerFlangeIDs.begin(); it!=stiffenerFlangeIDs.end(); it++)
-            tContainer.at(*it) = &tsf;
-
-        for (size_t p = 0; p != tContainer.size(); p++)
-            t.addPiece(*tContainer.at(p));
-    }
-    else if (testCase == 10)
-    {
-        // Plate
-        bc.addCondition(0,boundary::south, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(0,boundary::east, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(1,boundary::north, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(2,boundary::north, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(2,boundary::east, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(3,boundary::south, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(3,boundary::west, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(4,boundary::south, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(5,boundary::north, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(5,boundary::west, condition_type::dirichlet, 0, 0, false, 2 );
-
-        bc.addCondition(0,boundary::south, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(0,boundary::east, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(1,boundary::north, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(2,boundary::north, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(2,boundary::east, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(3,boundary::south, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(3,boundary::west, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(4,boundary::south, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(5,boundary::north, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(5,boundary::west, condition_type::clamped, 0, 0, false, 2 );
-
-        // Girder
-        // Web
-        bc.addCondition(13,boundary::west, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(20,boundary::west, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(16,boundary::east, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(21,boundary::east, condition_type::dirichlet, 0, 0, false, 2 );
-
-        bc.addCondition(13,boundary::west, condition_type::clamped, 0, 0, false, 0 );
-        bc.addCondition(20,boundary::west, condition_type::clamped, 0, 0, false, 0 );
-        bc.addCondition(16,boundary::east, condition_type::clamped, 0, 0, false, 0 );
-        bc.addCondition(21,boundary::east, condition_type::clamped, 0, 0, false, 0 );
-
-        //Flange
-        bc.addCondition(14,boundary::north, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(15,boundary::north, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(17,boundary::south, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(18,boundary::south, condition_type::dirichlet, 0, 0, false, 2 );
-
-        bc.addCondition(14,boundary::north, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(15,boundary::north, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(17,boundary::south, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(18,boundary::south, condition_type::clamped, 0, 0, false, 2 );
-
-        // Stiffener
-        // Web
-        bc.addCondition(8,boundary::west, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(6,boundary::east, condition_type::dirichlet, 0, 0, false, 2 );
-
-        bc.addCondition(8,boundary::west, condition_type::clamped, 0, 0, false, 1 );
-        bc.addCondition(6,boundary::east, condition_type::clamped, 0, 0, false, 1 );
-        //Flange
-        bc.addCondition(9,boundary::south, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(7,boundary::north, condition_type::dirichlet, 0, 0, false, 2 );
-
-        bc.addCondition(9,boundary::south, condition_type::clamped, 0, 0, false, 2 );
-        bc.addCondition(7,boundary::north, condition_type::clamped, 0, 0, false, 2 );
-
-        std::vector<index_t> plateIDs{0,1,2,3,4,5};
-        std::vector<index_t> girderWebIDs{10,13,16,19,20,21};
-        std::vector<index_t> girderFlangeIDs{11,12,14,15,17,18};
-        std::vector<index_t> stiffenerWebIDs{6,8};
-        std::vector<index_t> stiffenerFlangeIDs{7,9};
-
-        real_t pressure = 1e0;
-        // Surface loads
-        gsVector<> pressvec(3);
-        pressvec << 0,0,pressure;
-        tmp << 0,0,0;
-        gsConstantFunction<> forcep(pressvec,3);
-        gsConstantFunction<> force0(tmp,3);
-
-        typedef typename std::vector<gsFunction<real_t>*>       FunctionContainer;
-        FunctionContainer forceContainer(mp.nPatches());
-        // Plates
-        for (typename std::vector<index_t>::iterator it = plateIDs.begin(); it!=plateIDs.end(); it++)
-            forceContainer.at(*it) = &forcep;
-        // Girder webs
-        for (typename std::vector<index_t>::iterator it = girderWebIDs.begin(); it!=girderWebIDs.end(); it++)
-            forceContainer.at(*it) = &force0;
-        // Girder flanges
-        for (typename std::vector<index_t>::iterator it = girderFlangeIDs.begin(); it!=girderFlangeIDs.end(); it++)
-            forceContainer.at(*it) = &force0;
-        // Stiffener webs
-        for (typename std::vector<index_t>::iterator it = stiffenerWebIDs.begin(); it!=stiffenerWebIDs.end(); it++)
-            forceContainer.at(*it) = &force0;
-        // Stiffener flanges
-        for (typename std::vector<index_t>::iterator it = stiffenerFlangeIDs.begin(); it!=stiffenerFlangeIDs.end(); it++)
-            forceContainer.at(*it) = &force0;
-
-        for (size_t p = 0; p != forceContainer.size(); p++)
-            force.addPiece(*forceContainer.at(p));
-
-        // force = gsPiecewiseFunction<>(forceContainer);
-
-        // Plate (patches 0, 1, 4, 5)
-        // tp = 10
-        // Girder web (patches 0, 1, 4, 5)
-        // tgw = 15
-        // Girder flange (patches 0, 1, 4, 5)
-        // tgf = 30
-        // Stiffener web (patches 0, 1, 4, 5)
-        // tsw = 10
-        // Stiffener flange (patches 0, 1, 4, 5)
-        // tsf = 15
-
-        FunctionContainer tContainer(mp.nPatches());
-
-        gsVector<> tmp2(1);
-        gsFunctionExpr<> tp(std::to_string(15.), 3);
-        gsFunctionExpr<> tgw(std::to_string(1.), 3);
-        gsFunctionExpr<> tgf(std::to_string(2.), 3);
-        gsFunctionExpr<> tsw(std::to_string(1.), 3);
-        gsFunctionExpr<> tsf(std::to_string(1.), 3);
-
-        gsDebugVar(tsf.targetDim());
-
-        // Plates
-        for (typename std::vector<index_t>::iterator it = plateIDs.begin(); it!=plateIDs.end(); it++)
-            tContainer.at(*it) = &tp;
-        // Girder webs
-        for (typename std::vector<index_t>::iterator it = girderWebIDs.begin(); it!=girderWebIDs.end(); it++)
-            tContainer.at(*it) = &tgw;
-        // Girder flanges
-        for (typename std::vector<index_t>::iterator it = girderFlangeIDs.begin(); it!=girderFlangeIDs.end(); it++)
-            tContainer.at(*it) = &tgf;
-        // Stiffener webs
-        for (typename std::vector<index_t>::iterator it = stiffenerWebIDs.begin(); it!=stiffenerWebIDs.end(); it++)
-            tContainer.at(*it) = &tsw;
-        // Stiffener flanges
-        for (typename std::vector<index_t>::iterator it = stiffenerFlangeIDs.begin(); it!=stiffenerFlangeIDs.end(); it++)
-            tContainer.at(*it) = &tsf;
-
-        for (size_t p = 0; p != tContainer.size(); p++)
-            t.addPiece(*tContainer.at(p));
-
-        // t = gsPiecewiseFunction<>(tContainer);
-    }
     else
         GISMO_ERROR("Test case not known");
     //! [Set boundary conditions]
@@ -892,74 +479,12 @@ int main(int argc, char *argv[])
     for (size_t p = 0; p!=mp.nPatches(); p++)
         materialMats.add(materialMatrix);
 
-
-    // gsMaterialMatrixContainer<real_t> materialMatsSingle(mp.nPatches());
-    // gsMaterialMatrixBase<real_t> * mmtmp;
-    // for (size_t p = 0; p!=mp.nPatches(); p++)
-    // {
-    //     parameters.resize(2);
-    //     parameters[0] = const_cast<gsFunction<> *>(&(E.function(p)));
-    //     parameters[1] = const_cast<gsFunction<> *>(&(nu.function(p)));
-    //     options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
-    //     options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
-    //     mmtmp = getMaterialMatrix<3,real_t>(mp,t,parameters,rho,options);
-
-    //     materialMatsSingle.add(mmtmp);
-    // }
-
-
-
-    // gsDebugVar(materialMats);
-    // gsDebugVar(materialMatsSingle);
-
-    // gsMatrix<> z(1,1);
-    // z.setZero();
-    // // gsMaterialMatrixEval2<real_t,MaterialOutput::VectorN> vectorN(materialMats,&mp,z);
-
-    // gsMaterialMatrixEval<real_t,MaterialOutput::Thickness> Thickness(materialMatrix,&mp,z);
-    // gsMaterialMatrixEval<real_t,MaterialOutput::Parameters> Parameters(materialMatrix,&mp,z);
-
-
-    // gsMatrix<> result;
-    // gsVector<> pt(2); pt.setConstant(0.25);
-
-    // for (size_t p = 0; p!=mp.nPatches(); ++p)
-    // {
-    //     gsDebug<<"-----------Patch "<<p<<"\n";
-    //     Thickness.piece(p).eval_into(pt,result);
-    //     gsDebug<<"Thickness: "<<result.transpose()<<"\n";
-
-    //     Parameters.piece(p).eval_into(pt,result);
-    //     gsDebug<<"Parameters: "<<result.transpose()<<"\n";
-    // }
-
-
-    // gsMaterialMatrixEval<real_t,MaterialOutput::Thickness> Thickness2(materialMatsSingle,&mp,z);
-    // gsMaterialMatrixEval<real_t,MaterialOutput::Parameters> Parameters2(materialMatsSingle,&mp,z);
-
-
-    // for (size_t p = 0; p!=mp.nPatches(); ++p)
-    // {
-    //     gsDebug<<"-----------Patch "<<p<<"\n";
-    //     Thickness2.piece(p).eval_into(pt,result);
-    //     gsDebug<<"Thickness: "<<result.transpose()<<"\n";
-
-    //     Parameters2.piece(p).eval_into(pt,result);
-    //     gsDebug<<"Parameters: "<<result.transpose()<<"\n";
-    // }
-
     // Construct the gsThinShellAssembler
     gsThinShellAssemblerBase<real_t>* assembler;
-    // if(membrane) // no bending term
-    //     assembler = new gsThinShellAssembler<3, real_t, false>(mp,dbasis,bc,force,materialMats);
-    // else
-    //     assembler = new gsThinShellAssembler<3, real_t, true >(mp,dbasis,bc,force,materialMats);
-
     if(membrane) // no bending term
         assembler = new gsThinShellAssembler<3, real_t, false>(mp,dbasis,bc,force,materialMatrix);
     else
         assembler = new gsThinShellAssembler<3, real_t, true >(mp,dbasis,bc,force,materialMatrix);
-
 
     // Set the penalty parameter for the interface C1 continuity
     assembler->options().setReal("IfcDirichlet",ifcDirichlet);
@@ -1067,12 +592,6 @@ int main(int argc, char *argv[])
 
     //! [Construct and evaluate solution]
     gsVector<> refVals = deformation.patch(refPatch).eval(refPoint);
-    // real_t numVal;
-    // if      (testCase == 0 || testCase == 1 || testCase == 3)
-    //     numVal = refVals.at(2);
-    // else
-    //     numVal = refVals.at(1);
-
     // gsInfo << "Displacement at reference point: "<<numVal<<"\n";
     gsInfo << "Displacement at reference point: "<<refVals<<"\n";
     //! [Construct and evaluate solution]
@@ -1369,24 +888,24 @@ gsMultiPatch<T> PanelL(T Lp, T Wp, T Hw, T Wf, T x, T y, T z)
 {
     gsMultiPatch<T> result, tmp;
 
-    // Base plate, left
-    result.addPatch(gsNurbsCreator<>::BSplineSquare());
-    result.patch(0).embed(3);
-    result.patch(0).coefs().row(0)<< 0,0,0;
-    result.patch(0).coefs().row(1)<< Wp/2,0,0;
-    result.patch(0).coefs().row(2)<< 0,Lp,0;
-    result.patch(0).coefs().row(3)<< Wp/2,Lp,0;
-
     // Base plate, right
     result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(0).embed(3);
+    result.patch(0).coefs().row(0)<< -Wp/2,0,0;
+    result.patch(0).coefs().row(1)<< 0,0,0;
+    result.patch(0).coefs().row(2)<< -Wp/2,Lp,0;
+    result.patch(0).coefs().row(3)<< 0,Lp,0;
+    // Base plate, left
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
     result.patch(1).embed(3);
-    result.patch(1).coefs().row(0)<< -Wp/2,0,0;
-    result.patch(1).coefs().row(1)<< 0,0,0;
-    result.patch(1).coefs().row(2)<< -Wp/2,Lp,0;
-    result.patch(1).coefs().row(3)<< 0,Lp,0;
+    result.patch(1).coefs().row(0)<< 0,0,0;
+    result.patch(1).coefs().row(1)<< Wp/2,0,0;
+    result.patch(1).coefs().row(2)<< 0,Lp,0;
+    result.patch(1).coefs().row(3)<< Wp/2,Lp,0;
 
     // T-Beam
-    gsMultiPatch<> beam = LBeam(Lp,Hw,Wf);
+    // gsMultiPatch<> beam = LBeam(Lp,Hw,Wf);
+    gsMultiPatch<> beam = Strip(Lp,Hw);
 
     for (size_t p=0; p!=beam.nPatches(); p++)
         result.addPatch(beam.patch(p));
@@ -1407,6 +926,48 @@ gsMultiPatch<T> PanelL(T Lp, T Wp, T Hw, T Wf, T x, T y, T z)
 
     return result;
 }
+
+template <class T>
+gsMultiPatch<T> PanelL2(T Lp, T Wp, T Hw, T Wf, T x, T y, T z)
+
+{
+    gsMultiPatch<T> result, tmp;
+    std::vector<gsMultiPatch<T>> panels(4);
+    panels.at(0) = Plate(Wp/2.,Lp,-Wp/2.,0.,0.);
+    panels.at(1) = Plate(Wf,Lp,0.,0.,0.);
+    panels.at(2) = Plate(Wp/2.-Wf,Lp,Wf,0.,0.);
+    // panels.at(3) = LBeam(Lp,Hw,Wf);
+    panels.at(3) = Strip(Lp,Hw);
+    // for (size_t p = 0; p!=panels[3].nPatches(); p++)
+    //     panels[3].patch(p).coefs().col(0).swap(panels[3].patch(p).coefs().col(1));
+
+    for (typename std::vector<gsMultiPatch<T>>::iterator it = panels.begin(); it!=panels.end(); it++)
+        for (size_t p = 0; p!=it->nPatches(); p++)
+           result.addPatch(it->patch(p));
+
+    for (size_t p = 0; p!=result.nPatches(); p++)
+    {
+        result.patch(p).coefs().col(0).array() += x;
+        result.patch(p).coefs().col(1).array() += y;
+        result.patch(p).coefs().col(2).array() += z;
+    }
+
+    result.computeTopology();
+    result.addAutoBoundaries();
+
+    // result.addPatch(gsNurbsCreator<>::BSplineRectangle(-Wp/2,0.0,0.0,Lp));
+    // result.patch(0).degreeReduce();
+    // result.embed(3);
+
+    // result.addPatch(gsNurbsCreator<>::BSplineRectangle(-Wp/2,0.0,0.0,Lp));
+    // result.patch(0).degreeReduce();
+    // result.embed(3);
+
+
+
+    return result;
+}
+
 
 template <class T>
 gsMultiPatch<T> PlateGirderL(T PanelLength, T PanelWidth, T GirderHeight, T GirderFlangeWidth, T WebFlangeHeight, T WebFlangeWidth, T x, T y, T z)

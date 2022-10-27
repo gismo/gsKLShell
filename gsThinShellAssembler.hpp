@@ -265,7 +265,6 @@ void gsThinShellAssembler<d, T, bending>::initInterfaces()
     // Find unassigned interfaces and add them to the right containers
     for (gsBoxTopology::const_iiterator it = m_patches.topology().iBegin(); it!=m_patches.topology().iEnd(); it++)
     {
-        gsDebugVar(*it);
         if (
                 std::find(m_strongC0.begin(), m_strongC0.end(), *it) == m_strongC0.end() // m_strongC0 does not contain *it
             &&  std::find(m_strongC1.begin(), m_strongC1.end(), *it) == m_strongC1.end() // m_strongC1 does not contain *it
@@ -924,9 +923,10 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
     auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
     auto mmDcart = (con2cartI * reshape(mmD,3,3) * cart2cov);
 
-    element el = m_assembler.getElement();
-    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / el.area(m_ori);
-    auto alpha_r = m_alpha_r_ifc * reshape(mmDcart,9,1).max().val() / el.area(m_ori);
+    element el   = m_assembler.getElement();
+    auto h       = (el.area(m_ori.left()) + el.area(m_ori.right())) / 2;
+    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / h;
+    auto alpha_r = m_alpha_r_ifc * reshape(mmDcart,9,1).max().val() / h;
 
     // C^0 coupling
     m_assembler.assembleIfc(m_weakC0,

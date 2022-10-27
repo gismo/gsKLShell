@@ -351,23 +351,16 @@ int main(int argc, char *argv[])
     }
     if (stress)
     {
-        if (testCase==2)
-        {
-            gsWarn<<"Stresses cannot be plotted for this case due to the singularity at the top of the geometry.\n";
-        }
-        else
-        {
-            gsPiecewiseFunction<> membraneStresses;
-            assembler->constructStress(mp_def,membraneStresses,stress_type::membrane);
-            gsField<> membraneStress(mp_def,membraneStresses, true);
+        gsPiecewiseFunction<> membraneStresses;
+        assembler->constructStress(mp_def,membraneStresses,stress_type::membrane);
+        gsField<> membraneStress(mp_def,membraneStresses, true);
 
-            gsPiecewiseFunction<> flexuralStresses;
-            assembler->constructStress(mp_def,flexuralStresses,stress_type::flexural);
-            gsField<> flexuralStress(mp_def,flexuralStresses, true);
+        gsPiecewiseFunction<> flexuralStresses;
+        assembler->constructStress(mp_def,flexuralStresses,stress_type::flexural);
+        gsField<> flexuralStress(mp_def,flexuralStresses, true);
 
-            gsWriteParaview(membraneStress,"MembraneStress",1000);
-            gsWriteParaview(flexuralStress,"FlexuralStress",1000);
-        }
+        gsWriteParaview(membraneStress,"MembraneStress",1000);
+        gsWriteParaview(flexuralStress,"FlexuralStress",1000);
     }
     // ! [Export visualization in ParaView]
 
