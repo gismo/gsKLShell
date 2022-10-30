@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
     gsVector<> tmp(3);
     tmp << 0, 0, 0;
 
-    real_t load = 1e-5;
+    real_t load = 1e-5*0;
 
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
 
@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
     pLoads.addLoad(pointvec, loadvec, 0 );
 
     // gsConstantFunction<> force(tmp,3);
-    gsFunctionExpr<> force("0","0","0",3);
+    gsFunctionExpr<> force("0","0","if (sqrt((x-0.5)^2+(y-0.5)^2)<0.1){-1e-4} else{0}",3);
     gsFunctionExpr<> thick(std::to_string(thickness), 3);
     gsFunctionExpr<> Emod(std::to_string(E_modulus),3);
     gsFunctionExpr<> Pois(std::to_string(PoissonRatio),3);
@@ -263,7 +263,7 @@ int main(int argc, char *argv[])
         DWR->constructMultiPatchL(solVector,primalL);
         DWR->constructSolutionL(solVector,mp_def);
         index_t itMax = 100;
-        real_t tol = 1e-14;
+        real_t tol = 1e-12;
         real_t residual = DWR->primalL().norm();
         real_t residual0 = residual;
         real_t residualOld = residual;

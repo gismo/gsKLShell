@@ -3110,7 +3110,7 @@ void gsThinShellAssemblerDWR<d, T, bending>::_applyLoadsToElWiseError(const gsMu
         // Distribute load over all the elements
         GISMO_ASSERT(result.rows()==result.cols() && result.rows()==1,"Result must be scalar");
         for (size_t k=0; k!=elements.size(); k++)
-            errors.at(elements.at(k)) = result(0,0)/elements.size();
+            errors.at(elements.at(k)) += result(0,0)/elements.size();
     }
 }
 
