@@ -21,84 +21,21 @@
 #include <gsKLShell/gsThinShellAssemblerDWR.h>
 #include <gsKLShell/gsThinShellUtils.h>
 #include <gsKLShell/getMaterialMatrix.h>
-#include <gsAssembler/gsAdaptiveRefUtils.h>
-
-//#include <gsThinShell/gsNewtonIterator.h>
+#include <gsAssembler/gsAdaptiveMeshing.h>
+#include <gsAssembler/gsAdaptiveMeshingUtils.h>
 
 using namespace gismo;
-
-template<typename T>
-class gsElementErrorPlotter : public gsFunction<T>
-{
-public:
-    gsElementErrorPlotter(const gsBasis<T>& mp, const std::vector<T>& errors ) : m_mp(mp),m_errors(errors)
-    {
-
-    }
-
-    virtual void eval_into(const gsMatrix<T>& u, gsMatrix<T>& res) const
-    {
-        // Initialize domain element iterator -- using unknown 0
-        res.setZero(1,u.cols());
-        for(index_t i=0; i<u.cols();++i)
-        {
-            int iter =0;
-            // Start iteration over elements
-
-            typename gsBasis<T>::domainIter domIt = m_mp.makeDomainIterator();
-            for (; domIt->good(); domIt->next() )
-            {
-                 bool flag = true;
-                const gsVector<T>& low = domIt->lowerCorner();
-                const gsVector<T>& upp = domIt->upperCorner();
-
-
-                for(int d=0; d<domainDim();++d )
-                {
-                    if(low(d)> u(d,i) || u(d,i) > upp(d))
-                    {
-                        flag = false;
-                        break;
-                    }
-                }
-                if(flag)
-                {
-                     res(0,i) = m_errors.at(iter);
-                     break;
-                }
-                iter++;
-            }
-        }
-    }
-
-    short_t domainDim() const { return m_mp.dim();}
-
-private:
-    const gsBasis<T>& m_mp;
-    const std::vector<T>& m_errors;
-};
-
 
 template <class T>
 gsMultiPatch<T> Rectangle(T L, T B);
 
 int main(int argc, char *argv[])
 {
-    // Number of adaptive refinement loops
-    index_t RefineLoopMax;
-    // Flag for refinemet criterion
-    // (see doxygen documentation of the free function
-    // gsMarkElementsForRef explanation)
-    index_t refCriterion;
-    // Parameter for computing adaptive refinement threshold
-    // (see doxygen documentation of the free function
-    // gsMarkElementsForRef explanation)
-    real_t refParameter; // ...specified below with the examples
-
     //! [Parse command line]
     bool plot = false;
     bool write = false;
     index_t numRefine = 1;
+    index_t numRefineIni = 0;
     index_t numElevate = 1;
     bool loop = false;
     bool adaptive = false;
@@ -113,28 +50,22 @@ int main(int argc, char *argv[])
 
     index_t modeIdx = 0;
 
-    refCriterion = GARU;
-    refParameter = 0.85;
-    RefineLoopMax = 1;
-
     int testCase = 0;
 
-    int refExt = -1;
-    int crsExt = -1;
+    int adaptivity = 0;
+
+    std::string mesherOptionsFile("options/shell_mesher_options.xml");
 
     gsCmdLine cmd("Tutorial on solving a Poisson problem.");
     cmd.addInt("i", "index", "index of mode", modeIdx);
     cmd.addInt("e", "degreeElevation",
                "Number of degree elevation steps to perform before solving (0: equalize degree in all directions)", numElevate);
-    cmd.addInt("r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving", numRefine);
-    cmd.addInt("R", "refine", "Maximum number of adaptive refinement steps to perform",
-               RefineLoopMax);
+    cmd.addInt("R", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving", numRefineIni);
+    cmd.addInt("r", "refine", "Maximum number of adaptive refinement steps to perform",
+               numRefine);
     cmd.addInt("t", "testcase",
                 "Test case: 0: Beam - pinned-pinned, 1: Beam - fixed-fixed, 2: beam - fixed-free, 3: plate - fully pinned, 4: plate - fully fixed, 5: circle - fully pinned, 6: 5: circle - fully fixed",
                testCase);
-    cmd.addInt("E", "refExt", "Refinement extension", refExt);
-    cmd.addInt("C", "crsExt", "Coarsening extension", crsExt);
-    cmd.addReal("T", "thickness", "thickness", thickness);
 
     cmd.addReal("a","adim", "dimension a", aDim);
     cmd.addReal("b","bdim", "dimension b", bDim);
@@ -144,21 +75,11 @@ int main(int argc, char *argv[])
     cmd.addSwitch("write", "Write convergence to file", write);
     cmd.addSwitch("loop", "Uniform Refinemenct loop", loop);
 
-    try
-    {
-        cmd.getValues(argc, argv);
-    }
-    catch (int rv)
-    {
-        return rv;
-    }
+    try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
 
     gsMultiPatch<> mp;
     gsMultiPatch<> mp_def;
-
-    gsVector<> pts(2);
-    pts.setConstant(0.25);
 
     if (testCase==0)
     {
@@ -203,15 +124,31 @@ int main(int argc, char *argv[])
     }
 
     // Cast all patches of the mp object to THB splines
-    if (refExt!=-1 || crsExt!=-1)
+    if (adaptivity!=0)
     {
         gsTHBSpline<2,real_t> thb;
         for (index_t k=0; k!=mp.nPatches(); ++k)
         {
-            gsTensorBSpline<2,real_t> *geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k));
-            thb = gsTHBSpline<2,real_t>(*geo);
-            mp.patch(k) = thb;
+            gsTensorBSpline<2,real_t> *geo;
+            if (geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k)))
+            {
+                thb = gsTHBSpline<2,real_t>(*geo);
+                gsMatrix<> bbox = geo->support();
+                for (index_t i = 0; i< numRefineIni; ++i)
+                    thb.refineElements(thb.basis().asElements(bbox));
+                mp.patch(k) = thb;
+            }
+            else
+            {
+                std::cout<<typeid(geo).name();
+                GISMO_ERROR("Cannot cast to THB spline");
+            }
         }
+    }
+    else
+    {
+        for (index_t i = 0; i< numRefineIni; ++i)
+            mp.uniformRefine();
     }
 
     gsMultiBasis<> dbasis(mp);
@@ -347,8 +284,18 @@ int main(int argc, char *argv[])
 
     std::vector<real_t> elErrors;
     std::vector<bool> refVec;
-    MarkingStrategy adaptRefCrit = BULK;
-    real_t adaptRefParam;
+
+    gsAdaptiveMeshing<real_t> mesher;
+    if (adaptivity!=0)
+    {
+        gsFileData<> fd_mesher(mesherOptionsFile);
+        gsOptionList mesherOpts;
+        fd_mesher.getFirst<gsOptionList>(mesherOpts);
+
+        mesher = gsAdaptiveMeshing<real_t>(mp);
+        mesher.options() = mesherOpts;
+        mesher.getOptions();
+    }
 
     for (index_t r=0; r!=numRefine+1; r++)
     {
@@ -528,17 +475,20 @@ int main(int argc, char *argv[])
 
         efficiencies[r] = approxs[r]/exacts[r];
 
-        if (refExt==-1 && crsExt==-1)
+        if (adaptivity==0)
         {
             mp.uniformRefine();
         }
-        else
+        else if (adaptivity > 0)
         {
+            gsFileData<> fd_mesher(mesherOptionsFile);
+            gsOptionList mesherOpts;
+            fd_mesher.getFirst<gsOptionList>(mesherOpts);
+
             elErrors = DWR->computeErrorEigElements(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
             for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
             {
                 *it = std::abs(*it);
-                gsDebugVar(*it);
             }
 
             gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
@@ -547,34 +497,20 @@ int main(int argc, char *argv[])
             errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
             errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,"_mesh.vtp");
 
-            adaptRefParam = 0.25;
-            std::vector<bool> elMarked( elErrors.size() );
-            gsMarkElementsForRef( elErrors, adaptRefCrit, adaptRefParam, elMarked);
+            // Make container of the boxes
+            gsHBoxContainer<2,real_t> markRef, markCrs;
 
-            if (refExt!=-1 && crsExt==-1)
+            mesher.markRef_into(elErrors,markRef);
+            mesher.refine(markRef);
+
+            if (adaptivity>1)
             {
-                gsRefineMarkedElements( mp, elMarked,refExt );
-
-                gsInfo<<"Error\tRefined?\n";
-                for (index_t k=0; k!=elMarked.size(); k++)
-                    gsInfo<<elErrors[k]<<"\t"<<elMarked[k]<<"\n";
+                mesher.markCrs_into(elErrors,markRef,markCrs);
+                mesher.refine(markRef);
+                mesher.unrefine(markCrs);
+                // gsDebugVar(markCrs);
             }
-            else if (refExt!=-1 && crsExt!=-1)
-            {
-                adaptRefParam = 0.1;
-                // Invert errors for coarsening marking
-                std::vector<real_t> elErrorsC = elErrors;
-                for (index_t k=0; k!=elErrors.size(); k++)
-                    elErrorsC[k] = -elErrors[k];
-
-                std::vector<bool> elCMarked( elErrorsC.size() );
-                gsMarkElementsForRef( elErrorsC, adaptRefCrit, adaptRefParam, elCMarked);
-                gsProcessMarkedElements( mp, elMarked, elCMarked, 1, 0 );
-
-                gsInfo<<"Error\tRefined?\tCoarsened?\n";
-                for (index_t k=0; k!=elMarked.size(); k++)
-                    gsInfo<<elErrors[k]<<"\t"<<elMarked[k]<<"\t"<<elCMarked[k]<<"\n";
-            }
+            mesher.rebuild();
         }
         mp_def = mp;
     }

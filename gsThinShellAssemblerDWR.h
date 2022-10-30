@@ -39,6 +39,7 @@ enum class GoalFunction : short_t
 };
 
 template<class T> class gsThinShellAssemblerDWRBase;
+//template <class T> class gsThinShellDWRFunction;
 
 
 template <short_t d, class T, bool bending>
@@ -200,7 +201,7 @@ public:
     gsMatrix<T> projectL2_L(const gsFunction<T> &fun);
     gsMatrix<T> projectL2_H(const gsFunction<T> &fun);
 
-    // Linear elasticity ;
+    // Linear elasticity
     T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH);
     T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
     std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH);
@@ -215,14 +216,6 @@ public:
     std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
     std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
     std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
-
-    // Inertia
-    T computeErrorInertia(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations);
-    T computeErrorInertia(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
-    std::vector<T> computeErrorInertiaElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations);
-    std::vector<T> computeErrorInertiaElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
-    std::vector<T> computeErrorInertiaDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations);
-    std::vector<T> computeErrorInertiaDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
 
     // Eigenvalues
     T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
@@ -368,11 +361,6 @@ protected:
     void computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                             std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
 
-    template<int _elWise>
-    void  computeErrorInertia_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations,
-                                    std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
-
-
     template<int _d, bool _bending, int _elWise>
     typename std::enable_if<(_d==3 && _bending), void>::type
     computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed,
@@ -402,8 +390,6 @@ protected:
 protected:
     mutable gsThinShellAssemblerBase<T> * m_assemblerL;
     mutable gsThinShellAssemblerBase<T> * m_assemblerH;
-    mutable gsMaterialMatrixBase<T> * m_materialMatL;
-    mutable gsMaterialMatrixBase<T> * m_materialMatH;
 
     gsVector<T> m_pL, m_pH, m_dL, m_dH;
     gsSparseMatrix<T> m_matrixL;
@@ -561,14 +547,6 @@ public:
     virtual std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed) = 0;
     virtual std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
 
-    // Inertia
-    virtual T computeErrorInertia(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations) = 0;
-    virtual T computeErrorInertia(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
-    virtual std::vector<T> computeErrorInertiaElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations) = 0;
-    virtual std::vector<T> computeErrorInertiaElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
-    virtual std::vector<T> computeErrorInertiaDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations) = 0;
-    virtual std::vector<T> computeErrorInertiaDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
-
     // Eigenvalues
     virtual T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
@@ -631,6 +609,134 @@ public:
 
 
 };
+
+// template<short_t d, typename T, bool bending>
+// class gsThinShellDWRFunction : public gsFunctionSet<T>
+// {
+//     typedef gsExprAssembler<>::geometryMap geometryMap;
+//     typedef gsExprAssembler<>::space       space;
+//     typedef gsExprAssembler<>::solution    solution;
+
+// public:
+//     gsThinShellDWRFunction( const gsFunctionSet<T> & mp,
+//                             const gsFunctionSet<T> & mp_def,
+//                             const gsFunctionSet<T> & dualL,
+//                             const gsFunctionSet<T> & dualH,
+//                             gsMaterialMatrixBase<T> * materialmatrix)
+//     :
+//     m_patches(&mp),
+//     m_deformed(&mp_def),
+//     m_dualL(&dualL),
+//     m_dualH(&dualH),
+//     m_materialMat(materialmatrix)
+//     {
+
+//     }
+
+//     gsThinShellDWRFunction( const gsFunctionSet<T> & mp,
+//                             const gsFunctionSet<T> & dualL,
+//                             const gsFunctionSet<T> & dualH,
+//                             gsMaterialMatrixBase<T> * materialmatrix)
+//     :
+//     m_patches(&mp),
+//     m_deformed(nullptr),
+//     m_dualL(&dualL),
+//     m_dualH(&dualH),
+//     m_materialMat(materialmatrix)
+//     {
+
+//     }
+
+//     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& res) const
+//     {
+//         this->eval_into_impl<d,bending>(u,res);
+//     }
+
+//     short_t domainDim() const { return m_patches.domainDim();}
+
+//     short_t targetDim() const { return 1;}
+
+// private:
+//     template<int _d, bool _bending>
+//     typename std::enable_if<!(_d==3 && _bending), void>::type
+//     eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& res) const
+//     {
+//         gsWarn<<"Neumann boundary conditions left out\n";
+//         gsExprEvaluator<T> ev;
+//         // Geometries
+//         geometryMap Gori = ev.getMap(*m_patches);           // this map is used for integrals
+//         geometryMap Gdef = ev.getMap(*m_deformed);
+
+//         gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_materialMat,m_deformed);
+//         auto S0  = ev.getCoeff(S0f);
+
+//         auto F      = ev.getCoeff(*m_forceFun, Gori);
+
+//         auto zsolL  = ev.getCoeff(*m_dualL);
+//         auto zsolH  = ev.getCoeff(*m_dualH);
+//             // auto m_thick = exprAssembler.getCoeff(*m_thickFun, m_ori);
+
+//         auto N        = S0.tr();
+//         // auto Em_der   = flat( jac(Gdef).tr() * jac(m_space) ) ;
+//         auto Em_der   = flat( jac(Gdef).tr() * (jac(zsolH) - jac(zsolL)) ) ;
+
+//         auto Fext = (zsolH-zsolL).tr() * F;
+//         auto Fint = ( N * Em_der.tr() );
+
+//         auto expr = ( Fext - Fint ) * meas(Gori);
+//     }
+
+//     template<int _d, bool _bending>
+//     typename std::enable_if< (_d==3 && _bending), void>::type
+//     eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& res) const
+//     {
+//         gsWarn<<"Neumann boundary conditions left out\n";
+//         gsExprEvaluator<T> ev;
+//         // Geometries
+//         geometryMap Gori = ev.getMap(m_patches);           // this map is used for integrals
+//         geometryMap Gdef = ev.getMap(deformed);
+
+//         gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_materialMat,m_deformed);
+//         gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1f(m_materialMat,m_deformed);
+//         auto S0  = ev.getCoeff(S0f);
+//         auto S1  = ev.getCoeff(S1f);
+
+//         gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
+//         auto m2 = ev.getCoeff(mult2t);
+
+//         auto F      = ev.getCoeff(*m_forceFun, Gori);
+//         auto zsolL  = ev.getCoeff(dualL);
+//         auto zsolH  = ev.getCoeff(dualH);
+//             // auto m_thick = ev.getCoeff(*m_thickFun, m_ori);
+
+//         Base::homogenizeDirichlet();
+
+//         auto N        = S0.tr();
+//         // auto Em_der   = flat( jac(Gdef).tr() * jac(m_space) ) ;
+//         auto Em_der   = flat( jac(Gdef).tr() * (jac(zsolH) - jac(zsolL)) ) ;
+
+//         auto M        = S1.tr(); // output is a column
+//         // auto Ef_der   = -( deriv2(space,sn(Gdef).normalized().tr() ) + deriv2(Gdef,var1(space,Gdef) ) ) * reshape(m2,3,3);
+//         auto Ef_der   = -( deriv2(zsolH,sn(Gdef).normalized().tr() )
+//                         -  deriv2(zsolL,sn(Gdef).normalized().tr() ) + deriv2(Gdef,var1(zsolH,Gdef) )
+//                                                                      - deriv2(Gdef,var1(zsolL,Gdef) ) ) * reshape(m2,3,3);
+
+//         auto Fext = (zsolH-zsolL).tr() * F;
+//         auto Fint = ( N * Em_der.tr() + M * Ef_der.tr() );
+
+//         auto expr = ( Fext - Fint ) * meas(Gori);
+//     }
+
+// protected:
+//     gsThinShellAssemblerDWRBase<T> * m_assembler;
+//     const gsFunctionSet<T> * m_patches;
+//     const gsFunctionSet<T> * m_deformed;
+//     const gsFunctionSet<T> * m_dualL;
+//     const gsFunctionSet<T> * m_dualH;
+//     mutable gsMaterialMatrixBase<T> * m_materialMat;
+
+// };
+
 
 } // namespace gismo
 

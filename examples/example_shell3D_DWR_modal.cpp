@@ -22,63 +22,10 @@
 #include <gsKLShell/gsThinShellAssemblerDWR.h>
 #include <gsKLShell/gsThinShellUtils.h>
 #include <gsKLShell/getMaterialMatrix.h>
-#include <gsAssembler/gsAdaptiveRefUtils.h>
-// #include <gsAssembler/gsAdaptiveMeshing.h>
-
-//#include <gsThinShell/gsNewtonIterator.h>
+#include <gsAssembler/gsAdaptiveMeshing.h>
+#include <gsAssembler/gsAdaptiveMeshingUtils.h>
 
 using namespace gismo;
-
-template<typename T>
-class gsElementErrorPlotter : public gsFunction<T>
-{
-public:
-    gsElementErrorPlotter(const gsBasis<T>& mp, const std::vector<T>& errors ) : m_mp(mp),m_errors(errors)
-    {
-
-    }
-
-    virtual void eval_into(const gsMatrix<T>& u, gsMatrix<T>& res) const
-    {
-        // Initialize domain element iterator -- using unknown 0
-        res.setZero(1,u.cols());
-        for(index_t i=0; i<u.cols();++i)
-        {
-            int iter =0;
-            // Start iteration over elements
-
-            typename gsBasis<T>::domainIter domIt = m_mp.makeDomainIterator();
-            for (; domIt->good(); domIt->next() )
-            {
-                 bool flag = true;
-                const gsVector<T>& low = domIt->lowerCorner();
-                const gsVector<T>& upp = domIt->upperCorner();
-
-
-                for(int d=0; d<domainDim();++d )
-                {
-                    if(low(d)> u(d,i) || u(d,i) > upp(d))
-                    {
-                        flag = false;
-                        break;
-                    }
-                }
-                if(flag)
-                {
-                     res(0,i) = m_errors.at(iter);
-                     break;
-                }
-                iter++;
-            }
-        }
-    }
-
-    short_t domainDim() const { return m_mp.dim();}
-
-private:
-    const gsBasis<T>& m_mp;
-    const std::vector<T>& m_errors;
-};
 
 template<typename T>
 index_t sgn(T val)
@@ -90,15 +37,6 @@ using namespace gismo;
 
 int main(int argc, char *argv[])
 {
-    // Flag for refinemet criterion
-    // (see doxygen documentation of the free function
-    // gsMarkElementsForRef explanation)
-    index_t markstrat = 2;
-    // Parameter for computing adaptive refinement threshold
-    // (see doxygen documentation of the free function
-    // gsMarkElementsForRef explanation)
-    real_t adaptRefParam = 0.9;
-
     //! [Parse command line]
     bool plot = false;
     bool write = false;
@@ -117,8 +55,9 @@ int main(int argc, char *argv[])
 
     int testCase = 0;
 
-    int refExt = -1;
-    int crsExt = -1;
+    int adaptivity = 0;
+
+    std::string mesherOptionsFile("options/shell_mesher_options.xml");
 
     gsCmdLine cmd("Tutorial on solving a Poisson problem.");
     cmd.addInt("i", "index", "index of mode", modeIdx);
@@ -130,33 +69,16 @@ int main(int argc, char *argv[])
     cmd.addInt("t", "testcase",
                 "Test case: 0: Beam - pinned-pinned, 1: Beam - fixed-fixed, 2: beam - fixed-free, 3: plate - fully pinned, 4: plate - fully fixed, 5: circle - fully pinned, 6: 5: circle - fully fixed",
                testCase);
-    cmd.addInt("E", "refExt", "Refinement extension", refExt);
-    cmd.addInt("C", "crsExt", "Coarsening extension", crsExt);
-    cmd.addReal("a", "refparam", "Controls the adaptive refinement parameter", adaptRefParam);
-    cmd.addInt("u","rule", "Adaptive refinement rule; 1: ... ; 2: PUCA; 3: BULK", markstrat);
+    cmd.addInt("A", "adaptivity", "Adaptivity scheme: 0) uniform refinement, 1) adaptive refinement, 2) adaptive refinement and coarsening", adaptivity);
 
-    cmd.addReal("T", "thickness", "thickness", thickness);
     cmd.addString("f", "file", "Input XML file", fn);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
     cmd.addSwitch("write", "Write convergence to file", write);
     cmd.addSwitch("loop", "Uniform Refinemenct loop", loop);
+    cmd.addString( "O", "mesherOpt", "Input XML file for mesher options", mesherOptionsFile );
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
-
-    MarkingStrategy adaptRefCrit;
-    if (markstrat==1)
-        adaptRefCrit = GARU;
-    else if (markstrat==2)
-        adaptRefCrit = PUCA;
-    else if (markstrat==3)
-        adaptRefCrit = BULK;
-    else
-        GISMO_ERROR("MarkingStrategy Unknown");
-
-
-    gsVector<> pts(2);
-    pts.setConstant(0.25);
 
     //! [Read input file]
     gsMultiPatch<> mp;
@@ -234,7 +156,7 @@ int main(int argc, char *argv[])
         mp.degreeElevate(numElevate);
 
     // Cast all patches of the mp object to THB splines
-    if (refExt!=-1 || crsExt!=-1)
+    if (adaptivity!=0)
     {
         if (testCase!=1)
         {
@@ -245,12 +167,15 @@ int main(int argc, char *argv[])
                 if (geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k)))
                 {
                     thb = gsTHBSpline<2,real_t>(*geo);
+                    gsMatrix<> bbox = geo->support();
+                    for (index_t i = 0; i< numRefineIni; ++i)
+                        thb.refineElements(thb.basis().asElements(bbox));
                     mp.patch(k) = thb;
                 }
                 else
                 {
                     std::cout<<typeid(geo).name();
-                    // GISMO_ERROR("Cannot cast to THB spline");
+                    GISMO_ERROR("Cannot cast to THB spline");
                 }
             }
         }
@@ -267,6 +192,9 @@ int main(int argc, char *argv[])
                     thbBasis = gsTHBSplineBasis<2,real_t>(geo->basis().source());
                     gsQuasiInterpolate<real_t>::localIntpl(thbBasis, mp.patch(k), coefs);
                     thb = gsTHBSpline<2,real_t>(thbBasis,coefs);
+                    gsMatrix<> bbox = geo->support();
+                    for (index_t i = 0; i< numRefineIni; ++i)
+                        thb.refineElements(thb.basis().asElements(bbox));
                     mp_thb.addPatch(thb);
                 }
             }
@@ -281,14 +209,10 @@ int main(int argc, char *argv[])
             // GISMO_ERROR("Adaptivity not available for NURBS");
         }
     }
-
-    for (index_t r =0; r < numRefineIni; ++r)
+    else
     {
-        gsMatrix<> boxes(2,2);
-        boxes.col(0)<<0,0;
-        boxes.col(1)<<1,1;
-        std::vector<index_t> elements = mp.basis(0).asElements(boxes);
-        mp.patch(0).refineElements(elements);
+        for (index_t i = 0; i< numRefineIni; ++i)
+            mp.uniformRefine();
     }
 
     // h-refine
@@ -369,7 +293,8 @@ int main(int argc, char *argv[])
         bc.addCondition(boundary::south, condition_type::clamped,0,0,false,2);
         bc.addCondition(boundary::west, condition_type::clamped,0,0,false,2);
 
-        omegas.push_back(0);
+        omegas.resize(modeIdx+1);
+        omegas[modeIdx] = 0;
     }
     else if (testCase==3)
     {
@@ -379,7 +304,8 @@ int main(int argc, char *argv[])
         }
         bc.addCondition(boundary::south, condition_type::clamped,0,0,false,2);
 
-        omegas.push_back(0);
+        omegas.resize(modeIdx+1);
+        omegas[modeIdx] = 0;
     }
     else
         GISMO_ERROR("TESTCASE UNKNOWN!");
@@ -441,6 +367,18 @@ int main(int argc, char *argv[])
 
     std::vector<real_t> elErrors;
     std::vector<bool> refVec;
+
+    gsAdaptiveMeshing<real_t> mesher;
+    if (adaptivity!=0)
+    {
+        gsFileData<> fd_mesher(mesherOptionsFile);
+        gsOptionList mesherOpts;
+        fd_mesher.getFirst<gsOptionList>(mesherOpts);
+
+        mesher = gsAdaptiveMeshing<real_t>(mp);
+        mesher.options() = mesherOpts;
+        mesher.getOptions();
+    }
 
     for (index_t r=0; r!=numRefine+1; r++)
     {
@@ -588,22 +526,21 @@ int main(int argc, char *argv[])
 
         efficiencies[r] = approxs[r]/exacts[r];
 
-        if (refExt==-1 && crsExt==-1)
+        if (adaptivity==0)
         {
             mp.uniformRefine();
         }
-        else
+        else if (adaptivity > 0)
         {
+            gsFileData<> fd_mesher(mesherOptionsFile);
+            gsOptionList mesherOpts;
+            fd_mesher.getFirst<gsOptionList>(mesherOpts);
+
             elErrors = DWR->computeErrorEigElements(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
             for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
             {
                 *it = std::abs(*it);
             }
-
-
-            // gsAdaptiveMeshing(basisL);
-
-
 
             gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
             const gsField<> elemError_eh( mp.patch(0), err_eh, true );
@@ -611,32 +548,20 @@ int main(int argc, char *argv[])
             errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
             errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,"_mesh.vtp");
 
-            std::vector<bool> elMarked( elErrors.size() );
-            gsMarkElementsForRef( elErrors, adaptRefCrit, adaptRefParam, elMarked);
+            // Make container of the boxes
+            gsHBoxContainer<2,real_t> markRef, markCrs;
 
-            if (refExt!=-1 && crsExt==-1)
+            mesher.markRef_into(elErrors,markRef);
+            mesher.refine(markRef);
+
+            if (adaptivity>1)
             {
-                gsRefineMarkedElements( mp, elMarked,refExt );
-
-                gsInfo<<"Error\tRefined?\n";
-                for (index_t k=0; k!=elMarked.size(); k++)
-                    gsInfo<<elErrors[k]<<"\t"<<elMarked[k]<<"\n";
+                mesher.markCrs_into(elErrors,markRef,markCrs);
+                mesher.refine(markRef);
+                mesher.unrefine(markCrs);
+                // gsDebugVar(markCrs);
             }
-            else if (refExt!=-1 && crsExt!=-1)
-            {
-                // Invert errors for coarsening marking
-                std::vector<real_t> elErrorsC = elErrors;
-                for (index_t k=0; k!=elErrors.size(); k++)
-                    elErrorsC[k] = -elErrors[k];
-
-                std::vector<bool> elCMarked( elErrorsC.size() );
-                gsMarkElementsForRef( elErrorsC, adaptRefCrit, adaptRefParam, elCMarked);
-                gsProcessMarkedElements( mp, elMarked, elCMarked, refExt, crsExt );
-
-                gsInfo<<"Error\tRefined?\tCoarsened?\n";
-                for (index_t k=0; k!=elMarked.size(); k++)
-                    gsInfo<<elErrors[k]<<"\t"<<elMarked[k]<<"\t"<<elCMarked[k]<<"\n";
-            }
+            mesher.rebuild();
         }
         mp_def = mp;
     }
@@ -648,7 +573,7 @@ int main(int argc, char *argv[])
     }
 
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
-    gsInfo<<"Ref.\tApprox    \tExact     \tEfficiency\tNumGoal   \tEstGoal   \texGoal    \t#elements \n";
+    gsInfo<<"Ref.\tApprox    \tExact     \tEfficiency\tNumGoal   \tEstGoal   \texGoal    \t#DoFs \n";
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
     for(index_t r=0; r!=numRefine+1; r++)
     {

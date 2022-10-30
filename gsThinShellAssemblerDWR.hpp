@@ -1365,10 +1365,6 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl( const gsMultiPat
     // Geometries
     geometryMap Gori = exprAssembler.getMap(m_patches);
 
-    // Initialize vector
-    exprAssembler.initSystem();
-    exprAssembler.initVector(1);
-
     auto F      = exprAssembler.getCoeff(*m_forceFun, Gori);
     auto zsolL  = exprAssembler.getCoeff(dualL);
     auto zsolH  = exprAssembler.getCoeff(dualH);
@@ -1383,8 +1379,8 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl( const gsMultiPat
     T integral, bintegral;
     if (_elWise == 0)
     {
+        integral = ev.integral(expr); // this one before otherwise it gives an error (?)
         bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr);
-        integral = ev.integral(expr);
         if (m_pLoads.numLoads()!=0)
             _applyLoadsToError(dualL,dualH,integral);
 
@@ -1477,10 +1473,6 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     // Geometries
     geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
     geometryMap Gdef = exprAssembler.getMap(deformed);
-
-    // Initialize vector
-    exprAssembler.initSystem();
-    exprAssembler.initVector(1);
 
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),&deformed);
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1f(m_assemblerL->material(),&deformed);
@@ -1586,10 +1578,6 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(  const gsMultiPatch<T
     geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
     geometryMap Gdef = exprAssembler.getMap(deformed);
 
-    // Initialize vector
-    exprAssembler.initSystem();
-    exprAssembler.initVector(1);
-
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),&deformed);
     auto S0  = exprAssembler.getCoeff(S0f);
 
@@ -1628,128 +1616,6 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(  const gsMultiPatch<T
     else if (_elWise == 2) // function-wise
     {
         integral = 0;
-    }
-    else
-        GISMO_ERROR("Unknown");
-    // if (m_foundInd)
-    // {
-    //     auto foundation = exprAssembler.getCoeff(*m_foundFun, Gori);
-    //     GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
-
-    //     integral += ev.integral( ( zsolH - zsolL ) * foundation.asDiag() * (Gdef - Gori) * meas(Gori) ); // [v_x,v_y,v_z] diag([k_x,k_y,k_z]) [u_x; u_y; u_z]
-    // }
-    // if (m_pressInd)
-    // {
-    //     auto pressure = exprAssembler.getCoeff(*m_pressFun, Gori);
-    //     GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
-
-    //     integral += ev.integral( pressure.val() * ( zsolH - zsolL ) * sn(Gdef).normalized() * meas(Gori) );
-    // }
-
-    if (!filename.empty())
-    {
-        ev.options().setSwitch("plot.elements",mesh);
-        ev.options().setInt("plot.npts",np);
-        // if (parametric)
-        //     ev.writeParaview(expr,filename);
-        // else
-            ev.writeParaview(expr,Gori,filename);
-    }
-}
-
-template <short_t d, class T, bool bending>
-T gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertia(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations)
-{
-    std::string empty;
-    computeErrorInertia_impl<0>(dualL,dualH,accelerations,empty);
-    return m_error;
-}
-
-template <short_t d, class T, bool bending>
-T gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertia(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations,
-                                                        std::string filename, unsigned np, bool parametric, bool mesh)
-{
-    computeErrorInertia_impl<0>(dualL,dualH,accelerations,filename,np,parametric,mesh);
-    return m_error;
-}
-
-template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertiaElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations)
-{
-    std::string empty;
-    computeErrorInertia_impl<1>(dualL,dualH,accelerations,empty);
-    return m_errors;
-}
-
-template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertiaElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations,
-                                                        std::string filename, unsigned np, bool parametric, bool mesh)
-{
-    computeErrorInertia_impl<1>(dualL,dualH,accelerations,filename,np,parametric,mesh);
-    return m_errors;
-}
-
-template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertiaDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations)
-{
-    std::string empty;
-    computeErrorInertia_impl<2>(dualL,dualH,accelerations,empty);
-    return m_errors;
-}
-
-template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertiaDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & accelerations,
-                                                        std::string filename, unsigned np, bool parametric, bool mesh)
-{
-    computeErrorInertia_impl<2>(dualL,dualH,accelerations,filename,np,parametric,mesh);
-    return m_errors;
-}
-
-template <short_t d, class T, bool bending>
-template<int _elWise>
-void gsThinShellAssemblerDWR<d, T, bending>::computeErrorInertia_impl(  const gsMultiPatch<T> & dualL,
-                                                                        const gsMultiPatch<T> & dualH,
-                                                                        const gsMultiPatch<T> & accelerations,
-                                                                        std::string filename,
-                                                                        unsigned np,
-                                                                        bool parametric,
-                                                                        bool mesh)
-{
-    gsExprAssembler<T> exprAssembler = m_assemblerL->assembler();
-    exprAssembler.cleanUp();
-    exprAssembler.setOptions(m_assemblerL->options());
-
-    // Geometries
-    geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
-
-    // Initialize vector
-    exprAssembler.initSystem();
-    exprAssembler.initVector(1);
-
-    auto asol   = exprAssembler.getCoeff(accelerations);
-
-    auto zsolL  = exprAssembler.getCoeff(dualL);
-    auto zsolH  = exprAssembler.getCoeff(dualH);
-
-    gsMaterialMatrixIntegrate<T,MaterialOutput::Density> m_mm(m_assemblerL->material(),&m_patches); // provides rho*t
-    auto mm0    = exprAssembler.getCoeff(m_mm);
-
-    auto expr   = mm0.val()*asol.tr()*(zsolH-zsolL)*meas(Gori);
-
-    gsExprEvaluator<T> ev(exprAssembler);
-
-    if (_elWise == 0)
-    {
-        m_error = ev.integral(expr);
-    }
-    else if (_elWise == 1) // element-wise
-    {
-        m_error = ev.integralElWise(expr);
-        m_errors = ev.elementwise();
-    }
-    else if (_elWise == 2) // function-wise
-    {
-        m_error = 0;
     }
     else
         GISMO_ERROR("Unknown");
