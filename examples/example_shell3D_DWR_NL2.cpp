@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
     gsVector<> tmp(3);
     tmp << 0, 0, 0;
 
-    real_t load = 1e-5*0;
+    real_t load = 1e-5;
 
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
 
@@ -151,7 +151,8 @@ int main(int argc, char *argv[])
     pLoads.addLoad(pointvec, loadvec, 0 );
 
     // gsConstantFunction<> force(tmp,3);
-    gsFunctionExpr<> force("0","0","if (sqrt((x-0.5)^2+(y-0.5)^2)<0.1){-1e-4} else{0}",3);
+    // gsFunctionExpr<> force("0","0","if (sqrt((x-0.5)^2+(y-0.5)^2)<0.1){-1e-4} else{0}",3);
+    gsFunctionExpr<> force("0","0","0",3);
     gsFunctionExpr<> thick(std::to_string(thickness), 3);
     gsFunctionExpr<> Emod(std::to_string(E_modulus),3);
     gsFunctionExpr<> Pois(std::to_string(PoissonRatio),3);
@@ -359,9 +360,10 @@ int main(int argc, char *argv[])
             gsOptionList mesherOpts;
             fd_mesher.getFirst<gsOptionList>(mesherOpts);
 
-            elErrors = DWR->computeErrorElements(dualL, dualH);
+            elErrors = DWR->computeErrorElements(dualL, dualH,mp_def);
             real_t error = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
             gsDebugVar(error);
+            gsDebugVar(approxs[r]);
             // gsDebugVar(*std::min_element(elErrors.begin(),elErrors.end()));
             // for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
             // {
