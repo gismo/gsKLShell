@@ -297,7 +297,7 @@ int main(int argc, char *argv[])
         // arcLength.options().setReal("Tol",tol);
         // arcLength.options().setReal("TolU",tolU);
         // arcLength.options().setReal("TolF",tolF);
-        // arcLength.options().setInt("MaxIter",maxit);
+        arcLength.options().setInt("MaxIter",50);
         arcLength.options().setSwitch("Verbose",true);
         gsInfo<<arcLength.options();
         arcLength.applyOptions();
@@ -305,9 +305,11 @@ int main(int argc, char *argv[])
 
         real_t dL0 = dL;
         real_t Lold = 0;
+        real_t L = 0;
+        index_t k = 0;
         gsMatrix<> Uold(Force.rows(),1);
         Uold.setZero();
-        for (index_t k=0; k<steps; k++)
+        while (L < 1)
         {
             gsInfo<<"Load step "<< k<<"\n";
             arcLength.step();
@@ -318,14 +320,14 @@ int main(int argc, char *argv[])
               dL /= 2.;
               arcLength.setLength(dL);
               arcLength.setSolution(Uold,Lold);
-              k -= 1;
               continue;
             }
             solVector = arcLength.solutionU();
             Uold = solVector;
-            Lold = arcLength.solutionL();
+            L = Lold = arcLength.solutionL();
+            k++;
+            if (dL > 1-L) dL = 1-L;
         }
-
         DWR->constructMultiPatchL(solVector,primalL);
         DWR->constructSolutionL(solVector,mp_def);
         gsInfo << "done.\n";
