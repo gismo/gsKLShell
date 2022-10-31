@@ -322,11 +322,12 @@ int main(int argc, char *argv[])
               arcLength.setSolution(Uold,Lold);
               continue;
             }
+            dL = dL0;
             solVector = arcLength.solutionU();
             Uold = solVector;
             L = Lold = arcLength.solutionL();
             k++;
-            if (dL > 1-L) dL = 1-L;
+            if (dL > 1-L) dL0 = dL = 1-L;
         }
         DWR->constructMultiPatchL(solVector,primalL);
         DWR->constructSolutionL(solVector,mp_def);
