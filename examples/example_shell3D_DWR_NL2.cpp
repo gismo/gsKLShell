@@ -22,6 +22,8 @@
 #include <gsAssembler/gsAdaptiveMeshing.h>
 #include <gsAssembler/gsAdaptiveMeshingUtils.h>
 
+#include <gsStructuralAnalysis/gsALMLoadControl.h>
+
 using namespace gismo;
 
 int main(int argc, char *argv[])
@@ -34,7 +36,6 @@ int main(int argc, char *argv[])
     index_t numElevate = 1;
     index_t goal = 1;
     index_t component = 9;
-    bool nonlinear = false;
     bool loop = false;
     std::string fn;
 
@@ -45,6 +46,8 @@ int main(int argc, char *argv[])
     real_t E_modulus = 1.0;
     real_t PoissonRatio = 0.0;
     real_t thickness = 1e-3;
+
+    index_t steps = 10;
 
     int adaptivity = 0;
 
@@ -57,12 +60,13 @@ int main(int argc, char *argv[])
     cmd.addInt("r", "refine", "Maximum number of adaptive refinement steps to perform",
                numRefine);
 
+    cmd.addInt("N", "steps", "Number of ALM steps", steps);
+
     cmd.addInt("A", "adaptivity", "Adaptivity scheme: 0) uniform refinement, 1) adaptive refinement, 2) adaptive refinement and coarsening", adaptivity);
 
     cmd.addInt( "g", "goal", "Goal function to use", goal );
     cmd.addInt( "C", "comp", "Component", component );
     cmd.addString( "f", "file", "Input XML file", fn );
-    cmd.addSwitch("nl", "Solve nonlinear problem", nonlinear);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
     cmd.addSwitch("write", "Write convergence to file", write);
     cmd.addSwitch("loop", "Uniform Refinement loop", loop);
@@ -166,7 +170,12 @@ int main(int argc, char *argv[])
     options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
     materialMatrix = getMaterialMatrix<3,real_t>(mp,thick,parameters,options);
 
-    gsSparseSolver<>::LU solver;
+    gsSparseSolver<real_t>::uPtr solver;
+#ifdef GISMO_WITH_PARDISO
+    solver = gsSparseSolver<real_t>::get( "PardisoLU");
+#else
+    solver = gsSparseSolver<real_t>::get( "SimplicialLDLT");
+#endif
 
     gsMatrix<> points(2,0);
     // points.col(0).setConstant(0.25);
@@ -183,7 +192,7 @@ int main(int argc, char *argv[])
     std::vector<real_t> exGoal(numRefine+1);
     std::vector<real_t> DoFs(numRefine+1);
 
-    gsVector<> solVector, updateVector;
+    gsVector<> solVector;
     gsMultiPatch<> primalL,dualL,dualH;
 
     gsThinShellAssemblerDWRBase<real_t> * DWR;
@@ -253,48 +262,77 @@ int main(int argc, char *argv[])
         // points.col(1).setConstant(0.50);
         // points.col(2).setConstant(0.75);
 
-        gsInfo << "Assembling primal... "<< std::flush;
-        DWR->assembleMatrixL();
         DWR->assemblePrimalL();
-        gsInfo << "done\n";
+        gsVector<> Force = DWR->primalL();
+
+        typedef std::function<gsSparseMatrix<real_t> (gsVector<real_t> const &)>                                Jacobian_t;
+        typedef std::function<gsVector<real_t> (gsVector<real_t> const &, real_t, gsVector<real_t> const &) >   ALResidual_t;
+        // Function for the Jacobian
+        Jacobian_t Jacobian = [&DWR,&mp_def](gsVector<real_t> const &x)
+        {
+          DWR->constructSolutionL(x,mp_def);
+          DWR->assembleMatrixL(mp_def);
+          gsSparseMatrix<real_t> m = DWR->matrixL();
+          return m;
+        };
+        // Function for the Residual
+        ALResidual_t ALResidual = [&DWR,&mp_def](gsVector<real_t> const &x, real_t lam, gsVector<real_t> const &force)
+        {
+          DWR->constructSolutionL(x,mp_def);
+          DWR->assemblePrimalL(mp_def);
+          gsVector<real_t> Fint = -(DWR->primalL() - force);
+          gsVector<real_t> result = Fint - lam * force;
+          return result; // - lam * force;
+        };
 
         gsInfo << "Solving primal, size ="<<DWR->matrixL().rows()<<","<<DWR->matrixL().cols()<<"... "<< "\n";
-        solver.compute(DWR->matrixL());
-        solVector = solver.solve(DWR->primalL());
-        DWR->constructMultiPatchL(solVector,primalL);
-        DWR->constructSolutionL(solVector,mp_def);
-        index_t itMax = 100;
-        real_t tol = 1e-12;
-        real_t residual = DWR->primalL().norm();
-        real_t residual0 = residual;
-        real_t residualOld = residual;
-        for (index_t it = 0; it != itMax; ++it)
+        real_t dL = 1.0/steps;
+        gsALMLoadControl<real_t> arcLength(Jacobian, ALResidual, Force);
+#ifdef GISMO_WITH_PARDISO
+        arcLength.options().setString("Solver","PardisoLU"); // LDLT solver
+#else
+        arcLength.options().setString("Solver","SimplicialLDLT"); // LDLT solver
+#endif
+        arcLength.options().setReal("Length",dL);
+        // arcLength.options().setReal("Tol",tol);
+        // arcLength.options().setReal("TolU",tolU);
+        // arcLength.options().setReal("TolF",tolF);
+        // arcLength.options().setInt("MaxIter",maxit);
+        arcLength.options().setSwitch("Verbose",true);
+        gsInfo<<arcLength.options();
+        arcLength.applyOptions();
+        arcLength.initialize();
+
+        real_t dL0 = dL;
+        real_t Lold = 0;
+        gsMatrix<> Uold(Force.rows(),1);
+        Uold.setZero();
+        for (index_t k=0; k<steps; k++)
         {
-            DWR->assembleMatrixL(mp_def);
-            DWR->assemblePrimalL(mp_def);
-            solver.compute(DWR->matrixL());
-            updateVector = solver.solve(DWR->primalL());
-            solVector += updateVector;
+            gsInfo<<"Load step "<< k<<"\n";
+            arcLength.step();
 
-            residual = DWR->primalL().norm();
-
-            gsInfo<<"Iteration: "<< it
-                   <<", residue: "<< residual
-                   <<", update norm: "<<updateVector.norm()
-                   <<", log(Ri/R0): "<< math::log10(residualOld/residual0)
-                   <<", log(Ri+1/R0): "<< math::log10(residual/residual0)
-                   <<"\n";
-
-            residualOld = residual;
-            DWR->constructSolutionL(solVector,mp_def);
-            if (updateVector.norm() < tol)
-                break;
+            if (!(arcLength.converged()))
+            {
+              gsInfo<<"Error: Loop terminated, arc length method did not converge.\n";
+              dL /= 2.;
+              arcLength.setLength(dL);
+              arcLength.setSolution(Uold,Lold);
+              k -= 1;
+              continue;
+            }
+            solVector = arcLength.solutionU();
+            Uold = solVector;
+            Lold = arcLength.solutionL();
         }
 
         DWR->constructMultiPatchL(solVector,primalL);
-
+        DWR->constructSolutionL(solVector,mp_def);
         gsInfo << "done.\n";
 
+        gsInfo << "Assembling dual matrix (L)... "<< std::flush;
+        DWR->assembleMatrixL(mp_def);
+        solver->compute(DWR->matrixL());
         gsInfo << "Assembling dual vector (L)... "<< std::flush;
         gsVector<> rhsL;
         DWR->assembleDualL(primalL);
@@ -304,7 +342,7 @@ int main(int argc, char *argv[])
         gsInfo << "done.\n";
 
         gsInfo << "Solving dual (L), size = "<<DWR->matrixL().rows()<<","<<DWR->matrixL().cols()<<"... "<< std::flush;
-        solVector = solver.solve(rhsL);
+        solVector = solver->solve(rhsL);
 
         DWR->constructMultiPatchL(solVector,dualL);
         gsInfo << "done.\n";
@@ -324,8 +362,8 @@ int main(int argc, char *argv[])
         gsInfo << "done.\n";
 
         gsInfo << "Solving dual (H), size = "<<DWR->matrixH().rows()<<","<<DWR->matrixH().cols()<<"... "<< std::flush;
-        solver.compute(DWR->matrixH());
-        solVector = solver.solve(rhsH);
+        solver->compute(DWR->matrixH());
+        solVector = solver->solve(rhsH);
         DWR->constructMultiPatchH(solVector,dualH);
         gsInfo << "done.\n";
 
