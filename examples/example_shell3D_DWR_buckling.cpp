@@ -487,7 +487,7 @@ int main(int argc, char *argv[])
             gsOptionList mesherOpts;
             fd_mesher.getFirst<gsOptionList>(mesherOpts);
 
-            elErrors = DWR->computeErrorEigElements(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
+            elErrors = DWR->computeErrorEigElements(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL,mp_def);
             for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
             {
                 *it = std::abs(*it);

@@ -311,6 +311,9 @@ public:
     gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsFunctionSet<T> & deformed, const T z=0);
 
     /// See \ref gsThinShellAssemblerBase for details
+    gsMatrix<T> computePrincipalStresses(const gsMatrix<T> & points, const gsFunctionSet<T> & deformed, const T z=0);
+
+    /// See \ref gsThinShellAssemblerBase for details
     void projectL2_into(const gsFunction<T> &fun, gsMatrix<T> & result);
 
     /// See \ref gsThinShellAssemblerBase for details
@@ -659,6 +662,9 @@ public:
 
     /// Compute the principal stretches in \a points given a \a deformed geometry. Optionally, the stretches can be computed on through-thickness coordinate \a z
     virtual gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsFunctionSet<T> & deformed, const T z=0) = 0;
+
+    /// Compute the principal stretches in \a points given a \a deformed geometry. Optionally, the stretches can be computed on through-thickness coordinate \a z
+    virtual gsMatrix<T> computePrincipalStresses(const gsMatrix<T> & points, const gsFunctionSet<T> & deformed, const T z=0) = 0;
 
     /// Projects function \a fun on the basis and geometry stored in the class and returns the coefficients in \a result
     virtual void projectL2_into(const gsFunction<T> &fun, gsMatrix<T> & result) = 0;

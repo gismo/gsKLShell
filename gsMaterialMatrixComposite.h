@@ -74,25 +74,27 @@ public:
     // template COM
     void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
     // template COM
-    void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+    void pstretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
     {GISMO_NO_IMPLEMENTATION;}
-    void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+    void pstretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+    {GISMO_NO_IMPLEMENTATION;}
+    void pstress_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+    {GISMO_NO_IMPLEMENTATION;}
+    void pstressDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
     {GISMO_NO_IMPLEMENTATION;}
 
     void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    void covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
+    void pstretchTransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
     {GISMO_NO_IMPLEMENTATION;}
 
     /// See \ref gsMaterialMatrixBase for details
-    void contransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
+    void pstressTransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
     {GISMO_NO_IMPLEMENTATION;}
 
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
     gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
-    gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const
-    { GISMO_NO_IMPLEMENTATION; }
 
     void setParameters(const std::vector<gsFunction<T>*> &pars)
     { GISMO_NO_IMPLEMENTATION; }

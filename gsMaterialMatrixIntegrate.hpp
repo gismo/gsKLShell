@@ -111,38 +111,6 @@ gsMaterialMatrixIntegrate<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<
         GISMO_ERROR("Integration status unknown");
 }
 
-template <class T, enum MaterialOutput out>
-template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::PStressN || _out==MaterialOutput::PStressM, void>::type
-gsMaterialMatrixIntegrate<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
-{
-    if (m_materialMat->isMatIntegrated() == MatIntegration::NotIntegrated)
-        this->integrateZ_into(u,getMoment(),result);
-    else if (m_materialMat->isMatIntegrated() == MatIntegration::Integrated)
-        result = this->eval(u);
-    else if (m_materialMat->isMatIntegrated() == MatIntegration::Constant)
-        this->multiplyZ_into(u,getMoment(),result);
-    else if (m_materialMat->isMatIntegrated() == MatIntegration::Linear)
-        this->multiplyLinZ_into(u,getMoment(),result);
-    else
-        GISMO_ERROR("Integration status unknown");
-}
-
-template <class T, enum MaterialOutput out>
-template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::Stretch, void>::type
-gsMaterialMatrixIntegrate<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
-{
-    m_materialMat->stretch_into(m_pIndex,u,result);
-}
-
-template <class T, enum MaterialOutput out>
-template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::StretchDir, void>::type
-gsMaterialMatrixIntegrate<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
-{
-    m_materialMat->stretchDir_into(m_pIndex,u,result);
-}
 
 template <class T, enum MaterialOutput out>
 void gsMaterialMatrixIntegrate<T,out>::integrateZ_into(const gsMatrix<T>& u, const index_t moment, gsMatrix<T> & result) const
@@ -287,14 +255,6 @@ typename std::enable_if<_out==MaterialOutput::VectorN || _out==MaterialOutput::V
 gsMaterialMatrixIntegrate<T,out>::eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
 {
     return m_materialMat->eval3D_vector(m_pIndex,u,Z,_out);
-}
-
-template <class T, enum MaterialOutput out>
-template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::PStressN || _out==MaterialOutput::PStressM, gsMatrix<T>>::type
-gsMaterialMatrixIntegrate<T,out>::eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
-{
-    return m_materialMat->eval3D_pstress(m_pIndex,u,Z,_out);
 }
 
 } // end namespace

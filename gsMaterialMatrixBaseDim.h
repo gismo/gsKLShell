@@ -81,8 +81,15 @@ public:
     /// Computes the stretch given deformation tensor C, into a pair
     std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C ) const;
 
+    /// Computes the principal stretch of a given stress tensor S, into a pair
+    std::pair<gsVector<T>,gsMatrix<T>> _evalPStress(const gsMatrix<T> & S ) const;
+
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     void _computeStretch(const gsMatrix<T> & C ) const;
+
+    /// Computes the principal stresses of a given stress tensor S, into class members m_pstress and m_pstressvec
+    void _computePStress(const gsMatrix<T> & C ) const;
+
 
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     gsMatrix<T> _transformation(const gsMatrix<T> & basis1, const gsMatrix<T> & basis2 ) const;
@@ -159,6 +166,7 @@ protected:
     mutable gsMatrix<T> m_acov_ori_mat, m_acon_ori_mat, m_acov_def_mat, m_acon_def_mat, m_ncov_ori_mat, m_ncov_def_mat;
 
     mutable gsMatrix<T> m_stretches, m_stretchvec;
+    mutable gsMatrix<T> m_pstress, m_pstressvec;
 
     mutable T           m_J0_sq, m_J_sq;
 

@@ -123,28 +123,31 @@ public:
     void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    void pstretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    void pstretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// See \ref gsMaterialMatrixBase for details
+    void pstress_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// See \ref gsMaterialMatrixBase for details
+    void pstressDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
     void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    void covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+    void pstretchTransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    void contransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+    void pstressTransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
-
-    /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     /// Sets the YoungsModulus
     void setYoungsModulus(const gsFunction<T> & YoungsModulus)
@@ -243,11 +246,7 @@ protected:
      */
     void _computePoints(const index_t patch, const gsMatrix<T> & u, bool basis = true) const;
 
-    /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
-    void _computePStress(const gsMatrix<T> & C ) const;
-
-    /// Computes the stretch given deformation tensor C, into a pair
-    std::pair<gsVector<T>,gsMatrix<T>> _evalPStress(const gsMatrix<T> & C ) const;
+    using Base::_evalPStress;
 
 protected:
     // constructor
@@ -262,8 +261,6 @@ protected:
 
     mutable gsMatrix<T>                 m_parmat;
     mutable gsVector<T>                 m_parvals;
-
-    mutable gsMatrix<T> m_pstress, m_pstressvec;
 
     // Geometric data point
     using Base::m_map;
@@ -308,6 +305,9 @@ protected:
 
     using Base::m_stretches;
     using Base::m_stretchvec;
+
+    using Base::m_pstress;
+    using Base::m_pstressvec;
 
     using Base::m_J0_sq;
     using Base::m_J_sq;

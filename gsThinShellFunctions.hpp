@@ -17,12 +17,17 @@
 
 #include <gsAssembler/gsExprEvaluator.h>
 #include <gsAssembler/gsExprAssembler.h>
+#include <gsKLShell/gsMaterialMatrixEval.h>
+#include <gsKLShell/gsMaterialMatrixIntegrate.h>
 
 namespace gismo
 {
 template <class T>
 void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
+    gsMatrix<T> Z(1,1);
+    Z.setZero();
+
     result.setZero(targetDim(),u.cols());
 
     m_assembler.cleanUp();
@@ -37,14 +42,14 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     variable S0 = m_assembler.getCoeff(m_S0);
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMat,m_defpatches);
     variable S1 = m_assembler.getCoeff(m_S1);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::PStressN> m_Sp0(m_materialMat,m_defpatches);
-    variable Sp0 = m_assembler.getCoeff(m_Sp0);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::PStressM> m_Sp1(m_materialMat,m_defpatches);
-    variable Sp1 = m_assembler.getCoeff(m_Sp1);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::Stretch> m_lambda(m_materialMat,m_defpatches);
+    gsMaterialMatrixEval<T,MaterialOutput::Stretch> m_lambda(m_materialMat,m_defpatches,Z);
     variable lambda = m_assembler.getCoeff(m_lambda);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::StretchDir> m_lambdadir(m_materialMat,m_defpatches);
+    gsMaterialMatrixEval<T,MaterialOutput::PStress> m_Sp(m_materialMat,m_defpatches,Z);
+    variable Sp = m_assembler.getCoeff(m_Sp);
+    gsMaterialMatrixEval<T,MaterialOutput::StretchDir> m_lambdadir(m_materialMat,m_defpatches,Z);
     variable lambdadir = m_assembler.getCoeff(m_lambdadir);
+    gsMaterialMatrixEval<T,MaterialOutput::PStressDir> m_pstressdir(m_materialMat,m_defpatches,Z);
+    variable pstressdir = m_assembler.getCoeff(m_pstressdir);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m_m2 = m_assembler.getCoeff(mult2t);
@@ -109,15 +114,10 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
             for (index_t k = 0; k != u.cols(); ++k)
                 result.col(k) = ev.eval(lambda,u.col(k));
             break;
-        case stress_type::principal_stress_membrane :
+        case stress_type::principal_stress :
             for (index_t k = 0; k != u.cols(); ++k)
-                result.col(k) = ev.eval(Sp0,u.col(k));
+                result.col(k) = ev.eval(Sp,u.col(k));
             break;
-        case stress_type::principal_stress_flexural :
-            for (index_t k = 0; k != u.cols(); ++k)
-                result.col(k) = ev.eval(Sp1,u.col(k));
-            break;
-
         case stress_type::principal_stretch_dir1 :
             for (index_t k = 0; k != u.cols(); ++k)
             {
@@ -136,6 +136,27 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
             for (index_t k = 0; k != u.cols(); ++k)
             {
                 tmp = ev.eval(lambdadir,u.col(k));
+                result.col(k) = tmp.reshape(3,3).col(2);
+            }
+            break;
+        case stress_type::principal_stress_dir1 :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                tmp = ev.eval(pstressdir,u.col(k));
+                result.col(k) = tmp.reshape(3,3).col(0);
+            }
+            break;
+        case stress_type::principal_stress_dir2 :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                tmp = ev.eval(pstressdir,u.col(k));
+                result.col(k) = tmp.reshape(3,3).col(1);
+            }
+            break;
+        case stress_type::principal_stress_dir3 :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                tmp = ev.eval(pstressdir,u.col(k));
                 result.col(k) = tmp.reshape(3,3).col(2);
             }
             break;

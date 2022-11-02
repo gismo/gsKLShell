@@ -105,12 +105,12 @@ enum class MaterialOutput : short_t
     MatrixB  = 5,
     MatrixC  = 6,
     MatrixD  = 7,
-    PStressN = 8,
-    PStressM = 9,
-    Stretch = 10,       // ONLY ON MID-PLANE
-    StretchDir = 11,    // ONLY ON MID-PLANE
-    CovTransform = 12,  // Transformation matrix from spectral to covariant basis
-    ConTransform = 13,  // Transformation matrix from spectral to contravariant basis
+    Stretch  = 8,       // ONLY ON MID-PLANE
+    PStress  = 9,       // ONLY ON MID-PLANE
+    StretchDir = 10,    // ONLY ON MID-PLANE
+    PStressDir = 11,    // ONLY ON MID-PLANE
+    StretchTransform = 12,  // Transformation matrix from principal stretch axes to contravariant axes, such that E_con = E_p * T
+    PStressTransform = 13,  // Transformation matrix from principal stress axes to covariant axes, such that S_cov = S_p * T
 };
 
 

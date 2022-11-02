@@ -42,6 +42,8 @@ int main (int argc, char** argv)
 
     mp_def = mp;
     mp_def.patch(0).coefs().col(0) *= 2;
+    // mp_def.patch(0).coefs() *= 2;
+    mp_def.patch(0).coefs()(3,0) *= 2;
 
     real_t thickness = 1.0;
     real_t E_modulus = 1.0;
@@ -165,24 +167,6 @@ int main (int argc, char** argv)
     variable S1i = A.getCoeff(S1_i);
     gsInfo<<"Vector M = \n"<<ev.eval(S1i,pt)<<"\n";
 
-
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::PStressN> P0_i(materialMatrix,&mp_def);
-    variable P0i = A.getCoeff(P0_i);
-    gsInfo<<"Pstress N = \n"<<ev.eval(P0i,pt)<<"\n";
-
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::PStressM> P1_i(materialMatrix,&mp_def);
-    variable P1i = A.getCoeff(P1_i);
-    gsInfo<<"Pstress M = \n"<<ev.eval(P1i,pt)<<"\n";
-
-
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::Stretch> lambda_i(materialMatrix,&mp_def);
-    variable lambdai = A.getCoeff(lambda_i);
-    gsInfo<<"Stretch = \n"<<ev.eval(lambdai,pt)<<"\n";
-
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::StretchDir> lambdaDir_i(materialMatrix,&mp_def);
-    variable lambdaDiri = A.getCoeff(lambdaDir_i);
-    gsInfo<<"Stretch dirs = \n"<<ev.eval(lambdaDiri,pt)<<"\n";
-
     //////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////Point values////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -220,16 +204,6 @@ int main (int argc, char** argv)
     variable Stp = A.getCoeff(St_p);
     gsInfo<<"Vector total = \n"<<ev.eval(Stp,pt)<<"\n";
 
-
-    gsMaterialMatrixEval<real_t,MaterialOutput::PStressN> P0_p(materialMatrix,&mp_def,Z);
-    variable P0p = A.getCoeff(P0_p);
-    gsInfo<<"Pstress N = \n"<<ev.eval(P0p,pt)<<"\n";
-
-    gsMaterialMatrixEval<real_t,MaterialOutput::PStressM> P1_p(materialMatrix,&mp_def,Z);
-    variable P1p = A.getCoeff(P1_p);
-    gsInfo<<"Pstress M = \n"<<ev.eval(P1p,pt)<<"\n";
-
-
     gsMaterialMatrixEval<real_t,MaterialOutput::Stretch> lambda_p(materialMatrix,&mp_def,Z);
     variable lambdap = A.getCoeff(lambda_p);
     gsInfo<<"Stretch = \n"<<ev.eval(lambdap,pt)<<"\n";
@@ -238,22 +212,37 @@ int main (int argc, char** argv)
     variable lambdaDirp = A.getCoeff(lambdaDir_p);
     gsInfo<<"Stretch dirs = \n"<<ev.eval(lambdaDirp,pt)<<"\n";
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::Transformation> trans_p(materialMatrix,&mp_def,Z);
-    variable transp = A.getCoeff(trans_p);
-    gsInfo<<"Transformation = \n"<<ev.eval(transp,pt)<<"\n";
+    gsMaterialMatrixEval<real_t,MaterialOutput::PStress> P0_p(materialMatrix,&mp_def,Z);
+    variable P0p = A.getCoeff(P0_p);
+    gsInfo<<"Pstress = \n"<<ev.eval(P0p,pt)<<"\n";
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::PStressDir> pstressDir_p(materialMatrix,&mp_def,Z);
+    variable pstressDirp = A.getCoeff(pstressDir_p);
+    gsInfo<<"PStress dirs = \n"<<ev.eval(pstressDirp,pt)<<"\n";
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::StretchTransform> stretchtrans_p(materialMatrix,&mp_def,Z);
+    variable stretchtransp = A.getCoeff(stretchtrans_p);
+    gsInfo<<"Stretch Transformation = \n"<<ev.eval(stretchtransp,pt)<<"\n";
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::StretchTransform> pstresstrans_p(materialMatrix,&mp_def,Z);
+    variable pstresstransp = A.getCoeff(pstresstrans_p);
+    gsInfo<<"PStress Transformation = \n"<<ev.eval(pstresstransp,pt)<<"\n";
+
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","0.5",2);
     variable m2 = A.getCoeff(mult2t);
 
     auto Em = 0.5 * ( flat(jac(def).tr()*jac(def)) - flat(jac(map).tr()* jac(map)) );
     auto Cm = ( flat(jac(def).tr()*jac(def)) ) * reshape(m2,3,3);
-    gsInfo<<"Em = \n"<<ev.eval(Em,pt)<<"\n";
-    gsInfo<<"Sm = \n"<<ev.eval(Em * reshape(mmAp,3,3),pt)<<"\n";
-    gsInfo<<"Em = \n"<<ev.eval(Cm * reshape(transp,3,3).tr(),pt)<<"\n";
+    gsInfo<<"Cm = \n"<<ev.eval(Cm,pt)<<"\n";
+    gsInfo<<"Lambda = \n"<<ev.eval(Cm * reshape(pstresstransp,3,3).tr(),pt)<<"\n";
 
-    gsInfo<<"PStressN (transformed) = \n"<<ev.eval(reshape(transp,3,3) * S0p,pt)<<"\n";
-    gsInfo<<"PStressM (transformed) = \n"<<ev.eval(reshape(transp,3,3) * S1p,pt)<<"\n";
-    gsInfo<<"PStressM (transformed) = \n"<<ev.eval(reshape(transp,3,3) * Stp,pt)<<"\n";
+    gsInfo<<"Em = \n"<<ev.eval(Em,pt)<<"\n";
+    gsInfo<<"PStrain (transformed) = \n"<<ev.eval((Em * reshape(m2,3,3)) * reshape(stretchtransp,3,3).tr(),pt)<<"\n";
+
+    gsInfo<<"PStress               = \n"<<ev.eval(P0p.tr(),pt)<<"\n";
+    gsInfo<<"PStress (transformed) = \n"<<ev.eval(reshape(pstresstransp,3,3) * S0p,pt)<<"\n";
+    gsInfo<<"PStress (transformed) = \n"<<ev.eval(S0p.tr()*reshape(pstresstransp,3,3).tr(),pt)<<"\n";
 
     gsWriteParaview(mp,"mp",1000);
     gsWriteParaview(mp_def,"mp_def",1000);

@@ -16,12 +16,11 @@ namespace gismo
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD>;
-  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PStressN>;
-  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PStressM>;
-  // CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PStressG>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Stretch>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PStress>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StretchDir>;
-  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::CovTransform>;
-  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::ConTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PStressDir>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StretchTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PStressTransform>;
 }
 

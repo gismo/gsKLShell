@@ -78,18 +78,18 @@ gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& r
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::PStressN || _out==MaterialOutput::PStressM, void>::type
+typename std::enable_if<_out==MaterialOutput::Stretch, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    result = m_materialMat->eval3D_pstress(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
+    m_materialMat->pstretch_into(m_pIndex,u,result);
 }
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::Stretch, void>::type
+typename std::enable_if<_out==MaterialOutput::PStress, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->stretch_into(m_pIndex,u,result);
+    m_materialMat->pstress_into(m_pIndex,u,result);
 }
 
 template <class T, enum MaterialOutput out>
@@ -97,23 +97,31 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::StretchDir, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->stretchDir_into(m_pIndex,u,result);
+    m_materialMat->pstretchDir_into(m_pIndex,u,result);
 }
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::CovTransform, void>::type
+typename std::enable_if<_out==MaterialOutput::PStressDir, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->covtransform_into(m_pIndex,u,result);
+    m_materialMat->pstressDir_into(m_pIndex,u,result);
 }
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::ConTransform, void>::type
+typename std::enable_if<_out==MaterialOutput::StretchTransform, void>::type
 gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->contransform_into(m_pIndex,u,result);
+    m_materialMat->pstretchTransform_into(m_pIndex,u,result);
+}
+
+template <class T, enum MaterialOutput out>
+template <enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::PStressTransform, void>::type
+gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    m_materialMat->pstressTransform_into(m_pIndex,u,result);
 }
 
 

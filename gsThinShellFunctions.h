@@ -44,11 +44,13 @@ struct stress_type
         membrane_strain    = 6,  /// compute normal and shear stresses due to both components
         flexural_strain    = 7,  /// compute normal and shear stresses due to both components
         principal_stretch  = 8,  /// principal stretches
-        principal_stress_membrane  = 9,  /// principal stress membrane
-        principal_stress_flexural  = 10,  /// principal stress bending
-        principal_stretch_dir1  = 11,  /// principal stretch directions
-        principal_stretch_dir2  = 12,  /// principal stretch directions
-        principal_stretch_dir3  = 13,  /// principal stretch directions
+        principal_stress   = 9,  /// principal stress membrane
+        principal_stretch_dir1  = 81,  /// principal stretch directions
+        principal_stretch_dir2  = 82,  /// principal stretch directions
+        principal_stretch_dir3  = 83,  /// principal stretch directions
+        principal_stress_dir1  = 91,  /// principal stress directions
+        principal_stress_dir2  = 92,  /// principal stress directions
+        principal_stress_dir3  = 93,  /// principal stress directions
     };
 };
 
@@ -137,11 +139,9 @@ public:
             case stress_type::principal_stretch :
                 return 3;
                 break;
-            case stress_type::principal_stress_membrane :
+            case stress_type::principal_stress:
                 return 3;
                 break;
-            case stress_type::principal_stress_flexural :
-                return 3;
                 break;
             case stress_type::principal_stretch_dir1 :
                 return 3;
@@ -150,6 +150,15 @@ public:
                 return 3;
                 break;
             case stress_type::principal_stretch_dir3 :
+                return 3;
+                break;
+            case stress_type::principal_stress_dir1 :
+                return 3;
+                break;
+            case stress_type::principal_stress_dir2 :
+                return 3;
+                break;
+            case stress_type::principal_stress_dir3 :
                 return 3;
                 break;
             /*

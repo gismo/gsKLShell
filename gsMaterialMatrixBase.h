@@ -90,7 +90,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The resut
      */
-    inline virtual void    stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual void    pstretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
     /**
      * @brief      Evaluates the directions of the stretches in the shell (3x1 vector per direction)
      *
@@ -98,7 +98,23 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The resut
      */
-    inline virtual void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual void    pstretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    /**
+     * @brief      Evaluates the stretches in the shell (3x1 vector)
+     *
+     * @param[in]  patch   The patch to be evaluated on
+     * @param[in]  u       The in-plane shell coordinates to be eveluated on
+     * @param      result  The resut
+     */
+    inline virtual void    pstress_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    /**
+     * @brief      Evaluates the directions of the stretches in the shell (3x1 vector per direction)
+     *
+     * @param[in]  patch   The patch to be evaluated on
+     * @param[in]  u       The in-plane shell coordinates to be eveluated on
+     * @param      result  The resut
+     */
+    inline virtual void    pstressDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
     /**
      * @brief      Evaluates the thickness of the shell (scalar)
      *
@@ -115,7 +131,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The resut
      */
-    inline virtual void  covtransform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+    inline virtual void  pstretchTransform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
 
     /**
      * @brief      todo
@@ -124,8 +140,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The resut
      */
-    inline virtual void  contransform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
-
+    inline virtual void  pstressTransform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
 
     /**
      * @brief      Evaluates the matrix on \a patch on in-plane points \a u with height \a z
@@ -151,18 +166,6 @@ public:
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
     inline virtual gsMatrix<T>  eval3D_vector(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
-    /**
-     * @brief      Evaluates the principal stress on \a patch on in-plane points \a u with height \a z
-     *
-     * @param[in]  patch  The patch
-     * @param[in]  u      The in-plane shell coordinates to be eveluated on
-     * @param[in]  z      The point through-thickness coorinate
-     * @param[in]  out    (for classes with MatIntegration==Integrated, more details about \ref MaterialOutput can be found in \ref gsMaterialMatrixUtils)
-     *
-     * @return     Matrix with the result (principal stress) ordered per z coordinate per point
-     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
-     */
-    inline virtual gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
 
     virtual void setYoungsModulus(const gsFunction<T> & YoungsModulus)
     { GISMO_NO_IMPLEMENTATION; }

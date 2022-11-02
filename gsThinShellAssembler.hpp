@@ -18,6 +18,7 @@
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/gsMaterialMatrix.h>
 #include <gsKLShell/gsMaterialMatrixBase.h>
+#include <gsKLShell/gsMaterialMatrixEval.h>
 #include <gsKLShell/gsMaterialMatrixIntegrate.h>
 
 #include <gsPde/gsBoundaryConditions.h>
@@ -1681,6 +1682,8 @@ template <short_t d, class T, bool bending>
 gsMatrix<T> gsThinShellAssembler<d, T, bending>::computePrincipalStretches(const gsMatrix<T> & u, const gsFunctionSet<T> & deformed, const T z)
 {
     // gsDebug<<"Warning: Principle Stretch computation of gsThinShellAssembler is depreciated...\n";
+    gsMatrix<T> Z(1,1);
+    Z.setZero();
     gsMatrix<T> result(3,u.cols());
     result.setZero();
     this->_getOptions();
@@ -1692,7 +1695,36 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::computePrincipalStretches(const
     // geometryMap m_def   = m_assembler.getMap(*m_defpatches);
     // m_assembler.initSystem();
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::Stretch> m_mm(m_materialMat,&deformed);
+    gsMaterialMatrixEval<T,MaterialOutput::Stretch> m_mm(m_materialMat,&deformed,Z);
+    auto mm0 = m_assembler.getCoeff(m_mm);
+
+    gsExprEvaluator<T> evaluator(m_assembler);
+
+    for (index_t k = 0; k != u.cols(); ++k)
+    {
+        result.col(k) = evaluator.eval(mm0,u.col(k));
+    }
+    return result;
+}
+
+template <short_t d, class T, bool bending>
+gsMatrix<T> gsThinShellAssembler<d, T, bending>::computePrincipalStresses(const gsMatrix<T> & u, const gsFunctionSet<T> & deformed, const T z)
+{
+    // gsDebug<<"Warning: Principle Stretch computation of gsThinShellAssembler is depreciated...\n";
+    gsMatrix<T> Z(1,1);
+    Z.setZero();
+    gsMatrix<T> result(3,u.cols());
+    result.setZero();
+    this->_getOptions();
+
+    m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
+
+    // geometryMap m_ori   = m_assembler.getMap(m_patches);
+    // geometryMap m_def   = m_assembler.getMap(*m_defpatches);
+    // m_assembler.initSystem();
+
+    gsMaterialMatrixEval<T,MaterialOutput::PStress> m_mm(m_materialMat,&deformed,Z);
     auto mm0 = m_assembler.getCoeff(m_mm);
 
     gsExprEvaluator<T> evaluator(m_assembler);

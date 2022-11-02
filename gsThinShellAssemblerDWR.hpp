@@ -181,10 +181,10 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
     auto usol   = exprAssembler.getCoeff(primal);
 
     // Transformation for stretches
-    gsMaterialMatrixEval<T,MaterialOutput::CovTransform>  Tcovf(assembler->material(),&deformed,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(assembler->material(),&deformed,Z);
-    auto Tcov = exprAssembler.getCoeff(Tcovf);
-    auto Tcon = exprAssembler.getCoeff(Tconf);
+    gsMaterialMatrixEval<T,MaterialOutput::StretchTransform>  Tstretchf(assembler->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::PStressTransform>  Tpstressf(assembler->material(),&deformed,Z);
+    auto Tstretch = exprAssembler.getCoeff(Tstretchf);
+    auto Tpstress = exprAssembler.getCoeff(Tpstressf);
 
     // Material tensors at Z
     gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),&deformed,Z);
@@ -209,7 +209,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
     auto S1 = exprAssembler.getCoeff(S1f);
 
     // Principal stress tensors
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(assembler->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::PStress> P0f(assembler->material(),&deformed,Z);
     auto P0  = exprAssembler.getCoeff(P0f);
 
     // Force and moment tensors
@@ -231,16 +231,16 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
     auto Cm_der     = 2* flat( jac(Gdef).tr() * jac(space) ) * reshape(m12,3,3);
 
     // Principal stretch and its first variation
-    auto lambda     = Cm     * reshape(Tcon,3,3).tr();
-    auto lambda_der = Cm_der * reshape(Tcon,3,3).tr();
+    auto lambda     = Cm     * reshape(Tstretch,3,3).tr();
+    auto lambda_der = Cm_der * reshape(Tstretch,3,3).tr();
 
     // Membrane strain and its first variation
     auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
     auto Em_der = flat( jac(Gdef).tr() * jac(space) ) ;
 
     // Principal membrane strain and its first variation
-    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tcon,3,3).tr();
-    auto Emp_der= (Em_der * reshape(m12,3,3)) * reshape(Tcon,3,3).tr();
+    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tstretch,3,3).tr();
+    auto Emp_der= (Em_der * reshape(m12,3,3)) * reshape(Tstretch,3,3).tr();
 
     // Flexural strain and its first variation
     auto Ef     = ( deriv2(Gori,sn(Gori).normalized().tr()) - deriv2(Gdef,sn(Gdef).normalized().tr()) ) * reshape(m2,3,3) ;
@@ -250,7 +250,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
     auto Sm_der     = Em_der * reshape(mmA,3,3);
 
     // Principal membrane stress (its first variation)
-    auto Smp_der     = Sm_der * reshape(Tcov,3,3).tr();
+    auto Smp_der     = Sm_der * reshape(Tpstress,3,3).tr();
 
     // Flexural stress (its first variation)
     auto Sf_der     = Ef_der * reshape(mmD,3,3);
@@ -289,6 +289,36 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
             return exprAssembler.rhs();
         }
     }
+    else if (m_goalFunction == GoalFunction::PStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Emp_der * Emp.tr() * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+        else
+        {
+            auto expr = Emp_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+    }
+    else if (m_goalFunction == GoalFunction::PStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Smp_der * P0 * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+        else
+        {
+            auto expr = Smp_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            exprAssembler.assemble(expr);
+            return exprAssembler.rhs();
+        }
+    }
     else if (m_goalFunction == GoalFunction::MembraneStrain)
     {
         if (m_component==9)
@@ -304,21 +334,6 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
             return exprAssembler.rhs();
         }
     }
-    else if (m_goalFunction == GoalFunction::MembranePStrain)
-    {
-        if (m_component==9)
-        {
-            auto expr = 2 * Emp_der * Emp.tr() * meas(Gori);
-            exprAssembler.assemble(expr);
-            return exprAssembler.rhs();
-        }
-        else
-        {
-            auto expr = Emp_der * gismo::expr::uv(m_component,3) * meas(Gori);
-            exprAssembler.assemble(expr);
-            return exprAssembler.rhs();
-        }
-    }
     else if (m_goalFunction == GoalFunction::MembraneStress)
     {
         if (m_component==9)
@@ -330,21 +345,6 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
         else
         {
             auto expr = Sm_der * gismo::expr::uv(m_component,3) * meas(Gori);
-            exprAssembler.assemble(expr);
-            return exprAssembler.rhs();
-        }
-    }
-    else if (m_goalFunction == GoalFunction::MembranePStress)
-    {
-        if (m_component==9)
-        {
-            auto expr = 2 * Smp_der * P0 * meas(Gori);
-            exprAssembler.assemble(expr);
-            return exprAssembler.rhs();
-        }
-        else
-        {
-            auto expr = Smp_der * gismo::expr::uv(m_component,3) * meas(Gori);
             exprAssembler.assemble(expr);
             return exprAssembler.rhs();
         }
@@ -447,10 +447,10 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const bContain
     auto usol   = exprAssembler.getCoeff(primal);
 
     // Transformation for stretches
-    gsMaterialMatrixEval<T,MaterialOutput::CovTransform>  Tcovf(assembler->material(),&deformed,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(assembler->material(),&deformed,Z);
-    auto Tcov = exprAssembler.getCoeff(Tcovf);
-    auto Tcon = exprAssembler.getCoeff(Tconf);
+    gsMaterialMatrixEval<T,MaterialOutput::StretchTransform>  Tstretchf(assembler->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::PStressTransform>  Tpstressf(assembler->material(),&deformed,Z);
+    auto Tstretch = exprAssembler.getCoeff(Tstretchf);
+    auto Tpstress = exprAssembler.getCoeff(Tpstressf);
 
     // Material tensors at Z
     gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),&deformed,Z);
@@ -475,7 +475,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const bContain
     auto S1 = exprAssembler.getCoeff(S1f);
 
     // Principal stress tensors
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(assembler->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::PStress> P0f(assembler->material(),&deformed,Z);
     auto P0  = exprAssembler.getCoeff(P0f);
 
     // Force and moment tensors
@@ -497,16 +497,16 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const bContain
     auto Cm_der     = 2* flat( jac(Gdef).tr() * jac(space) ) * reshape(m12,3,3);
 
     // Principal stretch and its first variation
-    auto lambda     = Cm     * reshape(Tcon,3,3).tr();
-    auto lambda_der = Cm_der * reshape(Tcon,3,3).tr();
+    auto lambda     = Cm     * reshape(Tstretch,3,3).tr();
+    auto lambda_der = Cm_der * reshape(Tstretch,3,3).tr();
 
     // Membrane strain and its first variation
     auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
     auto Em_der = flat( jac(Gdef).tr() * jac(space) ) ;
 
     // Principal membrane strain and its first variation
-    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tcon,3,3).tr();
-    auto Emp_der= (Em_der * reshape(m12,3,3)) * reshape(Tcon,3,3).tr();
+    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tstretch,3,3).tr();
+    auto Emp_der= (Em_der * reshape(m12,3,3)) * reshape(Tstretch,3,3).tr();
 
     // Flexural strain and its first variation
     auto Ef     = ( deriv2(Gori,sn(Gori).normalized().tr()) - deriv2(Gdef,sn(Gdef).normalized().tr()) ) * reshape(m2,3,3) ;
@@ -516,7 +516,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const bContain
     auto Sm_der     = Em_der * reshape(mmA,3,3);
 
     // Principal membrane stress (its first variation)
-    auto Smp_der     = Sm_der * reshape(Tcov,3,3).tr();
+    auto Smp_der     = Sm_der * reshape(Tpstress,3,3).tr();
 
     // Flexural stress (its first variation)
     auto Sf_der     = Ef_der * reshape(mmD,3,3);
@@ -555,6 +555,36 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const bContain
             return exprAssembler.rhs();
         }
     }
+    else if (m_goalFunction == GoalFunction::PStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Emp_der * Emp.tr() * meas(Gori);
+            exprAssembler.assembleBdr(bnds,expr);
+            return exprAssembler.rhs();
+        }
+        else
+        {
+            auto expr = Emp_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            exprAssembler.assembleBdr(bnds,expr);
+            return exprAssembler.rhs();
+        }
+    }
+    else if (m_goalFunction == GoalFunction::PStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Smp_der * P0 * meas(Gori);
+            exprAssembler.assembleBdr(bnds,expr);
+            return exprAssembler.rhs();
+        }
+        else
+        {
+            auto expr = Smp_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            exprAssembler.assembleBdr(bnds,expr);
+            return exprAssembler.rhs();
+        }
+    }
     else if (m_goalFunction == GoalFunction::MembraneStrain)
     {
         if (m_component==9)
@@ -570,21 +600,6 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const bContain
             return exprAssembler.rhs();
         }
     }
-    else if (m_goalFunction == GoalFunction::MembranePStrain)
-    {
-        if (m_component==9)
-        {
-            auto expr = 2 * Emp_der * Emp.tr() * meas(Gori);
-            exprAssembler.assembleBdr(bnds,expr);
-            return exprAssembler.rhs();
-        }
-        else
-        {
-            auto expr = Emp_der * gismo::expr::uv(m_component,3) * meas(Gori);
-            exprAssembler.assembleBdr(bnds,expr);
-            return exprAssembler.rhs();
-        }
-    }
     else if (m_goalFunction == GoalFunction::MembraneStress)
     {
         if (m_component==9)
@@ -596,21 +611,6 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const bContain
         else
         {
             auto expr = Sm_der * gismo::expr::uv(m_component,3) * meas(Gori);
-            exprAssembler.assembleBdr(bnds,expr);
-            return exprAssembler.rhs();
-        }
-    }
-    else if (m_goalFunction == GoalFunction::MembranePStress)
-    {
-        if (m_component==9)
-        {
-            auto expr = 2 * Smp_der * P0 * meas(Gori);
-            exprAssembler.assembleBdr(bnds,expr);
-            return exprAssembler.rhs();
-        }
-        else
-        {
-            auto expr = Smp_der * gismo::expr::uv(m_component,3) * meas(Gori);
             exprAssembler.assembleBdr(bnds,expr);
             return exprAssembler.rhs();
         }
@@ -720,10 +720,10 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
     auto usol   = exprAssembler.getCoeff(primal);
 
     // Transformation for stretches
-    gsMaterialMatrixEval<T,MaterialOutput::CovTransform>  Tcovf(assembler->material(),&deformed,Z);
-    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(assembler->material(),&deformed,Z);
-    auto Tcov = exprAssembler.getCoeff(Tcovf);
-    auto Tcon = exprAssembler.getCoeff(Tconf);
+    gsMaterialMatrixEval<T,MaterialOutput::StretchTransform>  Tstretchf(assembler->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::PStressTransform>  Tpstressf(assembler->material(),&deformed,Z);
+    auto Tstretch = exprAssembler.getCoeff(Tstretchf);
+    auto Tpstress = exprAssembler.getCoeff(Tpstressf);
 
     // Material tensors at Z
     gsMaterialMatrixEval<T,MaterialOutput::MatrixA> mmAf(assembler->material(),&deformed,Z);
@@ -748,7 +748,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
     auto S1 = exprAssembler.getCoeff(S1f);
 
     // Principal stress tensors
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(assembler->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::PStress> P0f(assembler->material(),&deformed,Z);
     auto P0  = exprAssembler.getCoeff(P0f);
 
     // Force and moment tensors
@@ -770,16 +770,16 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
     auto Cm_der     = 2* flat( jac(Gdef).tr() * jac(space) ) * reshape(m12,3,3);
 
     // Principal stretch and its first variation
-    auto lambda     = Cm     * reshape(Tcon,3,3).tr();
-    auto lambda_der = Cm_der * reshape(Tcon,3,3).tr();
+    auto lambda     = Cm     * reshape(Tstretch,3,3).tr();
+    auto lambda_der = Cm_der * reshape(Tstretch,3,3).tr();
 
     // Membrane strain and its first variation
     auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
     auto Em_der = flat( jac(Gdef).tr() * jac(space) ) ;
 
     // Principal membrane strain and its first variation
-    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tcon,3,3).tr();
-    auto Emp_der= (Em_der * reshape(m12,3,3)) * reshape(Tcon,3,3).tr();
+    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tstretch,3,3).tr();
+    auto Emp_der= (Em_der * reshape(m12,3,3)) * reshape(Tstretch,3,3).tr();
 
     // Flexural strain and its first variation
     auto Ef     = ( deriv2(Gori,sn(Gori).normalized().tr()) - deriv2(Gdef,sn(Gdef).normalized().tr()) ) * reshape(m2,3,3) ;
@@ -789,7 +789,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
     auto Sm_der     = Em_der * reshape(mmA,3,3);
 
     // Principal membrane stress (its first variation)
-    auto Smp_der     = Sm_der * reshape(Tcov,3,3).tr();
+    auto Smp_der     = Sm_der * reshape(Tpstress,3,3).tr();
 
     // Flexural stress (its first variation)
     auto Sf_der     = Ef_der * reshape(mmD,3,3);
@@ -876,6 +876,80 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
             return result;
         }
     }
+    else if (m_goalFunction == GoalFunction::PStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Emp_der * Emp.tr() * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = Emp_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::PStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = 2 * Smp_der * P0 * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = Smp_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval(expr,points.col(k));
+                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                for (index_t j = 0; j< space.dim(); ++j)
+                {
+                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
+                    for (index_t i=0; i < globalActives.rows(); ++i)
+                        if (space.mapper().is_free_index(globalActives(i,0)))
+                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
+                }
+            }
+            return result;
+        }
+    }
     else if (m_goalFunction == GoalFunction::MembraneStrain)
     {
         if (m_component==9)
@@ -913,43 +987,6 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
             return result;
         }
     }
-    else if (m_goalFunction == GoalFunction::MembranePStrain)
-    {
-        if (m_component==9)
-        {
-            auto expr = 2 * Emp_der * Emp.tr() * meas(Gori);
-            for (index_t k = 0; k!=points.cols(); k++)
-            {
-                tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-                for (index_t j = 0; j< space.dim(); ++j)
-                {
-                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-                    for (index_t i=0; i < globalActives.rows(); ++i)
-                        if (space.mapper().is_free_index(globalActives(i,0)))
-                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-                }
-            }
-            return result;
-        }
-        else
-        {
-            auto expr = Emp_der * gismo::expr::uv(m_component,3) * meas(Gori);
-            for (index_t k = 0; k!=points.cols(); k++)
-            {
-                tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-                for (index_t j = 0; j< space.dim(); ++j)
-                {
-                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-                    for (index_t i=0; i < globalActives.rows(); ++i)
-                        if (space.mapper().is_free_index(globalActives(i,0)))
-                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-                }
-            }
-            return result;
-        }
-    }
     else if (m_goalFunction == GoalFunction::MembraneStress)
     {
         if (m_component==9)
@@ -972,43 +1009,6 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
         else
         {
             auto expr = Sm_der * gismo::expr::uv(m_component,3) * meas(Gori);
-            for (index_t k = 0; k!=points.cols(); k++)
-            {
-                tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-                for (index_t j = 0; j< space.dim(); ++j)
-                {
-                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-                    for (index_t i=0; i < globalActives.rows(); ++i)
-                        if (space.mapper().is_free_index(globalActives(i,0)))
-                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-                }
-            }
-            return result;
-        }
-    }
-    else if (m_goalFunction == GoalFunction::MembranePStress)
-    {
-        if (m_component==9)
-        {
-            auto expr = 2 * Smp_der * P0 * meas(Gori);
-            for (index_t k = 0; k!=points.cols(); k++)
-            {
-                tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
-                for (index_t j = 0; j< space.dim(); ++j)
-                {
-                    space.mapper().localToGlobal(actives, pIndex, globalActives,j);
-                    for (index_t i=0; i < globalActives.rows(); ++i)
-                        if (space.mapper().is_free_index(globalActives(i,0)))
-                            result.at(globalActives(i,0)) += tmp(i+j*actives.rows(),0);
-                }
-            }
-            return result;
-        }
-        else
-        {
-            auto expr = Smp_der * gismo::expr::uv(m_component,3) * meas(Gori);
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
@@ -2163,8 +2163,8 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMultiPatch<T> & de
     geometryMap Gdef = exprAssembler.getMap(deformed);
 
     // Transformation for stretches
-    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),&deformed,Z);
-    auto Tcon = exprAssembler.getCoeff(Tconf);
+    gsMaterialMatrixEval<T,MaterialOutput::StretchTransform>  Tstretchf(m_assemblerL->material(),&deformed,Z);
+    auto Tstretch = exprAssembler.getCoeff(Tstretchf);
 
     // Stress tensors
     gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),&deformed,Z);
@@ -2190,7 +2190,7 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMultiPatch<T> & de
     ///////// TEMPORARY
 
     // Principal stress tensors
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_assemblerL->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::PStress> P0f(m_assemblerL->material(),&deformed,Z);
     auto P0  = exprAssembler.getCoeff(P0f);
 
     // Helper matrix for flexural components
@@ -2205,13 +2205,13 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMultiPatch<T> & de
     auto Cm         = flat( jac(Gdef).tr() * jac(Gdef) ) * reshape(m12,3,3);
 
     // Principal stretch
-    auto lambda     = reshape(Tcon,3,3) * Cm.tr();
+    auto lambda     = reshape(Tstretch,3,3) * Cm.tr();
 
     // Membrane strain
     auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
 
     // Principal membrane strain
-    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tcon,3,3).tr();
+    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tstretch,3,3).tr();
 
     // Flexural strain
     auto Ef     = ( deriv2(Gori,sn(Gori).normalized().tr()) - deriv2(Gdef,sn(Gdef).normalized().tr()) ) * reshape(m2,3,3) ;
@@ -2254,6 +2254,33 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMultiPatch<T> & de
             return ev.integral( expr  );
         }
     }
+    else if (m_goalFunction == GoalFunction::PStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = Emp * Emp.tr() * meas(Gori);
+            return ev.integral( expr  );
+        }
+        else
+        {
+            auto expr = Emp * gismo::expr::uv(m_component,3) * meas(Gori);
+            return ev.integral( expr  );
+        }
+    }
+    else if (m_goalFunction == GoalFunction::PStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = P0.tr() * P0 * meas(Gori);
+            return ev.integral( expr  );
+        }
+        else
+        {
+            auto expr = P0.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
+            return ev.integral( expr  );
+        }
+    }
+
     else if (m_goalFunction == GoalFunction::MembraneStrain)
     {
         if (m_component==9)
@@ -2268,19 +2295,6 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMultiPatch<T> & de
             return ev.integral( expr  );
         }
     }
-    else if (m_goalFunction == GoalFunction::MembranePStrain)
-    {
-        if (m_component==9)
-        {
-            auto expr = Emp * Emp.tr() * meas(Gori);
-            return ev.integral( expr  );
-        }
-        else
-        {
-            auto expr = Emp * gismo::expr::uv(m_component,3) * meas(Gori);
-            return ev.integral( expr  );
-        }
-    }
     else if (m_goalFunction == GoalFunction::MembraneStress)
     {
         if (m_component==9)
@@ -2291,19 +2305,6 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMultiPatch<T> & de
         else
         {
             auto expr = S0.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
-            return ev.integral( expr  );
-        }
-    }
-    else if (m_goalFunction == GoalFunction::MembranePStress)
-    {
-        if (m_component==9)
-        {
-            auto expr = P0.tr() * P0 * meas(Gori);
-            return ev.integral( expr  );
-        }
-        else
-        {
-            auto expr = P0.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
             return ev.integral( expr  );
         }
     }
@@ -2384,8 +2385,8 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const bContainer & bnds, c
     geometryMap Gdef = exprAssembler.getMap(deformed);
 
     // Transformation for stretches
-    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),&deformed,Z);
-    auto Tcon = exprAssembler.getCoeff(Tconf);
+    gsMaterialMatrixEval<T,MaterialOutput::StretchTransform>  Tstretchf(m_assemblerL->material(),&deformed,Z);
+    auto Tstretch = exprAssembler.getCoeff(Tstretchf);
 
     // Stress tensors
     gsMaterialMatrixEval<T,MaterialOutput::VectorN> S0f(m_assemblerL->material(),&deformed,Z);
@@ -2411,7 +2412,7 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const bContainer & bnds, c
     ///////// TEMPORARY
 
     // Principal stress tensors
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_assemblerL->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::PStress> P0f(m_assemblerL->material(),&deformed,Z);
     auto P0  = exprAssembler.getCoeff(P0f);
 
     // Helper matrix for flexural components
@@ -2426,13 +2427,13 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const bContainer & bnds, c
     auto Cm         = flat( jac(Gdef).tr() * jac(Gdef) ) * reshape(m12,3,3);
 
     // Principal stretch
-    auto lambda     = reshape(Tcon,3,3) * Cm.tr();
+    auto lambda     = reshape(Tstretch,3,3) * Cm.tr();
 
     // Membrane strain
     auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
 
     // Principal membrane strain
-    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tcon,3,3).tr();
+    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tstretch,3,3).tr();
 
     // Flexural strain
     auto Ef     = ( deriv2(Gori,sn(Gori).normalized().tr()) - deriv2(Gdef,sn(Gdef).normalized().tr()) ) * reshape(m2,3,3) ;
@@ -2475,6 +2476,32 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const bContainer & bnds, c
             return ev.integralBdr( expr,bnds  );
         }
     }
+    else if (m_goalFunction == GoalFunction::PStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = Emp * Emp.tr() * meas(Gori);
+            return ev.integralBdr( expr,bnds  );
+        }
+        else
+        {
+            auto expr = Emp * gismo::expr::uv(m_component,3) * meas(Gori);
+            return ev.integralBdr( expr,bnds  );
+        }
+    }
+    else if (m_goalFunction == GoalFunction::PStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = P0.tr() * P0 * meas(Gori);
+            return ev.integralBdr( expr,bnds  );
+        }
+        else
+        {
+            auto expr = P0.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
+            return ev.integralBdr( expr,bnds  );
+        }
+    }
     else if (m_goalFunction == GoalFunction::MembraneStrain)
     {
         if (m_component==9)
@@ -2489,19 +2516,6 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const bContainer & bnds, c
             return ev.integralBdr( expr,bnds  );
         }
     }
-    else if (m_goalFunction == GoalFunction::MembranePStrain)
-    {
-        if (m_component==9)
-        {
-            auto expr = Emp * Emp.tr() * meas(Gori);
-            return ev.integralBdr( expr,bnds  );
-        }
-        else
-        {
-            auto expr = Emp * gismo::expr::uv(m_component,3) * meas(Gori);
-            return ev.integralBdr( expr,bnds  );
-        }
-    }
     else if (m_goalFunction == GoalFunction::MembraneStress)
     {
         if (m_component==9)
@@ -2512,19 +2526,6 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const bContainer & bnds, c
         else
         {
             auto expr = S0.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
-            return ev.integralBdr( expr,bnds  );
-        }
-    }
-    else if (m_goalFunction == GoalFunction::MembranePStress)
-    {
-        if (m_component==9)
-        {
-            auto expr = P0.tr() * P0 * meas(Gori);
-            return ev.integralBdr( expr,bnds  );
-        }
-        else
-        {
-            auto expr = P0.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
             return ev.integralBdr( expr,bnds  );
         }
     }
@@ -2605,8 +2606,8 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMatrix<T> & points
     geometryMap Gdef = exprAssembler.getMap(deformed);
 
     // Transformation for stretches
-    gsMaterialMatrixEval<T,MaterialOutput::ConTransform>  Tconf(m_assemblerL->material(),&deformed,Z);
-    auto Tcon = exprAssembler.getCoeff(Tconf);
+    gsMaterialMatrixEval<T,MaterialOutput::StretchTransform>  Tstretchf(m_assemblerL->material(),&deformed,Z);
+    auto Tstretch = exprAssembler.getCoeff(Tstretchf);
     // Material tensors
 
     // Stress tensors
@@ -2622,7 +2623,7 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMatrix<T> & points
     auto M  = exprAssembler.getCoeff(Mf);
 
     // Principal stress tensors
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> P0f(m_assemblerL->material(),&deformed,Z);
+    gsMaterialMatrixEval<T,MaterialOutput::PStress> P0f(m_assemblerL->material(),&deformed,Z);
     auto P0 = exprAssembler.getCoeff(P0f);
 
     // // Helper matrix for flexural components
@@ -2637,13 +2638,13 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMatrix<T> & points
     auto Cm      = flat( jac(Gdef).tr() * jac(Gdef) ) * reshape(m12,3,3);
 
     // Principal stretch
-    auto lambda  = reshape(Tcon,3,3).tr() * Cm.tr();
+    auto lambda  = reshape(Tstretch,3,3).tr() * Cm.tr();
 
     // Membrane strain
     auto Em     = 0.5 * ( flat(jac(Gdef).tr()*jac(Gdef)) - flat(jac(Gori).tr()* jac(Gori)) ) ;
 
     // Principal membrane strain
-    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tcon,3,3).tr();
+    auto Emp    = (Em * reshape(m12,3,3)) * reshape(Tstretch,3,3).tr();
 
     // Flexural strain
     auto Ef     = ( deriv2(Gori,sn(Gori).normalized().tr()) - deriv2(Gdef,sn(Gdef).normalized().tr()) ) * reshape(m2,3,3) ;
@@ -2711,6 +2712,56 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMatrix<T> & points
             return result;
         }
     }
+    else if (m_goalFunction == GoalFunction::PStrain)
+    {
+        if (m_component==9)
+        {
+            auto expr = Emp * Emp.tr() * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = Emp * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+    }
+    else if (m_goalFunction == GoalFunction::PStress)
+    {
+        if (m_component==9)
+        {
+            auto expr = P0.tr() * P0 * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+        else
+        {
+            auto expr = P0.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
+            for (index_t k = 0; k!=points.cols(); k++)
+            {
+                tmp = ev.eval( expr, points.col(k));
+                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
+                result += tmp(0,0);
+            }
+            return result;
+        }
+    }
     else if (m_goalFunction == GoalFunction::MembraneStrain)
     {
         if (m_component==9)
@@ -2736,31 +2787,6 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMatrix<T> & points
             return result;
         }
     }
-    else if (m_goalFunction == GoalFunction::MembranePStrain)
-    {
-        if (m_component==9)
-        {
-            auto expr = Emp * Emp.tr() * meas(Gori);
-            for (index_t k = 0; k!=points.cols(); k++)
-            {
-                tmp = ev.eval( expr, points.col(k));
-                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-                result += tmp(0,0);
-            }
-            return result;
-        }
-        else
-        {
-            auto expr = Emp * gismo::expr::uv(m_component,3) * meas(Gori);
-            for (index_t k = 0; k!=points.cols(); k++)
-            {
-                tmp = ev.eval( expr, points.col(k));
-                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-                result += tmp(0,0);
-            }
-            return result;
-        }
-    }
     else if (m_goalFunction == GoalFunction::MembraneStress)
     {
         if (m_component==9)
@@ -2777,31 +2803,6 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeGoal(const gsMatrix<T> & points
         else
         {
             auto expr = S0.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
-            for (index_t k = 0; k!=points.cols(); k++)
-            {
-                tmp = ev.eval( expr, points.col(k));
-                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-                result += tmp(0,0);
-            }
-            return result;
-        }
-    }
-    else if (m_goalFunction == GoalFunction::MembranePStress)
-    {
-        if (m_component==9)
-        {
-            auto expr = P0.tr() * P0 * meas(Gori);
-            for (index_t k = 0; k!=points.cols(); k++)
-            {
-                tmp = ev.eval( expr, points.col(k));
-                GISMO_ASSERT(tmp.cols()==tmp.rows() && tmp.cols()==1,"Goal function must be scalar!");
-                result += tmp(0,0);
-            }
-            return result;
-        }
-        else
-        {
-            auto expr = P0.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval( expr, points.col(k));

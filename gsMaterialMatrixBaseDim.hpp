@@ -523,6 +523,52 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalStretch(
     return result;
 }
 
+template <short_t dim, class T >
+std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalPStress(const gsMatrix<T> & S) const
+{
+    gsVector<T> pstresses;
+    gsMatrix<T> pstressvec;
+    std::pair<gsVector<T>,gsMatrix<T>> result;
+    pstresses.resize(3,1);    pstresses.setZero();
+    pstressvec.resize(3,3);   pstressvec.setZero();
+
+    Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
+
+    gsMatrix<T> B(3,3);
+    B.setZero();
+    for (index_t k = 0; k != 2; k++)
+        for (index_t l = 0; l != 2; l++)
+            B += S(k,l) * m_gcov_ori.col(k) * m_gcov_ori.col(l).transpose();
+
+    eigSolver.compute(B);
+
+    index_t zeroIdx = -1;
+    real_t tol = 1e-14;
+    real_t max = eigSolver.eigenvalues().array().abs().maxCoeff();
+    max = (max==0) ? 1 : max;
+    for (index_t k=0; k!=3; k++)
+        zeroIdx = std::abs(eigSolver.eigenvalues()[k] ) / max < tol ? k : zeroIdx;
+
+    GISMO_ASSERT(zeroIdx!=-1,"No zero found?");
+
+    index_t count = 0;
+    pstressvec.col(2) = m_gcon_ori.col(2);
+    pstresses(2,0) = S(2,2);
+
+    for (index_t k=0; k!=3; k++)
+    {
+        if (k==zeroIdx) continue;
+        pstressvec.col(count) = eigSolver.eigenvectors().col(k);
+        pstresses(count,0) = eigSolver.eigenvalues()(k,0);
+        count++;
+    }
+
+    result.first = pstresses;
+    result.second = pstressvec;
+
+    return result;
+}
+
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
@@ -531,6 +577,14 @@ void gsMaterialMatrixBaseDim<dim,T>::_computeStretch(const gsMatrix<T> & C) cons
     std::pair<gsVector<T>,gsMatrix<T>> result = _evalStretch(C);
     m_stretches = result.first;
     m_stretchvec = result.second;
+}
+
+template <short_t dim, class T >
+void gsMaterialMatrixBaseDim<dim,T>::_computePStress(const gsMatrix<T> & S) const
+{
+    std::pair<gsVector<T>,gsMatrix<T>> result = _evalPStress(S);
+    m_pstress = result.first;
+    m_pstressvec = result.second;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------

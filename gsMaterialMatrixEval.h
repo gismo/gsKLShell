@@ -73,23 +73,26 @@ private:
                             _out==MaterialOutput::MatrixC ||
                             _out==MaterialOutput::MatrixD   , short_t>::type targetDim_impl() const { return 9; };
 
-    /// Implementation of \ref targetDim for principal stress fields
-    template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::PStressN ||
-                            _out==MaterialOutput::PStressM  , short_t>::type targetDim_impl() const { return 3; };
-
     /// Implementation of \ref targetDim for principal stretch fields
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Stretch   , short_t>::type targetDim_impl() const { return 3; };
 
-    /// Implementation of \ref targetDim for principal stress directions
+    /// Implementation of \ref targetDim for principal stress fields
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::PStress   , short_t>::type targetDim_impl() const { return 3; };
+
+    /// Implementation of \ref targetDim for principal stretch directions
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::StretchDir, short_t>::type targetDim_impl() const { return 9; };
 
     /// Implementation of \ref targetDim for principal stress directions
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::CovTransform ||
-                            _out==MaterialOutput::ConTransform, short_t>::type targetDim_impl() const { return 9; };
+    typename std::enable_if<_out==MaterialOutput::PStressDir, short_t>::type targetDim_impl() const { return 9; };
+
+    /// Implementation of \ref targetDim for principal stress directions
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::StretchTransform ||
+                            _out==MaterialOutput::PStressTransform, short_t>::type targetDim_impl() const { return 9; };
 
 
 public:
@@ -130,27 +133,29 @@ private:
                             _out==MaterialOutput::MatrixC ||
                             _out==MaterialOutput::MatrixD   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
-    /// Specialisation of \ref eval_into for the membrane and flexural principle stresses
-    template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::PStressN ||
-                            _out==MaterialOutput::PStressM  , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
-
     /// Specialisation of \ref eval_into for the stretches
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Stretch   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the principal stresses
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::PStress   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// Specialisation of \ref eval_into for the stretch directions
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::StretchDir, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
+    /// Specialisation of \ref eval_into for the stretch directions
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::PStressDir, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
     /// Specialisation of \ref eval_into for the covariant basis transformation
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::CovTransform, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    typename std::enable_if<_out==MaterialOutput::StretchTransform, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// Specialisation of \ref eval_into for the contravariant basis transformation
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::ConTransform, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
-
+    typename std::enable_if<_out==MaterialOutput::PStressTransform, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
 protected:
     gsMaterialMatrixBase<T> * m_materialMat;

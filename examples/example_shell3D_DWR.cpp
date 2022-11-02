@@ -360,11 +360,11 @@ int main(int argc, char *argv[])
     else if (goal==3)
         DWR2.setGoal(GoalFunction::MembraneStrain,component);
     else if (goal==4)
-        DWR2.setGoal(GoalFunction::MembranePStrain,component);
+        DWR2.setGoal(GoalFunction::PStrain,component);
     else if (goal==5)
         DWR2.setGoal(GoalFunction::MembraneStress,component);
     else if (goal==6)
-        DWR2.setGoal(GoalFunction::MembranePStress,component);
+        DWR2.setGoal(GoalFunction::PStress,component);
     else if (goal==7)
         DWR2.setGoal(GoalFunction::MembraneForce,component);
     else if (goal==8)
@@ -438,11 +438,11 @@ int main(int argc, char *argv[])
         else if (goal==3)
             DWR->setGoal(GoalFunction::MembraneStrain,component);
         else if (goal==4)
-            DWR->setGoal(GoalFunction::MembranePStrain,component);
+            DWR->setGoal(GoalFunction::PStrain,component);
         else if (goal==5)
             DWR->setGoal(GoalFunction::MembraneStress,component);
         else if (goal==6)
-            DWR->setGoal(GoalFunction::MembranePStress,component);
+            DWR->setGoal(GoalFunction::PStress,component);
         else if (goal==7)
             DWR->setGoal(GoalFunction::MembraneForce,component);
         else if (goal==8)
@@ -524,10 +524,9 @@ int main(int argc, char *argv[])
         if (plot)
         {
             std::string fileName = "indicator" + util::to_string(r);
-            numError = DWR->computeError(dualL,dualH,fileName,5000,false,true);
+            numError = DWR->computeError(dualL,dualH,fileName,5000,false,false);
             fileName = "indicator" + util::to_string(r) + "0";
-            collection.addTimestep(fileName,r,".vts");
-            collection.addTimestep(fileName,r,"_mesh.vtp");
+            indicator.addTimestep(fileName,r,".vts");
         }
         else
             numError = DWR->computeError(dualL,dualH);
