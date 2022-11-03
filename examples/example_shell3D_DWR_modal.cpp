@@ -25,6 +25,8 @@
 #include <gsAssembler/gsAdaptiveMeshing.h>
 #include <gsAssembler/gsAdaptiveMeshingUtils.h>
 
+#include <gsStructuralAnalysis/gsModalSolver.h>
+
 using namespace gismo;
 
 template<typename T>
@@ -344,9 +346,6 @@ int main(int argc, char *argv[])
     std::vector<real_t> exGoal(numRefine+1);
     std::vector<index_t> DoFs(numRefine+1);
 
-    // solvers
-    gsSparseSolver<>::LU solver;
-
     // solutions
     gsMultiPatch<> primalL, dualL, dualH;
     gsVector<> solVector, solVectorDualL, solVectorDualH;
@@ -412,22 +411,22 @@ int main(int argc, char *argv[])
         // Solve system
         gsInfo << "Solving primal, size =" << DWR->matrixL().rows() << "," << DWR->matrixL().cols() << "... " << std::flush;
 
+        gsModalSolver<real_t> modalL(DWR->matrixL(),DWR->massL());
+        modalL.options().setInt("solver",2);
+        modalL.options().setInt("selectionRule",0);
+        modalL.options().setInt("sortRule",4);
+        modalL.options().setSwitch("verbose",true);
+        modalL.options().setInt("ncvFac",2);
+
 #ifdef GISMO_WITH_SPECTRA
         index_t numL = std::min(DWR->matrixL().cols()-1,10);
-        gsSpectraGenSymShiftSolver<gsSparseMatrix<real_t>,Spectra::GEigsMode::ShiftInvert> eigsolverL(DWR->matrixL(),DWR->massL(),numL,2*numL,0);
-        eigsolverL.init();
-        eigsolverL.compute(Spectra::SortRule::LargestMagn,1000,1e-10,Spectra::SortRule::SmallestAlge);
-        if (eigsolverL.info()==Spectra::CompInfo::Successful)           { gsDebug<<"Spectra converged in "<<eigsolverL.num_iterations()<<" iterations and with "<<eigsolverL.num_operations()<<"operations. \n"; }
-        else if (eigsolverL.info()==Spectra::CompInfo::NumericalIssue)  { GISMO_ERROR("Spectra did not converge! Error code: NumericalIssue"); }
-        else if (eigsolverL.info()==Spectra::CompInfo::NotConverging)   { GISMO_ERROR("Spectra did not converge! Error code: NotConverging"); }
-        else if (eigsolverL.info()==Spectra::CompInfo::NotComputed)     { GISMO_ERROR("Spectra did not converge! Error code: NotComputed");   }
-        else                                                            { GISMO_ERROR("No error code known"); }
+        gsDebugVar(numL);
+        modalL.computeSparse(0,numL);
 #else
-        Eigen::GeneralizedSelfAdjointEigenSolver<gsMatrix<real_t>::Base> eigsolverL;
-        eigsolverL.compute(DWR->matrixL(), DWR->massL());
+        modalL.compute();
 #endif
 
-        if (modeIdx > eigsolverL.eigenvalues().size()-1)
+        if (modeIdx > modalL.values().size()-1)
         {
             gsWarn<<"No error computed because mode does not exist (system size)!\n";
             approxs[r] = 0;
@@ -441,9 +440,9 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        solVector = solVectorDualL = eigsolverL.eigenvectors().col(modeIdx);
+        solVector = solVectorDualL = modalL.vectors().col(modeIdx);
 
-        eigvalL = dualvalL = eigsolverL.eigenvalues()[modeIdx];
+        eigvalL = dualvalL = modalL.values()(modeIdx,0);
 
         // Mass-normalize primal
         solVector = 1 / (solVector.transpose() * DWR->massL() * solVector) * solVector;
@@ -468,23 +467,18 @@ int main(int argc, char *argv[])
 
         gsInfo << "Solving dual (H), size = " << DWR->matrixH().rows() << "," << DWR->matrixH().cols() << "... " << std::flush;
 
+        gsModalSolver<real_t> modalH(DWR->matrixH(),DWR->massH());
+        modalH.options() = modalL.options();
+
 #ifdef GISMO_WITH_SPECTRA
         index_t numH = std::min(DWR->matrixH().cols()-1,10);
-        gsSpectraGenSymShiftSolver<gsSparseMatrix<real_t>,Spectra::GEigsMode::ShiftInvert> eigsolverH(DWR->matrixH(),DWR->massH(),numH,2*numH,0);
-        eigsolverH.init();
-        eigsolverH.compute(Spectra::SortRule::LargestMagn,1000,1e-10,Spectra::SortRule::SmallestAlge);
-        if (eigsolverH.info()==Spectra::CompInfo::Successful)           { gsDebug<<"Spectra converged in "<<eigsolverH.num_iterations()<<" iterations and with "<<eigsolverH.num_operations()<<"operations. \n"; }
-        else if (eigsolverH.info()==Spectra::CompInfo::NumericalIssue)  { GISMO_ERROR("Spectra did not converge! Error code: NumericalIssue"); }
-        else if (eigsolverH.info()==Spectra::CompInfo::NotConverging)   { GISMO_ERROR("Spectra did not converge! Error code: NotConverging"); }
-        else if (eigsolverH.info()==Spectra::CompInfo::NotComputed)     { GISMO_ERROR("Spectra did not converge! Error code: NotComputed");   }
-        else                                                            { GISMO_ERROR("No error code known"); }
+        modalH.computeSparse(0,numH);
 #else
-        Eigen::GeneralizedSelfAdjointEigenSolver<gsMatrix<real_t>::Base> eigsolverH;
-        eigsolverH.compute(DWR->matrixH(), DWR->massH());
+        modalH.compute();
 #endif
 
-        solVectorDualH = eigsolverH.eigenvectors().col(modeIdx);
-        dualvalH = eigsolverH.eigenvalues()[modeIdx];
+        solVectorDualH = modalH.vectors().col(modeIdx);
+        dualvalH = modalH.values()(modeIdx,0);
 
         // mass-normalize w.r.t. primal
         DWR->constructMultiPatchH(solVectorDualH, dualH);
