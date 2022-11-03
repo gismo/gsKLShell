@@ -450,13 +450,28 @@ int main(int argc, char *argv[])
 
             mesher.markRef_into(elErrors,markRef);
             mesher.refine(markRef);
-            // gsDebugVar(markRef);
+            gsInfo<<"------------------------------------------------------------\n";
+            gsInfo<<"-------------------Marked elements for refinement-----------\n";
+            gsInfo<<"------------------------------------------------------------\n";
+            gsInfo<<markRef<<"\n";
+            gsInfo<<"------------------------------------------------------------\n";
+            gsInfo<<"------------------------------------------------------------\n";
+            gsInfo<<"------------------------------------------------------------\n";
 
             if (adaptivity>1)
             {
                 mesher.markCrs_into(elErrors,markRef,markCrs);
                 mesher.refine(markRef);
                 mesher.unrefine(markCrs);
+                gsInfo<<"------------------------------------------------------------\n";
+                gsInfo<<"-------------------Marked elements for coarsening-----------\n";
+                gsInfo<<"------------------------------------------------------------\n";
+                gsInfo<<markRef<<"\n";
+                gsInfo<<"------------------------------------------------------------\n";
+                gsInfo<<"------------------------------------------------------------\n";
+                gsInfo<<"------------------------------------------------------------\n";
+
+
                 // gsDebugVar(markCrs);
             }
             mesher.rebuild();
