@@ -229,11 +229,11 @@ int main(int argc, char *argv[])
         else if (goal==3)
             DWR->setGoal(GoalFunction::MembraneStrain,component);
         else if (goal==4)
-            DWR->setGoal(GoalFunction::MembranePStrain,component);
+            DWR->setGoal(GoalFunction::PStrain,component);
         else if (goal==5)
             DWR->setGoal(GoalFunction::MembraneStress,component);
         else if (goal==6)
-            DWR->setGoal(GoalFunction::MembranePStress,component);
+            DWR->setGoal(GoalFunction::PStress,component);
         else if (goal==7)
             DWR->setGoal(GoalFunction::MembraneForce,component);
         else if (goal==8)
@@ -284,6 +284,7 @@ int main(int argc, char *argv[])
         // arcLength.options().setReal("TolF",tolF);
         arcLength.options().setInt("MaxIter",50);
         arcLength.options().setSwitch("Verbose",true);
+        arcLength.options().setInt("BifurcationMethod",gsALMBase<real_t>::bifmethod::Nothing);
         gsInfo<<arcLength.options();
         arcLength.applyOptions();
         arcLength.initialize();
@@ -314,7 +315,7 @@ int main(int argc, char *argv[])
             L = Lold = arcLength.solutionL();
             k++;
             dL0 = dL = std::min(1-L,dL0);
-            gsInfo<<"dL = "<<dL<<"; 1-L = "<<1-L<<"\n"
+            gsInfo<<"dL = "<<dL<<"; 1-L = "<<1-L<<"\n";
             if (dL > 1-L) dL0 = dL = 1-L;
         }
         DWR->constructMultiPatchL(solVector,primalL);
