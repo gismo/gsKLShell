@@ -51,6 +51,8 @@ int main(int argc, char *argv[])
 
     int adaptivity = 0;
 
+    std::string dirname  = "Static_Pointload";
+
     std::string mesherOptionsFile("options/shell_mesher_options.xml");
 
     gsCmdLine cmd("Tutorial on solving a Poisson problem.");
@@ -71,6 +73,8 @@ int main(int argc, char *argv[])
     cmd.addSwitch("write", "Write convergence to file", write);
     cmd.addSwitch("loop", "Uniform Refinement loop", loop);
     cmd.addString( "O", "mesherOpt", "Input XML file for mesher options", mesherOptionsFile );
+    cmd.addString( "o", "output", "output directory", dirname );
+
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
@@ -183,7 +187,6 @@ int main(int argc, char *argv[])
 
     gsThinShellAssemblerDWRBase<real_t> * DWR;
 
-    std::string dirname  = "Static_Pointload_A=" + std::to_string(adaptivity);
     std::string commands = "mkdir -p " + dirname;
     const char *command  = commands.c_str();
     system(command);
