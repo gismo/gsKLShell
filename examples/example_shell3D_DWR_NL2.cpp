@@ -447,7 +447,7 @@ int main(int argc, char *argv[])
                 const gsField<> elemError_eh( mp.patch(0), err_eh, true );
                 std::string fileName = dirname + "/" + "error_elem_ref" + util::to_string(r);
                 gsWriteParaview<>( elemError_eh, fileName, 5000, true);
-                fileName = "solution" + util::to_string(r) + "0";
+                fileName = "error_elem_ref" + util::to_string(r) + "0";
                 errors.addTimestep(fileName,r,".vts");
                 errors.addTimestep(fileName,r,"_mesh.vtp");
             }
