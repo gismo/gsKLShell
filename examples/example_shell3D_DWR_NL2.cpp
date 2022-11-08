@@ -180,6 +180,7 @@ int main(int argc, char *argv[])
     std::vector<real_t> numGoal(numRefine+1);
     std::vector<real_t> estGoal(numRefine+1);
     std::vector<real_t> exGoal(numRefine+1);
+    std::vector<real_t> Uz(numRefine+1);
     std::vector<real_t> DoFs(numRefine+1);
 
     gsVector<> solVector;
@@ -387,6 +388,12 @@ int main(int argc, char *argv[])
         gsInfo<<"Error = "<<approxs[r]<<"\n";
         estGoal[r] = numGoal[r]+approxs[r];
 
+        gsVector<> Uz_pt(2);
+        Uz_pt.setConstant(0.25);
+        gsMatrix<> tmp;
+        mp_def.patch(0).eval_into(Uz_pt,tmp);
+        Uz[r] = tmp(2,0);
+
         if (adaptivity==0)
         {
             mp.uniformRefine();
@@ -489,7 +496,7 @@ int main(int argc, char *argv[])
     }
 
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
-    gsInfo<<"Ref.\tApprox     \tEfficiency\tNumGoal   \texGoal    \t#elements \n";
+    gsInfo<<"Ref.\tApprox     \tEfficiency\tNumGoal   \texGoal    \tUz        \t#elements \n";
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
     for(index_t r=0; r!=numRefine+1; r++)
     {
@@ -498,6 +505,7 @@ int main(int argc, char *argv[])
         gsInfo  <<std::setw(10)<<std::left<<efficiencies[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<numGoal[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<estGoal[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<Uz[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<DoFs[r]<<"\n";
     }
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
@@ -511,10 +519,10 @@ int main(int argc, char *argv[])
         std::ofstream file_out;
         file_out.open (filename);
 
-        file_out<<"Ref,Approx,Efficiency,NumGoal,exGoal,DoFs\n";
+        file_out<<"Ref,Approx,Efficiency,NumGoal,exGoal,Uz,DoFs\n";
         for(index_t r=0; r!=numRefine+1; r++)
         {
-            file_out<<r<<","<<approxs[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<DoFs[r]<<"\n";
+            file_out<<r<<","<<approxs[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<Uz[r]<<","<<DoFs[r]<<"\n";
         }
 
         file_out.close();
