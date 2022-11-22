@@ -82,7 +82,13 @@ public:
         rhsL.setZero();
         gsVector<T> rhsH(m_assembler->numDofsH());
         rhsH.setZero();
-        gsSparseSolver<>::LU solver;
+
+        gsSparseSolver<real_t>::uPtr solver;
+        #ifdef GISMO_WITH_PARDISO
+            solver = gsSparseSolver<real_t>::get( "PardisoLU");
+        #else
+            solver = gsSparseSolver<real_t>::get( "LU");
+        #endif
 
         gsInfo << "Assembling dual matrix (L)... "<< std::flush;
         m_assembler->assembleMatrixL(deformed);
@@ -105,8 +111,8 @@ public:
         }
         gsInfo << "done.\n";
         gsInfo << "Solving dual (L), size = "<<m_assembler->matrixL().rows()<<","<<m_assembler->matrixL().cols()<<"... "<< std::flush;
-        solver.compute(m_assembler->matrixL());
-        solVector = solver.solve(rhsL);
+        solver->compute(m_assembler->matrixL());
+        solVector = solver->solve(rhsL);
         m_assembler->constructMultiPatchL(solVector,dualL);
         gsInfo << "done.\n";
 
@@ -132,8 +138,8 @@ public:
 
         gsInfo << "done.\n";
         gsInfo << "Solving dual (H), size = "<<m_assembler->matrixH().rows()<<","<<m_assembler->matrixH().cols()<<"... "<< std::flush;
-        solver.compute(m_assembler->matrixH());
-        solVector = solver.solve(rhsH);
+        solver->compute(m_assembler->matrixH());
+        solVector = solver->solve(rhsH);
         m_assembler->constructMultiPatchH(solVector,dualH);
         gsInfo << "done.\n";
 
