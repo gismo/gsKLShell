@@ -35,8 +35,13 @@
   </bc>
   <bc type="Dirichlet" function="0" unknown="0" component="2">
   </bc>
+  <bc type="Clamped" function="0" unknown="0" component="0">
+  </bc>
+  <bc type="Clamped" function="0" unknown="0" component="1">
+  </bc>
   <bc type="Clamped" function="0" unknown="0" component="2">
   </bc>
+
 
   <bc type="Collapsed" function="0" unknown="0" component="2">
   </bc>

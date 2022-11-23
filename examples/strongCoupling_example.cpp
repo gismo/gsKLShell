@@ -22,6 +22,7 @@
 
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/gsMaterialMatrixLinear.h>
+#include <gsKLShell/gsMaterialMatrixIntegrate.h>
 #include <gsKLShell/gsFunctionSum.h>
 
 #include <gsUtils/gsQuasiInterpolate.h>
@@ -103,6 +104,7 @@ int main(int argc, char *argv[])
     gsFileData<> fd;
     gsInfo<<"Reading geometry from "<<fn1<<"...";
     gsReadFile<>(fn1, mp);
+        gsWrite(mp,"neon_side_full.xml");
     if (mp.nInterfaces()==0 && mp.nBoundary()==0)
     {
         gsInfo<<"No topology found. Computing it...";
@@ -309,6 +311,11 @@ int main(int argc, char *argv[])
         //gsWrite(dbasis,"dbasis");
     }
 
+    gsWriteParaview(geom,"geom",1000);
+
+    // geom.patch(0).coefs()(0,2) = 1;
+    // gsWriteParaview(geom,"basis",1000);
+
     // gsMappedSpline<2,real_t> mspline(bb2,coefs);
     // geom = mspline.exportToPatches();
 
@@ -414,22 +421,6 @@ int main(int argc, char *argv[])
 
     // 3. Make the mapped spline
     gsMappedSpline<2,real_t> mspline(bb2,solFull);
-    gsMappedSpline<2,real_t> mspline_ori(bb2,solZero);
-    gsMappedSpline<2,real_t> mspline_def(bb2,solFull);
-
-    gsFunctionSum<real_t> ori(&geom,&mspline_ori);
-    gsFunctionSum<real_t> def(&geom,&mspline_def);
-
-    gsMultiPatch<> mp_ori = mp;
-    gsMultiPatch<> mp_def = mp;
-    for (size_t p = 0; p!=mp.nPatches(); p++)
-    {
-        gsMatrix<> coefs;
-        gsQuasiInterpolate<real_t>::localIntpl(mp.basis(p), ori.piece(p), coefs);
-        mp_ori.patch(p).coefs() += coefs;
-        gsQuasiInterpolate<real_t>::localIntpl(mp.basis(p), def.piece(p), coefs);
-        mp_def.patch(p).coefs() += coefs;
-    }
 
     gsField<> solField(geom, mspline,true);
 
@@ -468,45 +459,18 @@ int main(int argc, char *argv[])
 
     gsInfo << "Number of Dofs: " << assembler.numDofs() << "\n";
 
-    gsExprEvaluator<> ev;
-    typedef gsExprAssembler<>::geometryMap geometryMap;
-    geometryMap m_ori   = ev.getMap(mp_ori);
-    geometryMap m_def   = ev.getMap(mp_def);
-
-    gsMatrix<> pts(2,4);
-    pts.col(0)<<0.1,0.1;
-    pts.col(1)<<0.1,0.9;
-    pts.col(2)<<0.9,0.1;
-    pts.col(3)<<0.9,0.9;
-    auto test = (flat(jac(m_def).tr()*jac(m_def))).tr();
-    auto That   = cartcon(m_ori);
-    auto Ttilde = cartcov(m_ori);
-    auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) * That;
-
-    // ev.setIntegrationElements(dbasis);
-    // ev.options().setSwitch("plot.elements",mesh);
-    // ev.options().setInt("plot.npts",1000);
-    // ev.writeParaview(That.asDiag(),m_ori,"test-1");
-    // ev.writeParaview(Ttilde.asDiag(),m_ori,"test0");
-    // ev.writeParaview(E_m,m_ori,"test1");
-    // ev.writeParaview(flat(jac(m_ori).tr()*jac(m_ori))*That,m_ori,"test2");
-    // ev.writeParaview(flat(jac(m_def).tr()*jac(m_def))*That,m_ori,"test3");
-    // ev.writeParaview(E_m2,m_ori,"test4");
-    // ev.writeParaview(flat(jac(m_ori).tr()*jac(m_ori))*Ttilde,m_ori,"test5");
-    // ev.writeParaview(flat(jac(m_def).tr()*jac(m_def))*Ttilde,m_ori,"test6");
-
     //! [Export visualization in ParaView]
     if (plot)
     {
         // 4. Plot the mapped spline on the original geometry
         gsField<> solField(geom, mspline,true);
         gsInfo<<"Plotting in Paraview...\n";
-        gsWriteParaview<>( solField, "Deformation", 1000, true);
+        gsWriteParaview<>( solField, "Deformation", 100000, mesh);
 
-        // 4. Plot the mapped spline on the original geometry
-        gsField<> solField2(mp_def, def,true);
-        gsInfo<<"Plotting in Paraview...\n";
-        gsWriteParaview<>( solField2, "Deformation_", 1000, true);
+        // // 4. Plot the mapped spline on the original geometry
+        // gsField<> solField2(mp_def, def,true);
+        // gsInfo<<"Plotting in Paraview...\n";
+        // gsWriteParaview<>( solField2, "Deformation_", 1000, true);
 
 
         // // 5. Plot the mapped spline on the deformed geometry
@@ -516,32 +480,115 @@ int main(int argc, char *argv[])
 
         // gsMultiPatch<> mpatches = mbasis.exportToPatches(tmp);
 
-        gsField<> solfield(geom,def,true);
-        gsWriteParaview(solfield,"solfield",1000,true);
+        // gsField<> solfield(geom,def,true);
+        // gsWriteParaview(solfield,"solfield",1000,true);
     }
+
+    gsMappedSpline<2,real_t> mspline_ori(bb2,solZero);
+    gsMappedSpline<2,real_t> mspline_def(bb2,solFull);
+
+    gsFunctionSum<real_t> ori(&geom,&mspline_ori);
+    gsFunctionSum<real_t> def(&geom,&mspline_def);
+
+    if (method==2 || method==3) geom = mp;
+
+
+    gsMultiPatch<> mp_ori = geom;
+    gsMultiPatch<> mp_def = geom;
+    for (size_t p = 0; p!=mp.nPatches(); p++)
+    {
+        gsMatrix<> coefs;
+        gsQuasiInterpolate<real_t>::localIntpl(geom.basis(p), ori.piece(p), coefs);
+        mp_ori.patch(p).coefs() = coefs;
+        gsQuasiInterpolate<real_t>::localIntpl(geom.basis(p), def.piece(p), coefs);
+        mp_def.patch(p).coefs() = coefs;
+    }
+
+    // mp_ori = geom;
+    // mp_ori.patch(0).coefs().col(0) *=2;
+    // mp_ori.patch(1).coefs().col(0) *=2;
+    // mp_def = mp_ori;
+    // mp_def.patch(0).coefs().col(0) *=2;
+    // mp_def.patch(1).coefs().col(0) *=2;
+
+    // gsExprEvaluator<> ev;
+    // typedef gsExprAssembler<>::geometryMap geometryMap;
+    // geometryMap m_ori   = ev.getMap(mp_ori);
+    // geometryMap m_def   = ev.getMap(mp_def);
+
+    // gsMatrix<> pts(2,4);
+    // pts.col(0)<<0.1,0.1;
+    // pts.col(1)<<0.1,0.9;
+    // pts.col(2)<<0.9,0.1;
+    // pts.col(3)<<0.9,0.9;
+    // auto test = (flat(jac(m_def).tr()*jac(m_def))).tr();
+    // auto That   = cartcon(m_ori);
+    // auto Ttilde = cartcov(m_ori);
+    // auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) * That;
+
+    // gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorN> m_S0(&materialMatrix,&mspline_ori,&mspline_def);
+    // auto S0 = ev.getVariable(m_S0);
+    // gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorM> m_S1(&materialMatrix,&mspline_ori,&mspline_def);
+    // auto S1 = ev.getVariable(m_S1);
+
+    // gsPiecewiseFunction<> displace;
+    // gsDebugVar("DisplacementFun construction");
+    // assembler.constructStress(mp_ori,mp_def,displace,stress_type::displacement);
+    // gsWriteParaview(mp_ori,displace,"DisplacementFun",10000);
+
+
+    // ev.setIntegrationElements(dbasis);
+    // ev.options().setSwitch("plot.elements",mesh);
+    // ev.options().setInt("plot.npts",1000);
+    // ev.writeParaview(That.asDiag(),m_ori,"test-1");
+    // ev.writeParaview(Ttilde.asDiag(),m_ori,"test0");
+    // ev.writeParaview(m_ori,m_ori,"test1");
+    // // ev.writeParaview(E_m,m_ori,"test1");
+    // ev.writeParaview(flat(ijac(m_ori,m_ori).tr()*ijac(m_ori,m_ori)),m_ori,"test2");
+    // ev.writeParaview(flat(jac(m_def).tr()*jac(m_def)),m_ori,"test3");
+    // ev.writeParaview(flat(ijac(m_def,m_ori).tr()*ijac(m_def,m_ori)),m_ori,"test4");
+    // ev.writeParaview(flat(jac(m_ori).tr()*jac(m_ori))*That,m_ori,"test5");
+    // ev.writeParaview(flat(jac(m_def).tr()*jac(m_def))*That,m_ori,"test6");
+    // ev.writeParaview((flat(jac(m_def).tr()*jac(m_def))-flat(jac(m_ori).tr()*jac(m_ori)))*That.tr(),m_ori,"test7");
+
+    // ev.writeParaview(flat(jac(m_ori).tr()*jac(m_ori))*Ttilde.tr(),m_ori,"test8");
+    // ev.writeParaview(flat(jac(m_def).tr()*jac(m_def))*Ttilde.tr(),m_ori,"test9");
+    // ev.writeParaview((flat(jac(m_def).tr()*jac(m_def))-flat(jac(m_ori).tr()*jac(m_ori)))*Ttilde.tr(),m_ori,"test10");
+
+    // ev.writeParaview(S0.tr()*That,m_ori,"test9");
+    // ev.writeParaview(S1.tr()*Ttilde,m_ori,"test10");
+
+    // return 0;
+
+
     if (stress)
     {
         gsPiecewiseFunction<> displace;
         gsDebugVar("DisplacementFun construction");
-        assembler.constructStress(mp_ori,mp_def,displace,stress_type::displacement);
-        gsWriteParaview(mp_ori,displace,"DisplacementFun",10000);
+        assembler.constructStress(ori,def,displace,stress_type::displacement);
+        gsWriteParaview(ori,displace,"DisplacementFun",10000);
         gsDebugVar("DisplacementFunDef construction");
-        gsWriteParaview(mp_def,displace,"DisplacementFunDef",10000);
+        gsWriteParaview(def,displace,"DisplacementFunDef",10000);
 
         gsPiecewiseFunction<> membraneStrains;
         gsDebugVar("MembraneStrain construction");
-        assembler.constructStress(mp_ori,mp_def,membraneStrains,stress_type::membrane_strain);
-        gsWriteParaview(geom,membraneStrains,"MembraneStrain",10000);
+        assembler.constructStress(ori,def,membraneStrains,stress_type::membrane_strain);
+        gsWriteParaview(ori,membraneStrains,"MembraneStrain",10000);
 
         gsPiecewiseFunction<> membraneStresses;
         gsDebugVar("MembraneStress construction");
-        assembler.constructStress(mp_ori,mp_def,membraneStresses,stress_type::membrane);
-        gsWriteParaview(geom,membraneStresses,"MembraneStress",10000);
+        assembler.constructStress(ori,def,membraneStresses,stress_type::membrane);
+        gsWriteParaview(ori,membraneStresses,"MembraneStress",10000);
 
-        gsPiecewiseFunction<> flexuralStresses;
-        gsDebugVar("FlexuralStress construction");
-        assembler.constructStress(geom,def,flexuralStresses,stress_type::flexural);
-        gsWriteParaview(geom,flexuralStresses,"FlexuralStress",10000);
+        gsPiecewiseFunction<> membraneStressesVM;
+        gsDebugVar("MembraneStress construction");
+        assembler.constructStress(ori,def,membraneStressesVM,stress_type::von_mises_membrane);
+        gsWriteParaview(ori,membraneStressesVM,"MembraneStressVM",10000);
+
+        // gsPiecewiseFunction<> flexuralStresses;
+        // gsDebugVar("FlexuralStress construction");
+        // assembler.constructStress(mp_ori,mp_def,flexuralStresses,stress_type::flexural);
+        // gsWriteParaview(geom,flexuralStresses,"FlexuralStress",10000);
     }
     if (write)
     {

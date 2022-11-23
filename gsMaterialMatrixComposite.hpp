@@ -326,7 +326,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_transformationMatrix(const gsMatr
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_cart2cov(const gsVector<T> a1, const gsVector<T> a2, const gsVector<T> e1, const gsVector<T> e2) const
+gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_cart2cov(const gsVector<T> & a1, const gsVector<T> & a2, const gsVector<T> & e1, const gsVector<T> & e2) const
 {
     gsMatrix<T,3,3> Tmat;
     Tmat.setZero();
@@ -348,7 +348,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_cart2cov(const gsVector<T> a1, co
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_con2cart(const gsVector<T> ac1, const gsVector<T> ac2, const gsVector<T> e1, const gsVector<T> e2) const
+gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_con2cart(const gsVector<T> & ac1, const gsVector<T> & ac2, const gsVector<T> & e1, const gsVector<T> & e2) const
 {
     gsMatrix<T,3,3> Tmat;
     Tmat.setZero();

@@ -1420,6 +1420,9 @@ public:
 };
 
 /// Expression for the transformation matrix FROM local covariant TO local cartesian bases, based on a geometry map
+/// Use of this expression:
+/// Let E be a tensor in local covariant coordinates. Then E' = cartcov(G) * E = E.tr() * cartcov(G).tr() is the tensor in local Cartesian basis
+///
 template<class T> class cartcovinv_expr ;
 
 template<class T>
@@ -1456,8 +1459,13 @@ public:
 
             conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
 
-            e1 = covBasis.col(0); e1.normalize();
-            e2 = conBasis.col(1); e2.normalize();
+            // e1 = covBasis.col(0); e1.normalize();
+            // e2 = conBasis.col(1); e2.normalize();
+
+            e1.resize(3);
+            e1 << 1,0,0;
+            e2.resize(3);
+            e2 << 0,1,0;
 
             a1 = covBasis.col(0);
             a2 = covBasis.col(1);
@@ -1487,9 +1495,14 @@ public:
             conMetric = covMetric.inverse();
             conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1);
 
-            e1 = covBasis.col(0); e1.normalize();
-            e2 = conBasis.col(1); e2.normalize();
+            // e1 = covBasis.col(0); e1.normalize();
+            // e2 = conBasis.col(1); e2.normalize();
             // e3 = normal;
+
+            e1.resize(3);
+            e1 << 1,0,0;
+            e2.resize(3);
+            e2 << 0,1,0;
 
             a1 = covBasis.col(0);
             a2 = covBasis.col(1);
@@ -1576,6 +1589,8 @@ public:
 };
 
 /// Expression for the transformation matrix FROM local contravariant TO local cartesian bases, based on a geometry map
+/// Use of this expression:
+/// Let S be a tensor in local covariant coordinates. Then S' = cartcon(G) * S = S.tr() * cartcon(G).tr() is the tensor in local Cartesian basis
 template<class T> class cartconinv_expr ;
 
 template<class T>
@@ -1616,9 +1631,15 @@ public:
             conBasis.col(0) = conMetric(0,0)*covBasis.col(0)+conMetric(0,1)*covBasis.col(1)+conMetric(0,2)*covBasis.col(2);
             conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
 
-            e1 = covBasis.col(0); e1.normalize();
-            e2 = conBasis.col(1); e2.normalize();
+            // e1 = covBasis.col(0); e1.normalize();
+            // e2 = conBasis.col(1); e2.normalize();
             // e3 = normal;
+
+
+            e1.resize(3);
+            e1 << 1,0,0;
+            e2.resize(3);
+            e2 << 0,1,0;
 
             ac1 = conBasis.col(0);
             ac2 = conBasis.col(1);

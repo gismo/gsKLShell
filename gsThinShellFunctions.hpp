@@ -59,25 +59,11 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
 
     auto That   = cartcon(m_ori);
     auto Ttilde = cartcov(m_ori);
-    // auto Tmat   = cartcov(m_def);
-    auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) * That;
-    auto E_f    = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) * That;
+    auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) * That.tr();
+    auto E_f    = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) * That.tr();
 
-
-    // auto S_m    = S0.tr() * Ttilde;
-    // auto S_f    = S1.tr() * Ttilde;
-
-    auto S_m    = S0.tr() * Ttilde;
-    auto S_f    = S1.tr() * Ttilde;
-
-    // auto S_m    = S0.tr() * That;
-    // auto S_f    = S1.tr() * That;
-
-    // auto S_m    = S0.tr();
-    // auto S_f    = S1.tr();
-
-    // auto S_m    = E_m * reshape(A,3,3);
-    // auto S_f    = E_f * reshape(D,3,3);
+    auto S_m    = S0.tr() * Ttilde.tr();
+    auto S_f    = S1.tr() * Ttilde.tr();
 
     gsMatrix<T> tmp;
 
@@ -104,6 +90,11 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
             break;
 
         case stress_type::von_mises_membrane :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                gsMatrix<> S = (ev.eval(S_m,u.col(k),m_patchID)).transpose();
+                result(0,k) = math::sqrt(S(0,0)*S(0,0)+S(1,0)*S(1,0)-S(0,0)*S(1,0)-3*S(2,0)*S(2,0));
+            }
             break;
 
         case stress_type::von_mises_flexural :

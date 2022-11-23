@@ -283,6 +283,7 @@ int main(int argc, char *argv[])
         bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0 ,false, 1 );
         bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0 ,false, 2 );
 
+        tmp<<0,0,-900;
         // Surface forces
         gsConstantFunction<> force0(tmp,3);
         force.addPiece(force0);

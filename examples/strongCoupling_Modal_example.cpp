@@ -166,6 +166,8 @@ int main(int argc, char *argv[])
     gsInfo<<"Finished\n";
     gsInfo<<"Patch 0 has basis: "<<mp.basis(0)<<"\n";
 
+    gsDebugVar(mp.basis(0));
+
     if (plot)
     {
         std::string commands = "mkdir -p " + out;
@@ -283,6 +285,26 @@ int main(int argc, char *argv[])
     }
     if (plot)
         gsWriteParaview(geom,out + "/" + "geom",200,true);
+
+    typedef gsExprAssembler<>::geometryMap geometryMap;
+    typedef gsExprAssembler<>::variable    variable;
+    typedef gsExprAssembler<>::space       space;
+    typedef gsExprAssembler<>::solution    solution;
+
+    gsExprEvaluator<> ev;
+    ev.setIntegrationElements(dbasis);
+    geometryMap G = ev.getMap(geom);
+    gsVector<> pt(2);
+    pt.setConstant(0.5);
+
+    gsDebugVar(ev.eval(nn(G,mp),pt,0));
+    gsDebugVar(ev.eval(G,pt,0));
+
+
+
+
+
+return 0;
 
     // gsMappedSpline<2,real_t> mspline(bb2,coefs);
     // geom = mspline.exportToPatches();
