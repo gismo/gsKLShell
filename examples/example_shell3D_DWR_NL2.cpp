@@ -85,8 +85,8 @@ int main(int argc, char *argv[])
 
     // Unit square
     // real_t L = 2;
-    real_t L = 1;
-    real_t B = 1;
+    real_t L = 0.5;
+    real_t B = 0.5;
     mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
     mp.patch(0).coefs().col(0) *= L;
     mp.patch(0).coefs().col(1) *= B;
@@ -131,17 +131,22 @@ int main(int argc, char *argv[])
     gsVector<> tmp(3);
     tmp << 0, 0, 0;
 
-    real_t load = 1e-6;
+    real_t load = 1e-7;
 
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
 
-    bc.addCornerValue(boundary::northeast, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
+    bc.addCondition(boundary::north,condition_type::dirichlet,0,0,false,1);
+    bc.addCondition(boundary::north,condition_type::clamped,0,0,false,0);
+    bc.addCondition(boundary::north,condition_type::clamped,0,0,false,2);
+
+    bc.addCondition(boundary::east,condition_type::dirichlet,0,0,false,0);
+    bc.addCondition(boundary::east,condition_type::clamped,0,0,false,1);
+    bc.addCondition(boundary::east,condition_type::clamped,0,0,false,2);
+
     bc.addCornerValue(boundary::southwest, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
-    bc.addCornerValue(boundary::southeast, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
-    bc.addCornerValue(boundary::northwest, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
 
     gsVector<> pointvec(2);
-    pointvec<< 0.5, 0.5 ;
+    pointvec<< 1.0, 1.0 ;
     gsVector<> loadvec (3);
     loadvec << 0.0, 0.0, load ;
     pLoads.addLoad(pointvec, loadvec, 0 );
