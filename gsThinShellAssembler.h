@@ -153,11 +153,11 @@ public:
 
 private:
     /// Specialisation of assemble() for surfaces (3D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, void>::type assemble_impl();
 
     /// Specialisation of assemble() for planar geometries (2D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type assemble_impl();
 
 public:
@@ -187,22 +187,22 @@ public:
 
 private:
     /// Implementation of assembleMatrix for surfaces (3D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, void>::type
     assembleMatrix_impl(const gsFunctionSet<T>   & deformed  );
 
     /// Implementation of assembleMatrix for planar geometries (2D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
     assembleMatrix_impl(const gsFunctionSet<T>   & deformed  );
 
     /// Implementation of assembleMatrix for surfaces (3D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, void>::type
     assembleMatrix_impl(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update);
 
     /// Implementation of assembleMatrix for planar geometries (2D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
     assembleMatrix_impl(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update)
     { GISMO_NO_IMPLEMENTATION; }
@@ -216,12 +216,12 @@ public:
 
 private:
     /// Implementation of assembleVector for surfaces (3D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, void>::type
     assembleVector_impl(const gsFunctionSet<T>   & deformed  );
 
     /// Implementation of assembleVector for planar geometries (2D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
     assembleVector_impl(const gsFunctionSet<T>   & deformed  );
 
@@ -234,22 +234,22 @@ public:
 
 private:
     /// Implementation of the boundary force vector for surfaces (3D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
     boundaryForceVector_impl(const gsFunctionSet<T>   & deformed , patchSide& ps, index_t com );
 
     /// Implementation of the boundary force vector for planar geometries (2D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
     boundaryForceVector_impl(const gsFunctionSet<T>   & deformed , patchSide& ps, index_t com );
 
     /// Implementation of the boundary force vector for surfaces (3D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
     boundaryForce_impl(const gsFunctionSet<T>   & deformed , patchSide& ps);
 
     /// Implementation of the boundary force vector for planar geometries (2D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
     boundaryForce_impl(const gsFunctionSet<T>   & deformed , patchSide& ps);
 
@@ -339,27 +339,27 @@ protected:
     void _applyMass();
 
 private:
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, void>::type
     _assembleNeumann_impl();
 
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
     _assembleNeumann_impl();
 
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, void>::type
     _assembleWeakBCs_impl();
 
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
     _assembleWeakBCs_impl();
 
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, void>::type
     _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
     _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
 
@@ -610,7 +610,7 @@ public:
      *
      * @return     The loads on the control points. The sum is the total load on the boundary
      */
-    virtual gsMatrix<T> boundaryForceVector(const gsFunctionSet<T>   & deformed , patchSide& ps, int com ) = 0;
+    virtual gsMatrix<T> boundaryForceVector(const gsFunctionSet<T>   & deformed , patchSide& ps, index_t com ) = 0;
 
     virtual gsMatrix<T> boundaryForce(const gsFunctionSet<T>   & deformed , patchSide& ps) = 0;
 

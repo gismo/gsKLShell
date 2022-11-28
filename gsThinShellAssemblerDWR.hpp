@@ -1350,7 +1350,7 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorDofs(const gs
 }
 
 template <short_t d, class T, bool bending>
-template <int _elWise>
+template <index_t _elWise>
 void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl( const gsMultiPatch<T> & dualL,
                                                                 const gsMultiPatch<T> & dualH,
                                                                 std::string filename,
@@ -1460,7 +1460,7 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorDofs(const gs
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool _bending, int _elWise>
+template<short_t _d, bool _bending, index_t _elWise>
 typename std::enable_if<_d==3 && _bending, void>::type
 gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed,
                                                             std::string filename, unsigned np, bool parametric, bool mesh)
@@ -1560,7 +1560,7 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool _bending, int _elWise>
+template<short_t _d, bool _bending, index_t _elWise>
 typename std::enable_if<!(_d==3 && _bending), void>::type
 gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(  const gsMultiPatch<T> & dualL,
                                                             const gsMultiPatch<T> & dualH,
@@ -1748,7 +1748,7 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEigDofs( cons
 
 
 template <short_t d, class T, bool bending>
-template <int _elWise>
+template <index_t _elWise>
 void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T evPrimalL,
                                                                                 const T evDualL,
                                                                                 const T evDualH,
@@ -2043,7 +2043,7 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEigDofs(    c
 }
 
 template <short_t d, class T, bool bending>
-template <int _elWise>
+template <index_t _elWise>
 void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T evPrimalL,
                                                                                 const T evDualL,
                                                                                 const T evDualH,

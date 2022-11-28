@@ -174,7 +174,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_computePoints_impl(const gsMatrix<T
         GISMO_ENSURE((m_pars.size()-2 )% 2 ==0, "Ogden material models must have an even number of parameters (tuples of alpha_i and mu_i). m_pars.size() = "<< m_pars.size());
 
         /// THIS CHECK IS NOT NECESSARY
-        // int n = (m_pars.size()-2)/2;
+        // index_t n = (m_pars.size()-2)/2;
         // sum = 0.0;
         // for (index_t k=0; k!=n; k++)
         // {
@@ -1866,7 +1866,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_dPsi_da_impl(const index_t a) const
 {
     GISMO_ENSURE(3 - 6 * m_parvals.at(1) != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
     T tmp = 0.0;
-    int n = (m_pars.size()-2)/2;
+    index_t n = (m_pars.size()-2)/2;
     T alpha_i, mu_i, Lambda;
     for (index_t k=0; k!=n; k++)
     {
@@ -1883,7 +1883,7 @@ typename std::enable_if<!_comp && (_mat==Material::OG), T>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_dPsi_da_impl(const index_t a) const
 {
     T tmp = 0.0;
-    int n = (m_pars.size()-2)/2;
+    index_t n = (m_pars.size()-2)/2;
     T alpha_i, mu_i;
     for (index_t k=0; k!=n; k++)
     {
@@ -2018,7 +2018,7 @@ typename std::enable_if<_comp && (_mat==Material::OG), T>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_d2Psi_dab_impl(const index_t a, const index_t b) const
 {
     T tmp = 0.0;
-    int n = (m_pars.size()-2)/2;
+    index_t n = (m_pars.size()-2)/2;
     T alpha_i, mu_i, Lambda;
     for (index_t k=0; k!=n; k++)
     {
@@ -2041,7 +2041,7 @@ typename std::enable_if<!_comp && (_mat==Material::OG), T>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_d2Psi_dab_impl(const index_t a, const index_t b) const
 {
     T tmp = 0.0;
-    int n = (m_pars.size()-2)/2;
+    index_t n = (m_pars.size()-2)/2;
     T alpha_i, mu_i;
     for (index_t k=0; k!=n; k++)
     {

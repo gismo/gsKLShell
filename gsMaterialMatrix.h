@@ -1145,12 +1145,12 @@ protected:
     gsOptionList m_options;
 
 private:
-    static int delta(const int a, const int b)
+    static index_t delta(const index_t a, const index_t b)
     {
         return (a==b) ? 1 : 0;
     }
 
-    static int idelta(const int a, const int b)
+    static index_t idelta(const index_t a, const index_t b)
     {
         return (a!=b) ? 1 : 0;
     }

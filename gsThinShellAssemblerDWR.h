@@ -357,27 +357,27 @@ protected:
     }
     gsVector<T>         _assembleDual(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
 
-    template<int _elWise>
+    template<index_t _elWise>
     void computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                             std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
 
-    template<int _d, bool _bending, int _elWise>
+    template<index_t _d, bool _bending, index_t _elWise>
     typename std::enable_if<(_d==3 && _bending), void>::type
     computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed,
                         std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
 
-    template<int _d, bool _bending, int _elWise>
+    template<index_t _d, bool _bending, index_t _elWise>
     typename std::enable_if<!(_d==3 && _bending), void>::type
     computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed,
                         std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
 
-    template<int _elWise>
+    template<index_t _elWise>
     void computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal,
                       std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
 
-    template<int _elWise>
+    template<index_t _elWise>
     void computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,
@@ -657,7 +657,7 @@ public:
 //     short_t targetDim() const { return 1;}
 
 // private:
-//     template<int _d, bool _bending>
+//     template<index_t _d, bool _bending>
 //     typename std::enable_if<!(_d==3 && _bending), void>::type
 //     eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& res) const
 //     {
@@ -686,7 +686,7 @@ public:
 //         auto expr = ( Fext - Fint ) * meas(Gori);
 //     }
 
-//     template<int _d, bool _bending>
+//     template<index_t _d, bool _bending>
 //     typename std::enable_if< (_d==3 && _bending), void>::type
 //     eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& res) const
 //     {
