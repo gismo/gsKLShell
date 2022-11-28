@@ -374,7 +374,7 @@ int main(int argc, char *argv[])
 
         if (plot)
         {
-            gsField<> Def(mp,primalL, true);
+            gsField<> Def(mp_def,primalL, true);
             std::string fileName = dirname + "/" + "solution" + util::to_string(r);
             gsWriteParaview<>(Def, fileName, 5000, true);
             fileName = "solution" + util::to_string(r) + "0";
