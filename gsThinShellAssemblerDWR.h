@@ -202,20 +202,14 @@ public:
     gsMatrix<T> projectL2_H(const gsFunction<T> &fun);
 
     // Linear elasticity
-    T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH);
-    T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
-    std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH);
-    std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
-    std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH);
-    std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
+    T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload=false, std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
+    std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload=false, std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
+    std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload=false, std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
 
     // Nonlinear elasticity
-    T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
-    T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
-    std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
-    std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
-    std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed);
-    std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
+    T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload=false, std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
+    std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload=false, std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
+    std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload=false, std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
 
     // Eigenvalues
     T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
@@ -223,38 +217,38 @@ public:
                       const gsMultiPatch<T> & primal);
     T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
-                      const gsMultiPatch<T> & primal,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
+                      const gsMultiPatch<T> & primal,std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
     std::vector<T> computeErrorEigElements(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal);
     std::vector<T> computeErrorEigElements(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
-                      const gsMultiPatch<T> & primal,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
+                      const gsMultiPatch<T> & primal,std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
     std::vector<T> computeErrorEigDofs(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal);
     std::vector<T> computeErrorEigDofs(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
-                      const gsMultiPatch<T> & primal,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
+                      const gsMultiPatch<T> & primal,std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
 
     T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
     T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
-                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
+                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
     std::vector<T> computeErrorEigElements(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
     std::vector<T> computeErrorEigElements(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
-                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
+                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
     std::vector<T> computeErrorEigDofs(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
     std::vector<T> computeErrorEigDofs(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
-                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
+                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
 
     T computeGoal(const gsMultiPatch<T> & deformed);
     T computeGoal(const bContainer & bnds, const gsMultiPatch<T> & deformed);
@@ -357,31 +351,31 @@ protected:
     }
     gsVector<T>         _assembleDual(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
 
-    template<index_t _elWise>
-    void computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
-                            std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
+    template<int _elWise>
+    void computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload,
+                            std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
 
-    template<index_t _d, bool _bending, index_t _elWise>
+    template<int _d, bool _bending, int _elWise>
     typename std::enable_if<(_d==3 && _bending), void>::type
-    computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed,
-                        std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
+    computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload,
+                        std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
 
-    template<index_t _d, bool _bending, index_t _elWise>
+    template<int _d, bool _bending, int _elWise>
     typename std::enable_if<!(_d==3 && _bending), void>::type
-    computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed,
-                        std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
+    computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload,
+                        std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
 
-    template<index_t _elWise>
+    template<int _elWise>
     void computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal,
-                      std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
+                      std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
 
-    template<index_t _elWise>
+    template<int _elWise>
     void computeErrorEig_impl(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,
-                      std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false);
+                      std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
 
     void _applyLoadsToElWiseError(const gsMultiPatch<T> &dualL, const gsMultiPatch<T> &dualH, std::vector<T> & errors) const;
     void _applyLoadsToError(const gsMultiPatch<T> &dualL, const gsMultiPatch<T> &dualH, T & error) const;
@@ -532,20 +526,14 @@ public:
     virtual gsMatrix<T> projectL2_H(const gsFunction<T> &fun) =0;
 
     // Linear elasticity ;
-    virtual T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH) = 0;
-    virtual T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
-    virtual std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH) = 0;
-    virtual std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
-    virtual std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH) = 0;
-    virtual std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
+    virtual T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload=false, std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
+    virtual std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload=false, std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
+    virtual std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload=false, std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
 
     // Nonlinear elasticity
-    virtual T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed) = 0;
-    virtual T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
-    virtual std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed) = 0;
-    virtual std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
-    virtual std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed) = 0;
-    virtual std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
+    virtual T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload=false,std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
+    virtual std::vector<T> computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload=false, std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
+    virtual std::vector<T> computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload=false, std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
 
     // Eigenvalues
     virtual T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
@@ -553,38 +541,38 @@ public:
                       const gsMultiPatch<T> & primal) = 0;
     virtual T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
-                      const gsMultiPatch<T> & primal,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
+                      const gsMultiPatch<T> & primal,std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
     virtual std::vector<T> computeErrorEigElements(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal) = 0;
     virtual std::vector<T> computeErrorEigElements(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
-                      const gsMultiPatch<T> & primal,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
+                      const gsMultiPatch<T> & primal,std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
     virtual std::vector<T> computeErrorEigDofs(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal) = 0;
     virtual std::vector<T> computeErrorEigDofs(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
-                      const gsMultiPatch<T> & primal,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
+                      const gsMultiPatch<T> & primal,std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
 
     virtual T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) = 0;
     virtual T computeErrorEig(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
-                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
+                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
     virtual std::vector<T> computeErrorEigElements(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) = 0;
     virtual std::vector<T> computeErrorEigElements(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
-                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
+                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
     virtual std::vector<T> computeErrorEigDofs(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
                       const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) = 0;
     virtual std::vector<T> computeErrorEigDofs(const T evPrimalL, const T evDualL, const T evDualH,
                       const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH,
-                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
+                      const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed,std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
 
     virtual T computeGoal(const gsMultiPatch<T> & deformed) =0;
     virtual T computeGoal(const bContainer & bnds, const gsMultiPatch<T> & deformed) =0;
@@ -657,7 +645,7 @@ public:
 //     short_t targetDim() const { return 1;}
 
 // private:
-//     template<index_t _d, bool _bending>
+//     template<int _d, bool _bending>
 //     typename std::enable_if<!(_d==3 && _bending), void>::type
 //     eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& res) const
 //     {
@@ -686,7 +674,7 @@ public:
 //         auto expr = ( Fext - Fint ) * meas(Gori);
 //     }
 
-//     template<index_t _d, bool _bending>
+//     template<int _d, bool _bending>
 //     typename std::enable_if< (_d==3 && _bending), void>::type
 //     eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& res) const
 //     {

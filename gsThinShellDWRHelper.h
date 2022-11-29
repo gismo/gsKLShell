@@ -49,32 +49,24 @@ public:
         this->computeError(deformed,primalL);
     }
 
-    void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL)
+    void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL, bool pointload = false)
     {
         gsMatrix<T> points;
         bContainer bnds;
-        std::string empty;
-        this->computeError(deformed,primalL,bnds,points,true,empty);
+        this->computeError(deformed,primalL,bnds,points,true,pointload);
     }
 
-    void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL, const bContainer & bnds, const gsMatrix<T> & points, bool interior)
-    {
-        std::string empty;
-        this->computeError(deformed,primalL,bnds,points,interior,empty);
-    }
-
-
-    void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL,
-                        std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false)
+    void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL, bool pointload = false,
+                        std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false)
     {
         gsMatrix<T> points;
         bContainer bnds;
-        this->computeError(deformed,primalL,bnds,points,true,filename,np,parametric,mesh);
+        this->computeError(deformed,primalL,bnds,points,true,pointload,filename,np,parametric,mesh);
     }
 
     void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL,
-                        const bContainer & bnds, const gsMatrix<T> & points, bool interior,
-                        std::string filename, unsigned np=1000, bool parametric=false, bool mesh=false)
+                        const bContainer & bnds, const gsMatrix<T> & points, bool interior = true,bool pointload=false,
+                        std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false)
     {
         gsMultiPatch<T> dualL, dualH;
         gsVector<T> solVector;
@@ -143,7 +135,7 @@ public:
         m_assembler->constructMultiPatchH(solVector,dualH);
         gsInfo << "done.\n";
 
-        m_errors = m_assembler->computeErrorElements(dualL,dualH,deformed,filename,np,parametric,mesh);
+        m_errors = m_assembler->computeErrorElements(dualL,dualH,deformed,pointload,filename,np,parametric,mesh);
         m_error = m_assembler->error();
     }
 

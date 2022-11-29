@@ -216,6 +216,8 @@ int main(int argc, char *argv[])
 
     for (index_t r=0; r!=numRefine+1; r++)
     {
+        gsInfo<<"Refinement "<<r<<"/"<<numRefine<<"\n";
+
         // -----------------------------------------------------------------------------------------
         // ----------------------------Prepare basis------------------------------------------------
         // -----------------------------------------------------------------------------------------
@@ -389,7 +391,7 @@ int main(int argc, char *argv[])
         numGoal[r] += DWR->computeGoal(points,mp_def);
         DoFs[r] = basisL.basis(0).numElements();
 
-        approxs[r] = DWR->computeError(dualL,dualH,mp_def);
+        approxs[r] = DWR->computeError(dualL,dualH,mp_def,true);
         gsInfo<<"Error = "<<approxs[r]<<"\n";
         estGoal[r] = numGoal[r]+approxs[r];
 
@@ -409,7 +411,7 @@ int main(int argc, char *argv[])
             gsOptionList mesherOpts;
             fd_mesher.getFirst<gsOptionList>(mesherOpts);
 
-            elErrors = DWR->computeErrorElements(dualL, dualH,mp_def);
+            elErrors = DWR->computeErrorElements(dualL, dualH,mp_def,false);
             real_t error = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
             gsInfo<<"Accumulated error = "<<error<<"\n";
 

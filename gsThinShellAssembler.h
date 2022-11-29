@@ -96,7 +96,9 @@ public:
     //--------------------- PROBLEM FORMULATION-------------------------------//
     /// See \ref gsThinShellAssemblerBase for details
     void setPointLoads(const gsPointLoads<T> & pLoads){ m_pLoads = pLoads; }
+    const gsPointLoads<T> & getPointLoads(){ return m_pLoads; }
     void setPointMass(const gsPointLoads<T> & pMass){ m_pMass = pMass; }
+    const gsPointLoads<T> & getPointMass(){ return m_pMass; }
 
     /// See \ref gsThinShellAssemblerBase for details
     void setFoundation(const gsFunction<T> & foundation) { m_foundFun = &foundation; m_foundInd = true; }
@@ -452,9 +454,12 @@ public:
 
     /// Registers a \ref gsPointLoads object for point loads acting on the shell
     virtual void setPointLoads(const gsPointLoads<T> & pLoads) = 0;
-
+    /// Gets the registered point loads
+    virtual const gsPointLoads<T> & getPointLoads() = 0;
     /// Registers a \ref gsPointLoads object for a point mass acting on the shell. The point masss must be 1-dimensional
     virtual void setPointMass(const gsPointLoads<T> & pLoads) = 0;
+    /// Gets the registered point masses
+    virtual const gsPointLoads<T> & getPointMass() = 0;
 
     /**
      * @brief      Registers a stiffness function to be used for handling an elastic foundation, only relevant for 3D shells, with out-of-plane deformations
