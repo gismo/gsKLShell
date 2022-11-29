@@ -174,8 +174,8 @@ int main(int argc, char *argv[])
     solver = gsSparseSolver<real_t>::get( "SimplicialLDLT");
 #endif
 
-    gsMatrix<> points(2,1);
-    points.col(0).setConstant(0.5);
+    gsMatrix<> points(2,0);
+//    points.col(0).setConstant(0.5);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -337,8 +337,8 @@ int main(int argc, char *argv[])
         gsInfo << "Assembling dual vector (L)... "<< std::flush;
         gsVector<> rhsL(DWR->numDofsL());
         rhsL.setZero();
-        // DWR->assembleDualL(primalL);
-        // rhsL += DWR->dualL();
+	DWR->assembleDualL(primalL);
+        rhsL += DWR->dualL();
         DWR->assembleDualL(points,primalL);
         rhsL += DWR->dualL();
         gsInfo << "done.\n";
@@ -358,8 +358,8 @@ int main(int argc, char *argv[])
         gsInfo << "Assembling dual vector (H)... "<< std::flush;
         gsVector<> rhsH(DWR->numDofsH());
         rhsH.setZero();
-        // DWR->assembleDualH(primalL);
-        // rhsH += DWR->dualH();
+        DWR->assembleDualH(primalL);
+        rhsH += DWR->dualH();
         DWR->assembleDualH(points,primalL);
         rhsH += DWR->dualH();
         gsInfo << "done.\n";
@@ -385,7 +385,7 @@ int main(int argc, char *argv[])
 
         exacts[r] = 0;
         numGoal[r] = 0;
-        // numGoal[r] += DWR->computeGoal(mp_def);
+        numGoal[r] += DWR->computeGoal(mp_def);
         numGoal[r] += DWR->computeGoal(points,mp_def);
         DoFs[r] = basisL.basis(0).numElements();
 

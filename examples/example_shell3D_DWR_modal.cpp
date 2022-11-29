@@ -585,7 +585,7 @@ int main(int argc, char *argv[])
     if (write)
     {
         std::string filename;
-        filename = "example_shell3D_DWR_modal_r" + std::to_string(numRefine) + "_e" + std::to_string(numElevate) + "_I" + std::to_string(modeIdx);
+        filename = "example_shell3D_DWR_modal_r" + std::to_string(numRefine) + "_e" + std::to_string(numElevate) + "_I" + std::to_string(modeIdx) + "_t" + std::to_string(testCase);
         filename = filename + ".csv";
         std::ofstream file_out;
         file_out.open (filename);
