@@ -326,6 +326,8 @@ public:
 
     void plotSolution(std::string string, const gsMatrix<T> & solVector);
 
+    T deformationNorm(const gsMultiPatch<T> & deformed);
+
 protected:
     /// Initializes the method
     void _initialize();
@@ -680,7 +682,9 @@ public:
     /// Projects function \a fun on the basis and geometry stored in the class and returns the coefficients as a matrix
     virtual gsMatrix<T> projectL2(const gsFunction<T> &fun) = 0;
 
-    virtual void plotSolution(std::string string, const gsMatrix<T> & solVector) = 0;;
+    virtual void plotSolution(std::string string, const gsMatrix<T> & solVector) = 0;
+
+    virtual T deformationNorm(const gsMultiPatch<T> & deformed) = 0;
 
     virtual gsDofMapper getMapper() const = 0;
 
