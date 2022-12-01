@@ -1826,9 +1826,14 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::projectL2(const gsFunction<T> &
 template <short_t d, class T, bool bending>
 T gsThinShellAssembler<d, T, bending>::deformationNorm(const gsMultiPatch<T> & deformed)
 {
-    geometryMap G = m_assembler.getMap(deformed);
-    gsExprEvaluator<T> ev(m_assembler);
-    return ev.integral(G.sqNorm());
+    m_assembler.cleanUp();
+    m_assembler.setOptions(m_options);
+
+    geometryMap def = m_assembler.getMap(deformed);
+
+    gsExprEvaluator<T> evaluator(m_assembler);
+    T result = evaluator.integral(def.sqNorm() * meas(def));
+    return result;
 }
 
 }// namespace gismo
