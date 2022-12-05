@@ -130,7 +130,6 @@ gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleMatrix(gsThin
 template <short_t d, class T, bool bending>
 gsSparseMatrix<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleMatrix(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & deformed)
 {
-    assembler->assemble();
     assembler->assembleMatrix(deformed);
     return assembler->matrix(); //Base::matrix();
 }
