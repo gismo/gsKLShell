@@ -717,8 +717,8 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     geometryMap m_def   = m_assembler.getMap(deformed);
 
     // Initialize matrix
+    m_assembler.initSystem();
     m_assembler.initMatrix();
-    // m_assembler.initSystem();
 
     gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMat,&deformed);
     gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> m_mmB(m_materialMat,&deformed);
@@ -811,8 +811,8 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     geometryMap m_def   = m_assembler.getMap(deformed);
 
     // Initialize matrix
+    m_assembler.initSystem();
     m_assembler.initMatrix();
-    // m_assembler.initSystem();
 
     gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMat,&deformed);
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMat,&deformed);
@@ -886,8 +886,8 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     geometryMap m_def   = m_assembler.getMap(deformed);
     geometryMap m_prev  = m_assembler.getMap(previous);
     // Initialize matrix
+    m_assembler.initSystem();
     m_assembler.initMatrix();
-    // m_assembler.initSystem();
 
     gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_mmA(m_materialMat,&deformed);
     gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixB> m_mmB(m_materialMat,&deformed);
