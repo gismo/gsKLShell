@@ -465,7 +465,7 @@ int main(int argc, char *argv[])
         // 4. Plot the mapped spline on the original geometry
         gsField<> solField(geom, mspline,true);
         gsInfo<<"Plotting in Paraview...\n";
-        gsWriteParaview<>( solField, "Deformation", 100000, mesh);
+        gsWriteParaview<>( solField, "Deformation", 1000, mesh);
 
         // // 4. Plot the mapped spline on the original geometry
         // gsField<> solField2(mp_def, def,true);
@@ -566,24 +566,24 @@ int main(int argc, char *argv[])
         gsPiecewiseFunction<> displace;
         gsDebugVar("DisplacementFun construction");
         assembler.constructStress(ori,def,displace,stress_type::displacement);
-        gsWriteParaview(ori,displace,"DisplacementFun",10000);
+        gsWriteParaview(ori,displace,"DisplacementFun",1000);
         gsDebugVar("DisplacementFunDef construction");
-        gsWriteParaview(def,displace,"DisplacementFunDef",10000);
+        gsWriteParaview(def,displace,"DisplacementFunDef",1000);
 
         gsPiecewiseFunction<> membraneStrains;
         gsDebugVar("MembraneStrain construction");
         assembler.constructStress(ori,def,membraneStrains,stress_type::membrane_strain);
-        gsWriteParaview(ori,membraneStrains,"MembraneStrain",10000);
+        gsWriteParaview(ori,membraneStrains,"MembraneStrain",1000);
 
         gsPiecewiseFunction<> membraneStresses;
         gsDebugVar("MembraneStress construction");
         assembler.constructStress(ori,def,membraneStresses,stress_type::membrane);
-        gsWriteParaview(ori,membraneStresses,"MembraneStress",10000);
+        gsWriteParaview(ori,membraneStresses,"MembraneStress",1000);
 
         gsPiecewiseFunction<> membraneStressesVM;
         gsDebugVar("MembraneStress construction");
         assembler.constructStress(ori,def,membraneStressesVM,stress_type::von_mises_membrane);
-        gsWriteParaview(ori,membraneStressesVM,"MembraneStressVM",10000);
+        gsWriteParaview(ori,membraneStressesVM,"MembraneStressVM",1000);
 
         // gsPiecewiseFunction<> flexuralStresses;
         // gsDebugVar("FlexuralStress construction");
