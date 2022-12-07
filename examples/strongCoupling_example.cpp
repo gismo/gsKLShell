@@ -104,7 +104,6 @@ int main(int argc, char *argv[])
     gsFileData<> fd;
     gsInfo<<"Reading geometry from "<<fn1<<"...";
     gsReadFile<>(fn1, mp);
-        gsWrite(mp,"neon_side_full.xml");
     if (mp.nInterfaces()==0 && mp.nBoundary()==0)
     {
         gsInfo<<"No topology found. Computing it...";
@@ -154,10 +153,19 @@ int main(int argc, char *argv[])
 
     // Reference points
     gsMatrix<index_t> refPatches;
-    gsMatrix<> refPoints, refValue; // todo: add refValue..
+    gsMatrix<> refPoints, refPars, refValue; // todo: add refValue..
     gsInfo<<"Reading reference point locations from "<<fn2<<" (ID=50) ...";
     if ( fd.hasId(50) )
         fd.getId(50,refPoints);
+    if (refPoints.rows()==2)
+    {
+        refPars = refPoints;
+        gsInfo<<"Reference points are provided in parametric coordinates.\n";
+    }
+    else if (refPoints.rows()==3)
+        gsInfo<<"Reference points are provided in physical coordinates.\n";
+    else
+        gsInfo<<"No reference points are provided.\n";
     gsInfo<<"Finished\n";
     gsInfo<<"Reading reference patches from "<<fn2<<" (ID=51) ...";
     if ( fd.hasId(51) )
@@ -202,17 +210,28 @@ int main(int argc, char *argv[])
     gsInfo<<"Finished\n";
 
     gsMultiPatch<> geom = mp;
+    gsMultiBasis<> dbasis(mp);
 
     GISMO_ENSURE(degree>=mp.patch(0).degree(0),"Degree must be larger than or equal to the degree of the initial geometry, but degree = "<<degree<<" and the original degree = "<<mp.patch(0).degree(0));
-    mp.degreeElevate(degree-mp.patch(0).degree(0));
+    // Elevate and p-refine the basis to order p + numElevate
+    // where p is the highest degree in the bases
+    if (method != -1 && method != 2)// && method != 3)
+        mp.degreeElevate(degree-mp.patch(0).degree(0));
+    else
+        dbasis.setDegree( degree); // preserve smoothness
 
     // h-refine each basis
     for (int r =0; r < numRefine; ++r)
-        mp.uniformRefine(1,degree-smoothness);
+    {
+        if (method != -1 && method != 2)// && method != 3)
+            mp.uniformRefine(1,degree-smoothness);
+        else
+            dbasis.uniformRefine(1,degree-smoothness);
+    }
 
     if (plot) gsWriteParaview(mp,"mp",1000,true,false);
-    // for (size_t p = 0; p!=mp.nPatches(); ++p)
-    //     gsDebugVar(mp.patch(p));
+    for (size_t p = 0; p!=mp.nPatches(); ++p)
+        gsDebugVar(mp.basis(p));
 
     std::vector<gsFunction<>*> parameters(2);
     parameters[0] = &E;
@@ -232,77 +251,77 @@ int main(int argc, char *argv[])
     gsSparseMatrix<> global2local;
     gsMatrix<> coefs;
 
-    gsMultiBasis<> dbasis(mp);
 
-        if (method==-1)
-        {
-            // identity map
-            global2local.resize(dbasis.totalSize(),dbasis.totalSize());
-            for (size_t k=0; k!=dbasis.totalSize(); ++k)
-                global2local.coeffRef(k,k) = 1;
-            geom = mp;
-            gsInfo << "Basis Patch: " << dbasis.basis(0).component(0) << "\n";
-            bb2.init(dbasis,global2local);
-        }
-        else if (method==0)
-        {
-            gsMPBESSpline<2,real_t> cgeom(mp,3);
-            gsMappedBasis<2,real_t> basis = cgeom.getMappedBasis();
+    if (method==-1)
+    {
+        // identity map
+        global2local.resize(dbasis.totalSize(),dbasis.totalSize());
+        for (size_t k=0; k!=dbasis.totalSize(); ++k)
+            global2local.coeffRef(k,k) = 1;
+        geom = mp;
+        gsInfo << "Basis Patch: " << dbasis.basis(0).component(0) << "\n";
+        bb2.init(dbasis,global2local);
+    }
+    else if (method==0)
+    {
+        gsMPBESSpline<2,real_t> cgeom(mp,3);
+        gsMappedBasis<2,real_t> basis = cgeom.getMappedBasis();
 
-            global2local = basis.getMapper().asMatrix();
-            geom = cgeom.exportToPatches();
-            auto container = basis.getBasesCopy();
-            dbasis = gsMultiBasis<>(container,mp.topology());
-            bb2.init(dbasis,global2local);
-        }
-        else if (method==1)
-        {
-            geom = mp;
-            gsDPatch<2,real_t> dpatch(geom);
-            dpatch.compute();
-            dpatch.matrix_into(global2local);
+        global2local = basis.getMapper().asMatrix();
+        geom = cgeom.exportToPatches();
+        auto container = basis.getBasesCopy();
+        dbasis = gsMultiBasis<>(container,mp.topology());
+        bb2.init(dbasis,global2local);
+    }
+    else if (method==1)
+    {
+        geom = mp;
+        gsDPatch<2,real_t> dpatch(geom);
+        dpatch.compute();
+        dpatch.matrix_into(global2local);
 
-            global2local = global2local.transpose();
-            geom = dpatch.exportToPatches();
-            dbasis = dpatch.localBasis();
-            bb2.init(dbasis,global2local);
-        }
-        else if (method==2) // Pascal
-        {
-            // The approx. C1 space
-            gsApproxC1Spline<2,real_t> approxC1(mp,dbasis);
-            // approxC1.options().setSwitch("info",info);
-            // approxC1.options().setSwitch("plot",plot);
-            approxC1.options().setSwitch("interpolation",true);
-            approxC1.options().setInt("gluingDataDegree",-1);
-            approxC1.options().setInt("gluingDataSmoothness",-1);
-            approxC1.update(bb2);
-        }
-        else if (method==3) // Andrea
-        {
-            gsC1SurfSpline<2,real_t> smoothC1(mp,dbasis);
-            smoothC1.init();
-            smoothC1.compute();
+        global2local = global2local.transpose();
+        geom = dpatch.exportToPatches();
+        dbasis = dpatch.localBasis();
+        bb2.init(dbasis,global2local);
+    }
+    else if (method==2) // Pascal
+    {
+        // The approx. C1 space
+        gsApproxC1Spline<2,real_t> approxC1(mp,dbasis);
+        // approxC1.options().setSwitch("info",info);
+        // approxC1.options().setSwitch("plot",plot);
+        approxC1.options().setSwitch("interpolation",true);
+        approxC1.options().setInt("gluingDataDegree",-1);
+        approxC1.options().setInt("gluingDataSmoothness",-1);
+        approxC1.update(bb2);
+    }
+    else if (method==3) // Andrea
+    {
+        dbasis = gsMultiBasis<>(mp);
+        gsC1SurfSpline<2,real_t> smoothC1(mp,dbasis);
+        smoothC1.init();
+        smoothC1.compute();
 
-            global2local = smoothC1.getSystem();
-            global2local = global2local.transpose();
-            smoothC1.getMultiBasis(dbasis);
-            bb2.init(dbasis,global2local);
-        }
-        else if (method==4)
-        {
-            geom = mp;
-            gsAlmostC1<2,real_t> almostC1(geom);
-            almostC1.compute();
-            almostC1.matrix_into(global2local);
+        global2local = smoothC1.getSystem();
+        global2local = global2local.transpose();
+        smoothC1.getMultiBasis(dbasis);
+        bb2.init(dbasis,global2local);
+    }
+    else if (method==4)
+    {
+        geom = mp;
+        gsAlmostC1<2,real_t> almostC1(geom);
+        almostC1.compute();
+        almostC1.matrix_into(global2local);
 
-            global2local = global2local.transpose();
-            geom = almostC1.exportToPatches();
-            dbasis = almostC1.localBasis();
-            bb2.init(dbasis,global2local);
-        }
-        else
-            GISMO_ERROR("Option "<<method<<" for method does not exist");
+        global2local = global2local.transpose();
+        geom = almostC1.exportToPatches();
+        dbasis = almostC1.localBasis();
+        bb2.init(dbasis,global2local);
+    }
+    else
+        GISMO_ERROR("Option "<<method<<" for method does not exist");
 
     if (writeMatrix)
     {
@@ -426,24 +445,50 @@ int main(int argc, char *argv[])
 
     if (refPoints.cols()!=0)
     {
+        gsMatrix<> result;
+        if (refPoints.rows()==3) // then they are provided in the physical domain and should be mapped to the parametric domain
+        {
+            refPars.resize(2,refPoints.cols());
+            for (index_t p = 0; p!=refPoints.cols(); p++)
+            {
+                mp.patch(refPatches(0,p)).invertPoints(refPoints.col(p),result,1e-10);
+                if (result.at(0)==std::numeric_limits<real_t>::infinity()) // if failed
+                    gsWarn<<"Point inversion failed\n";
+                refPars.col(p) = result;
+            }
+        }
+
+        gsInfo<<"Physical coordinates of points\n";
+        for (index_t p=0; p!=refPars.cols(); p++)
+        {
+            gsInfo<<",x"<<std::to_string(p)<<",y"<<std::to_string(p)<<",z"<<std::to_string(p);
+        }
+        gsInfo<<"\n";
+
+        for (index_t p=0; p!=refPars.cols(); ++p)
+        {
+            geom.patch(refPatches(0,p)).eval_into(refPars.col(p),result);
+            gsInfo<<result.row(0)<<","<<result.row(1)<<","<<result.row(2)<<",";
+        }
+        gsInfo<<"\n";
         gsMatrix<> refs(1,mp.geoDim()*refPoints.cols());
-        for (index_t p=0; p!=refPoints.cols(); p++)
-            refs.block(0,p*mp.geoDim(),1,mp.geoDim()) = mp.piece(refPatches(0,p)).eval(refPoints.col(p)).transpose();
+        for (index_t p=0; p!=refPars.cols(); p++)
+            refs.block(0,p*mp.geoDim(),1,mp.geoDim()) = mp.piece(refPatches(0,p)).eval(refPars.col(p)).transpose();
         gsInfo<<"Reference point coordinates\n";
-        for (index_t p=0; p!=refPoints.cols(); ++p)
+        for (index_t p=0; p!=refPars.cols(); ++p)
             gsInfo<<"x"<<std::to_string(p)<<"\ty"<<std::to_string(p)<<"\tz"<<std::to_string(p)<<"\t";
         gsInfo<<"\n";
-        for (index_t p=0; p!=refPoints.cols(); ++p)
+        for (index_t p=0; p!=refPars.cols(); ++p)
             gsInfo<<refs(0,mp.geoDim()*p)<<"\t"<<refs(0,mp.geoDim()*p+1)<<"\t"<<refs(0,mp.geoDim()*p+2)<<"\t";
         gsInfo<<"\n";
 
-        for (index_t p=0; p!=refPoints.cols(); p++)
-            refs.block(0,p*mp.geoDim(),1,mp.geoDim()) = solField.value(refPoints.col(p),refPatches(0,p)).transpose();
+        for (index_t p=0; p!=refPars.cols(); p++)
+            refs.block(0,p*mp.geoDim(),1,mp.geoDim()) = solField.value(refPars.col(p),refPatches(0,p)).transpose();
         gsInfo<<"Computed values\n";
-        for (index_t p=0; p!=refPoints.cols(); ++p)
+        for (index_t p=0; p!=refPars.cols(); ++p)
             gsInfo<<"x"<<std::to_string(p)<<"\ty"<<std::to_string(p)<<"\tz"<<std::to_string(p)<<"\t";
         gsInfo<<"\n";
-        for (index_t p=0; p!=refPoints.cols(); ++p)
+        for (index_t p=0; p!=refPars.cols(); ++p)
             gsInfo<<refs(0,mp.geoDim()*p)<<"\t"<<refs(0,mp.geoDim()*p+1)<<"\t"<<refs(0,mp.geoDim()*p+2)<<"\t";
         gsInfo<<"\n";
 
@@ -490,105 +535,22 @@ int main(int argc, char *argv[])
     gsFunctionSum<real_t> ori(&geom,&mspline_ori);
     gsFunctionSum<real_t> def(&geom,&mspline_def);
 
-    if (method==2 || method==3) geom = mp;
-
-
-    gsMultiPatch<> mp_ori = geom;
-    gsMultiPatch<> mp_def = geom;
-    for (size_t p = 0; p!=mp.nPatches(); p++)
-    {
-        gsMatrix<> coefs;
-        gsQuasiInterpolate<real_t>::localIntpl(geom.basis(p), ori.piece(p), coefs);
-        mp_ori.patch(p).coefs() = coefs;
-        gsQuasiInterpolate<real_t>::localIntpl(geom.basis(p), def.piece(p), coefs);
-        mp_def.patch(p).coefs() = coefs;
-    }
-
-    // mp_ori = geom;
-    // mp_ori.patch(0).coefs().col(0) *=2;
-    // mp_ori.patch(1).coefs().col(0) *=2;
-    // mp_def = mp_ori;
-    // mp_def.patch(0).coefs().col(0) *=2;
-    // mp_def.patch(1).coefs().col(0) *=2;
-
-    // gsExprEvaluator<> ev;
-    // typedef gsExprAssembler<>::geometryMap geometryMap;
-    // geometryMap m_ori   = ev.getMap(mp_ori);
-    // geometryMap m_def   = ev.getMap(mp_def);
-
-    // gsMatrix<> pts(2,4);
-    // pts.col(0)<<0.1,0.1;
-    // pts.col(1)<<0.1,0.9;
-    // pts.col(2)<<0.9,0.1;
-    // pts.col(3)<<0.9,0.9;
-    // auto test = (flat(jac(m_def).tr()*jac(m_def))).tr();
-    // auto That   = cartcon(m_ori);
-    // auto Ttilde = cartcov(m_ori);
-    // auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) * That;
-
-    // gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorN> m_S0(&materialMatrix,&mspline_ori,&mspline_def);
-    // auto S0 = ev.getVariable(m_S0);
-    // gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorM> m_S1(&materialMatrix,&mspline_ori,&mspline_def);
-    // auto S1 = ev.getVariable(m_S1);
-
-    // gsPiecewiseFunction<> displace;
-    // gsDebugVar("DisplacementFun construction");
-    // assembler.constructStress(mp_ori,mp_def,displace,stress_type::displacement);
-    // gsWriteParaview(mp_ori,displace,"DisplacementFun",10000);
-
-
-    // ev.setIntegrationElements(dbasis);
-    // ev.options().setSwitch("plot.elements",mesh);
-    // ev.options().setInt("plot.npts",1000);
-    // ev.writeParaview(That.asDiag(),m_ori,"test-1");
-    // ev.writeParaview(Ttilde.asDiag(),m_ori,"test0");
-    // ev.writeParaview(m_ori,m_ori,"test1");
-    // // ev.writeParaview(E_m,m_ori,"test1");
-    // ev.writeParaview(flat(ijac(m_ori,m_ori).tr()*ijac(m_ori,m_ori)),m_ori,"test2");
-    // ev.writeParaview(flat(jac(m_def).tr()*jac(m_def)),m_ori,"test3");
-    // ev.writeParaview(flat(ijac(m_def,m_ori).tr()*ijac(m_def,m_ori)),m_ori,"test4");
-    // ev.writeParaview(flat(jac(m_ori).tr()*jac(m_ori))*That,m_ori,"test5");
-    // ev.writeParaview(flat(jac(m_def).tr()*jac(m_def))*That,m_ori,"test6");
-    // ev.writeParaview((flat(jac(m_def).tr()*jac(m_def))-flat(jac(m_ori).tr()*jac(m_ori)))*That.tr(),m_ori,"test7");
-
-    // ev.writeParaview(flat(jac(m_ori).tr()*jac(m_ori))*Ttilde.tr(),m_ori,"test8");
-    // ev.writeParaview(flat(jac(m_def).tr()*jac(m_def))*Ttilde.tr(),m_ori,"test9");
-    // ev.writeParaview((flat(jac(m_def).tr()*jac(m_def))-flat(jac(m_ori).tr()*jac(m_ori)))*Ttilde.tr(),m_ori,"test10");
-
-    // ev.writeParaview(S0.tr()*That,m_ori,"test9");
-    // ev.writeParaview(S1.tr()*Ttilde,m_ori,"test10");
-
-    // return 0;
-
-
     if (stress)
     {
-        gsPiecewiseFunction<> displace;
-        gsDebugVar("DisplacementFun construction");
-        assembler.constructStress(ori,def,displace,stress_type::displacement);
-        gsWriteParaview(ori,displace,"DisplacementFun",1000);
-        gsDebugVar("DisplacementFunDef construction");
-        gsWriteParaview(def,displace,"DisplacementFunDef",1000);
-
-        gsPiecewiseFunction<> membraneStrains;
-        gsDebugVar("MembraneStrain construction");
-        assembler.constructStress(ori,def,membraneStrains,stress_type::membrane_strain);
-        gsWriteParaview(ori,membraneStrains,"MembraneStrain",1000);
-
         gsPiecewiseFunction<> membraneStresses;
         gsDebugVar("MembraneStress construction");
         assembler.constructStress(ori,def,membraneStresses,stress_type::membrane);
         gsWriteParaview(ori,membraneStresses,"MembraneStress",1000);
 
         gsPiecewiseFunction<> membraneStressesVM;
-        gsDebugVar("MembraneStress construction");
+        gsDebugVar("MembraneStress (VM) construction");
         assembler.constructStress(ori,def,membraneStressesVM,stress_type::von_mises_membrane);
         gsWriteParaview(ori,membraneStressesVM,"MembraneStressVM",1000);
 
-        // gsPiecewiseFunction<> flexuralStresses;
-        // gsDebugVar("FlexuralStress construction");
-        // assembler.constructStress(mp_ori,mp_def,flexuralStresses,stress_type::flexural);
-        // gsWriteParaview(geom,flexuralStresses,"FlexuralStress",10000);
+        gsPiecewiseFunction<> flexuralStresses;
+        gsDebugVar("FlexuralStress construction");
+        assembler.constructStress(ori,def,flexuralStresses,stress_type::flexural);
+        gsWriteParaview(geom,flexuralStresses,"FlexuralStress",1000);
     }
     if (write)
     {

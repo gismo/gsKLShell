@@ -41,15 +41,14 @@ struct stress_type
         von_mises_flexural = 2,  /// compute only von Mises stress - flexural stresses
         membrane           = 3,  /// compute normal and shear stresses due to membrane component
         flexural           = 4,  /// compute normal and shear stresses due to membrane component
-        total              = 5,  /// compute normal and shear stresses due to both components
-        membrane_strain    = 6,  /// compute normal and shear stresses due to both components
-        flexural_strain    = 7,  /// compute normal and shear stresses due to both components
-        principal_stretch  = 8,  /// principal stretches
-        principal_stress_membrane  = 9,  /// principal stress membrane
-        principal_stress_flexural  = 10,  /// principal stress bending
-        principal_stretch_dir1  = 11,  /// principal stretch directions
-        principal_stretch_dir2  = 12,  /// principal stretch directions
-        principal_stretch_dir3  = 13,  /// principal stretch directions
+        membrane_strain    = 4,  /// compute normal and shear stresses due to both components
+        flexural_strain    = 5,  /// compute normal and shear stresses due to both components
+        principal_stretch  = 6,  /// principal stretches
+        principal_stress_membrane  = 7,  /// principal stress membrane
+        principal_stress_flexural  = 8,  /// principal stress bending
+        principal_stretch_dir1  = 9,  /// principal stretch directions
+        principal_stretch_dir2  = 10,  /// principal stretch directions
+        principal_stretch_dir3  = 11,  /// principal stretch directions
     };
 };
 
@@ -120,7 +119,7 @@ public:
             // TO BE IMPLEMENTED
             // -------------------------------------
             case stress_type::von_mises :
-                return 1;
+                return 2;
                 break;
 
             case stress_type::von_mises_membrane :
@@ -128,10 +127,6 @@ public:
                 break;
 
             case stress_type::von_mises_flexural :
-                return 1;
-                break;
-
-            case stress_type::total :
                 return 1;
                 break;
             // -------------------------------------

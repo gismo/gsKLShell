@@ -204,8 +204,8 @@ int main(int argc, char *argv[])
     fd.getId(13,rho);
     gsInfo<<"Finished\n";
 
-    if (mp.geoDim()==2)
-        mp.embed(3);
+    // if (mp.geoDim()==2)
+    //     mp.embed(3);
 
     gsMultiPatch<> geom = mp;
 

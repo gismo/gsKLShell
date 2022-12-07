@@ -1470,17 +1470,17 @@ public:
             a1 = covBasis.col(0);
             a2 = covBasis.col(1);
 
-            result(0,0) = (e1.dot(a1))*(a1.dot(e1));
-            result(0,1) = (e1.dot(a2))*(a2.dot(e2));
-            result(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));
+            result(0,0) = (e1.dot(a1))*(a1.dot(e1));    // 1111
+            result(0,1) = (e1.dot(a2))*(a2.dot(e1));    // 1122
+            result(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));  // 1112
             // Row 1
-            result(1,0) = (e2.dot(a1))*(a1.dot(e2));
-            result(1,1) = (e2.dot(a2))*(a2.dot(e2));
-            result(1,2) = 2*(e2.dot(a1))*(a2.dot(e2));
+            result(1,0) = (e2.dot(a1))*(a1.dot(e2));    // 2211
+            result(1,1) = (e2.dot(a2))*(a2.dot(e2));    // 2222
+            result(1,2) = 2*(e2.dot(a1))*(a2.dot(e2));  // 2212
             // Row 2
-            result(2,0) = (e1.dot(a1))*(a1.dot(e2));
-            result(2,1) = (e1.dot(a2))*(a2.dot(e2));
-            result(2,2) = (e1.dot(a1))*(a2.dot(e2)) + (e1.dot(a2))*(a1.dot(e2));
+            result(2,0) = (e1.dot(a1))*(a1.dot(e2));    // 1211
+            result(2,1) = (e1.dot(a2))*(a2.dot(e2));    // 1222
+            result(2,2) = (e1.dot(a1))*(a2.dot(e2)) + (e1.dot(a2))*(a1.dot(e2));    // 1212
 
             // return result.inverse(); // !!!!
             return result;
@@ -1617,11 +1617,9 @@ public:
             // Compute covariant bases in deformed and undeformed configuration
             normal = _G.data().normals.col(k);
             normal.normalize();
+
             covBasis.resize(3,3);
             conBasis.resize(3,3);
-            // Compute covariant bases in deformed and undeformed configuration
-            normal = _G.data().normals.col(k);
-            normal.normalize();
             covBasis.leftCols(2) = _G.data().jacobian(k);
             covBasis.col(2)      = normal;
             covMetric = covBasis.transpose() * covBasis;
@@ -1631,11 +1629,6 @@ public:
             conBasis.col(0) = conMetric(0,0)*covBasis.col(0)+conMetric(0,1)*covBasis.col(1)+conMetric(0,2)*covBasis.col(2);
             conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
 
-            // e1 = covBasis.col(0); e1.normalize();
-            // e2 = conBasis.col(1); e2.normalize();
-            // e3 = normal;
-
-
             e1.resize(3);
             e1 << 1,0,0;
             e2.resize(3);
@@ -1644,17 +1637,17 @@ public:
             ac1 = conBasis.col(0);
             ac2 = conBasis.col(1);
 
-            result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));
-            result(0,1) = (e1.dot(ac2))*(ac2.dot(e2));
-            result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));
+            result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));      // 1111
+            result(0,1) = (e1.dot(ac2))*(ac2.dot(e1));      // 1122
+            result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));    // 1112
             // Row 1
-            result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));
-            result(1,1) = (e2.dot(ac2))*(ac2.dot(e2));
-            result(1,2) = 2*(e2.dot(ac1))*(ac2.dot(e2));
+            result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));      // 2211
+            result(1,1) = (e2.dot(ac2))*(ac2.dot(e2));      // 2222
+            result(1,2) = 2*(e2.dot(ac1))*(ac2.dot(e2));    // 2212
             // Row 2
-            result(2,0) = (e1.dot(ac1))*(ac1.dot(e2));
-            result(2,1) = (e1.dot(ac2))*(ac2.dot(e2));
-            result(2,2) = (e1.dot(ac1))*(ac2.dot(e2)) + (e1.dot(ac2))*(ac1.dot(e2));
+            result(2,0) = (e1.dot(ac1))*(ac1.dot(e2));      // 1211
+            result(2,1) = (e1.dot(ac2))*(ac2.dot(e2));      // 1222
+            result(2,2) = (e1.dot(ac1))*(ac2.dot(e2)) + (e1.dot(ac2))*(ac1.dot(e2)); // 1212
 
             return result;
         }
@@ -1674,14 +1667,16 @@ public:
             conBasis.col(0) = conMetric(0,0)*covBasis.col(0)+conMetric(0,1)*covBasis.col(1);
             conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1);
 
-            e1 = covBasis.col(0); e1.normalize();
-            e2 = conBasis.col(1); e2.normalize();
+            e1.resize(2);
+            e1<<1,0;
+            e2.resize(2);
+            e2<<0,1;
 
             ac1 = conBasis.col(0);
             ac2 = conBasis.col(1);
 
             result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));
-            result(0,1) = (e1.dot(ac2))*(ac2.dot(e2));
+            result(0,1) = (e1.dot(ac2))*(ac2.dot(e1));
             result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));
             // Row 1
             result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));

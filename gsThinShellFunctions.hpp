@@ -84,23 +84,34 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
                 result.col(k) = (ev.eval(S_f,u.col(k),m_patchID)).transpose();
             break;
 
-        // TO BE IMPLEMENTED
         // -------------------------------------
         case stress_type::von_mises :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                gsMatrix<> S;
+                gsMatrix<> Sm = (ev.eval(S_m,u.col(k),m_patchID)).transpose();
+                gsMatrix<> Sf = (ev.eval(S_f,u.col(k),m_patchID)).transpose();
+                S = Sm + Sf;
+                result(0,k) = math::sqrt(S(0,0)*S(0,0)+S(1,0)*S(1,0)-S(0,0)*S(1,0)+3*S(2,0)*S(2,0)); // ASSUMES PLANE STRESS
+                S = Sm - Sf;
+                result(1,k) = math::sqrt(S(0,0)*S(0,0)+S(1,0)*S(1,0)-S(0,0)*S(1,0)+3*S(2,0)*S(2,0)); // ASSUMES PLANE STRESS
+            }
             break;
 
         case stress_type::von_mises_membrane :
             for (index_t k = 0; k != u.cols(); ++k)
             {
                 gsMatrix<> S = (ev.eval(S_m,u.col(k),m_patchID)).transpose();
-                result(0,k) = math::sqrt(S(0,0)*S(0,0)+S(1,0)*S(1,0)-S(0,0)*S(1,0)-3*S(2,0)*S(2,0));
+                result(0,k) = math::sqrt(S(0,0)*S(0,0)+S(1,0)*S(1,0)-S(0,0)*S(1,0)+3*S(2,0)*S(2,0)); // ASSUMES PLANE STRESS
             }
             break;
 
         case stress_type::von_mises_flexural :
-            break;
-
-        case stress_type::total :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                gsMatrix<> S = (ev.eval(S_f,u.col(k),m_patchID)).transpose();
+                result(0,k) = math::sqrt(S(0,0)*S(0,0)+S(1,0)*S(1,0)-S(0,0)*S(1,0)+3*S(2,0)*S(2,0)); // ASSUMES PLANE STRESS
+            }
             break;
         // -------------------------------------
 
