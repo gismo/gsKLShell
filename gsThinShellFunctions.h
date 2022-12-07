@@ -41,14 +41,14 @@ struct stress_type
         von_mises_flexural = 2,  /// compute only von Mises stress - flexural stresses
         membrane           = 3,  /// compute normal and shear stresses due to membrane component
         flexural           = 4,  /// compute normal and shear stresses due to membrane component
-        membrane_strain    = 4,  /// compute normal and shear stresses due to both components
-        flexural_strain    = 5,  /// compute normal and shear stresses due to both components
-        principal_stretch  = 6,  /// principal stretches
-        principal_stress_membrane  = 7,  /// principal stress membrane
-        principal_stress_flexural  = 8,  /// principal stress bending
-        principal_stretch_dir1  = 9,  /// principal stretch directions
-        principal_stretch_dir2  = 10,  /// principal stretch directions
-        principal_stretch_dir3  = 11,  /// principal stretch directions
+        membrane_strain    = 5,  /// compute normal and shear stresses due to both components
+        flexural_strain    = 6,  /// compute normal and shear stresses due to both components
+        principal_stretch  = 7,  /// principal stretches
+        principal_stress_membrane  = 8,  /// principal stress membrane
+        principal_stress_flexural  = 9,  /// principal stress bending
+        principal_stretch_dir1  = 10,  /// principal stretch directions
+        principal_stretch_dir2  = 11,  /// principal stretch directions
+        principal_stretch_dir3  = 12,  /// principal stretch directions
     };
 };
 
