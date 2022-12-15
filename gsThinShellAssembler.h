@@ -326,7 +326,7 @@ public:
 
     void plotSolution(std::string string, const gsMatrix<T> & solVector);
 
-    T deformationNorm(const gsMultiPatch<T> & deformed);
+    T deformationNorm(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & original);
 
 protected:
     /// Initializes the method
@@ -684,7 +684,7 @@ public:
 
     virtual void plotSolution(std::string string, const gsMatrix<T> & solVector) = 0;
 
-    virtual T deformationNorm(const gsMultiPatch<T> & deformed) = 0;
+    virtual T deformationNorm(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & original) = 0;
 
     virtual gsDofMapper getMapper() const = 0;
 

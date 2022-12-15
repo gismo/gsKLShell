@@ -201,8 +201,8 @@ public:
     gsMatrix<T> projectL2_L(const gsFunction<T> &fun);
     gsMatrix<T> projectL2_H(const gsFunction<T> &fun);
 
-    T deformationNorm(const gsMultiPatch<T> & deformed)
-    { return m_assemblerL->deformationNorm(deformed); }
+    T deformationNorm(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & original)
+    { return m_assemblerL->deformationNorm(deformed,original); }
 
     // Linear elasticity
     T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload=false, std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
@@ -528,7 +528,7 @@ public:
     virtual gsMatrix<T> projectL2_L(const gsFunction<T> &fun) =0;
     virtual gsMatrix<T> projectL2_H(const gsFunction<T> &fun) =0;
 
-    virtual T deformationNorm(const gsMultiPatch<T> & deformed) =0;
+    virtual T deformationNorm(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & original) =0;
 
     // Linear elasticity ;
     virtual T computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload=false, std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false) = 0;
