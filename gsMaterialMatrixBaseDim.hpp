@@ -262,8 +262,17 @@ void gsMaterialMatrixBaseDim<dim,T>::_getMetric(index_t k, T z, bool basis) cons
     this->_getMetricDeformed(k,z,basis);
     this->_getMetricUndeformed(k,z,basis);
 
-    T ratio = m_Gcov_def.determinant() / m_Gcov_ori.determinant();
-    GISMO_ENSURE(ratio > 0, "Jacobian determinant is negative! det(Gcov_def) = "<<m_Gcov_def.determinant()<<"; det(Gcov_ori) = "<<m_Gcov_ori.determinant());
+    T detGcov_ori = m_Gcov_ori.determinant();
+    if (detGcov_ori==0)
+    {
+        gsWarn<<"Determinant of the original parameterization is zero. Is it singular? Continuing with J^2=0\n";
+        m_J0_sq = 0;
+        return;
+    }
+    T detGcov_def = m_Gcov_def.determinant();
+
+    T ratio = detGcov_def / detGcov_ori;
+    GISMO_ENSURE(ratio >= 0, "Jacobian determinant is negative! det(Gcov_def) = "<<detGcov_def<<"; det(Gcov_ori) = "<<detGcov_ori);
     m_J0_sq = ratio;
 }
 
