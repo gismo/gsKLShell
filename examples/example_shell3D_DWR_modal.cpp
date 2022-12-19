@@ -60,6 +60,7 @@ int main(int argc, char *argv[])
     int adaptivity = 0;
 
     std::string mesherOptionsFile("options/shell_mesher_options.xml");
+    std::string dirname  = "ModalResults";
 
     gsCmdLine cmd("Tutorial on solving a Poisson problem.");
     cmd.addInt("i", "index", "index of mode", modeIdx);
@@ -78,6 +79,7 @@ int main(int argc, char *argv[])
     cmd.addSwitch("write", "Write convergence to file", write);
     cmd.addSwitch("loop", "Uniform Refinemenct loop", loop);
     cmd.addString( "O", "mesherOpt", "Input XML file for mesher options", mesherOptionsFile );
+    cmd.addString( "o", "output", "output directory", dirname );
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
@@ -361,8 +363,13 @@ int main(int argc, char *argv[])
     // DWR assembler
     gsThinShellAssemblerDWRBase<real_t> * DWR;
 
-    gsParaviewCollection collection("solution");
-    gsParaviewCollection errors("error_elem_ref");
+    std::string commands = "mkdir -p " + dirname;
+    const char *command  = commands.c_str();
+    system(command);
+
+    gsParaviewCollection collection(dirname + "/" + "solution");
+    gsParaviewCollection errors_elem(dirname + "/" + "error_elem_ref");
+    gsParaviewCollection errors(dirname + "/" + "errors");
 
     std::vector<real_t> elErrors;
     std::vector<bool> refVec;
@@ -500,7 +507,7 @@ int main(int argc, char *argv[])
         if (plot)
         {
             gsField<> VMStress(mp,primalL, true);
-            std::string fileName = "solution" + util::to_string(r);
+            std::string fileName = dirname + "/" + "solution" + util::to_string(r);
             gsWriteParaview<>(VMStress, fileName, 5000, true);
             fileName = "solution" + util::to_string(r) + "0";
             collection.addTimestep(fileName,r,".vts");
@@ -514,11 +521,25 @@ int main(int argc, char *argv[])
 
         exacts[r] += exGoal[r];
         exacts[r] -= numGoal[r];
-        approxs[r] = DWR->computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
+        approxs[r] = DWR->computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL,dirname + "/" + "errors" + util::to_string(r),1000,false,true);
+        errors.addTimestep("errors" + util::to_string(r) + "0",r,".vts");
+        errors.addTimestep("errors" + util::to_string(r) + "0",r,"_mesh.vtp");
 
         estGoal[r] = numGoal[r]+approxs[r];
 
         efficiencies[r] = approxs[r]/exacts[r];
+
+        elErrors = DWR->computeErrorEigElements(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
+        for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
+        {
+            *it = std::abs(*it);
+        }
+
+        gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
+        const gsField<> elemError_eh( mp.patch(0), err_eh, true );
+        gsWriteParaview<>( elemError_eh, "error_elem_ref" + util::to_string(r), 1000, true);
+        errors_elem.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
+        errors_elem.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,"_mesh.vtp");
 
         if (adaptivity==0)
         {
@@ -529,18 +550,6 @@ int main(int argc, char *argv[])
             gsFileData<> fd_mesher(mesherOptionsFile);
             gsOptionList mesherOpts;
             fd_mesher.getFirst<gsOptionList>(mesherOpts);
-
-            elErrors = DWR->computeErrorEigElements(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
-            for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
-            {
-                *it = std::abs(*it);
-            }
-
-            gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
-            const gsField<> elemError_eh( mp.patch(0), err_eh, true );
-            gsWriteParaview<>( elemError_eh, "error_elem_ref" + util::to_string(r), 1000, true);
-            errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
-            errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,"_mesh.vtp");
 
             // Make container of the boxes
             gsHBoxContainer<2,real_t> markRef, markCrs;
@@ -564,6 +573,7 @@ int main(int argc, char *argv[])
     {
         collection.save();
         errors.save();
+        errors_elem.save();
     }
 
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
