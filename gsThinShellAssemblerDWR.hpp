@@ -1631,19 +1631,6 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig(  const T evPrimalL,
                                                             const gsMultiPatch<T> & dualL,
                                                             const gsMultiPatch<T> & dualH,
                                                             const gsMultiPatch<T> & primal,
-                                                            const gsMultiPatch<T> & deformed)
-{
-    computeErrorEig_impl<0>(evPrimalL, evDualL, evDualH, dualL, dualH, primal, deformed);
-    return m_error;
-}
-
-template <short_t d, class T, bool bending>
-T gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig(  const T evPrimalL,
-                                                            const T evDualL,
-                                                            const T evDualH,
-                                                            const gsMultiPatch<T> & dualL,
-                                                            const gsMultiPatch<T> & dualH,
-                                                            const gsMultiPatch<T> & primal,
                                                             const gsMultiPatch<T> & deformed,
                                                             std::string filename, unsigned np, bool parametric, bool mesh)
 {
@@ -1658,36 +1645,10 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEigElements( 
                                                                                 const gsMultiPatch<T> & dualL,
                                                                                 const gsMultiPatch<T> & dualH,
                                                                                 const gsMultiPatch<T> & primal,
-                                                                                const gsMultiPatch<T> & deformed)
-{
-    computeErrorEig_impl<1>(evPrimalL, evDualL, evDualH, dualL, dualH, primal, deformed);
-    return m_errors;
-}
-
-template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEigElements( const T evPrimalL,
-                                                                                const T evDualL,
-                                                                                const T evDualH,
-                                                                                const gsMultiPatch<T> & dualL,
-                                                                                const gsMultiPatch<T> & dualH,
-                                                                                const gsMultiPatch<T> & primal,
                                                                                 const gsMultiPatch<T> & deformed,
                                                                                 std::string filename, unsigned np, bool parametric, bool mesh)
 {
     computeErrorEig_impl<1>(evPrimalL, evDualL, evDualH, dualL, dualH, primal, deformed,filename,np,parametric,mesh);
-    return m_errors;
-}
-
-template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEigDofs( const T evPrimalL,
-                                                                                const T evDualL,
-                                                                                const T evDualH,
-                                                                                const gsMultiPatch<T> & dualL,
-                                                                                const gsMultiPatch<T> & dualH,
-                                                                                const gsMultiPatch<T> & primal,
-                                                                                const gsMultiPatch<T> & deformed)
-{
-    computeErrorEig_impl<2>(evPrimalL, evDualL, evDualH, dualL, dualH, primal, deformed);
     return m_errors;
 }
 
@@ -1924,18 +1885,6 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
  * @return     The error estimate
  */
 template <short_t d, class T, bool bending>
-T gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig(                 const T evPrimalL,
-                                                                                const T evDualL,
-                                                                                const T evDualH,
-                                                                                const gsMultiPatch<T> & dualL,
-                                                                                const gsMultiPatch<T> & dualH,
-                                                                                const gsMultiPatch<T> & primal)
-{
-    computeErrorEig_impl<0>(evPrimalL, evDualL, evDualH, dualL, dualH, primal);
-    return m_error;
-}
-
-template <short_t d, class T, bool bending>
 T gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig(  const T evPrimalL,
                                                             const T evDualL,
                                                             const T evDualH,
@@ -1949,18 +1898,6 @@ T gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig(  const T evPrimalL,
 }
 
 template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEigElements(    const T evPrimalL,
-                                                                                const T evDualL,
-                                                                                const T evDualH,
-                                                                                const gsMultiPatch<T> & dualL,
-                                                                                const gsMultiPatch<T> & dualH,
-                                                                                const gsMultiPatch<T> & primal)
-{
-    computeErrorEig_impl<1>(evPrimalL, evDualL, evDualH, dualL, dualH, primal);
-    return m_errors;
-}
-
-template <short_t d, class T, bool bending>
 std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEigElements( const T evPrimalL,
                                                                                 const T evDualL,
                                                                                 const T evDualH,
@@ -1970,18 +1907,6 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEigElements( 
                                                                                 std::string filename, unsigned np, bool parametric, bool mesh)
 {
     computeErrorEig_impl<1>(evPrimalL, evDualL, evDualH, dualL, dualH, primal,filename,np,parametric,mesh);
-    return m_errors;
-}
-
-template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorEigDofs( const T evPrimalL,
-                                                                            const T evDualL,
-                                                                            const T evDualH,
-                                                                            const gsMultiPatch<T> & dualL,
-                                                                            const gsMultiPatch<T> & dualH,
-                                                                            const gsMultiPatch<T> & primal)
-{
-    computeErrorEig_impl<2>(evPrimalL, evDualL, evDualH, dualL, dualH, primal);
     return m_errors;
 }
 
