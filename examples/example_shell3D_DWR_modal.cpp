@@ -537,10 +537,9 @@ int main(int argc, char *argv[])
 
         gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
         const gsField<> elemError_eh( mp.patch(0), err_eh, true );
-        gsWriteParaview<>( elemError_eh, "error_elem_ref" + util::to_string(r), 1000, true);
+        gsWriteParaview<>( elemError_eh, dirname + "/" + "error_elem_ref" + util::to_string(r), 1000, true);
         errors_elem.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
-        errors_elem.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,"_mesh.vtp");
-
+        errors_elem.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
         if (adaptivity==0)
         {
             mp.uniformRefine();
