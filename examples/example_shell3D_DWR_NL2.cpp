@@ -23,6 +23,7 @@
 #include <gsAssembler/gsAdaptiveMeshingUtils.h>
 
 #include <gsStructuralAnalysis/gsALMLoadControl.h>
+#include <gsStructuralAnalysis/gsALMCrisfield.h>
 
 using namespace gismo;
 
@@ -130,7 +131,7 @@ int main(int argc, char *argv[])
     gsVector<> tmp(3);
     tmp << 0, 0, 0;
 
-    real_t load = 1e-7;
+    real_t load = 1e-6;
 
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
 
@@ -286,7 +287,8 @@ int main(int argc, char *argv[])
 
         gsInfo << "Solving primal, size ="<<DWR->matrixL().rows()<<","<<DWR->matrixL().cols()<<"... "<< "\n";
         real_t dL = 1.0/steps;
-        gsALMLoadControl<real_t> arcLength(Jacobian, ALResidual, Force);
+        gsALMCrisfield  <real_t> arcLength  (Jacobian, ALResidual, Force);
+        gsALMLoadControl<real_t> loadControl(Jacobian, ALResidual, Force);
 #ifdef GISMO_WITH_PARDISO
         arcLength.options().setString("Solver","PardisoLU"); // LDLT solver
 #else
@@ -299,8 +301,16 @@ int main(int argc, char *argv[])
         arcLength.options().setInt("MaxIter",50);
         arcLength.options().setSwitch("Verbose",true);
         arcLength.options().setInt("BifurcationMethod",gsALMBase<real_t>::bifmethod::Nothing);
-        gsInfo<<arcLength.options();
+
+        loadControl.options() = arcLength.options();
         arcLength.applyOptions();
+        loadControl.applyOptions();
+
+        gsDebugVar(loadControl.options());
+        gsDebugVar(arcLength.options());
+
+
+        loadControl.initialize();
         arcLength.initialize();
 
         real_t dL0 = dL;
@@ -311,6 +321,8 @@ int main(int argc, char *argv[])
         Uold.setZero();
         while (L < 1 && std::abs(L-1)>1e-14)
         {
+            Uold = solVector;
+            Lold = L;
             gsInfo<<"Load step "<< k<<"\n";
             arcLength.setLength(dL);
             arcLength.step();
@@ -325,13 +337,39 @@ int main(int argc, char *argv[])
             }
             dL = dL0;
             solVector = arcLength.solutionU();
+            L = arcLength.solutionL();
+            k++;
+        }
+
+        loadControl.resetStep();
+        loadControl.setSolution(Uold,Lold);
+        loadControl.setLength(dL);
+        L = Lold;
+        dL0 = dL = 1-L;
+        while (L < 1 && std::abs(L-1)>1e-14)
+        {
+            gsInfo<<"Load step "<< k<<"\n";
+            loadControl.setLength(dL);
+            loadControl.step();
+
+            if (!(loadControl.converged()))
+            {
+              gsInfo<<"Error: Loop terminated, arc length method did not converge.\n";
+              dL /= 2.;
+              loadControl.setLength(dL);
+              loadControl.setSolution(Uold,Lold);
+              continue;
+            }
+            dL = dL0;
+            solVector = loadControl.solutionU();
             Uold = solVector;
-            L = Lold = arcLength.solutionL();
+            L = Lold = loadControl.solutionL();
             k++;
             dL0 = dL = std::min(1-L,dL0);
             gsInfo<<"dL = "<<dL<<"; 1-L = "<<1-L<<"\n";
             if (dL > 1-L) dL0 = dL = 1-L;
         }
+
         DWR->constructMultiPatchL(solVector,primalL);
         DWR->constructSolutionL(solVector,mp_def);
         gsInfo << "done.\n";
@@ -394,7 +432,7 @@ int main(int argc, char *argv[])
         numGoal[r] += DWR->computeGoal(points,mp_def);
         DoFs[r] = basisL.basis(0).numElements();
 
-        approxs[r] = DWR->computeError(dualL,dualH,mp_def,true);
+        approxs[r] = DWR->computeError(dualL,dualH,mp_def,false);
         gsInfo<<"Error = "<<approxs[r]<<"\n";
         estGoal[r] = numGoal[r]+approxs[r];
 

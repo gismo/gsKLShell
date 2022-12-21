@@ -1347,16 +1347,16 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl( const gsMultiPat
 
     auto g_N = exprAssembler.getBdrFunction(Gori);
 
-    auto expr = (zsolH-zsolL).tr() * F * meas(Gori);
-    auto bexpr= (zsolH-zsolL).tr() * g_N * tv(Gori).norm();
+    auto expr = (zsolH-zsolL).tr() * F;
+    auto bexpr= (zsolH-zsolL).tr() * g_N;
 
     gsExprEvaluator<T> ev(exprAssembler);
 
     T integral, bintegral;
     if (_elWise == 0)
     {
-        integral = ev.integral(expr); // this one before otherwise it gives an error (?)
-        bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr);
+        integral = ev.integral(expr * meas(Gori)); // this one before otherwise it gives an error (?)
+        bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm());
         if (m_pLoads.numLoads()!=0)
             _applyLoadsToError(dualL,dualH,integral);
 
@@ -1364,7 +1364,7 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl( const gsMultiPat
     }
     else if (_elWise == 1) // element-wise
     {
-        m_error = ev.integralElWise(expr);
+        m_error = ev.integralElWise(expr * meas(Gori));
         if (m_pLoads.numLoads()!=0)
             _applyLoadsToError(dualL,dualH,m_error);
         m_errors = ev.elementwise();
@@ -1459,16 +1459,16 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
 
     auto g_N = exprAssembler.getBdrFunction(Gori);
 
-    auto expr = ( Fext - Fint ) * meas(Gori);
-    auto bexpr= (zsolH-zsolL).tr() * g_N * tv(Gori).norm();
+    auto expr = ( Fext - Fint );
+    auto bexpr= (zsolH-zsolL).tr() * g_N;
 
     gsExprEvaluator<T> ev(exprAssembler);
 
     T integral, bintegral;
     if (_elWise == 0)
     {
-        bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr);
-        integral = ev.integral(expr);
+        bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm());
+        integral = ev.integral(expr * meas(Gori));
         if (m_pLoads.numLoads()!=0)
             _applyLoadsToError(dualL,dualH,integral);
 
@@ -1476,7 +1476,7 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     }
     else if (_elWise == 1) // element-wise
     {
-        m_error = ev.integralElWise(expr);
+        m_error = ev.integralElWise(expr * meas(Gori));
         if (m_pLoads.numLoads()!=0)
             _applyLoadsToError(dualL,dualH,m_error);
         m_errors = ev.elementwise();
@@ -1554,21 +1554,21 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(  const gsMultiPatch<T
 
     auto g_N = exprAssembler.getBdrFunction(Gori);
 
-    auto expr = ( Fext - Fint ) * meas(Gori);
-    auto bexpr= (zsolH-zsolL).tr() * g_N * tv(Gori).norm();
+    auto expr = ( Fext - Fint );
+    auto bexpr= (zsolH-zsolL).tr() * g_N;
 
     gsExprEvaluator<T> ev(exprAssembler);
 
     T integral, bintegral;
     if (_elWise == 0)
     {
-        bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr);
-        integral = ev.integral(expr);
+        bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm());
+        integral = ev.integral(expr * meas(Gori));
         m_error = bintegral+integral;
     }
     else if (_elWise == 1) // element-wise
     {
-        m_error = ev.integralElWise(expr);
+        m_error = ev.integralElWise(expr * meas(Gori));
         if (m_pLoads.numLoads()!=0)
             _applyLoadsToError(dualL,dualH,m_error);
         m_errors = ev.elementwise();
@@ -1817,18 +1817,18 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
     gsConstantFunction<T> onefun(1,2);
     auto one    = exprAssembler.getCoeff(onefun);
 
-    auto expr   =  A  * meas(Gori) - evPrimalL * Bdiff * meas(Gori) + (evDualH - evDualL) * ( Bprimal * meas(Gori)  - one);
+    auto expr   =  A - evPrimalL * Bdiff + (evDualH - evDualL) * Bprimal;
 
 
     gsExprEvaluator<T> ev(exprAssembler);
 
     if (_elWise == 0)
     {
-        m_error = ev.integral(expr);
+        m_error = ev.integral(expr * meas(Gori)) - (evDualH - evDualL);
     }
     else if (_elWise == 1)
     {
-        m_error = ev.integralElWise(expr);
+        m_error = ev.integralElWise(expr * meas(Gori)) - (evDualH - evDualL);
         m_errors = ev.elementwise();
     }
     else if (_elWise == 2)
@@ -1999,13 +1999,13 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
     auto Bprimal= rho.val() * usol.tr() * usol;
     gsConstantFunction<T> onefun(1,2);
     auto one    =exprAssembler.getCoeff(onefun);
-    auto expr   = A  * meas(Gori) - evPrimalL * Bdiff * meas(Gori) + (evDualH - evDualL) * ( Bprimal * meas(Gori)  - one);
+    auto expr   = A - evPrimalL * Bdiff + (evDualH - evDualL) * Bprimal;
 
     if (_elWise == 0)
-        m_error = ev.integral(expr);
+        m_error = ev.integral(expr * meas(Gori)) - (evDualH - evDualL);
     else if (_elWise == 1)
     {
-        m_error = ev.integralElWise(expr);
+        m_error = ev.integralElWise(expr * meas(Gori) ) - (evDualH - evDualL);
         m_errors = ev.elementwise();
     }
     else if (_elWise == 2)

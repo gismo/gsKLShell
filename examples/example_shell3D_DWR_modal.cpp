@@ -521,24 +521,23 @@ int main(int argc, char *argv[])
 
         exacts[r] += exGoal[r];
         exacts[r] -= numGoal[r];
-        approxs[r] = DWR->computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL,dirname + "/" + "errors" + util::to_string(r),1000,false,true);
-        errors.addTimestep("errors" + util::to_string(r) + "0",r,".vts");
-        errors.addTimestep("errors" + util::to_string(r) + "0",r,"_mesh.vtp");
+        approxs[r] = DWR->computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
 
         estGoal[r] = numGoal[r]+approxs[r];
 
         efficiencies[r] = approxs[r]/exacts[r];
 
-        elErrors = DWR->computeErrorEigElements(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL);
-        for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
-        {
-            *it = std::abs(*it);
-        }
+        elErrors = DWR->computeErrorEigElements(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL,dirname + "/" + "errors" + util::to_string(r),10000,true,true);
+        errors.addTimestep("errors" + util::to_string(r) + "0",r,".vts");
+        errors.addTimestep("errors" + util::to_string(r) + "0",r,"_mesh.vtp");
+        // for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
+        // {
+        //     *it = std::abs(*it);
+        // }
 
         gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
         const gsField<> elemError_eh( mp.patch(0), err_eh, true );
         gsWriteParaview<>( elemError_eh, dirname + "/" + "error_elem_ref" + util::to_string(r), 1000, true);
-        errors_elem.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
         errors_elem.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
         if (adaptivity==0)
         {
