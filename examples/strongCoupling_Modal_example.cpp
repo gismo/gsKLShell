@@ -153,20 +153,35 @@ int main(int argc, char *argv[])
     gsInfo<<"Finished\n";
 
     gsMultiPatch<> geom = mp;
+    gsInfo<<"Making gsMultiBasis..."<<std::flush;
+    gsMultiBasis<> dbasis(mp);
+    gsInfo<<"Finished\n";
 
     gsInfo<<"Patch 0 has basis: "<<mp.basis(0)<<"\n";
 
     gsInfo<<"Setting degree and refinement..."<<std::flush;
-    GISMO_ENSURE(degree>=mp.patch(0).degree(0),"Degree must be larger than or equal to the degree of the initial geometry, but degree = "<<degree<<" and the original degree = "<<mp.patch(0).degree(0));
-    mp.degreeIncrease(degree-mp.patch(0).degree(0));
+    if (method != -1 && method != 2)// && method != 3)
+        mp.degreeElevate(degree-mp.patch(0).degree(0));
+    else
+        dbasis.setDegree( degree); // preserve smoothness
 
     // h-refine each basis
     for (int r =0; r < numRefine; ++r)
-        mp.uniformRefine(1,degree-smoothness);
-    gsInfo<<"Finished\n";
-    gsInfo<<"Patch 0 has basis: "<<mp.basis(0)<<"\n";
+    {
+        if (method != -1 && method != 2)// && method != 3)
+            mp.uniformRefine(1,degree-smoothness);
+        else
+            dbasis.uniformRefine(1,degree-smoothness);
+    }
 
-    gsDebugVar(mp.basis(0));
+    if (plot) gsWriteParaview(mp,"mp",1000,true,false);
+    for (size_t p = 0; p!=mp.nPatches(); ++p)
+    {
+        if (method!=-1 && method!=2)
+            gsDebugVar(mp.basis(p));
+        else
+            gsDebugVar(dbasis.basis(p));
+    }
 
     if (plot)
     {
@@ -194,10 +209,6 @@ int main(int argc, char *argv[])
 
     gsSparseMatrix<> global2local;
     gsMatrix<> coefs;
-
-    gsInfo<<"Making gsMultiBasis..."<<std::flush;
-    gsMultiBasis<> dbasis(mp);
-    gsInfo<<"Finished\n";
 
     gsInfo<<"Constructing Map..."<<std::flush;
     if (method==-1)
@@ -285,29 +296,6 @@ int main(int argc, char *argv[])
     }
     if (plot)
         gsWriteParaview(geom,out + "/" + "geom",200,true);
-
-    typedef gsExprAssembler<>::geometryMap geometryMap;
-    typedef gsExprAssembler<>::variable    variable;
-    typedef gsExprAssembler<>::space       space;
-    typedef gsExprAssembler<>::solution    solution;
-
-    gsExprEvaluator<> ev;
-    ev.setIntegrationElements(dbasis);
-    geometryMap G = ev.getMap(geom);
-    gsVector<> pt(2);
-    pt.setConstant(0.5);
-
-    gsDebugVar(ev.eval(nn(G,mp),pt,0));
-    gsDebugVar(ev.eval(G,pt,0));
-
-
-
-
-
-return 0;
-
-    // gsMappedSpline<2,real_t> mspline(bb2,coefs);
-    // geom = mspline.exportToPatches();
 
     gsFunctionExpr<> force("0","0","0",3);
     assembler = gsThinShellAssembler<3, real_t, true>(geom,dbasis,bc,force,&materialMatrix);
