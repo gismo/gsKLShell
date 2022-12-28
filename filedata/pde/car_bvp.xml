@@ -5,11 +5,11 @@
   <!-- Thickness -->
   <Function type="FunctionExpr" id="10" tag="Material" dim="3">0.01</Function>
   <!-- E modulus -->
-  <Function type="FunctionExpr" id="11" tag="Material" dim="3">210e9</Function>
+  <Function type="FunctionExpr" id="11" tag="Material" dim="3">210e3</Function>
   <!-- Poisson ratio -->
   <Function type="FunctionExpr" id="12" tag="Material" dim="3">0.3</Function>
   <!-- Density -->
-  <Function type="FunctionExpr" id="13" tag="Material" dim="3">1.0</Function>
+  <Function type="FunctionExpr" id="13" tag="Material" dim="3">7850e-9</Function>
 
   <!-- Mooney-Rivlin -->
     <!-- Ratio -->

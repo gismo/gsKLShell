@@ -1,12 +1,17 @@
 #!/bin/bash
 # Declare an array of string with type
-declare -a Runname="../../../build_deb/bin/strongCoupling_Error_example"
-declare -a Filenames=("1p_hyperboloid" "4p_hyperboloid" "6p_hyperboloid")
+declare -a Runname="../../../build/bin/strongCoupling_Error_example"
+declare -a Filenames=("4p_hyperboloid" "6p_hyperboloid")
+# 1p_hyperboloid
 declare -a Methods=(1 2 3 4)
 
 for file in ${Filenames[@]}; do
-    for (( p=2; p<5; p++)) do
+    for (( p=2; p<4; p++)) do
         for (( s=$(($p-2)); s<$p; s++ )) do
+	    if (($s==0))
+	    then
+		continue
+	    fi
             for m in ${Methods[@]}; do
                 # Set smoothness
                 if (($m==3 && $s>$(($p-2))))
@@ -19,7 +24,7 @@ for file in ${Filenames[@]}; do
                 then
                     declare -a R0=2
                 else
-                    declare -a R0=0
+                    declare -a R0=1
                 fi
 
                 # Options per method
@@ -49,9 +54,9 @@ for file in ${Filenames[@]}; do
                     fi
                 fi
 
-                echo "$Runname" -m $m -p $p -s $s -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e13 -r 6 -R $R0
+                echo "$Runname" -m $m -p $p -s $s -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e13 -r 5 -R $R0
 
-                eval "$Runname" -m $m -p $p -s $s -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e13 -r 6 -R $R0 > Output/"$file"_p"$p"_s"$s"_m"$m".log
+                eval "$Runname" -m $m -p $p -s $s -G ../filedata/pde/"$file"_geom.xml -B ../filedata/pde/"$file"_bvp.xml -C 1e13 -r 5 -R $R0 > Output/"$file"_p"$p"_s"$s"_m"$m".log
             done
         done
     done

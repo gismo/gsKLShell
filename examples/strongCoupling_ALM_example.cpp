@@ -380,7 +380,12 @@ int main(int argc, char *argv[])
     else
       GISMO_ERROR("Method unknown");
 
+#ifdef GISMO_WITH_PARDISO
+    arcLength->options().setString("Solver","PardisoLU"); // LDLT solver
+#else
     arcLength->options().setString("Solver","CGDiagonal"); // LDLT solver
+#endif
+
     arcLength->options().setInt("BifurcationMethod",1); // 0: determinant, 1: eigenvalue
     arcLength->options().setReal("Length",dLb);
     // arcLength->options().setInt("AngleMethod",0); // 0: step, 1: iteration
