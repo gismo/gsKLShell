@@ -126,7 +126,7 @@ private:
         evList.add(_u);
         _u.data().flags |= NEED_ACTIVE | NEED_GRAD; // need actives for cardinality
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_MEASURE;
+        _G.data().flags |= NEED_NORMAL | NEED_DERIV;
     }
 
     template<class U> inline
@@ -134,7 +134,7 @@ private:
     parse_impl(gsExprHelper<Scalar> & evList) const
     {
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_MEASURE;
+        _G.data().flags |= NEED_NORMAL | NEED_DERIV;
 
         grad(_u).parse(evList); //
 
@@ -152,7 +152,7 @@ private:
         normal.normalize();
         bGrads = _u.data().values[1].col(k);
         cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
-        const Scalar measure =  _G.data().measures.at(k);
+        const Scalar measure =  (cJac.col3d(0).cross( cJac.col3d(1) )).norm();
 
         for (index_t d = 0; d!= cols(); ++d) // for all basis function components
         {
@@ -183,7 +183,7 @@ private:
         normal.normalize();
         bGrads = sGrad.eval(k);
         cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
-        const Scalar measure =  _G.data().measures.at(k);
+        const Scalar measure =  (cJac.col3d(0).cross( cJac.col3d(1) )).norm();
 
         m_v.noalias() = ( ( bGrads.col3d(0) ).cross( cJac.col3d(1) )
                       -   ( bGrads.col3d(1) ).cross( cJac.col3d(0) ) ) / measure;
@@ -245,7 +245,7 @@ public:
 
         const index_t cardU = _u.data().values[0].rows(); // number of actives per component of u
         const index_t cardV = _v.data().values[0].rows(); // number of actives per component of v
-        const Scalar measure =  _G.data().measures.at(k);
+        const Scalar measure =  (cJac.col3d(0).cross( cJac.col3d(1) )).norm();
 
         evEf = _Ef.eval(k);
 
@@ -310,7 +310,7 @@ public:
         evList.add(_v);
         _v.data().flags |= NEED_ACTIVE | NEED_VALUE | NEED_GRAD;
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_MEASURE;
+        _G.data().flags |= NEED_NORMAL | NEED_DERIV;
         _Ef.parse(evList);
     }
 
@@ -371,7 +371,7 @@ public:
 
         const index_t cardU = _u.data().values[0].rows(); // number of actives per component of u
         const index_t cardV = _v.data().values[0].rows(); // number of actives per component of v
-        const Scalar measure =  _G.data().measures.at(k);
+        const Scalar measure =  (cJac.col3d(0).cross( cJac.col3d(1) )).norm();
 
         evEf = _Ef.eval(k);
 
@@ -438,7 +438,7 @@ public:
         evList.add(_v);
         _v.data().flags |= NEED_ACTIVE | NEED_VALUE | NEED_GRAD;
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_2ND_DER | NEED_MEASURE;
+        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_2ND_DER;
         _Ef.parse(evList);
     }
 
@@ -506,7 +506,7 @@ private:
         evList.add(_u);
         _u.data().flags |= NEED_GRAD | NEED_ACTIVE;
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV | NEED_MEASURE;
+        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV;
     }
 
     template<class U> inline
@@ -514,7 +514,7 @@ private:
     parse_impl(gsExprHelper<Scalar> & evList) const
     {
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV | NEED_MEASURE;
+        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV;
 
         grad(_u).parse(evList); //
 
@@ -670,7 +670,7 @@ private:
         evList.add(_u);
         _u.data().flags |= NEED_GRAD | NEED_ACTIVE;
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV | NEED_MEASURE; // all needed?
+        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV; // all needed?
 
         tv(_G).parse(evList);
         tvar1(_u,_G).parse(evList);
@@ -682,7 +682,7 @@ private:
     parse_impl(gsExprHelper<Scalar> & evList) const
     {
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV | NEED_MEASURE; // all needed?
+        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV; // all needed?
 
         grad(_u).parse(evList); //
         tv(_G).parse(evList);
@@ -834,7 +834,7 @@ public:
 
         const index_t cardU = _u.data().values[0].rows(); // number of actives per component of u
         const index_t cardV = _v.data().values[0].rows(); // number of actives per component of v
-        const Scalar measure =  _G.data().measures.at(k);
+        const Scalar measure =  (cJac.col3d(0).cross( cJac.col3d(1) )).norm();
 
         tangent_expr<Scalar> tan_expr = tangent_expr<Scalar>(_G);
         tangent = tan_expr.eval(k);
@@ -927,7 +927,7 @@ public:
         evList.add(_v);
         _v.data().flags |= NEED_ACTIVE | NEED_VALUE | NEED_GRAD;
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV | NEED_MEASURE;
+        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV;
         _C.parse(evList);
     }
 
