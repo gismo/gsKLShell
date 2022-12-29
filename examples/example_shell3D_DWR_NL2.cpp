@@ -42,12 +42,13 @@ int main(int argc, char *argv[])
 
     // real_t E_modulus = 1;
     // real_t PoissonRatio = 0.3;
-    // real_t thickness = 0.01;
+    // real_t thickness = 1e-3;
 
     real_t mu = 1;
     real_t thickness = 1e-3;
 
     index_t steps = 10;
+    index_t testCase = 0;
 
     int adaptivity = 0;
 
@@ -63,6 +64,7 @@ int main(int argc, char *argv[])
                numRefine);
 
     cmd.addInt("N", "steps", "Number of ALM steps", steps);
+    cmd.addInt("t", "testCase", "testCase number", testCase);
 
     cmd.addInt("A", "adaptivity", "Adaptivity scheme: 0) uniform refinement, 1) adaptive refinement, 2) adaptive refinement and coarsening", adaptivity);
 
@@ -131,7 +133,7 @@ int main(int argc, char *argv[])
     gsVector<> tmp(3);
     tmp << 0, 0, 0;
 
-    real_t load = 1e-6;
+    real_t load = 1e-7;
 
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
 
@@ -142,8 +144,27 @@ int main(int argc, char *argv[])
     bc.addCondition(boundary::east,condition_type::dirichlet,0,0,false,0);
     bc.addCondition(boundary::east,condition_type::clamped,0,0,false,1);
     bc.addCondition(boundary::east,condition_type::clamped,0,0,false,2);
-
-    bc.addCornerValue(boundary::southwest, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
+    if (testCase==0)
+        bc.addCornerValue(boundary::southwest, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
+    else if (testCase==1)
+    {
+        for (index_t c=0; c!=3; c++)
+        {
+            bc.addCondition(boundary::south,condition_type::dirichlet,0,0,false,c);
+            bc.addCondition(boundary::west ,condition_type::dirichlet,0,0,false,c);
+        }
+    }
+    else if (testCase==2)
+    {
+        bc.addCornerValue(boundary::southwest, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
+        bc.addCondition(boundary::west ,condition_type::dirichlet,0,0,false,0);
+        bc.addCondition(boundary::south,condition_type::dirichlet,0,0,false,1);
+    }
+    else if (testCase==3)
+    {
+        bc.addCondition(boundary::west ,condition_type::dirichlet,0,0,false,2);
+        bc.addCondition(boundary::south,condition_type::dirichlet,0,0,false,2);
+    }
 
     gsVector<> pointvec(2);
     pointvec<< 1.0, 1.0 ;
@@ -298,11 +319,12 @@ int main(int argc, char *argv[])
         // arcLength.options().setReal("Tol",tol);
         // arcLength.options().setReal("TolU",tolU);
         // arcLength.options().setReal("TolF",tolF);
-        arcLength.options().setInt("MaxIter",50);
+        arcLength.options().setInt("MaxIter",10);
         arcLength.options().setSwitch("Verbose",true);
-        arcLength.options().setInt("BifurcationMethod",gsALMBase<real_t>::bifmethod::Nothing);
+        arcLength.options().setInt("BifurcationMethod",gsALMBase<real_t>::bifmethod::Eigenvalue);
 
         loadControl.options() = arcLength.options();
+        loadControl.options().setInt("BifurcationMethod",gsALMBase<real_t>::bifmethod::Nothing);
         arcLength.applyOptions();
         loadControl.applyOptions();
 
@@ -319,6 +341,7 @@ int main(int argc, char *argv[])
         index_t k = 0;
         gsMatrix<> Uold(Force.rows(),1);
         Uold.setZero();
+        solVector = Uold;
         while (L < 1 && std::abs(L-1)>1e-14)
         {
             Uold = solVector;
