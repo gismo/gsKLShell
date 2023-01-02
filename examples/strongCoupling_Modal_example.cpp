@@ -123,6 +123,12 @@ int main(int argc, char *argv[])
 
     if (mp.geoDim()==2)
         mp.embed(3);
+    if (method==2 && mp.patch(0).degree(0)<3)
+    {
+        gsWarn<<"Degree must be larger than 2 for the approx C1 method. Performing degree elevation on the geometry..."<<std::flush;
+        mp.degreeIncrease(degree-mp.patch(0).degree(0));
+        gsInfo<<"Finished.\n";
+    }
 
     fd.read(fn2);
     index_t num = 0;
@@ -157,11 +163,9 @@ int main(int argc, char *argv[])
     gsMultiBasis<> dbasis(mp);
     gsInfo<<"Finished\n";
 
-    gsInfo<<"Patch 0 has basis: "<<mp.basis(0)<<"\n";
-
     gsInfo<<"Setting degree and refinement..."<<std::flush;
     if (method != -1 && method != 2)// && method != 3)
-        mp.degreeElevate(degree-mp.patch(0).degree(0));
+        mp.degreeIncrease(degree-mp.patch(0).degree(0));
     else
         dbasis.setDegree( degree); // preserve smoothness
 
@@ -175,13 +179,6 @@ int main(int argc, char *argv[])
     }
 
     if (plot) gsWriteParaview(mp,"mp",1000,true,false);
-    for (size_t p = 0; p!=mp.nPatches(); ++p)
-    {
-        if (method!=-1 && method!=2)
-            gsDebugVar(mp.basis(p));
-        else
-            gsDebugVar(dbasis.basis(p));
-    }
 
     if (plot)
     {
@@ -299,10 +296,10 @@ int main(int argc, char *argv[])
 
     gsFunctionExpr<> force("0","0","0",3);
     assembler = gsThinShellAssembler<3, real_t, true>(geom,dbasis,bc,force,&materialMatrix);
-    if (method==1)
-        assembler.options().setInt("Continuity",-1);
-    else if (method==2)
-        assembler.options().setInt("Continuity",-1);
+    // if (method==1)
+    assembler.options().setInt("Continuity",-1);
+    // else if (method==2)
+    //     assembler.options().setInt("Continuity",-1);
     assembler.options().setReal("WeakDirichlet",bcDirichlet);
     assembler.options().setReal("WeakClamped",bcClamped);
     assembler.setSpaceBasis(bb2);
@@ -403,7 +400,6 @@ int main(int argc, char *argv[])
 
             // 3. Make the mapped spline
             gsMappedSpline<2,real_t> mspline(bb2,solFull);
-            gsFunctionSum<real_t> def(&mp,&mspline);
 
             gsField<> solField(geom, mspline,true);
 

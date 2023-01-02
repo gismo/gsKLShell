@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
         const char *command = commands.c_str();
         int systemRet = system(command);
         GISMO_ASSERT(systemRet!=-1,"Something went wrong with calling the system argument");
-        gsWriteParaview(mp,out + "/" + "mp",10,true,false);
+        gsWriteParaview(mp,"mp",10,true,false);
     }
 
     // for (size_t p = 0; p!=mp.nPatches(); ++p)

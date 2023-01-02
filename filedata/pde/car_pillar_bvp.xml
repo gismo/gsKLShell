@@ -84,7 +84,7 @@
     20 2
     49 2
   </bc>
-  <bc type="Clamped" function="0" unknown="0" component="-1">
+  <bc type="Weak Clamped" function="0" unknown="0" component="-1">
     76 4
         64 4
         105 4
