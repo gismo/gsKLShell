@@ -133,7 +133,15 @@ int main(int argc, char *argv[])
     gsVector<> tmp(3);
     tmp << 0, 0, 0;
 
-    real_t load = 1e-7;
+    real_t load = 0;
+    if (testCase==0)
+	load = 1e-6;
+    else if (testCase==1)
+	load = 1e-7;
+    else if (testCase==2)
+        load = 1e-6;
+    else if (testCase==3)
+        load = 1e-7;
 
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
 
@@ -316,15 +324,19 @@ int main(int argc, char *argv[])
         arcLength.options().setString("Solver","SimplicialLDLT"); // LDLT solver
 #endif
         arcLength.options().setReal("Length",dL);
-        // arcLength.options().setReal("Tol",tol);
-        // arcLength.options().setReal("TolU",tolU);
-        // arcLength.options().setReal("TolF",tolF);
+        real_t tol  = 1e-3;
+	real_t tolU = 1e-3;
+	real_t tolF = 1e-3;
+	arcLength.options().setReal("Tol",tol);
+        arcLength.options().setReal("TolU",tolU);
+        arcLength.options().setReal("TolF",tolF);
         arcLength.options().setInt("MaxIter",10);
         arcLength.options().setSwitch("Verbose",true);
         arcLength.options().setInt("BifurcationMethod",gsALMBase<real_t>::bifmethod::Eigenvalue);
 
         loadControl.options() = arcLength.options();
         loadControl.options().setInt("BifurcationMethod",gsALMBase<real_t>::bifmethod::Nothing);
+	arcLength.options().setReal("Scaling",0.0);
         arcLength.applyOptions();
         loadControl.applyOptions();
 
