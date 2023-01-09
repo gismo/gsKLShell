@@ -44,7 +44,6 @@ int main(int argc, char *argv[])
     // real_t PoissonRatio = 0.3;
     // real_t thickness = 1e-3;
 
-    real_t mu = 1;
     real_t thickness = 1e-3;
 
     index_t steps = 10;
@@ -134,14 +133,35 @@ int main(int argc, char *argv[])
     tmp << 0, 0, 0;
 
     real_t load = 0;
+    real_t PoissonRatio = 0;
+    real_t E_modulus = 0;
     if (testCase==0)
-	load = 1e-6;
-    else if (testCase==1)
-	load = 1e-7;
-    else if (testCase==2)
-        load = 1e-6;
-    else if (testCase==3)
+    {
+        E_modulus = 1;
+        PoissonRatio = 0.3;
         load = 1e-7;
+    }
+    else if (testCase==1)
+    {
+        real_t mu = 1;
+        PoissonRatio = 0.5;
+        E_modulus = 2*mu*(1+PoissonRatio);
+        load = 1e-7;
+    }
+    else if (testCase==2)
+    {
+        real_t mu = 1;
+        PoissonRatio = 0.5;
+        E_modulus = 2*mu*(1+PoissonRatio);
+        load = 1e-6;
+    }
+    else if (testCase==3)
+    {
+        real_t mu = 1;
+        PoissonRatio = 0.5;
+        E_modulus = 2*mu*(1+PoissonRatio);
+        load = 1e-7;
+    }
 
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
 
@@ -180,9 +200,6 @@ int main(int argc, char *argv[])
     loadvec << 0.0, 0.0, load ;
     pLoads.addLoad(pointvec, loadvec, 0 );
 
-    real_t PoissonRatio = 0.5;
-    real_t E_modulus = 2*mu*(1+PoissonRatio);
-
     // gsConstantFunction<> force(tmp,3);
     // gsFunctionExpr<> force("0","0","if (sqrt((x-0.5)^2+(y-0.5)^2)<0.1){-1e-4} else{0}",3);
     gsFunctionExpr<> force("0","0","0",3);
@@ -195,8 +212,26 @@ int main(int argc, char *argv[])
     parameters[1] = &Pois;
     gsMaterialMatrixBase<real_t>* materialMatrix;
     gsOptionList options;
-    options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",1);
-    options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+    if (testCase==0)
+    {
+        options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
+        options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+    }
+    else if (testCase==1)
+    {
+        options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",1);
+        options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+    }
+    else if (testCase==2)
+    {
+        options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",1);
+        options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+    }
+    else if (testCase==3)
+    {
+        options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",1);
+        options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+    }
     options.askSwitch("Compressibility",false);
     materialMatrix = getMaterialMatrix<3,real_t>(mp,thick,parameters,options);
 
