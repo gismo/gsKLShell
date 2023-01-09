@@ -178,16 +178,15 @@ int main(int argc, char *argv[])
             dbasis.uniformRefine(1,degree-smoothness);
     }
 
-    if (plot) gsWriteParaview(mp,"mp",1000,true,false);
-
-    if (plot)
+    if (plot || write)
     {
         std::string commands = "mkdir -p " + out;
         const char *command = commands.c_str();
         int systemRet = system(command);
         GISMO_ASSERT(systemRet!=-1,"Something went wrong with calling the system argument");
-        gsWriteParaview(mp,out + "/" + "mp",10,true,false);
     }
+    if (plot)
+        gsWriteParaview(mp,"mp",10,true,false);
     // for (size_t p = 0; p!=mp.nPatches(); ++p)
     //     gsDebugVar(mp.patch(p));
 
