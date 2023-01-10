@@ -364,7 +364,7 @@ int main(int argc, char *argv[])
 
             for (index_t p=0; p!=refPars.cols(); ++p)
             {
-                geom.patch(refPatches(0,p)).eval_into(refPars.col(p),result);
+                mp.patch(refPatches(0,p)).eval_into(refPars.col(p),result);
                 gsInfo<<result.row(0)<<","<<result.row(1)<<","<<result.row(2)<<",";
             }
             gsInfo<<"\n";

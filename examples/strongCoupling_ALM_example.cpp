@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
     bool nonlinear  = false;
     bool SingularPoint = false;
     bool quasiNewton = false;
-    int quasiNewtonInt = -1;
+    index_t quasiNewtonInt = -1;
     index_t numRefine  = 2;
     index_t degree = 3;
     index_t smoothness = 2;
@@ -58,8 +58,8 @@ int main(int argc, char *argv[])
     index_t method = 0;
     std::string input;
 
-    int step          = 10;
-    int ALMmethod        = 2; // (0: Load control; 1: Riks' method; 2: Crisfield's method; 3: consistent crisfield method)
+    index_t step          = 10;
+    index_t ALMmethod        = 2; // (0: Load control; 1: Riks' method; 2: Crisfield's method; 3: consistent crisfield method)
     real_t dL         = 0; // Arc length
     real_t dLb        = 0.5; // Arc length to find bifurcation
     real_t tol        = 1e-6;
@@ -164,14 +164,33 @@ int main(int argc, char *argv[])
     // Loads
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
     gsMatrix<> points,loads;
-    gsInfo<<"Reading point load locations from "<<fn2<<" (ID=30) ...";
-    fd.getId(30,points);
-    gsInfo<<"Finished\n";
-    gsInfo<<"Reading point loads from "<<fn2<<" (ID=31) ...";
-    fd.getId(31,loads);
-    gsInfo<<"Finished\n";
+    gsMatrix<index_t> pid_ploads;
+    if ( fd.hasId(30) )
+        fd.getId(30,points);
+    if ( fd.hasId(31) )
+        fd.getId(31,loads);
+
+    if ( fd.hasId(32) )
+        fd.getId(32,pid_ploads);
+    else
+        pid_ploads = gsMatrix<index_t>::Zero(1,points.cols());
+
     for (index_t k =0; k!=points.cols(); k++)
-        pLoads.addLoad(points.col(k), loads.col(k), 0 ); // in parametric domain!
+        pLoads.addLoad(points.col(k), loads.col(k), pid_ploads.at(k) ); // in parametric domain!
+
+    gsInfo<<pLoads;
+
+    // // Loads
+    // gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
+    // gsMatrix<> points,loads;
+    // gsInfo<<"Reading point load locations from "<<fn2<<" (ID=30) ...";
+    // fd.getId(30,points);
+    // gsInfo<<"Finished\n";
+    // gsInfo<<"Reading point loads from "<<fn2<<" (ID=31) ...";
+    // fd.getId(31,loads);
+    // gsInfo<<"Finished\n";
+    // for (index_t k =0; k!=points.cols(); k++)
+    //     pLoads.addLoad(points.col(k), loads.col(k), 0 ); // in parametric domain!
 
     // Reference points
     gsMatrix<index_t> refPatches;
