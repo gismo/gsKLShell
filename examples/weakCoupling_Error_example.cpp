@@ -134,10 +134,20 @@ int main(int argc, char *argv[])
 
     // Reference points
     gsMatrix<index_t> refPatches;
-    gsMatrix<> refPoints, refValue; // todo: add refValue..
+    gsMatrix<> refPoints, refPars, refValue; // todo: add refValue..
     gsInfo<<"Reading reference point locations from "<<fn2<<" (ID=50) ...";
     if ( fd.hasId(50) )
         fd.getId(50,refPoints);
+    if (refPoints.rows()==2)
+    {
+        refPars = refPoints;
+        gsInfo<<"Reference points are provided in parametric coordinates.\n";
+    }
+    else if (refPoints.rows()==3)
+        gsInfo<<"Reference points are provided in physical coordinates.\n";
+    else
+        gsInfo<<"No reference points are provided.\n";
+
     gsInfo<<"Finished\n";
     gsInfo<<"Reading reference patches from "<<fn2<<" (ID=51) ...";
     if ( fd.hasId(51) )
@@ -322,9 +332,42 @@ int main(int argc, char *argv[])
         solField = gsField<>(mp_def, deformation);
         if (refPoints.cols()!=0)
         {
-            for (index_t p=0; p!=refPoints.cols(); p++)
+
+            // gsMatrix<> ppoints(3,3), result;
+            // ppoints.col(0)<<0,0,0;
+            // ppoints.col(1)<<0.25,0,0.0625;
+            // ppoints.col(2)<<0.5,0,0.25;
+
+            gsMatrix<> result;
+            if (refPoints.rows()==3) // then they are provided in the physical domain and should be mapped to the parametric domain
+            {
+                refPars.resize(2,refPoints.cols());
+                for (index_t p = 0; p!=refPoints.cols(); p++)
+                {
+                    mp.patch(refPatches(0,p)).invertPoints(refPoints.col(p),result,1e-10);
+                    if (result.at(0)==std::numeric_limits<real_t>::infinity()) // if failed
+                        gsWarn<<"Point inversion failed\n";
+                    refPars.col(p) = result;
+                }
+            }
+
+            for (index_t p=0; p!=refPars.cols(); p++)
                 // refs.block(r,p*mp.geoDim(),1,mp.geoDim()) = def.piece(refPatches(0,p)).eval(refPoints.col(p)).transpose();
-                refs.block(r,p*mp.geoDim(),1,mp.geoDim()) = solField.value(refPoints.col(p),refPatches(0,p)).transpose();
+                refs.block(r,p*mp.geoDim(),1,mp.geoDim()) = solField.value(refPars.col(p),refPatches(0,p)).transpose();
+
+            gsInfo<<"Physical coordinates of points\n";
+            for (index_t p=0; p!=refPars.cols(); p++)
+            {
+                gsInfo<<",x"<<std::to_string(p)<<",y"<<std::to_string(p)<<",z"<<std::to_string(p);
+            }
+            gsInfo<<"\n";
+
+            for (index_t p=0; p!=refPars.cols(); ++p)
+            {
+                mp.patch(refPatches(0,p)).eval_into(refPars.col(p),result);
+                gsInfo<<result.row(0)<<","<<result.row(1)<<","<<result.row(2)<<",";
+            }
+            gsInfo<<"\n";
         }
 
         numDofs[r] = assembler.numDofs();
@@ -335,14 +378,14 @@ int main(int argc, char *argv[])
     //! [Solver loop]
 
     gsInfo<<"numDoFs";
-    for (index_t p=0; p!=refPoints.cols(); ++p)
+    for (index_t p=0; p!=refPars.cols(); ++p)
         gsInfo<<",x"<<std::to_string(p)<<",y"<<std::to_string(p)<<",z"<<std::to_string(p);
     gsInfo<<"\n";
 
     for (index_t k=0; k<=numRefine; ++k)
     {
         gsInfo<<numDofs(k);
-        for (index_t p=0; p!=refPoints.cols(); ++p)
+        for (index_t p=0; p!=refPars.cols(); ++p)
         {
             gsInfo<<","<<refs(k,3*p)<<","<<refs(k,3*p+1)<<","<<refs(k,3*p+2);
         }
