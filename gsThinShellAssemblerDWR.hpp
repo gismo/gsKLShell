@@ -359,7 +359,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
         else
         {
             gsWarn<<"The MembraneForce goal function seems to be problematic (Nder)\n";
-            auto expr = 2 * N_der * N * meas(Gori);
+            auto expr = N_der * gismo::expr::uv(m_component,3) * meas(Gori);
             exprAssembler.assemble(expr);
             return exprAssembler.rhs();
         }
@@ -1814,9 +1814,6 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
     auto Bdiff      = Kd_NL - Kd_L;
     auto Bprimal    = K_NL  - K_L ;
 
-    gsConstantFunction<T> onefun(1,2);
-    auto one    = exprAssembler.getCoeff(onefun);
-
     auto expr   =  A - evPrimalL * Bdiff + (evDualH - evDualL) * Bprimal;
 
 
@@ -1997,8 +1994,6 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
     auto A      = Fint;
     auto Bdiff  = rho.val() * usol.tr() * (zsolH - zsolL);
     auto Bprimal= rho.val() * usol.tr() * usol;
-    gsConstantFunction<T> onefun(1,2);
-    auto one    =exprAssembler.getCoeff(onefun);
     auto expr   = A - evPrimalL * Bdiff + (evDualH - evDualL) * Bprimal;
 
     if (_elWise == 0)
