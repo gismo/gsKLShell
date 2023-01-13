@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
     else if (testCase==1)
     {
         real_t mu = 1;
-        PoissonRatio = 0.5;
+        PoissonRatio = 0.3;
         E_modulus = 2*mu*(1+PoissonRatio);
         load = 1e-7;
     }
@@ -165,37 +165,44 @@ int main(int argc, char *argv[])
 
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
 
-    bc.addCondition(boundary::north,condition_type::dirichlet,0,0,false,1);
-    bc.addCondition(boundary::north,condition_type::clamped,0,0,false,0);
-    bc.addCondition(boundary::north,condition_type::clamped,0,0,false,2);
-
-    bc.addCondition(boundary::east,condition_type::dirichlet,0,0,false,0);
-    bc.addCondition(boundary::east,condition_type::clamped,0,0,false,1);
-    bc.addCondition(boundary::east,condition_type::clamped,0,0,false,2);
     if (testCase==0)
-        bc.addCornerValue(boundary::southwest, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
+        bc.addCornerValue(boundary::southeast, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
     else if (testCase==1)
-    {
-        for (index_t c=0; c!=3; c++)
-        {
-            bc.addCondition(boundary::south,condition_type::dirichlet,0,0,false,c);
-            bc.addCondition(boundary::west ,condition_type::dirichlet,0,0,false,c);
-        }
-    }
+        bc.addCornerValue(boundary::southeast, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
+    // {
+    //     for (index_t c=0; c!=3; c++)
+    //     {
+    //         bc.addCondition(boundary::south,condition_type::dirichlet,0,0,false,c);
+    //         bc.addCondition(boundary::east ,condition_type::dirichlet,0,0,false,c);
+    //     }
+    // }
     else if (testCase==2)
     {
-        bc.addCornerValue(boundary::southwest, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
-        bc.addCondition(boundary::west ,condition_type::dirichlet,0,0,false,0);
+        bc.addCornerValue(boundary::southeast, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
+        bc.addCondition(boundary::east ,condition_type::dirichlet,0,0,false,0);
         bc.addCondition(boundary::south,condition_type::dirichlet,0,0,false,1);
     }
     else if (testCase==3)
     {
-        bc.addCondition(boundary::west ,condition_type::dirichlet,0,0,false,2);
-        bc.addCondition(boundary::south,condition_type::dirichlet,0,0,false,2);
+        // bc.addCornerValue(boundary::southeast, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
+        bc.addCornerValue(boundary::southwest, 0.0, 0, 0, 2); // (corner,value, patch, unknown)
+        bc.addCornerValue(boundary::northeast, 0.0, 0, 0, 2); // (corner,value, patch, unknown)
+        // bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 2);
+        // bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, 2);
     }
 
+
+    bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 1 );
+    bc.addCondition(boundary::north, condition_type::clamped, 0, 0, false, 0 );
+    bc.addCondition(boundary::north, condition_type::clamped, 0, 0, false, 2 );
+
+    // Symmetry in y-direction:
+    bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 0 );
+    bc.addCondition(boundary::west, condition_type::clamped, 0, 0, false, 1 );
+    bc.addCondition(boundary::west, condition_type::clamped, 0, 0, false, 2 );
+
     gsVector<> pointvec(2);
-    pointvec<< 1.0, 1.0 ;
+    pointvec<< 0.0, 1.0 ;
     gsVector<> loadvec (3);
     loadvec << 0.0, 0.0, load ;
     pLoads.addLoad(pointvec, loadvec, 0 );
@@ -221,6 +228,7 @@ int main(int argc, char *argv[])
     {
         options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",1);
         options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+        options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",true);
     }
     else if (testCase==2)
     {
@@ -232,7 +240,6 @@ int main(int argc, char *argv[])
         options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",1);
         options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
     }
-    options.askSwitch("Compressibility",false);
     materialMatrix = getMaterialMatrix<3,real_t>(mp,thick,parameters,options);
 
     gsSparseSolver<real_t>::uPtr solver;
@@ -389,7 +396,7 @@ int main(int argc, char *argv[])
         gsMatrix<> Uold(Force.rows(),1);
         Uold.setZero();
         solVector = Uold;
-        while (L < 1 && std::abs(L-1)>1e-14)
+        while (L < 1 && std::abs(L-1)>1e-14 && (L>=Lold))
         {
             Uold = solVector;
             Lold = L;
@@ -507,13 +514,26 @@ int main(int argc, char *argv[])
         estGoal[r] = numGoal[r]+approxs[r];
 
         gsVector<> Uz_pt(2);
-        Uz_pt.setConstant(0.25);
+        Uz_pt<<0.0,1.0;
         gsMatrix<> tmp;
         mp_def.patch(0).eval_into(Uz_pt,tmp);
         Uz[r] = tmp(2,0);
 
         if (adaptivity==0)
         {
+            elErrors = DWR->computeErrorElements(dualL, dualH,mp_def,false);
+            real_t error = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
+            gsInfo<<"Accumulated error = "<<error<<"\n";
+            if (plot)
+            {
+                gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
+                const gsField<> elemError_eh( mp.patch(0), err_eh, true );
+                std::string fileName = dirname + "/" + "error_elem_ref" + util::to_string(r);
+                gsWriteParaview<>( elemError_eh, fileName, 5000, true);
+                fileName = "error_elem_ref" + util::to_string(r) + "0";
+                errors.addTimestep(fileName,r,".vts");
+                errors.addTimestep(fileName,r,"_mesh.vtp");
+            }
             mp.uniformRefine();
         }
         else if (adaptivity > 0)
@@ -564,7 +584,6 @@ int main(int argc, char *argv[])
 
             // gsDebugVar(oldError);
             // gsDebugVar(newError);
-
 
             if (plot)
             {

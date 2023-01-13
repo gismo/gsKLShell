@@ -358,7 +358,6 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(gsThinShellAss
         }
         else
         {
-            gsWarn<<"The MembraneForce goal function seems to be problematic (Nder)\n";
             auto expr = N_der * gismo::expr::uv(m_component,3) * meas(Gori);
             exprAssembler.assemble(expr);
             return exprAssembler.rhs();
@@ -624,8 +623,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const bContain
         }
         else
         {
-            gsWarn<<"The MembraneForce goal function seems to be problematic (Nder)\n";
-            auto expr = 2 * N_der * N * meas(Gori);
+            auto expr = N.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
             exprAssembler.assembleBdr(bnds,expr);
             return exprAssembler.rhs();
         }
@@ -634,7 +632,9 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const bContain
     {
         if (m_component==9)
         {
-            auto expr = 2 * Ef_der * Ef.tr() * meas(Gori);
+            gsFunctionExpr<> mult110t("1","0","0","0","1","0","0","0","0",2);
+            auto m110 = exprAssembler.getCoeff(mult2t);
+            auto expr = 2*Ef_der * reshape(m110,3,3) *  Ef.tr() * meas(Gori);
             exprAssembler.assembleBdr(bnds,expr);
             return exprAssembler.rhs();
         }
@@ -1027,7 +1027,6 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
     {
         if (m_component==9)
         {
-            gsWarn<<"The MembraneForce goal function seems to be problematic (Nder)\n";
             auto expr = 2 * N_der * N * meas(Gori);
             for (index_t k = 0; k!=points.cols(); k++)
             {
@@ -1046,9 +1045,7 @@ gsVector<T> gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(const gsMatrix
         else
         {
             // remove N_der from this scipe
-            gsWarn<<"The MembraneForce goal function seems to be problematic (Nder)\n";
-            auto N_der    = Em_der * reshape(mmAi,3,3) + Ef_der * reshape(mmBi,3,3);
-            auto expr = N_der * gismo::expr::uv(m_component,3) * meas(Gori);
+            auto expr = N.tr() * gismo::expr::uv(m_component,3) * meas(Gori);
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
