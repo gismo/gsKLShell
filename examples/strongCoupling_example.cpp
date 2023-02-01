@@ -540,17 +540,17 @@ int main(int argc, char *argv[])
         gsPiecewiseFunction<> membraneStresses;
         gsDebugVar("MembraneStress construction");
         assembler.constructStress(ori,def,membraneStresses,stress_type::membrane);
-        gsWriteParaview(ori,membraneStresses,"MembraneStress",1000);
+        gsWriteParaview(ori,membraneStresses,"MembraneStress",5000);
 
         gsPiecewiseFunction<> membraneStressesVM;
         gsDebugVar("MembraneStress (VM) construction");
         assembler.constructStress(ori,def,membraneStressesVM,stress_type::von_mises_membrane);
-        gsWriteParaview(ori,membraneStressesVM,"MembraneStressVM",1000);
+        gsWriteParaview(ori,membraneStressesVM,"MembraneStressVM",5000);
 
         gsPiecewiseFunction<> flexuralStresses;
         gsDebugVar("FlexuralStress construction");
         assembler.constructStress(ori,def,flexuralStresses,stress_type::flexural);
-        gsWriteParaview(geom,flexuralStresses,"FlexuralStress",1000);
+        gsWriteParaview(geom,flexuralStresses,"FlexuralStress",5000);
     }
     if (write)
     {
