@@ -367,15 +367,19 @@ int main(int argc, char *argv[])
     if (stress)
     {
         gsPiecewiseFunction<> membraneStresses;
-        assembler.constructStress(mp_def,membraneStresses,stress_type::membrane);
-        gsField<> membraneStress(mp_def,membraneStresses, true);
+        gsDebugVar("MembraneStress construction");
+        assembler.constructStress(mp,mp_def,membraneStresses,stress_type::membrane);
+        gsWriteParaview(mp,membraneStresses,"MembraneStress",5000);
+
+        gsPiecewiseFunction<> membraneStressesVM;
+        gsDebugVar("MembraneStress (VM) construction");
+        assembler.constructStress(mp,mp_def,membraneStressesVM,stress_type::von_mises_membrane);
+        gsWriteParaview(mp,membraneStressesVM,"MembraneStressVM",5000);
 
         gsPiecewiseFunction<> flexuralStresses;
-        assembler.constructStress(mp_def,flexuralStresses,stress_type::flexural);
-        gsField<> flexuralStress(mp_def,flexuralStresses, true);
-
-        gsWriteParaview(membraneStress,"MembraneStress",1000);
-        gsWriteParaview(flexuralStress,"FlexuralStress",1000);
+        gsDebugVar("FlexuralStress construction");
+        assembler.constructStress(mp,mp_def,flexuralStresses,stress_type::flexural);
+        gsWriteParaview(mp,flexuralStresses,"FlexuralStress",5000);
     }
     // ! [Export visualization in ParaView]
 

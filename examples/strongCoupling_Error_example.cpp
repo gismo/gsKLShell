@@ -231,6 +231,8 @@ int main(int argc, char *argv[])
         b2err(numRefine+1), b1err(numRefine+1), binferr(numRefine+1);
 
     gsVector<> numDofs(numRefine+1);
+    gsVector<> DisplacementNorm(numRefine+1);
+    gsVector<> EnergyNorm(numRefine+1);
     gsMatrix<> refs(numRefine+1,3*refPoints.cols());
 
     gsSparseSolver<>::CGDiagonal solver;
@@ -480,6 +482,11 @@ int main(int argc, char *argv[])
         }
 
         numDofs[r] = assembler.numDofs();
+        DisplacementNorm[r] = solVector.transpose() * solVector;
+        if (!nonlinear)
+            EnergyNorm[r] = solVector.transpose() * matrix * solVector;
+        else
+            EnergyNorm[r] = solVector.transpose() * Jacobian(solVector) * solVector;
 
         // h-refine
         mp.uniformRefine(1,degree-smoothness);
@@ -510,6 +517,7 @@ int main(int argc, char *argv[])
         file<<"numDoFs";
         for (index_t p=0; p!=refPars.cols(); ++p)
             file<<",x"<<std::to_string(p)<<",y"<<std::to_string(p)<<",z"<<std::to_string(p);
+        file<<"DisplacementNorm,"<<"Energynorm";
         file<<"\n";
 
         for (index_t k=0; k<=numRefine; ++k)
@@ -517,6 +525,7 @@ int main(int argc, char *argv[])
             file<<numDofs(k);
             for (index_t p=0; p!=refPars.cols(); ++p)
                 file<<","<<refs(k,3*p)<<","<<refs(k,3*p+1)<<","<<refs(k,3*p+2);
+            file<<DisplacementNorm[k]<<EnergyNorm[k];
             file<<"\n";
         }
         file.close();
