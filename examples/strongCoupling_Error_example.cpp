@@ -516,8 +516,8 @@ int main(int argc, char *argv[])
 
         file<<"numDoFs";
         for (index_t p=0; p!=refPars.cols(); ++p)
-            file<<",x"<<std::to_string(p)<<",y"<<std::to_string(p)<<",z"<<std::to_string(p);
-        file<<"DisplacementNorm,"<<"Energynorm";
+            file<<std::setprecision(12)<<",x"<<std::to_string(p)<<",y"<<std::to_string(p)<<",z"<<std::to_string(p);
+        file<<",DisplacementNorm,"<<"Energynorm";
         file<<"\n";
 
         for (index_t k=0; k<=numRefine; ++k)
