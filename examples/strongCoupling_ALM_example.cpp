@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
     real_t dL         = 0; // Arc length
     real_t dLb        = 0.5; // Arc length to find bifurcation
     real_t tol        = 1e-6;
-    real_t tolU       = 1e-6;
+    real_t tolU       = 1e-3;
     real_t tolF       = 1e-3;
     real_t tau = 1e4;
     real_t shift = -1e2;
@@ -76,6 +76,8 @@ int main(int argc, char *argv[])
 
     real_t bcDirichlet = 1e3;
     real_t bcClamped = 1e3;
+
+    std::vector<index_t> modevec;
 
     gsCmdLine cmd("Composite basis tests.");
     cmd.addReal( "D", "Dir", "Dirichlet BC penalty scalar",  bcDirichlet );
@@ -106,6 +108,7 @@ int main(int argc, char *argv[])
     cmd.addInt("q","QuasiNewtonInt","Use the Quasi Newton method every INT iterations",quasiNewtonInt);
     cmd.addSwitch("bifurcation", "Compute singular points and bifurcation paths", SingularPoint);
     cmd.addSwitch("quasi", "Use the Quasi Newton method", quasiNewton);
+    cmd.addMultiInt("i", "modes", "Modes to select", modevec);
 
     // to do:
     // smoothing method add nitsche @Pascal
@@ -175,6 +178,11 @@ int main(int argc, char *argv[])
     else
         pid_ploads = gsMatrix<index_t>::Zero(1,points.cols());
 
+    gsMatrix<> pointLoadPoints(3,points.cols());
+    for (index_t k =0; k!=points.cols(); k++)
+        pointLoadPoints.col(k) = mp.patch(pid_ploads.at(k)).eval(points.col(k));
+    gsWriteParaviewPoints(pointLoadPoints,"pointLoadPoints");
+
     for (index_t k =0; k!=points.cols(); k++)
         pLoads.addLoad(points.col(k), loads.col(k), pid_ploads.at(k) ); // in parametric domain!
 
@@ -223,8 +231,8 @@ int main(int argc, char *argv[])
     fd.getId(13,rho);
     gsInfo<<"Finished\n";
 
-    // if (mp.geoDim()==2)
-    //     mp.embed(3);
+    if (mp.geoDim()==2)
+        mp.embed(3);
 
     gsMultiPatch<> geom = mp;
 
@@ -251,8 +259,6 @@ int main(int argc, char *argv[])
     gsThinShellAssembler<3, real_t, true> assembler;
 
     //! [Solver loop]
-    gsSparseSolver<>::CGDiagonal solver;
-
     gsVector<> solVector;
 
     gsMappedBasis<2,real_t> bb2;
@@ -286,6 +292,7 @@ int main(int argc, char *argv[])
     {
         geom = mp;
         gsDPatch<2,real_t> dpatch(geom);
+        dpatch.options().setSwitch("SharpCorners",false);
         dpatch.compute();
         dpatch.matrix_into(global2local);
 
@@ -307,6 +314,7 @@ int main(int argc, char *argv[])
     }
     else if (method==3) // Andrea
     {
+        dbasis = gsMultiBasis<>(mp);
         gsC1SurfSpline<2,real_t> smoothC1(mp,dbasis);
         smoothC1.init();
         smoothC1.compute();
@@ -348,12 +356,27 @@ int main(int argc, char *argv[])
     assembler.options().setReal("WeakDirichlet",bcDirichlet);
     assembler.options().setReal("WeakClamped",bcClamped);
     assembler.setSpaceBasis(bb2);
+
+    // gsPointLoads<real_t> pLoads_tmp;
+    // gsVector<> point(2);
+    // gsVector<> load (3);
+    // point<<1,1;
+    // load<<0,0,1e-3;
+    // pLoads_tmp.addLoad(point, load, 1 );
+    // assembler.setPointLoads(pLoads_tmp);
+    // assembler.assemble();
+    // gsVector<> Force_const = assembler.rhs();
+    // gsDebugVar(Force_const);
+
+
     assembler.setPointLoads(pLoads);
 
     // Initialize the system
     // Linear
     assembler.assemble();
     gsVector<> Force = assembler.rhs();
+    gsSparseMatrix<> K_L = assembler.matrix();
+    // gsDebugVar(Force);
     // Nonlinear
     // Function for the Jacobian
     typedef std::function<gsSparseMatrix<real_t> (gsVector<real_t> const &)>                                Jacobian_t;
@@ -372,7 +395,7 @@ int main(int argc, char *argv[])
         return assembler.matrix();
     };
     // Function for the Residual
-    ALResidual_t ALResidual = [&geom,&bb2,&assembler](gsVector<real_t> const &x, real_t lam, gsVector<real_t> const &force)
+    ALResidual_t ALResidual = [&geom,&bb2,&assembler /*,&Force_const*/](gsVector<real_t> const &x, real_t lam, gsVector<real_t> const &force)
     {
         gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
         GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
@@ -383,9 +406,138 @@ int main(int argc, char *argv[])
 
         assembler.assembleVector(def);
         gsVector<real_t> Fint = -(assembler.rhs() - force);
-        gsVector<real_t> result = Fint - lam * force;
+        gsVector<real_t> result = Fint - lam * force/*- Force_const*/;
         return result; // - lam * force;
     };
+
+    if (!SingularPoint)
+    {
+        gsInfo<<"Computing linear problem..."<<std::flush;
+        gsSparseSolver<>::CGDiagonal solver;
+        solver.compute(K_L);
+        solVector = solver.solve(Force);
+        gsInfo<<"Finished\n";
+
+        gsInfo<<"Assembling nonlinear stiffness matrix..."<<std::flush;
+        gsSparseMatrix<> dK = Jacobian(solVector);
+        dK = dK - K_L;
+        gsInfo<<"Finished\n";
+
+        gsVector<> values;
+        gsMatrix<> vectors;
+
+        index_t nmodes = 15;
+
+        gsInfo<<"Computing Eigenmodes..."<<std::flush;
+#ifdef GISMO_WITH_SPECTRA
+        Spectra::SortRule selectionRule = Spectra::SortRule::LargestMagn;
+        Spectra::SortRule sortRule = Spectra::SortRule::SmallestMagn;
+
+        index_t ncvFac = 10;
+        index_t number = nmodes;
+        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> eigSolver(dK,K_L,number,ncvFac*number, shift);
+        // gsSpectraGenSymSolver<gsSparseMatrix<>,Spectra::GEigsMode::Cholesky> eigSolver(K_L,dK,number,ncvFac*number);
+        eigSolver.init();
+        eigSolver.compute(selectionRule,1000,1e-6,sortRule);
+
+        if (eigSolver.info()==Spectra::CompInfo::Successful)         { gsDebug<<"Spectra converged in "<<eigSolver.num_iterations()<<" iterations and with "<<eigSolver.num_operations()<<"operations. \n"; }
+        else if (eigSolver.info()==Spectra::CompInfo::NumericalIssue){ GISMO_ERROR("Spectra did not converge! Error code: NumericalIssue"); }
+        else if (eigSolver.info()==Spectra::CompInfo::NotConverging) { GISMO_ERROR("Spectra did not converge! Error code: NotConverging"); }
+        else if (eigSolver.info()==Spectra::CompInfo::NotComputed)   { GISMO_ERROR("Spectra did not converge! Error code: NotComputed");   }
+        else                                                      { GISMO_ERROR("No error code known"); }
+
+        values  = eigSolver.eigenvalues();
+        gsInfo<<"Eigenvalues:\n"<<values<<"\n";
+        values.array() += shift;
+        gsInfo<<"Eigenvalues:\n"<<values<<"\n";
+        vectors = eigSolver.eigenvectors();
+#else
+        Eigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  eigSolver;
+        eigSolver.compute(K_L,dK);
+        values = eigSolver.eigenvalues();
+        vectors = eigSolver.eigenvectors();
+#endif
+        gsInfo<<"Eigenvalues:\n"<<values<<"\n";
+
+        gsMultiBasis<> geombasis(geom);
+        gsDofMapper mapper(geombasis);
+        mapper.finalize();
+        for (std::vector<index_t>::const_iterator it = modevec.begin(); it!=modevec.end(); it++)
+        {
+            gsMatrix<real_t> solFull = assembler.fullSolutionVector(solVector);
+            solFull.resize(solFull.rows()/3,3);
+            gsMappedSpline<2,real_t> mspline(bb2,solFull);
+
+            gsMatrix<> allCoefs;
+            gsL2Projection<real_t>::projectGeometry(dbasis,mspline,allCoefs);
+            for (index_t p = 0; p != geom.nPatches(); p++)
+            {
+                for (index_t k=0; k!=mapper.patchSize(p); k++)
+                {
+
+                        geom.patch(p).coefs().row(k) += allCoefs.row(mapper.index(k,p));
+                        geom.patch(p).coefs().row(k) *= tau;
+                }
+            }
+
+            // gsMatrix<> allCoefs = vectors.reshapeCol(*it,global2local.cols(),mp.geoDim());
+
+            // for (index_t p = 0; p != geom.nPatches(); p++)
+            // {
+            //     for (index_t k=0; k!=mapper.patchSize(p); k++)
+            //     {
+
+            //             geom.patch(p).coefs().row(k) += allCoefs.row(mapper.index(k,p));
+            //             geom.patch(p).coefs().row(k) *= tau;
+            //     }
+            // }
+
+        }
+
+        //! [Export visualization in ParaView]
+        if (plot)
+        {
+            gsInfo<<"Plotting in Paraview...\n";
+            gsMatrix<> modeShape;
+            std::string output = "modes";
+            gsParaviewCollection collection(dirname + "/" + output);
+
+            int N = nmodes;
+            //    N = vectors.cols();
+            for (index_t m=0; m<N; m++)
+            {
+                solVector = vectors.col(m).normalized();
+
+                /// Make a gsMappedSpline to represent the solution
+                // 1. Get all the coefficients (including the ones from the eliminated BCs.)
+                gsMatrix<real_t> solFull = assembler.fullSolutionVector(solVector);
+                gsMatrix<real_t> solZero = solFull;
+                solZero.setZero();
+
+                // 2. Reshape all the coefficients to a Nx3 matrix
+                GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
+                solZero.resize(solZero.rows()/3,3);
+                solFull.resize(solFull.rows()/3,3);
+
+                // 3. Make the mapped spline
+                gsMappedSpline<2,real_t> mspline(bb2,solFull);
+
+                gsField<> solField(geom, mspline,true);
+
+                std::string fileName = dirname + "/" + output + util::to_string(m) + "_";
+                gsWriteParaview<>(solField, fileName, 1000,mesh);
+                for (index_t p = 0; p!=mp.nPatches(); p++)
+                {
+                    fileName = output + util::to_string(m) + "_";
+                    collection.addTimestep(fileName,p,m,".vts");
+                    if (mesh)
+                        collection.addTimestep(fileName,p,m,"_mesh.vtp");
+                }
+            }
+            collection.save();
+        }
+    }
+
 
     gsALMBase<real_t> * arcLength;
     if (ALMmethod==0)
@@ -402,11 +554,12 @@ int main(int argc, char *argv[])
 #ifdef GISMO_WITH_PARDISO
     arcLength->options().setString("Solver","PardisoLU"); // LDLT solver
 #else
-    arcLength->options().setString("Solver","CGDiagonal"); // LDLT solver
+    arcLength->options().setString("Solver","SimplicialLDLT"); // LDLT solver
 #endif
 
-    arcLength->options().setInt("BifurcationMethod",1); // 0: determinant, 1: eigenvalue
+    arcLength->options().setInt("BifurcationMethod",0); // 0: determinant, 1: eigenvalue
     arcLength->options().setReal("Length",dLb);
+    arcLength->options().setInt("MaxIter",10);
     // arcLength->options().setInt("AngleMethod",0); // 0: step, 1: iteration
     arcLength->options().setInt("AdaptiveIterations",5);
     arcLength->options().setReal("Perturbation",tau);
@@ -466,13 +619,14 @@ int main(int argc, char *argv[])
         }
         arcLength->computeStability(arcLength->solutionU(),quasiNewton);
 
-        if (arcLength->stabilityChange())
+        if (arcLength->stabilityChange() && SingularPoint)
         {
             gsInfo<<"Bifurcation spotted!"<<"\n";
-            arcLength->computeSingularPoint(1e-4, 5, Uold, Lold, 1e-7, 0, false);
+            arcLength->computeSingularPoint(1e-4, 5, Uold, Lold, 1e-4, 1e-5, false);
             arcLength->switchBranch();
             dLb0 = dLb = dL;
             arcLength->setLength(dLb);
+            SingularPoint = false;
         }
         indicator = arcLength->indicator();
 

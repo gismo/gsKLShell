@@ -45,8 +45,8 @@
    <coefs geoDim="3">
      225 0   0
      255 0   0
-     225 225 1
-     255 225 1
+     225 225 0
+     255 225 0
   </coefs>
   </Geometry>
  <MultiPatch parDim="2" id="3">

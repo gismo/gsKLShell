@@ -160,6 +160,7 @@ int main(int argc, char *argv[])
         pLoads.addLoad(points.col(k), loads.col(k), pid_ploads.at(k) ); // in parametric domain!
 
     gsInfo<<pLoads;
+    gsInfo<<mp.patch(pid_ploads.at(0)).eval(pLoads[0].point);
 
     // // Loads
     // gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
@@ -400,8 +401,8 @@ int main(int argc, char *argv[])
 
         index_t ncvFac = 10;
         index_t number = nmodes;
-        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> solver(K_L,dK,number,ncvFac*number, shift);
-        // gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> solver(matrix,mass,number,ncvFac*number, shift);
+        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> solver(dK,K_L,number,ncvFac*number, shift);
+        // gsSpectraGenSymSolver<gsSparseMatrix<>,Spectra::GEigsMode::Cholesky> solver(K_L,dK,number,ncvFac*number);
         solver.init();
         solver.compute(selectionRule,1000,1e-6,sortRule);
 
