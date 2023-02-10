@@ -137,9 +137,9 @@ int main(int argc, char *argv[])
     real_t E_modulus = 0;
     if (testCase==0)
     {
-        E_modulus = 1;
+        E_modulus = 1e9;
         PoissonRatio = 0.3;
-        load = 1e-7;
+        load = 1e2;
     }
     else if (testCase==1)
     {
@@ -509,20 +509,22 @@ int main(int argc, char *argv[])
         numGoal[r] += DWR->computeGoal(points,mp_def);
         DoFs[r] = basisL.basis(0).numElements();
 
-        approxs[r] = DWR->computeError(dualL,dualH,mp_def,false);
+        approxs[r] = DWR->computeSquaredError(dualL,dualH,mp_def,false);
         gsInfo<<"Error = "<<approxs[r]<<"\n";
-        estGoal[r] = numGoal[r]+approxs[r];
+        estGoal[r] = numGoal[r]+DWR->computeError(dualL,dualH,mp_def,false);
 
         gsVector<> Uz_pt(2);
-        Uz_pt<<0.0,1.0;
+        Uz_pt<<0.5,0.5;
         gsMatrix<> tmp;
         mp_def.patch(0).eval_into(Uz_pt,tmp);
         Uz[r] = tmp(2,0);
 
         if (adaptivity==0)
         {
-            elErrors = DWR->computeErrorElements(dualL, dualH,mp_def,false);
+            elErrors = DWR->computeSquaredErrorElements(dualL, dualH,mp_def,false);
             real_t error = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
+            for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
+                *it = std::sqrt(std::pow(*it,2));
             gsInfo<<"Accumulated error = "<<error<<"\n";
             if (plot)
             {
@@ -542,45 +544,59 @@ int main(int argc, char *argv[])
             gsOptionList mesherOpts;
             fd_mesher.getFirst<gsOptionList>(mesherOpts);
 
-            elErrors = DWR->computeErrorElements(dualL, dualH,mp_def,false);
+            elErrors = DWR->computeSquaredErrorElements(dualL, dualH,mp_def,false);
             real_t error = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
+            gsInfo<<"Accumulated error = "<<error*error<<"\n";
+
+            // for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
+                // *it = std::sqrt(std::pow(*it,2));
+                // *it = std::pow(*it,2);
+
+            error = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
             gsInfo<<"Accumulated error = "<<error<<"\n";
-
-            gsDebugVar(*std::min_element(elErrors.begin(),elErrors.end()));
-            for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
-            {
-                *it = std::abs(*it);
-            }
-
-            real_t abserror = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
-            gsInfo<<"Absolute accumulated error = "<<abserror<<"\n";
-
 
             // Make container of the boxes
             gsHBoxContainer<2,real_t> markRef, markCrs;
 
-            // gsHBoxContainer<2,real_t> elts;
-            // index_t c = 0;
-            // real_t newError = 0;
-            // real_t oldError = 0;
-            // for (index_t p=0; p < mp.nPieces(); ++p)
-            // {
-            // // index_t p=0;
-            //     typename gsBasis<real_t>::domainIter domIt = mp.basis(p).makeDomainIterator();
-            //     gsHDomainIterator<real_t,2> * domHIt = nullptr;
-            //     domHIt = dynamic_cast<gsHDomainIterator<real_t,2> *>(domIt.get());
-            //     GISMO_ENSURE(domHIt!=nullptr,"Domain not loaded");
-            //     for (; domHIt->good(); domHIt->next())
-            //     {
-            //         gsHBox<2,real_t> box(domHIt,p);
-            //         box.setAndProjectError(elErrors[c],mesherOpts.getInt("Convergence_alpha"),mesherOpts.getInt("Convergence_beta"));
-            //         elts.add(box);
-            //         markRef.add(box);
-            //         oldError += box.error();
-            //         newError += box.projectedErrorRef();
-            //         c++;
-            //     }
-            // }
+            gsHBoxContainer<2,real_t> elts;
+            index_t c = 0;
+            index_t maxLvl = mesher.options().getInt("MaxLevel");
+            index_t nBlocked = 0;
+            index_t nNonBlocked = 0;
+            real_t BlockedError = 0;
+            real_t NonBlockedError = 0;
+            for (index_t p=0; p < mp.nPieces(); ++p)
+            {
+            // index_t p=0;
+                typename gsBasis<real_t>::domainIter domIt = mp.basis(p).makeDomainIterator();
+                gsHDomainIterator<real_t,2> * domHIt = nullptr;
+                domHIt = dynamic_cast<gsHDomainIterator<real_t,2> *>(domIt.get());
+                GISMO_ENSURE(domHIt!=nullptr,"Domain not loaded");
+                for (; domHIt->good(); domHIt->next())
+                {
+                    gsHBox<2,real_t> box(domHIt,p);
+                    box.setError(elErrors[c]);
+                    gsDebugVar(elErrors[c]);
+                    elts.add(box);
+                    if (box.level() > maxLvl)
+                    {
+                        nBlocked ++;
+                        BlockedError += box.error();
+                    }
+                    else
+                    {
+                        nNonBlocked++;
+                        NonBlockedError += box.error();
+                    }
+                    c++;
+                }
+                gsInfo<<"Element data on patch "<<p<<": \n";
+                gsInfo<<"Total:             "<<mp.basis(p).numElements()<<"\n";
+                gsInfo<<"Blocked:           "<<nBlocked<<"\n";
+                gsInfo<<"Blocked error:     "<<BlockedError<<"\n";
+                gsInfo<<"Non-Blocked:       "<<nNonBlocked<<"\n";
+                gsInfo<<"Non-Blocked error: "<<NonBlockedError<<"\n";
+            }
 
             // gsDebugVar(oldError);
             // gsDebugVar(newError);
@@ -590,7 +606,8 @@ int main(int argc, char *argv[])
                 gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
                 const gsField<> elemError_eh( mp.patch(0), err_eh, true );
                 std::string fileName = dirname + "/" + "error_elem_ref" + util::to_string(r);
-                gsWriteParaview<>( elemError_eh, fileName, 5000, true);
+                gsDebugVar(gsFileManager::getBasename(fileName));
+                gsWriteParaview<>( elemError_eh, fileName, 10000, true);
                 fileName = "error_elem_ref" + util::to_string(r) + "0";
                 errors.addTimestep(fileName,r,".vts");
                 errors.addTimestep(fileName,r,"_mesh.vtp");

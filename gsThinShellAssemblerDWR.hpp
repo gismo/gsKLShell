@@ -1354,7 +1354,7 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl( const gsMultiPat
     {
         integral = ev.integral(expr * meas(Gori)); // this one before otherwise it gives an error (?)
         bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm());
-        if (m_pLoads.numLoads()!=0)
+        if (m_pLoads.numLoads()!=0 && pointload)
             _applyLoadsToError(dualL,dualH,integral);
 
         m_error = integral+bintegral;
@@ -1362,7 +1362,7 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl( const gsMultiPat
     else if (_elWise == 1) // element-wise
     {
         m_error = ev.integralElWise(expr * meas(Gori));
-        if (m_pLoads.numLoads()!=0)
+        if (m_pLoads.numLoads()!=0 && pointload)
             _applyLoadsToError(dualL,dualH,m_error);
         m_errors = ev.elementwise();
         if (m_pLoads.numLoads()!=0 && pointload)
@@ -1466,7 +1466,7 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     {
         bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm());
         integral = ev.integral(expr * meas(Gori));
-        if (m_pLoads.numLoads()!=0)
+        if (m_pLoads.numLoads()!=0 && pointload)
             _applyLoadsToError(dualL,dualH,integral);
 
         m_error = integral+bintegral;
@@ -1474,7 +1474,7 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     else if (_elWise == 1) // element-wise
     {
         m_error = ev.integralElWise(expr * meas(Gori));
-        if (m_pLoads.numLoads()!=0)
+        if (m_pLoads.numLoads()!=0 && pointload)
             _applyLoadsToError(dualL,dualH,m_error);
         m_errors = ev.elementwise();
         if (m_pLoads.numLoads()!=0 && pointload)
@@ -1562,11 +1562,13 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(  const gsMultiPatch<T
         bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm());
         integral = ev.integral(expr * meas(Gori));
         m_error = bintegral+integral;
+        if (m_pLoads.numLoads()!=0 && pointload)
+            _applyLoadsToError(dualL,dualH,m_error);
     }
     else if (_elWise == 1) // element-wise
     {
         m_error = ev.integralElWise(expr * meas(Gori));
-        if (m_pLoads.numLoads()!=0)
+        if (m_pLoads.numLoads()!=0 && pointload)
             _applyLoadsToError(dualL,dualH,m_error);
         m_errors = ev.elementwise();
         if (m_pLoads.numLoads()!=0 && pointload)
@@ -1603,6 +1605,316 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(  const gsMultiPatch<T
             ev.writeParaview(expr,Gori,filename);
     }
 }
+
+template <short_t d, class T, bool bending>
+T gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload,
+                                                        std::string filename, unsigned np, bool parametric, bool mesh)
+{
+    computeSquaredError_impl<0>(dualL,dualH,pointload,filename,np,parametric,mesh);
+    return m_error;
+}
+
+template <short_t d, class T, bool bending>
+std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeSquaredErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload,
+                                                        std::string filename, unsigned np, bool parametric, bool mesh)
+{
+    computeSquaredError_impl<1>(dualL,dualH,pointload,filename,np,parametric,mesh);
+    return m_errors;
+}
+
+template <short_t d, class T, bool bending>
+std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeSquaredErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload,
+                                                        std::string filename, unsigned np, bool parametric, bool mesh)
+{
+    computeSquaredError_impl<2>(dualL,dualH,pointload,filename,np,parametric,mesh);
+    return m_errors;
+}
+
+template <short_t d, class T, bool bending>
+template <index_t _elWise>
+void gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl( const gsMultiPatch<T> & dualL,
+                                                                const gsMultiPatch<T> & dualH,
+                                                                bool pointload,
+                                                                std::string filename,
+                                                                unsigned np,
+                                                                bool parametric,
+                                                                bool mesh)
+{
+    gsExprAssembler<T> exprAssembler = m_assemblerH->assembler();
+    exprAssembler.cleanUp();
+    exprAssembler.setOptions(m_assemblerH->options());
+
+    // Geometries
+    geometryMap Gori = exprAssembler.getMap(m_patches);
+
+    auto F      = exprAssembler.getCoeff(*m_forceFun, Gori);
+    auto zsolL  = exprAssembler.getCoeff(dualL);
+    auto zsolH  = exprAssembler.getCoeff(dualH);
+
+    auto g_N = exprAssembler.getBdrFunction(Gori);
+
+    auto expr = ((zsolH-zsolL).tr() * F).sqNorm();
+    auto bexpr= (zsolH-zsolL).tr() * g_N;
+
+    gsExprEvaluator<T> ev(exprAssembler);
+
+    T integral, bintegral;
+    if (_elWise == 0)
+    {
+        integral = ev.integral(expr * meas(Gori)); // this one before otherwise it gives an error (?)
+        bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm());
+        if (m_pLoads.numLoads()!=0 && pointload)
+            _applyLoadsToError(dualL,dualH,integral);
+
+        m_error = integral+bintegral;
+    }
+    else if (_elWise == 1) // element-wise
+    {
+        m_error = ev.integralElWise(expr * meas(Gori));
+        if (m_pLoads.numLoads()!=0 && pointload)
+            _applyLoadsToError(dualL,dualH,m_error);
+        m_errors = ev.elementwise();
+        if (m_pLoads.numLoads()!=0 && pointload)
+            _applyLoadsToElWiseError(dualL,dualH,m_errors);
+    }
+    else if (_elWise == 2) // function-wise
+    {
+        integral = 0;
+    }
+    else
+        GISMO_ERROR("Unknown");
+
+    if (!filename.empty())
+    {
+        ev.options().setSwitch("plot.elements",mesh);
+        ev.options().setInt("plot.npts",np);
+        // if (parametric)
+        //     ev.writeParaview(expr,filename);
+        // else
+            ev.writeParaview(expr,Gori,filename);
+    }
+}
+
+template <short_t d, class T, bool bending>
+T gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload,
+                                                        std::string filename, unsigned np, bool parametric, bool mesh)
+{
+    computeSquaredError_impl<d,bending,0>(dualL,dualH,deformed,pointload,filename,np,parametric,mesh);
+    return m_error;
+}
+
+template <short_t d, class T, bool bending>
+std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeSquaredErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload,
+                                                        std::string filename, unsigned np, bool parametric, bool mesh)
+{
+    computeSquaredError_impl<d,bending,1>(dualL,dualH,deformed,pointload,filename,np,parametric,mesh);
+    return m_errors;
+}
+
+template <short_t d, class T, bool bending>
+std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeSquaredErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload,
+                                                        std::string filename, unsigned np, bool parametric, bool mesh)
+{
+    computeSquaredError_impl<d,bending,2>(dualL,dualH,deformed,pointload,filename,np,parametric,mesh);
+    return m_errors;
+}
+
+template <short_t d, class T, bool bending>
+template<short_t _d, bool _bending, index_t _elWise>
+typename std::enable_if<_d==3 && _bending, void>::type
+gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload,
+                                                            // bool pointload,
+                                                            std::string filename, unsigned np, bool parametric, bool mesh)
+
+{
+    gsExprAssembler<T> exprAssembler = m_assemblerH->assembler();
+    exprAssembler.cleanUp();
+    exprAssembler.setOptions(m_assemblerH->options());
+
+    // Geometries
+    geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
+    geometryMap Gdef = exprAssembler.getMap(deformed);
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerH->material(),&deformed);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1f(m_assemblerH->material(),&deformed);
+    auto S0  = exprAssembler.getCoeff(S0f);
+    auto S1  = exprAssembler.getCoeff(S1f);
+
+    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
+    auto m2 = exprAssembler.getCoeff(mult2t);
+
+    auto F      = exprAssembler.getCoeff(*m_forceFun, Gori);
+    auto zsolL  = exprAssembler.getCoeff(dualL);
+    auto zsolH  = exprAssembler.getCoeff(dualH);
+        // auto m_thick = exprAssembler.getCoeff(*m_thickFun, m_ori);
+
+    Base::homogenizeDirichlet();
+
+    auto N        = S0.tr();
+    // auto Em_der   = flat( jac(Gdef).tr() * jac(m_space) ) ;
+    auto Em_der   = flat( jac(Gdef).tr() * (jac(zsolH) - jac(zsolL)) ) ;
+
+    auto M        = S1.tr(); // output is a column
+    // auto Ef_der   = -( deriv2(space,sn(Gdef).normalized().tr() ) + deriv2(Gdef,var1(space,Gdef) ) ) * reshape(m2,3,3);
+    auto Ef_der   = -( deriv2(zsolH,sn(Gdef).normalized().tr() )
+                    -  deriv2(zsolL,sn(Gdef).normalized().tr() ) + deriv2(Gdef,var1(zsolH,Gdef) )
+                                                                 - deriv2(Gdef,var1(zsolL,Gdef) ) ) * reshape(m2,3,3);
+
+    auto Fext = (zsolH-zsolL).tr() * F;
+    auto Fint = ( N * Em_der.tr() + M * Ef_der.tr() );
+
+    auto g_N = exprAssembler.getBdrFunction(Gori);
+
+    auto expr = ( Fext - Fint ).sqNorm();
+    auto bexpr= (zsolH-zsolL).tr() * g_N;
+
+    gsExprEvaluator<T> ev(exprAssembler);
+
+    T integral, bintegral;
+    if (_elWise == 0)
+    {
+        bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm());
+        integral = ev.integral(expr * meas(Gori));
+        if (m_pLoads.numLoads()!=0 && pointload)
+            _applyLoadsToError(dualL,dualH,integral);
+
+        m_error = integral+bintegral;
+    }
+    else if (_elWise == 1) // element-wise
+    {
+        m_error = ev.integralElWise(expr * meas(Gori));
+        if (m_pLoads.numLoads()!=0 && pointload)
+            _applyLoadsToError(dualL,dualH,m_error);
+        m_errors = ev.elementwise();
+        if (m_pLoads.numLoads()!=0 && pointload)
+            _applyLoadsToElWiseError(dualL,dualH,m_errors);
+    }
+    else if (_elWise == 2) // function-wise
+    {
+        integral = 0;
+    }
+    else
+        GISMO_ERROR("Unknown");
+
+    // if (m_foundInd)
+    // {
+    //     auto foundation = exprAssembler.getCoeff(*m_foundFun, Gori);
+    //     GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
+
+    //     integral += ev.integral( ( zsolH - zsolL ) * foundation.asDiag() * (Gdef - Gori) * meas(Gori) ); // [v_x,v_y,v_z] diag([k_x,k_y,k_z]) [u_x; u_y; u_z]
+    // }
+    // if (m_pressInd)
+    // {
+    //     auto pressure = exprAssembler.getCoeff(*m_pressFun, Gori);
+    //     GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
+
+    //     integral += ev.integral( pressure.val() * ( zsolH - zsolL ) * sn(Gdef).normalized() * meas(Gori) );
+    // }
+
+    if (!filename.empty())
+    {
+        ev.options().setSwitch("plot.elements",mesh);
+        ev.options().setInt("plot.npts",np);
+        // if (parametric)
+        //     ev.writeParaview(expr,filename);
+        // else
+            ev.writeParaview(expr,Gori,filename);
+    }
+}
+
+template <short_t d, class T, bool bending>
+template<short_t _d, bool _bending, index_t _elWise>
+typename std::enable_if<!(_d==3 && _bending), void>::type
+gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl(  const gsMultiPatch<T> & dualL,
+                                                            const gsMultiPatch<T> & dualH,
+                                                            const gsMultiPatch<T> & deformed,
+                                                            bool pointload,
+                                                            std::string filename,
+                                                            unsigned np,
+                                                            bool parametric,
+                                                            bool mesh)
+{
+    gsExprAssembler<T> exprAssembler = m_assemblerH->assembler();
+    exprAssembler.cleanUp();
+    exprAssembler.setOptions(m_assemblerH->options());
+
+    // Geometries
+    geometryMap Gori = exprAssembler.getMap(m_patches);           // this map is used for integrals
+    geometryMap Gdef = exprAssembler.getMap(deformed);
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_assemblerH->material(),&deformed);
+    auto S0  = exprAssembler.getCoeff(S0f);
+
+    auto F      = exprAssembler.getCoeff(*m_forceFun, Gori);
+
+    auto zsolL  = exprAssembler.getCoeff(dualL);
+    auto zsolH  = exprAssembler.getCoeff(dualH);
+        // auto m_thick = exprAssembler.getCoeff(*m_thickFun, m_ori);
+
+    auto N        = S0.tr();
+    // auto Em_der   = flat( jac(Gdef).tr() * jac(m_space) ) ;
+    auto Em_der   = flat( jac(Gdef).tr() * (jac(zsolH) - jac(zsolL)) ) ;
+
+    auto Fext = (zsolH-zsolL).tr() * F;
+    auto Fint = ( N * Em_der.tr() );
+
+    auto g_N = exprAssembler.getBdrFunction(Gori);
+
+    auto expr = ( Fext - Fint ).sqNorm();
+    auto bexpr= (zsolH-zsolL).tr() * g_N;
+
+    gsExprEvaluator<T> ev(exprAssembler);
+
+    T integral, bintegral;
+    if (_elWise == 0)
+    {
+        bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm());
+        integral = ev.integral(expr * meas(Gori));
+        m_error = bintegral+integral;
+        if (m_pLoads.numLoads()!=0 && pointload)
+            _applyLoadsToError(dualL,dualH,m_error);
+    }
+    else if (_elWise == 1) // element-wise
+    {
+        m_error = ev.integralElWise(expr * meas(Gori));
+        if (m_pLoads.numLoads()!=0 && pointload)
+            _applyLoadsToError(dualL,dualH,m_error);
+        m_errors = ev.elementwise();
+        if (m_pLoads.numLoads()!=0 && pointload)
+            _applyLoadsToElWiseError(dualL,dualH,m_errors);
+    }
+    else if (_elWise == 2) // function-wise
+    {
+        integral = 0;
+    }
+    else
+        GISMO_ERROR("Unknown");
+    // if (m_foundInd)
+    // {
+    //     auto foundation = exprAssembler.getCoeff(*m_foundFun, Gori);
+    //     GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
+
+    //     integral += ev.integral( ( zsolH - zsolL ) * foundation.asDiag() * (Gdef - Gori) * meas(Gori) ); // [v_x,v_y,v_z] diag([k_x,k_y,k_z]) [u_x; u_y; u_z]
+    // }
+    // if (m_pressInd)
+    // {
+    //     auto pressure = exprAssembler.getCoeff(*m_pressFun, Gori);
+    //     GISMO_ASSERT(m_pressFun->targetDim()==1,"Pressure function has dimension "<<m_pressFun->targetDim()<<", but expected 1");
+
+    //     integral += ev.integral( pressure.val() * ( zsolH - zsolL ) * sn(Gdef).normalized() * meas(Gori) );
+    // }
+
+    if (!filename.empty())
+    {
+        ev.options().setSwitch("plot.elements",mesh);
+        ev.options().setInt("plot.npts",np);
+        // if (parametric)
+        //     ev.writeParaview(expr,filename);
+        // else
+            ev.writeParaview(expr,Gori,filename);
+    }
+}
+
 
 /**
  * @brief      Computes the eigenvalue error estimate for Buckling Analysis
