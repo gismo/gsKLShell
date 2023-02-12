@@ -578,7 +578,7 @@ int main(int argc, char *argv[])
                     box.setError(elErrors[c]);
                     gsDebugVar(elErrors[c]);
                     elts.add(box);
-                    if (box.level() > maxLvl)
+                    if (box.level() >= maxLvl)
                     {
                         nBlocked ++;
                         BlockedError += box.error();
@@ -611,6 +611,10 @@ int main(int argc, char *argv[])
                 fileName = "error_elem_ref" + util::to_string(r) + "0";
                 errors.addTimestep(fileName,r,".vts");
                 errors.addTimestep(fileName,r,"_mesh.vtp");
+
+                mesher.container_into(elErrors,elts);
+                fileName = dirname + "/" + "boxes_" + util::to_string(r) + "_";
+                gsWriteParaview(elts,fileName);
             }
 
             mesher.markRef_into(elErrors,markRef);
