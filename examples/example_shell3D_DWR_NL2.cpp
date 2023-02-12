@@ -143,10 +143,10 @@ int main(int argc, char *argv[])
     }
     else if (testCase==1)
     {
-        real_t mu = 1;
+        real_t mu = 1e9;
         PoissonRatio = 0.3;
         E_modulus = 2*mu*(1+PoissonRatio);
-        load = 1e-7;
+        load = 1e2;
     }
     else if (testCase==2)
     {
@@ -396,7 +396,7 @@ int main(int argc, char *argv[])
         gsMatrix<> Uold(Force.rows(),1);
         Uold.setZero();
         solVector = Uold;
-        while (L < 1 && std::abs(L-1)>1e-14 && (L>=Lold))
+        while (L < 1 && std::abs(L-1)>1e-14)// && (L>=Lold))
         {
             Uold = solVector;
             Lold = L;
