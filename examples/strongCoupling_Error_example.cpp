@@ -525,7 +525,7 @@ int main(int argc, char *argv[])
             file<<numDofs(k);
             for (index_t p=0; p!=refPars.cols(); ++p)
                 file<<","<<refs(k,3*p)<<","<<refs(k,3*p+1)<<","<<refs(k,3*p+2);
-            file<<DisplacementNorm[k]<<EnergyNorm[k];
+            file<<","<<DisplacementNorm[k]<<","<<EnergyNorm[k];
             file<<"\n";
         }
         file.close();
