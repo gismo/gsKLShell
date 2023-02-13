@@ -82,7 +82,7 @@
 
 <!-- Reference point patch indices -->
 <Matrix rows="1" cols="2" id="51" >
-  4 4
+  5 2
 </Matrix>
 <!-- Reference values -->
 <Matrix rows="3" cols="1" id="52" >
