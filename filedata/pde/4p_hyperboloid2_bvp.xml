@@ -5,7 +5,7 @@
   <!-- Thickness -->
   <Function type="FunctionExpr" id="10" tag="Material" dim="3">0.01</Function>
   <!-- E modulus -->
-  <Function type="FunctionExpr" id="11" tag="Material" dim="3">2*10^11</Function>
+  <Function type="FunctionExpr" id="11" tag="Material" dim="3">2e11</Function>
   <!-- Poisson ratio -->
   <Function type="FunctionExpr" id="12" tag="Material" dim="3">0.3</Function>
   <!-- Density -->
@@ -35,7 +35,7 @@
   </bc>
   <bc type="Weak Clamped" function="0" unknown="0" component="-1">
     0 1
-    3 1
+    2 1
   </bc>
   <bc type="Collapsed" function="0" unknown="0" component="2">
   </bc>
@@ -106,7 +106,4 @@
   <real label="Tolerance" desc="Relative error tolerance for Newton iterations [double]" value="1e-6"/>
   <real label="Relaxation" desc="Relative error tolerance for Newton iterations [double]" value="1.0"/>
  </OptionList>
-
-
-
 </xml>

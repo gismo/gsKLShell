@@ -198,6 +198,7 @@ int main(int argc, char *argv[])
         mp.embed(3);
 
     gsMultiPatch<> geom = mp;
+    gsMultiPatch<> geom0;
 
     // p-refine
     GISMO_ENSURE(degree>=mp.patch(0).degree(0),"Degree must be larger than or equal to the degree of the initial geometry, but degree = "<<degree<<" and the original degree = "<<mp.patch(0).degree(0));
@@ -281,6 +282,38 @@ int main(int argc, char *argv[])
             geom = dpatch.exportToPatches();
             dbasis = dpatch.localBasis();
             bb2.init(dbasis,global2local);
+
+            ///////////////////////////////////////////
+            // Project the original geometry on dbasis
+            // Find the basis size
+            index_t size=0;
+            for (index_t p=0; p!=mp.nPatches(); p++)
+                size += mp.patch(p).coefs().rows();
+            // Do the projection on the coarsest obtained D-patch geometry (geom0)
+            if (r>0)
+            {
+                gsMatrix<> coefs;
+                gsL2Projection<real_t>::projectGeometry(dbasis,bb2,geom0,coefs);
+                gsMatrix<> allCoefs = global2local*coefs.reshape(global2local.cols(),mp.geoDim());
+
+                // Substitute all coefficients of geom with the newly obtained ones.
+                gsMultiBasis<> geombasis(geom);
+                gsDofMapper mapper(geombasis);
+                mapper.finalize();
+                for (index_t p = 0; p != geom.nPatches(); p++)
+                {
+                    for (index_t k=0; k!=mapper.patchSize(p); k++)
+                    {
+                        geom.patch(p).coefs().row(k) = allCoefs.row(mapper.index(k,p));
+                    }
+                }
+            }
+            else
+            {
+                geom = dpatch.exportToPatches();
+                geom0 = geom;
+            }
+            gsWriteParaview<>(geom,"geom",1000,true);
         }
         else if (method==2) // Pascal
         {
@@ -316,6 +349,38 @@ int main(int argc, char *argv[])
             geom = almostC1.exportToPatches();
             dbasis = almostC1.localBasis();
             bb2.init(dbasis,global2local);
+
+            ///////////////////////////////////////////
+            // Project the original geometry on dbasis
+            // Find the basis size
+            index_t size=0;
+            for (index_t p=0; p!=mp.nPatches(); p++)
+                size += mp.patch(p).coefs().rows();
+            // Do the projection on the coarsest obtained D-patch geometry (geom0)
+            if (r>0)
+            {
+                gsMatrix<> coefs;
+                gsL2Projection<real_t>::projectGeometry(dbasis,bb2,geom0,coefs);
+                gsMatrix<> allCoefs = global2local*coefs.reshape(global2local.cols(),mp.geoDim());
+
+                // Substitute all coefficients of geom with the newly obtained ones.
+                gsMultiBasis<> geombasis(geom);
+                gsDofMapper mapper(geombasis);
+                mapper.finalize();
+                for (index_t p = 0; p != geom.nPatches(); p++)
+                {
+                    for (index_t k=0; k!=mapper.patchSize(p); k++)
+                    {
+                        geom.patch(p).coefs().row(k) = allCoefs.row(mapper.index(k,p));
+                    }
+                }
+            }
+            else
+            {
+                geom = almostC1.exportToPatches();
+                geom0 = geom;
+            }
+            gsWriteParaview<>(geom,"geom",1000,true);
         }
         else
             GISMO_ERROR("Option "<<method<<" for method does not exist");
