@@ -259,7 +259,7 @@ int main(int argc, char *argv[])
 
         index_t ncvFac = 10;
         index_t number = nmodes;
-        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> eigSolver(K_L,dK,number,ncvFac*number, shift);
+        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::Buckling> eigSolver(dK,K_L,number,ncvFac*number, shift);
         // gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> eigSolver(matrix,mass,number,ncvFac*number, shift);
         eigSolver.init();
         eigSolver.compute(selectionRule,1000,1e-6,sortRule);

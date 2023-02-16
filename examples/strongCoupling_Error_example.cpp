@@ -197,6 +197,10 @@ int main(int argc, char *argv[])
     if (mp.geoDim()==2)
         mp.embed(3);
 
+    gsOptionList solverOptions;
+    fd.read(fn3);
+    fd.template getFirst<gsOptionList>(solverOptions);
+
     gsMultiPatch<> geom = mp;
     gsMultiPatch<> geom0;
 
@@ -408,6 +412,7 @@ int main(int argc, char *argv[])
         assembler.options().setReal("WeakClamped",bcClamped);
         assembler.setSpaceBasis(bb2);
         assembler.setPointLoads(pLoads);
+        assembler.setOptions(solverOptions); //sets solverOptions
         // gsOptionList options = assembler.options();
         // options.setInt("Continuity",1);
         // assembler.setOptions(options);

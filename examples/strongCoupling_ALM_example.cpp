@@ -63,8 +63,8 @@ int main(int argc, char *argv[])
     real_t dL         = 0; // Arc length
     real_t dLb        = 0.5; // Arc length to find bifurcation
     real_t tol        = 1e-6;
-    real_t tolU       = 1e-3;
-    real_t tolF       = 1e-3;
+    real_t tolU       = 1e-6;
+    real_t tolF       = 1e5;
     real_t tau = 1e4;
     real_t shift = -1e2;
 
@@ -76,6 +76,8 @@ int main(int argc, char *argv[])
 
     real_t bcDirichlet = 1e3;
     real_t bcClamped = 1e3;
+
+    index_t nmodes = 15;
 
     std::vector<index_t> modevec;
 
@@ -104,6 +106,7 @@ int main(int argc, char *argv[])
     cmd.addInt("M","ALMmethod", "Arc length method; 1: Crisfield's method; 2: RIks' method.", ALMmethod);
     cmd.addReal("L","dLb", "arc length", dLb);
     cmd.addReal("l","dL", "arc length after bifurcation", dL);
+    cmd.addInt("n", "maxmodes", "Number of modes to be computed", nmodes);
     cmd.addInt("N", "maxsteps", "Maximum number of steps", step);
     cmd.addInt("q","QuasiNewtonInt","Use the Quasi Newton method every INT iterations",quasiNewtonInt);
     cmd.addSwitch("bifurcation", "Compute singular points and bifurcation paths", SingularPoint);
@@ -234,6 +237,10 @@ int main(int argc, char *argv[])
     if (mp.geoDim()==2)
         mp.embed(3);
 
+    gsOptionList solverOptions;
+    fd.read(fn3);
+    fd.template getFirst<gsOptionList>(solverOptions);
+
     gsMultiPatch<> geom = mp;
 
     GISMO_ENSURE(degree>=mp.patch(0).degree(0),"Degree must be larger than or equal to the degree of the initial geometry, but degree = "<<degree<<" and the original degree = "<<mp.patch(0).degree(0));
@@ -311,6 +318,7 @@ int main(int argc, char *argv[])
         approxC1.options().setInt("gluingDataDegree",-1);
         approxC1.options().setInt("gluingDataSmoothness",-1);
         approxC1.update(bb2);
+        geom = mp;
     }
     else if (method==3) // Andrea
     {
@@ -323,6 +331,7 @@ int main(int argc, char *argv[])
         global2local = global2local.transpose();
         smoothC1.getMultiBasis(dbasis);
         bb2.init(dbasis,global2local);
+        geom = mp;
     }
     else if (method==4)
     {
@@ -349,26 +358,10 @@ int main(int argc, char *argv[])
     if (plot) gsWriteParaview(geom,"geom",1000,true,false);
 
     assembler = gsThinShellAssembler<3, real_t, true>(geom,dbasis,bc,force,&materialMatrix);
-    if (method==1)
-        assembler.options().setInt("Continuity",-1);
-    else if (method==2)
-        assembler.options().setInt("Continuity",-1);
+    assembler.setOptions(solverOptions); //sets solverOptions
     assembler.options().setReal("WeakDirichlet",bcDirichlet);
     assembler.options().setReal("WeakClamped",bcClamped);
     assembler.setSpaceBasis(bb2);
-
-    // gsPointLoads<real_t> pLoads_tmp;
-    // gsVector<> point(2);
-    // gsVector<> load (3);
-    // point<<1,1;
-    // load<<0,0,1e-3;
-    // pLoads_tmp.addLoad(point, load, 1 );
-    // assembler.setPointLoads(pLoads_tmp);
-    // assembler.assemble();
-    // gsVector<> Force_const = assembler.rhs();
-    // gsDebugVar(Force_const);
-
-
     assembler.setPointLoads(pLoads);
 
     // Initialize the system
@@ -426,8 +419,6 @@ int main(int argc, char *argv[])
         gsVector<> values;
         gsMatrix<> vectors;
 
-        index_t nmodes = 15;
-
         gsInfo<<"Computing Eigenmodes..."<<std::flush;
 #ifdef GISMO_WITH_SPECTRA
         Spectra::SortRule selectionRule = Spectra::SortRule::LargestMagn;
@@ -435,7 +426,7 @@ int main(int argc, char *argv[])
 
         index_t ncvFac = 10;
         index_t number = nmodes;
-        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> eigSolver(dK,K_L,number,ncvFac*number, shift);
+        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::Buckling> eigSolver(K_L,dK,number,ncvFac*number, shift);
         // gsSpectraGenSymSolver<gsSparseMatrix<>,Spectra::GEigsMode::Cholesky> eigSolver(K_L,dK,number,ncvFac*number);
         eigSolver.init();
         eigSolver.compute(selectionRule,1000,1e-6,sortRule);
@@ -459,42 +450,7 @@ int main(int argc, char *argv[])
 #endif
         gsInfo<<"Eigenvalues:\n"<<values<<"\n";
 
-        gsMultiBasis<> geombasis(geom);
-        gsDofMapper mapper(geombasis);
-        mapper.finalize();
-        for (std::vector<index_t>::const_iterator it = modevec.begin(); it!=modevec.end(); it++)
-        {
-            gsMatrix<real_t> solFull = assembler.fullSolutionVector(solVector);
-            solFull.resize(solFull.rows()/3,3);
-            gsMappedSpline<2,real_t> mspline(bb2,solFull);
-
-            gsMatrix<> allCoefs;
-            gsL2Projection<real_t>::projectGeometry(dbasis,mspline,allCoefs);
-            for (index_t p = 0; p != geom.nPatches(); p++)
-            {
-                for (index_t k=0; k!=mapper.patchSize(p); k++)
-                {
-
-                        geom.patch(p).coefs().row(k) += allCoefs.row(mapper.index(k,p));
-                        geom.patch(p).coefs().row(k) *= tau;
-                }
-            }
-
-            // gsMatrix<> allCoefs = vectors.reshapeCol(*it,global2local.cols(),mp.geoDim());
-
-            // for (index_t p = 0; p != geom.nPatches(); p++)
-            // {
-            //     for (index_t k=0; k!=mapper.patchSize(p); k++)
-            //     {
-
-            //             geom.patch(p).coefs().row(k) += allCoefs.row(mapper.index(k,p));
-            //             geom.patch(p).coefs().row(k) *= tau;
-            //     }
-            // }
-
-        }
-
-        //! [Export visualization in ParaView]
+//! [Export visualization in ParaView]
         if (plot)
         {
             gsInfo<<"Plotting in Paraview...\n";
@@ -536,6 +492,46 @@ int main(int argc, char *argv[])
             }
             collection.save();
         }
+
+        gsMultiBasis<> geombasis(geom);
+        gsDofMapper mapper(geombasis);
+        mapper.finalize();
+        for (std::vector<index_t>::const_iterator it = modevec.begin(); it!=modevec.end(); it++)
+        {
+            solVector = vectors.col(*it);
+            gsMatrix<real_t> solFull = assembler.fullSolutionVector(solVector);
+            solFull.resize(solFull.rows()/3,3);
+            gsMappedSpline<2,real_t> mspline(bb2,solFull);
+
+            gsMatrix<> allCoefs;
+            gsL2Projection<real_t>::projectGeometry(dbasis,mspline,allCoefs);
+            allCoefs.resize(allCoefs.rows()/3,3);
+            for (index_t p = 0; p != geom.nPatches(); p++)
+            {
+                for (index_t k=0; k!=mapper.patchSize(p); k++)
+                {
+
+                        geom.patch(p).coefs().row(k) += allCoefs.row(mapper.index(k,p));
+                        geom.patch(p).coefs()(k,2) *= tau;
+                }
+            }
+
+            // for (index_t p = 0; p != geom.nPatches(); p++)
+            // {
+            //     gsMatrix<> coefs;
+            //     gsQuasiInterpolate<real_t>::localIntpl(dbasis.basis(p),mspline.piece(p),coefs);
+            //     geom.patch(p).coefs() += coefs;
+            // }
+        }
+        gsWriteParaview<>(geom,"geom");
+
+        assembler = gsThinShellAssembler<3, real_t, true>(geom,dbasis,bc,force,&materialMatrix);
+        assembler.setOptions(solverOptions); //sets solverOptions
+        assembler.options().setReal("WeakDirichlet",bcDirichlet);
+        assembler.options().setReal("WeakClamped",bcClamped);
+        assembler.setSpaceBasis(bb2);
+        assembler.setPointLoads(pLoads);
+
     }
 
 
@@ -627,6 +623,11 @@ int main(int argc, char *argv[])
             dLb0 = dLb = dL;
             arcLength->setLength(dLb);
             SingularPoint = false;
+        }
+        else if (k == 10)
+        {
+            dLb0 = dLb = dL;
+            arcLength->setLength(dLb);
         }
         indicator = arcLength->indicator();
 

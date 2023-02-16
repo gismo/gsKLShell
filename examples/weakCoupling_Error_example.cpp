@@ -39,7 +39,6 @@ int main(int argc, char *argv[])
     bool plot       = false;
     bool mesh       = false;
     bool stress     = false;
-    bool write      = false;
     bool last       = false;
     bool nonlinear  = false;
 
@@ -58,6 +57,8 @@ int main(int argc, char *argv[])
     real_t ifcDirichlet = 1.0;
     real_t ifcClamped = 1.0;
 
+    std::string write;
+
     gsCmdLine cmd("Composite basis tests.");
     cmd.addReal( "D", "DirBc", "Dirichlet BC penalty scalar",  bcDirichlet );
     cmd.addReal( "C", "ClaBc", "Clamped BC penalty scalar",  bcClamped );
@@ -74,9 +75,9 @@ int main(int argc, char *argv[])
     cmd.addSwitch("plot", "plot",plot);
     cmd.addSwitch("mesh", "mesh",mesh);
     cmd.addSwitch("stress", "stress",stress);
-    cmd.addSwitch("write", "write",write);
     cmd.addSwitch("last", "last case only",last);
     cmd.addSwitch( "nl", "Print information", nonlinear );
+    cmd.addString("w", "write", "Write to csv", write);
 
     //! [Parse command line]
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
@@ -227,6 +228,8 @@ int main(int argc, char *argv[])
         b2err(numRefine+1), b1err(numRefine+1), binferr(numRefine+1);
 
     gsVector<> numDofs(numRefine+1);
+    gsVector<> DisplacementNorm(numRefine+1);
+    gsVector<> EnergyNorm(numRefine+1);
     gsMatrix<> refs(numRefine+1,3*refPoints.cols());
 
     gsSparseSolver<>::CGDiagonal solver;
@@ -371,6 +374,12 @@ int main(int argc, char *argv[])
         }
 
         numDofs[r] = assembler.numDofs();
+        DisplacementNorm[r] = solVector.transpose() * solVector;
+        if (!nonlinear)
+            EnergyNorm[r] = solVector.transpose() * matrix * solVector;
+        else
+            EnergyNorm[r] = solVector.transpose() * Jacobian(solVector) * solVector;
+
 
         mp.uniformRefine();
         dbasis = gsMultiBasis<>(mp);
@@ -390,6 +399,27 @@ int main(int argc, char *argv[])
             gsInfo<<","<<refs(k,3*p)<<","<<refs(k,3*p+1)<<","<<refs(k,3*p+2);
         }
         gsInfo<<"\n";
+    }
+
+    if (!write.empty())
+    {
+        std::ofstream file(write.c_str());
+
+        file<<"numDoFs";
+        for (index_t p=0; p!=refPars.cols(); ++p)
+            file<<std::setprecision(12)<<",x"<<std::to_string(p)<<",y"<<std::to_string(p)<<",z"<<std::to_string(p);
+        file<<",DisplacementNorm,"<<"Energynorm";
+        file<<"\n";
+
+        for (index_t k=0; k<=numRefine; ++k)
+        {
+            file<<numDofs(k);
+            for (index_t p=0; p!=refPars.cols(); ++p)
+                file<<","<<refs(k,3*p)<<","<<refs(k,3*p+1)<<","<<refs(k,3*p+2);
+            file<<","<<DisplacementNorm[k]<<","<<EnergyNorm[k];
+            file<<"\n";
+        }
+        file.close();
     }
 
         // ! [Export visualization in ParaView]
