@@ -207,6 +207,16 @@ int main(int argc, char *argv[])
     loadvec << 0.0, 0.0, load ;
     pLoads.addLoad(pointvec, loadvec, 0 );
 
+    // bc.addCornerValue(boundary::southeast, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
+    // bc.addCornerValue(boundary::southwest, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
+    // bc.addCornerValue(boundary::northeast, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
+    // bc.addCornerValue(boundary::northwest, 0.0, 0, 0, -1); // (corner,value, patch, unknown)
+    // gsVector<> pointvec(2);
+    // pointvec<< 0.5, 0.5 ;
+    // gsVector<> loadvec (3);
+    // loadvec << 0.0, 0.0, 4*load ;
+    // pLoads.addLoad(pointvec, loadvec, 0 );
+
     // gsConstantFunction<> force(tmp,3);
     // gsFunctionExpr<> force("0","0","if (sqrt((x-0.5)^2+(y-0.5)^2)<0.1){-1e-4} else{0}",3);
     gsFunctionExpr<> force("0","0","0",3);
@@ -262,6 +272,10 @@ int main(int argc, char *argv[])
     std::vector<real_t> exGoal(numRefine+1);
     std::vector<real_t> Uz(numRefine+1);
     std::vector<real_t> DoFs(numRefine+1);
+    std::vector<real_t> Elements(numRefine+1);
+    std::vector<real_t> BlockedElements(numRefine+1);
+    std::vector<real_t> BlockedError(numRefine+1);
+    std::vector<real_t> NonBlockedError(numRefine+1);
 
     gsVector<> solVector;
     gsMultiPatch<> primalL,dualL,dualH;
@@ -523,8 +537,8 @@ int main(int argc, char *argv[])
         {
             elErrors = DWR->computeSquaredErrorElements(dualL, dualH,mp_def,false);
             real_t error = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
-            for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
-                *it = std::sqrt(std::pow(*it,2));
+            // for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
+            //     *it = std::sqrt(std::pow(*it,2));
             gsInfo<<"Accumulated error = "<<error<<"\n";
             if (plot)
             {
@@ -546,8 +560,6 @@ int main(int argc, char *argv[])
 
             elErrors = DWR->computeSquaredErrorElements(dualL, dualH,mp_def,false);
             real_t error = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
-            gsInfo<<"Accumulated error = "<<error*error<<"\n";
-
             // for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
                 // *it = std::sqrt(std::pow(*it,2));
                 // *it = std::pow(*it,2);
@@ -557,49 +569,20 @@ int main(int argc, char *argv[])
 
             // Make container of the boxes
             gsHBoxContainer<2,real_t> markRef, markCrs;
+            mesher.assignErrors(elErrors);
+            Elements[r] = mesher.numElements();
+            BlockedElements[r] = mesher.numBlocked();
+            BlockedError[r] = mesher.blockedError();
+            NonBlockedError[r] = mesher.nonBlockedError();
 
             gsHBoxContainer<2,real_t> elts;
-            index_t c = 0;
-            index_t maxLvl = mesher.options().getInt("MaxLevel");
-            index_t nBlocked = 0;
-            index_t nNonBlocked = 0;
-            real_t BlockedError = 0;
-            real_t NonBlockedError = 0;
-            for (index_t p=0; p < mp.nPieces(); ++p)
-            {
-            // index_t p=0;
-                typename gsBasis<real_t>::domainIter domIt = mp.basis(p).makeDomainIterator();
-                gsHDomainIterator<real_t,2> * domHIt = nullptr;
-                domHIt = dynamic_cast<gsHDomainIterator<real_t,2> *>(domIt.get());
-                GISMO_ENSURE(domHIt!=nullptr,"Domain not loaded");
-                for (; domHIt->good(); domHIt->next())
-                {
-                    gsHBox<2,real_t> box(domHIt,p);
-                    box.setError(elErrors[c]);
-                    gsDebugVar(elErrors[c]);
-                    elts.add(box);
-                    if (box.level() >= maxLvl)
-                    {
-                        nBlocked ++;
-                        BlockedError += box.error();
-                    }
-                    else
-                    {
-                        nNonBlocked++;
-                        NonBlockedError += box.error();
-                    }
-                    c++;
-                }
-                gsInfo<<"Element data on patch "<<p<<": \n";
-                gsInfo<<"Total:             "<<mp.basis(p).numElements()<<"\n";
-                gsInfo<<"Blocked:           "<<nBlocked<<"\n";
-                gsInfo<<"Blocked error:     "<<BlockedError<<"\n";
-                gsInfo<<"Non-Blocked:       "<<nNonBlocked<<"\n";
-                gsInfo<<"Non-Blocked error: "<<NonBlockedError<<"\n";
-            }
+            mesher.container_into(elErrors,elts);
 
-            // gsDebugVar(oldError);
-            // gsDebugVar(newError);
+            gsInfo<<"Total:             "<<Elements[r]<<"\n";
+            gsInfo<<"Blocked:           "<<BlockedElements[r]<<"\n";
+            gsInfo<<"Blocked error:     "<<BlockedError[r]<<"\n";
+            gsInfo<<"Non-Blocked:       "<<Elements[r]-BlockedElements[r]<<"\n";
+            gsInfo<<"Non-Blocked error: "<<NonBlockedError[r]<<"\n";
 
             if (plot)
             {
@@ -654,7 +637,7 @@ int main(int argc, char *argv[])
     }
 
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
-    gsInfo<<"Ref.\tApprox     \tEfficiency\tNumGoal   \texGoal    \tUz        \t#elements \n";
+    gsInfo<<"Ref.\tApprox     \tEfficiency\tNumGoal   \texGoal    \tUz        \t#DoFs     \t#Elements \t#BlockedEl\t#BlError  \t#NBlError \n";
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
     for(index_t r=0; r!=numRefine+1; r++)
     {
@@ -664,7 +647,11 @@ int main(int argc, char *argv[])
         gsInfo  <<std::setw(10)<<std::left<<numGoal[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<estGoal[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<Uz[r]<<"\t";
-        gsInfo  <<std::setw(10)<<std::left<<DoFs[r]<<"\n";
+        gsInfo  <<std::setw(10)<<std::left<<DoFs[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<Elements[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<BlockedElements[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<BlockedError[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<NonBlockedError[r]<<"\n";
     }
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
 
@@ -677,10 +664,10 @@ int main(int argc, char *argv[])
         std::ofstream file_out;
         file_out.open (filename);
 
-        file_out<<"Ref,Approx,Efficiency,NumGoal,exGoal,Uz,DoFs\n";
+        file_out<<"Ref,Approx,Efficiency,NumGoal,exGoal,Uz,DoFs,Elements,BlockedElements,BlockedError,NonBlockedError\n";
         for(index_t r=0; r!=numRefine+1; r++)
         {
-            file_out<<r<<","<<approxs[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<Uz[r]<<","<<DoFs[r]<<"\n";
+            file_out<<r<<","<<approxs[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<Uz[r]<<","<<DoFs[r]<<","<<Elements[r]<<","<<BlockedElements[r]<<","<<BlockedError[r]<<","<<NonBlockedError[r]<<"\n";
         }
 
         file_out.close();
