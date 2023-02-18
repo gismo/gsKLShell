@@ -41,6 +41,7 @@ using namespace gismo;
 int main(int argc, char *argv[])
 {
     bool plot       = false;
+    bool plotGeo    = false;
     bool mesh       = false;
     bool first      = false;
     bool write      = false;
@@ -71,6 +72,7 @@ int main(int argc, char *argv[])
     cmd.addInt( "M", "mode", "Mode number", mode );
     cmd.addReal( "S", "shift", "Set the shift of the solver.",  shift );
     cmd.addSwitch("plot", "plot",plot);
+    cmd.addSwitch("plotGeo", "plotGeo",plotGeo);
     cmd.addSwitch("mesh", "mesh",mesh);
     cmd.addSwitch("first", "Plot only first mode",first);
     cmd.addSwitch("write", "write",write);
@@ -136,7 +138,15 @@ int main(int argc, char *argv[])
     gsInfo<<"Finished\n";
     gsInfo<<"Finished\n";
 
-    if (plot) gsWriteParaview(geom,"geom",1000,true,false);
+    if (plot || write)
+    {
+        std::string commands = "mkdir -p " + out;
+        const char *command = commands.c_str();
+        int systemRet = system(command);
+        GISMO_ASSERT(systemRet!=-1,"Something went wrong with calling the system argument");
+    }
+
+    if (plotGeo) gsWriteParaview(geom,"geom",1000,true,false);
 
     std::vector<gsFunction<>*> parameters(2);
     parameters[0] = &E;
