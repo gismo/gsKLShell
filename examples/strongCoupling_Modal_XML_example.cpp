@@ -151,10 +151,7 @@ int main(int argc, char *argv[])
 
     gsFunctionExpr<> force("0","0","0",3);
     assembler = gsThinShellAssembler<3, real_t, true>(geom,dbasis,bc,force,&materialMatrix);
-    if (method==1)
-        assembler.options().setInt("Continuity",-1);
-    else if (method==2)
-        assembler.options().setInt("Continuity",-1);
+    assembler.options().setInt("Continuity",-1);
     assembler.options().setReal("WeakDirichlet",bcDirichlet);
     assembler.options().setReal("WeakClamped",bcClamped);
     assembler.setSpaceBasis(bb2);
