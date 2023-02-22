@@ -136,6 +136,7 @@ public:
         gsInfo << "done.\n";
 
         m_errors = m_assembler->computeErrorElements(dualL,dualH,deformed,pointload,filename,np,parametric,mesh);
+        m_sqerrors = m_assembler->computeSquaredErrorElements(dualL,dualH,deformed,pointload,filename,np,parametric,mesh);
         m_error = m_assembler->error();
     }
 
@@ -148,12 +149,13 @@ public:
             *it = std::abs(*it);
         return result;
     }
+    std::vector<T> sqErrors() const { return m_sqerrors; }
 
 protected:
     // bool m_verbose;
     gsThinShellAssemblerDWRBase<T> * m_assembler;
     T m_error;
-    std::vector<T> m_errors;
+    std::vector<T> m_errors, m_sqerrors;
 };
 
 } // namespace gismo
