@@ -137,9 +137,9 @@ int main(int argc, char *argv[])
     real_t E_modulus = 0;
     if (testCase==0)
     {
-        E_modulus = 1e9;
+        E_modulus = 1e0;
         PoissonRatio = 0.3;
-        load = 1e2;
+        load = 1e-7;
     }
     else if (testCase==1)
     {
@@ -265,6 +265,7 @@ int main(int argc, char *argv[])
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     std::vector<real_t> exacts(numRefine+1);
+    std::vector<real_t> sqapproxs(numRefine+1);
     std::vector<real_t> approxs(numRefine+1);
     std::vector<real_t> efficiencies(numRefine+1);
     std::vector<real_t> numGoal(numRefine+1);
@@ -523,12 +524,14 @@ int main(int argc, char *argv[])
         numGoal[r] += DWR->computeGoal(points,mp_def);
         DoFs[r] = basisL.basis(0).numElements();
 
-        approxs[r] = DWR->computeSquaredError(dualL,dualH,mp_def,false);
-        gsInfo<<"Error = "<<approxs[r]<<"\n";
-        estGoal[r] = numGoal[r]+DWR->computeError(dualL,dualH,mp_def,false);
+        approxs[r] = DWR->computeError(dualL,dualH,mp_def,true);
+        sqapproxs[r] = DWR->computeSquaredError(dualL,dualH,mp_def,true);
+	gsInfo<<"Error = "<<approxs[r]<<"\n";
+	gsInfo<<"Squared error = "<<sqapproxs[r]<<"\n";
+        estGoal[r] = numGoal[r]+DWR->computeError(dualL,dualH,mp_def,true);
 
         gsVector<> Uz_pt(2);
-        Uz_pt<<0.5,0.5;
+        Uz_pt<<0.0,1.0;
         gsMatrix<> tmp;
         mp_def.patch(0).eval_into(Uz_pt,tmp);
         Uz[r] = tmp(2,0);
@@ -637,12 +640,13 @@ int main(int argc, char *argv[])
     }
 
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
-    gsInfo<<"Ref.\tApprox     \tEfficiency\tNumGoal   \texGoal    \tUz        \t#DoFs     \t#Elements \t#BlockedEl\t#BlError  \t#NBlError \n";
+    gsInfo<<"Ref.\tApprox     \tSq Approx  \tEfficiency\tNumGoal   \texGoal    \tUz        \t#DoFs     \t#Elements \t#BlockedEl\t#BlError  \t#NBlError \n";
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
     for(index_t r=0; r!=numRefine+1; r++)
     {
         gsInfo  <<std::setw(4 )<<std::left<<r<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<approxs[r]<<"\t";
+	gsInfo  <<std::setw(10)<<std::left<<sqapproxs[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<efficiencies[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<numGoal[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<estGoal[r]<<"\t";
@@ -664,12 +668,11 @@ int main(int argc, char *argv[])
         std::ofstream file_out;
         file_out.open (filename);
 
-        file_out<<"Ref,Approx,Efficiency,NumGoal,exGoal,Uz,DoFs,Elements,BlockedElements,BlockedError,NonBlockedError\n";
+        file_out<<"Ref,Approx,SqApprox,Efficiency,NumGoal,exGoal,Uz,DoFs,Elements,BlockedElements,BlockedError,NonBlockedError\n";
         for(index_t r=0; r!=numRefine+1; r++)
         {
-            file_out<<r<<","<<approxs[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<Uz[r]<<","<<DoFs[r]<<","<<Elements[r]<<","<<BlockedElements[r]<<","<<BlockedError[r]<<","<<NonBlockedError[r]<<"\n";
-        }
-
+            file_out<<r<<","<<approxs[r]<<","<<sqapproxs[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<Uz[r]<<","<<DoFs[r]<<","<<Elements[r]<<","<<BlockedElements[r]<<","<<BlockedError[r]<<","<<NonBlockedError[r]<<"\n";
+	}
         file_out.close();
     }
 
