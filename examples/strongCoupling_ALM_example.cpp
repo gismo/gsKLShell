@@ -527,6 +527,7 @@ int main(int argc, char *argv[])
 
         assembler = gsThinShellAssembler<3, real_t, true>(geom,dbasis,bc,force,&materialMatrix);
         assembler.setOptions(solverOptions); //sets solverOptions
+        assembler.options().setInt("Continuity",-1);
         assembler.options().setReal("WeakDirichlet",bcDirichlet);
         assembler.options().setReal("WeakClamped",bcClamped);
         assembler.setSpaceBasis(bb2);
