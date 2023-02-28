@@ -181,13 +181,17 @@ int main(int argc, char *argv[])
     else
         pid_ploads = gsMatrix<index_t>::Zero(1,points.cols());
 
-    gsMatrix<> pointLoadPoints(3,points.cols());
-    for (index_t k =0; k!=points.cols(); k++)
-        pointLoadPoints.col(k) = mp.patch(pid_ploads.at(k)).eval(points.col(k));
-    gsWriteParaviewPoints(pointLoadPoints,"pointLoadPoints");
+    if (points.cols()>0)
+    {
+        gsMatrix<> pointLoadPoints(3,points.cols());
+        for (index_t k =0; k!=points.cols(); k++)
+            pointLoadPoints.col(k) = mp.patch(pid_ploads.at(k)).eval(points.col(k));
+        gsWriteParaviewPoints(pointLoadPoints,"pointLoadPoints");
 
-    for (index_t k =0; k!=points.cols(); k++)
-        pLoads.addLoad(points.col(k), loads.col(k), pid_ploads.at(k) ); // in parametric domain!
+        for (index_t k =0; k!=points.cols(); k++)
+            pLoads.addLoad(points.col(k), loads.col(k), pid_ploads.at(k) ); // in parametric domain!
+
+    }
 
     gsInfo<<pLoads;
 
@@ -354,11 +358,11 @@ int main(int argc, char *argv[])
         //gsWrite(dbasis,"dbasis");
     }
 
-
     if (plot) gsWriteParaview(geom,"geom",1000,true,false);
 
     assembler = gsThinShellAssembler<3, real_t, true>(geom,dbasis,bc,force,&materialMatrix);
     assembler.setOptions(solverOptions); //sets solverOptions
+    assembler.options().setInt("Continuity",-1);
     assembler.options().setReal("WeakDirichlet",bcDirichlet);
     assembler.options().setReal("WeakClamped",bcClamped);
     assembler.setSpaceBasis(bb2);

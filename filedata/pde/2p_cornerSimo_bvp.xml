@@ -64,22 +64,6 @@
   1     1
 </Matrix>
 
-<!-- Constant Point load coordinates -->
-<Matrix rows="2" cols="0" id="33" tag="Loads" >
-  0.5
-  0
-</Matrix>
-<!-- Point load forces -->
-<Matrix rows="3" cols="0" id="34" tag="Loads" >
-  0
-  0
-  1e-5
-</Matrix>
-<!-- Point load patch indices -->
-<Matrix rows="1" cols="0" id="35" tag="Loads" >
-  1
-</Matrix>
-
 <!-- Manufactured solution -->
 <Function type="FunctionExpr" id="41" tag="Loads" dim="3">
   <c> 0 </c>
