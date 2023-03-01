@@ -18,6 +18,8 @@
 #include <gsKLShell/gsMaterialMatrixBase.h>
 #include <gsKLShell/gsMaterialMatrixBaseDim.h>
 #include <gsKLShell/gsMaterialMatrixUtils.h>
+#include <gsKLShell/gsMaterialMatrixLinear.h>
+#include <gsKLShell/gsMaterialMatrix.h>
 #include <gsIO/gsOptionList.h>
 #include <gsCore/gsFuncData.h>
 
@@ -35,12 +37,13 @@ namespace gismo
  *
  */
 template <  short_t dim,
-            class T
+            class T,
+            bool linear=false
          >
-class gsMaterialMatrixTFT : public gsMaterialMatrixBaseDim<dim,T,true>
+class gsMaterialMatrixTFT : public gsMaterialMatrixBaseDim<dim,T>
 {
 public:
-    using Base = gsMaterialMatrixBaseDim<dim,T,true>;
+    using Base = gsMaterialMatrixBaseDim<dim,T>;
 
     /**
      * @brief      Constructor without deformed multipatch and density
@@ -49,7 +52,7 @@ public:
      * @param[in]  thickness  Thickness function
      * @param[in]  pars       Vector with parameters (E, nu)
      */
-    gsMaterialMatrixTFT(gsMaterialMatrixBaseDim<dim,T,true> * materialmatrix)
+    gsMaterialMatrixTFT(gsMaterialMatrixBaseDim<dim,T> * materialmatrix)
     :
     m_materialMat(materialmatrix)
     {
@@ -62,11 +65,21 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     /// Here, we use the integrated matrix and vector to make our computations!
-    inline enum MatIntegration isMatIntegrated() const {return m_materialMat->isMatIntegrated(); }
+    inline enum MatIntegration isMatIntegrated() const override
+    // {return m_materialMat->isMatIntegrated(); gsWarn<<"Change this to a constant one, like for linear. So that no things out of the mid-plane are needed"; }
+    {return MatIntegration::Linear;} // Multiplies with z t or its moment
 
     /// See \ref gsMaterialMatrixBase for details
     /// Here, we use the integrated matrix and vector to make our computations!
-    inline enum MatIntegration isVecIntegrated() const {return m_materialMat->isVecIntegrated(); }
+    inline enum MatIntegration isVecIntegrated() const override
+    // {return m_materialMat->isVecIntegrated(); gsWarn<<"Change this to a constant one, like for linear. So that no things out of the mid-plane are needed"; }
+    {return MatIntegration::Linear;} // Multiplies with z t or its moment
+
+    // bool isLinear() { return isLinear_impl(); }
+    // typename util::enable_if<U::Linear,bool>::type
+    // eval_impl(const U & u, const index_t k)
+    // { return m_materialMat; }
+
 
     /// See \ref gsMaterialMatrixBase for details
     gsOptionList & options()
@@ -125,6 +138,30 @@ public:
         m_materialMat->setDeformed(deformed);
     }
 
+protected:
+    template <bool _linear>
+    typename std::enable_if< _linear, gsMatrix<T> >::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+
+    template <bool _linear>
+    typename std::enable_if<!_linear, gsMatrix<T> >::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+
+    template <bool _linear>
+    typename std::enable_if< _linear, gsMatrix<T> >::type _eval3D_vector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+
+    template <bool _linear>
+    typename std::enable_if<!_linear, gsMatrix<T> >::type _eval3D_vector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+
+    static gsMatrix<T> _compute_C(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & dC);
+
+    static gsMatrix<T> _compute_S(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S);
+
+
+    // /// Computes theta
+    // gsMatrix<T> eval_theta(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+
+    /// Computes theta
+    static gsMatrix<T> eval_theta(const gsMatrix<T> & Cs, const gsMatrix<T> & Ns);
+
 
 public:
     /// Shared pointer for gsMaterialMatrixTFT
@@ -134,7 +171,7 @@ public:
     typedef memory::unique_ptr< gsMaterialMatrixTFT > uPtr;
 
 protected:
-    mutable gsMaterialMatrixBaseDim<dim,T,true> * m_materialMat;
+    mutable gsMaterialMatrixBaseDim<dim,T> * m_materialMat;
 
 };
 

@@ -257,7 +257,7 @@ protected:
      */
     void multiplyZ_into(const gsMatrix<T> & u, index_t moment, gsMatrix<T> & result) const;
 
-public:
+protected:
 
     /**
      * @brief      Evaluates the base class in 3D
@@ -267,7 +267,7 @@ public:
      *
      * @return     Matrix ordered over Z and over u within
      */
-    gsMatrix<T> eval3D(const gsMatrix<T>& u, const gsMatrix<T>& Z) const;
+    gsMatrix<T> _eval3D(const gsMatrix<T>& u, const gsMatrix<T>& Z) const;
 
 
     /**
@@ -279,7 +279,7 @@ public:
      *
      * @return     Matrix with results
      */
-    gsMatrix<T> eval  (const gsMatrix<T>& u) const;
+    gsMatrix<T> _eval  (const gsMatrix<T>& u) const;
 
 private:
     /// Specialisation of \ref eval3D for vectors

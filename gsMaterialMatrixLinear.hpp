@@ -26,56 +26,110 @@
 #include <gsKLShell/gsMaterialMatrixLinear.h>
 #include <gsKLShell/gsMaterialMatrixUtils.h>
 
-// using namespace gismo;
+using namespace gismo;
 
-// template <short_t d, typename T>
-// class EwFun : public gsFunction<T>
-// {
-// public:
-//     EwFun(const std::function<gsMatrix<T> (gsMatrix<T> const &)> & Sfun)
-//     :
-//     m_Sfun(Sfun)
-//     {
+template <short_t d, typename T>
+class Cfun : public gsFunction<T>
+{
+public:
+    Cfun(const gsMaterialMatrixBaseDim<d,T> * materialMat, index_t patch, const gsVector<T> & u, const T & z)
+    :
+    m_materialMat(materialMat),
+    m_patchID(patch),
+    m_points(u),
+    m_z(z)
+    {
 
-//     }
+    }
 
-//     void eval_into(const gsMatrix<T>& E, gsMatrix<T>& result) const
-//     {
-//         result.resize(4,u.cols());
+    Cfun(const gsMaterialMatrixBaseDim<d,T> * materialMat, index_t patch, const gsVector<T> & u)
+    :
+    m_materialMat(materialMat),
+    m_patchID(patch),
+    m_points(u)
+    {
+        m_z.resize(1,1);
+        m_z.setZero();
+    }
 
-//         EfullFun<T> Efull_(m_mm);
-//         gsMatrix<T> E, Etmp, S, tmp;
+    void eval_into(const gsMatrix<T>& C, gsMatrix<T>& result) const
+    {
+        result.resize(targetDim(),C.cols());
+        for (index_t k=0; k!=C.cols(); k++)
+            result.col(k) = m_materialMat->eval3D_matrix_C(C.col(k),m_patchID,m_points,m_z,MaterialOutput::MatrixA);
+    }
 
-//         Efull_.eval_into(u,E);
-//         for (index_t k = 0; k!=u.cols(); k++)
-//         {
-//             Etmp = E.col(k);
+    short_t domainDim() const
+    {
+        return 3;
+    }
 
-//             S = m_mm->S(Etmp.reshape(2,2));
-//             S.resize(4,1);
-//             result.col(k) = S;
-//         }
-//     }
+    short_t targetDim() const
+    {
+        return 9;
+    }
 
-//     short_t domainDim() const
-//     {
-//         return 4;
-//     }
+private:
+    const gsMaterialMatrixBaseDim<d,T> * m_materialMat;
+    mutable index_t m_patchID;
+    mutable gsVector<T> m_points;
+    mutable T m_z;
+};
 
-//     short_t targetDim() const
-//     {
-//         return 3;
-//     }
 
-// private:
-//     const std::function<gsMatrix<T> (gsMatrix<T> const &)> m_Sfun
-// };
+template <short_t d, typename T>
+class Sfun : public gsFunction<T>
+{
+public:
+    Sfun(const gsMaterialMatrixLinear<d,T> * materialMat, index_t patch, const gsVector<T> & u, const T & z)
+    :
+    m_materialMat(materialMat),
+    m_patchID(patch),
+    m_points(u),
+    m_z(z)
+    {
+
+    }
+
+    Sfun(const gsMaterialMatrixLinear<d,T> * materialMat, index_t patch, const gsVector<T> & u)
+    :
+    m_materialMat(materialMat),
+    m_patchID(patch),
+    m_points(u),
+    m_z(0)
+    {
+    }
+
+    void eval_into(const gsMatrix<T>& C, gsMatrix<T>& result) const
+    {
+        result.resize(targetDim(),C.cols());
+        for (index_t k=0; k!=C.cols(); k++)
+            result.col(k) = m_materialMat->eval3D_vector_C(C.col(k),m_patchID,m_points,m_z,MaterialOutput::VectorN);
+    }
+
+    short_t domainDim() const
+    {
+        return 3;
+    }
+
+    short_t targetDim() const
+    {
+        return 3;
+    }
+
+private:
+    const gsMaterialMatrixLinear<d,T> * m_materialMat;
+    mutable index_t m_patchID;
+    mutable gsVector<T> m_points;
+    mutable T m_z;
+};
+
 
 namespace gismo
 {
 
-template <short_t dim, class T, bool TFT>
-gsMaterialMatrixLinear<dim,T,TFT>::gsMaterialMatrixLinear(
+template <short_t dim, class T>
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                         const gsFunctionSet<T> & mp,
                                         const gsFunction<T> & thickness,
                                         const std::vector<gsFunction<T>*> &pars
@@ -88,8 +142,8 @@ gsMaterialMatrixLinear<dim,T,TFT>::gsMaterialMatrixLinear(
     _initialize();
 }
 
-template <short_t dim, class T, bool TFT>
-gsMaterialMatrixLinear<dim,T,TFT>::gsMaterialMatrixLinear(
+template <short_t dim, class T>
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                     const gsFunctionSet<T> & mp,
                                     const gsFunction<T> & thickness,
                                     const std::vector<gsFunction<T>*> &pars,
@@ -104,14 +158,14 @@ gsMaterialMatrixLinear<dim,T,TFT>::gsMaterialMatrixLinear(
     _initialize();
 }
 
-template <short_t dim, class T, bool TFT>
-gsMaterialMatrixLinear<dim,T,TFT>::gsMaterialMatrixLinear( const gsMaterialMatrixLinear<dim,T,!TFT> & other)
+template <short_t dim, class T>
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear( const gsMaterialMatrixLinear<dim,T> & other)
 {
     *this =(other);
 }
 
-template <short_t dim, class T, bool TFT>
-void gsMaterialMatrixLinear<dim,T,TFT>::info() const
+template <short_t dim, class T>
+void gsMaterialMatrixLinear<dim,T>::info() const
 {
     gsInfo  <<"---------------------------------------------------------------------\n"
             <<"---------------------Hyperelastic Material Info----------------------\n"
@@ -125,14 +179,14 @@ void gsMaterialMatrixLinear<dim,T,TFT>::info() const
 
 }
 
-template <short_t dim, class T, bool TFT>
-void gsMaterialMatrixLinear<dim,T,TFT>::_defaultOptions()
+template <short_t dim, class T>
+void gsMaterialMatrixLinear<dim,T>::_defaultOptions()
 {
     m_options.addInt("NumGauss","Number of Gaussian points through thickness",4);
 }
 
-template <short_t dim, class T, bool TFT>
-void gsMaterialMatrixLinear<dim,T,TFT>::_initialize()
+template <short_t dim, class T>
+void gsMaterialMatrixLinear<dim,T>::_initialize()
 {
     // Set default options
     this->_defaultOptions();
@@ -144,17 +198,16 @@ void gsMaterialMatrixLinear<dim,T,TFT>::_initialize()
     m_numPars = m_pars.size();
 }
 
-
-template <short_t dim, class T, bool TFT>
-void gsMaterialMatrixLinear<dim,T,TFT>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool basis) const
+template <short_t dim, class T>
+void gsMaterialMatrixLinear<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool basis) const
 {
     this->_computeMetricUndeformed(patch,u,basis);
-    if (Base::m_defpatches->nPieces()!=0)
+    if (Base::m_defpatches!=nullptr)
         this->_computeMetricDeformed(patch,u,basis);
 }
 
-template <short_t dim, class T, bool TFT>
-void gsMaterialMatrixLinear<dim,T,TFT>::_computePars(const index_t patch, const gsMatrix<T> & u) const
+template <short_t dim, class T>
+void gsMaterialMatrixLinear<dim,T>::_computePars(const index_t patch, const gsMatrix<T> & u) const
 {
     gsMatrix<T> tmp;
 
@@ -172,8 +225,8 @@ void gsMaterialMatrixLinear<dim,T,TFT>::_computePars(const index_t patch, const 
     m_parvals.resize(m_numPars);
 }
 
-template <short_t dim, class T, bool TFT>
-void gsMaterialMatrixLinear<dim,T,TFT>::density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+template <short_t dim, class T>
+void gsMaterialMatrixLinear<dim,T>::density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     m_map_ori.mine().flags = NEED_VALUE;
     m_map_ori.mine().points = u;
@@ -189,8 +242,8 @@ void gsMaterialMatrixLinear<dim,T,TFT>::density_into(const index_t patch, const 
 
 }
 
-template <short_t dim, class T, bool TFT>
-void gsMaterialMatrixLinear<dim,T,TFT>::stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+template <short_t dim, class T>
+void gsMaterialMatrixLinear<dim,T>::stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     m_map_ori.mine().points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map_ori);
@@ -206,16 +259,16 @@ void gsMaterialMatrixLinear<dim,T,TFT>::stretch_into(const index_t patch, const 
 
         gsMatrix<T> C(3,3);
         C.setZero();
-        C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+        C.block(0,0,2,2) = m_Gcov_def;
         C(2,2) = 1./m_J0_sq;
 
-        res = this->_evalStretch(C);
+        res = this->_evalStretch(C,m_gcon_ori);
         result.col(i) = res.first;
     }
 }
 
-template <short_t dim, class T, bool TFT>
-void gsMaterialMatrixLinear<dim,T,TFT>::stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+template <short_t dim, class T>
+void gsMaterialMatrixLinear<dim,T>::stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     m_map_ori.mine().points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map_ori);
@@ -234,13 +287,13 @@ void gsMaterialMatrixLinear<dim,T,TFT>::stretchDir_into(const index_t patch, con
         C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
         C(2,2) = 1./m_J0_sq;
 
-        res = this->_evalStretch(C);
+        res = this->_evalStretch(C,m_gcon_ori);
         result.col(i) = res.second.reshape(9,1);
     }
 }
 
-template <short_t dim, class T, bool TFT>
-void gsMaterialMatrixLinear<dim,T,TFT>::thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+template <short_t dim, class T>
+void gsMaterialMatrixLinear<dim,T>::thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
     m_map_ori.mine().flags = NEED_VALUE;
     m_map_ori.mine().points = u;
@@ -249,8 +302,8 @@ void gsMaterialMatrixLinear<dim,T,TFT>::thickness_into(const index_t patch, cons
 }
 
 // Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) covariant basis
-template <short_t dim, class T, bool TFT>
-void gsMaterialMatrixLinear<dim,T,TFT>::covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+template <short_t dim, class T>
+void gsMaterialMatrixLinear<dim,T>::covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
     result.resize(9, u.cols());
     gsMatrix<T> tmp, conbasis,sbasis;
@@ -265,8 +318,8 @@ void gsMaterialMatrixLinear<dim,T,TFT>::covtransform_into(const index_t patch, c
 }
 
 // Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) convariant basis
-template <short_t dim, class T, bool TFT>
-void gsMaterialMatrixLinear<dim,T,TFT>::contransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+template <short_t dim, class T>
+void gsMaterialMatrixLinear<dim,T>::contransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
     result.resize(9, u.cols());
     gsMatrix<T> tmp, conbasis,sbasis;
@@ -280,8 +333,8 @@ void gsMaterialMatrixLinear<dim,T,TFT>::contransform_into(const index_t patch, c
     }
 }
 
-template <short_t dim, class T, bool TFT>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     // gsInfo<<"TO DO: evaluate moments using thickness";
     // Input: u in-plane points
@@ -324,8 +377,85 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_matrix(const index_t patch
     return result;
 }
 
-// template <short_t dim, class T, bool TFT>
-// gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out) const
+{
+    // gsInfo<<"TO DO: evaluate moments using thickness";
+    // Input: u in-plane points
+    //        z matrix with, per point, a column with z integration points
+    // Output: (n=u.cols(), m=z.rows())
+    //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+
+    this->_computePoints(patch,u,false);
+    this->_computePars(patch,u);
+
+    gsMatrix<T> result(9, 1);
+    result.setZero();
+
+    // Evaluate material properties on the quadrature point
+    for (index_t v=0; v!=m_parmat.rows(); v++)
+        m_parvals.at(v) = m_parmat(v,0);
+
+    // Get metric
+    this->_getMetricUndeformed(0, z * m_Tmat(0, 0), false); // on point i, on height z(0,j)
+    this->_getMetricDeformed(Cmat);
+
+    gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(0,3,3);
+    /*
+        C = C1111,  C1122,  C1112
+            symm,   C2222,  C2212
+            symm,   symm,   C1212
+    */
+    C(0,0)          = _Cijkl(0,0,0,0); // C1111
+    C(1,1)          = _Cijkl(1,1,1,1); // C2222
+    C(2,2)          = _Cijkl(0,1,0,1); // C1212
+    C(1,0) = C(0,1) = _Cijkl(0,0,1,1); // C1122
+    C(2,0) = C(0,2) = _Cijkl(0,0,0,1); // C1112
+    C(2,1) = C(1,2) = _Cijkl(1,1,0,1); // C2212
+    return result;
+}
+
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_dmatrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    // return gsMatrix<T>::Zero(27,u.cols()*z.rows());
+
+    this->_computePoints(patch,u,false);
+    this->_computePars(patch,u);
+
+    gsMatrix<T> result(27,u.cols()*z.rows());
+    result.setZero();
+
+    gsMatrix<T> Cvoight(3,1), Ctmp;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+
+        // // Evaluate material properties on the quadrature point
+        // for (index_t v=0; v!=m_parmat.rows(); v++)
+        //     m_parvals.at(v) = m_parmat(v,k);
+
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            this->_getMetric(k, z(j, k) * m_Tmat(0, k), false); // on point i, on height z(0,j)
+
+            Cfun<dim,T> Cfunc(this,patch,u.col(k),z(j,k));
+            gsMatrix<T> tmpresult;
+
+            Cvoight(0,0) = m_Gcov_def(0,0);
+            Cvoight(1,0) = m_Gcov_def(1,1);
+            Cvoight(2,0) = m_Gcov_def(0,1);
+
+
+            Cfunc.deriv_into(Cvoight,tmpresult);
+            result.col(j*u.cols()+k) = tmpresult;
+        }
+    }
+
+    return result;
+}
+
+// template <short_t dim, class T>
+// gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 // {
 //     // gsInfo<<"TO DO: evaluate moments using thickness";
 //     // Input: u in-plane points
@@ -370,8 +500,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_matrix(const index_t patch
 //     return result;
 // }
 
-template <short_t dim, class T, bool TFT>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     // gsInfo<<"TO DO: evaluate moments using thickness";
     // Input: u in-plane points
@@ -407,8 +537,53 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_vector(const index_t patch
     return result;
 }
 
-template <short_t dim, class T, bool TFT>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out) const
+{
+    // gsInfo<<"TO DO: evaluate moments using thickness";
+    // Input: u in-plane points
+    //        z matrix with, per point, a column with z integration points
+    // Output: (n=u.cols(), m=z.cols())
+    //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+
+    this->_computePoints(patch,u,false);
+    this->_computePars(patch,u);
+
+    gsMatrix<T> result(3, 1);
+    result.setZero();
+
+    gsMatrix<T> E;
+    // Evaluate material properties on the quadrature point
+    for (index_t v=0; v!=m_parmat.rows(); v++)
+        m_parvals.at(v) = m_parmat(v,0);
+
+    // Get metric
+    this->_getMetricUndeformed(0, z * m_Tmat(0, 0), false); // on point i, on height z(0,j)
+    this->_getMetricDeformed(Cmat);
+
+    // GISMO_ASSERT(   out == MaterialOutput::VectorN ||
+    //                 out == MaterialOutput::PStrainN ||
+    //                 out == MaterialOutput::PStressN ||
+    //                 out == MaterialOutput::TensionField ||
+    //                 out == MaterialOutput::StrainN,
+    //                 "MaterialOutput is wrong!");
+    GISMO_ASSERT(z==0.0,"This only works for z=0");
+
+    m_Acov_def = m_Gcov_def.block(0,0,2,2);
+    m_Acon_def = m_Gcon_def.block(0,0,2,2);
+    m_Bcov_def.setZero();
+    m_Bcon_def.setZero();
+
+    E = _E(z * m_Tmat(0, 0),out);
+
+    result(0, 0) = _Sij(0, 0, E);
+    result(1, 0) = _Sij(1, 1, E);
+    result(2, 0) = _Sij(0, 1, E);
+    return result;
+}
+
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
 
     this->_computePoints(patch,u,true);
@@ -447,8 +622,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_pstress(const index_t patc
 
 }
 
-template <short_t dim, class T, bool TFT>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
 
     this->_computePoints(patch,u,true);
@@ -481,8 +656,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_pstrain(const index_t patc
 
 }
 
-template <short_t dim, class T, bool TFT>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     this->_computePoints(patch,u,true);
     this->_computePars(patch,u);
@@ -509,8 +684,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_strain(const index_t patch
 
 }
 
-template <short_t dim, class T, bool TFT>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     this->_computePoints(patch,u,true);
     this->_computePars(patch,u);
@@ -537,8 +712,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_stress(const index_t patch
 
 }
 
-template <short_t dim, class T, bool TFT>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     this->_computePoints(patch,u,true);
     this->_computePars(patch,u);
@@ -597,8 +772,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::eval3D_tensionfield(const index_t
         - m_metric
         - m_metric_def
 */
-template <short_t dim, class T, bool TFT>
-T gsMaterialMatrixLinear<dim,T,TFT>::_Cijkl(const index_t i, const index_t j, const index_t k, const index_t l) const
+template <short_t dim, class T>
+T gsMaterialMatrixLinear<dim,T>::_Cijkl(const index_t i, const index_t j, const index_t k, const index_t l) const
 {
     GISMO_ENSURE( ( (i < 2) && (j < 2) && (k < 2) && (l < 2) ) , "Index out of range. i="<<i<<", j="<<j<<", k="<<k<<", l="<<l);
 
@@ -616,8 +791,8 @@ T gsMaterialMatrixLinear<dim,T,TFT>::_Cijkl(const index_t i, const index_t j, co
     return Cconstant*m_Acon_ori(i,j)*m_Acon_ori(k,l) + mu*(m_Acon_ori(i,k)*m_Acon_ori(j,l) + m_Acon_ori(i,l)*m_Acon_ori(j,k));
 }
 
-template <short_t dim, class T, bool TFT>
-T gsMaterialMatrixLinear<dim,T,TFT>::_Sij(const index_t i, const index_t j, const gsMatrix<T> & strain) const
+template <short_t dim, class T>
+T gsMaterialMatrixLinear<dim,T>::_Sij(const index_t i, const index_t j, const gsMatrix<T> & strain) const
 {
     T result =  _Cijkl(i,j,0,0) * strain(0,0) + _Cijkl(i,j,0,1) * strain(0,1)
                 + _Cijkl(i,j,1,0) * strain(1,0) + _Cijkl(i,j,1,1) * strain(1,1);
@@ -625,9 +800,10 @@ T gsMaterialMatrixLinear<dim,T,TFT>::_Sij(const index_t i, const index_t j, cons
     return result;
 }
 
-template <short_t dim, class T, bool TFT>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::S(const gsMatrix<T> & strain) const
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::S(const gsMatrix<T> & strain) const
 {
+    gsWarn<<"This is dangerous, since it does not compute material parameters in advance!\n";
     GISMO_ASSERT(strain.rows()==strain.cols() && strain.rows()==2, "Strain tensor must be 2x2!");
     gsMatrix<T> result(2,2);
     for (index_t i = 0; i!=2; i++)
@@ -638,8 +814,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::S(const gsMatrix<T> & strain) con
     return result;
 }
 
-template <short_t dim, class T, bool TFT>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::C(const gsMatrix<T> &) const
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::C(const gsMatrix<T> &) const
 {
     gsMatrix<T> result(2,2);
     result(0,0)                 = _Cijkl(0,0,0,0); // C1111
@@ -651,8 +827,83 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::C(const gsMatrix<T> &) const
     return result;
 }
 
-template <short_t dim, class T, bool TFT>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::_E(const T z, enum MaterialOutput out) const
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::S(const gsMatrix<T> & C, const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    this->_computePoints(patch,u,false);
+    this->_computePars(patch,u);
+
+    gsMatrix<T> tmpresult;
+    Sfun<dim,T> Sfunc(this,patch,u.col(0),z(0,0));
+    Sfunc.eval_into(C,tmpresult);
+    gsDebugVar(tmpresult.array());
+
+    gsMatrix<T> result;
+    return result;
+}
+
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::C(const gsMatrix<T> &  C, const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    GISMO_ASSERT(C.cols()==1,"Expect C in voight notation, C = [C11, C22, C12]");
+    gsWarn<<"This function needs to compute the material parameters! Therefore needs compute points\n";
+
+    this->_computePoints(patch,u,false);
+    this->_computePars(patch,u);
+
+    gsMatrix<T> tmpresult;
+    Sfun<dim,T> Sfunc(this,patch,u.col(0),z(0,0));
+    Sfunc.deriv_into(C,tmpresult);
+    // Because the derivative of S is taken w.r.t. the vector C = C11, C22, C12, since E = 0.5 ( C - G), and since voight notation is used, we need to multiply the last column of the derivative with 0.5 to revover the correct matrix. This is because the last column is dS_ij / dE_12 = 2C_1112; 2C_2212; 2C_1212.
+    gsAsMatrix<T> Cmat = tmpresult.reshapeCol(0,3,3);
+    Cmat.col(2) *= 0.5;
+    gsDebugVar(tmpresult.array()*2);
+
+    Cfun<dim,T> Cfunc(this,patch,u.col(0),z(0,0));
+    Cfunc.eval_into(C,tmpresult);
+    gsDebugVar(tmpresult.array());
+
+    Cfunc.deriv_into(C,tmpresult);
+    gsDebugVar(tmpresult.array());
+
+    gsMatrix<T> result(3,3);
+    result(0,0)                 = _Cijkl(0,0,0,0); // C1111
+    result(1,1)                 = _Cijkl(1,1,1,1); // C2222
+    result(2,2)                 = _Cijkl(0,1,0,1); // C1212
+    result(1,0) = result(0,1)   = _Cijkl(0,0,1,1); // C1122
+    result(2,0) = result(0,2)   = _Cijkl(0,0,0,1); // C1112
+    result(2,1) = result(1,2)   = _Cijkl(1,1,0,1); // C2212
+    return result;
+}
+
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::dC(const gsMatrix<T> & C, const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    GISMO_ASSERT(C.cols()==1,"Expect C in voight notation, C = [C11, C22, C12]");
+
+    // Put C in matrix notation
+    gsMatrix<T> Cmat(3,3);
+    Cmat.setZero();
+    Cmat(0,0) = C(0,0);
+    Cmat(1,1) = C(1,0);
+    Cmat(0,1) = Cmat(1,0) = C(2,0);
+    Cmat(2,2) = 1;
+
+    // gsMatrix<T> tmpresult;
+    // Cfun<dim,T> fun(this,patch,u,z);
+    // fun.eval_into(Cmat,tmpresult);
+
+
+    // Cfun<dim,T> Cfunc(this,patch,u,z);
+    // Cfunc.eval_into(Cmat,tmpresult);
+    // gsDebugVar(tmpresult);
+
+    gsMatrix<T> result;
+    return result;
+}
+
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const T z, enum MaterialOutput out) const
 {
     gsMatrix<T> strain;
     if      (out == MaterialOutput::VectorN || out == MaterialOutput::PStrainN || out == MaterialOutput::PStressN || out == MaterialOutput::TensionField || out == MaterialOutput::StrainN) // To be used with multiplyZ_into
@@ -667,8 +918,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::_E(const T z, enum MaterialOutput
     return strain;
 }
 
-// template <short_t dim, class T, bool TFT>
-// gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::_E(const gsMatrix<T> & C, const T z, enum MaterialOutput out) const
+// template <short_t dim, class T>
+// gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const gsMatrix<T> & C, const T z, enum MaterialOutput out) const
 // {
 //     gsMatrix<T> strain;
 //     if      (out == MaterialOutput::VectorN || out == MaterialOutput::PStrainN || out == MaterialOutput::PStressN || out == MaterialOutput::TensionField || out == MaterialOutput::StrainN) // To be used with multiplyZ_into
@@ -686,8 +937,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T,TFT>::_E(const T z, enum MaterialOutput
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 
-template <short_t dim, class T, bool TFT>
-std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T,TFT>::_evalPStress(const gsMatrix<T> & S) const
+template <short_t dim, class T>
+std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalPStress(const gsMatrix<T> & S) const
 {
     gsVector<T> pstresses;
     gsMatrix<T> pstressvec;
@@ -732,8 +983,8 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T,TFT>::_evalPStre
     return result;
 }
 
-template <short_t dim, class T, bool TFT>
-std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T,TFT>::_evalPStrain(const gsMatrix<T> & S) const
+template <short_t dim, class T>
+std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalPStrain(const gsMatrix<T> & S) const
 {
     gsVector<T> pstrains;
     gsMatrix<T> pstrainvec;
@@ -780,16 +1031,16 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T,TFT>::_evalPStra
 
 //--------------------------------------------------------------------------------------------------------------------------------------
 
-template <short_t dim, class T, bool TFT>
-void gsMaterialMatrixLinear<dim,T,TFT>::_computePStress(const gsMatrix<T> & S) const
+template <short_t dim, class T>
+void gsMaterialMatrixLinear<dim,T>::_computePStress(const gsMatrix<T> & S) const
 {
     std::pair<gsVector<T>,gsMatrix<T>> result = _evalPStress(S);
     m_pstress = result.first;
     m_pstressvec = result.second;
 }
 
-template <short_t dim, class T, bool TFT>
-void gsMaterialMatrixLinear<dim,T,TFT>::_computePStrain(const gsMatrix<T> & E) const
+template <short_t dim, class T>
+void gsMaterialMatrixLinear<dim,T>::_computePStrain(const gsMatrix<T> & E) const
 {
     std::pair<gsVector<T>,gsMatrix<T>> result = _evalPStrain(E);
     m_pstrain = result.first;

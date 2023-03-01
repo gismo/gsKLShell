@@ -28,12 +28,14 @@ namespace gismo
  *
  * @ingroup    KLShell
  */
-template <short_t dim, class T, bool TFT = false>
+template <short_t dim, class T>
 class gsMaterialMatrixBaseDim : public gsMaterialMatrixBase<T>
 {
     using Base = gsMaterialMatrixBase<T>;
 
 public:
+
+    // enum {Linear=0}; // If true (1), this property entails that S = C *˙E
 
     gsMaterialMatrixBaseDim() : m_patches(nullptr)
     {
@@ -138,17 +140,22 @@ public:
     /// Gets metric quantities on the deformed and undeformed geometries
     void _getMetric(index_t k, T z, bool basis = true) const;
 
+    /// Gets metric quantities on the deformed and undeformed geometries
+    void _getMetric(index_t k, T z, const gsMatrix<T> & C, bool basis = true) const;
+
     /// Gets metric quantities on the deformed geometry
     void _getMetricDeformed(index_t k, T z, bool basis = true) const;
+
+    void _getMetricDeformed(const gsMatrix<T> & C) const;
 
     /// Gets metric quantities on the undeformed geometry
     void _getMetricUndeformed(index_t k, T z, bool basis = true) const;
 
     /// Computes the stretch given deformation tensor C, into a pair
-    std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C ) const;
+    std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C, const gsMatrix<T> & gcon_ori ) const;
 
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
-    void _computeStretch(const gsMatrix<T> & C ) const;
+    void _computeStretch(const gsMatrix<T> & C, const gsMatrix<T> & gcon_ori ) const;
 
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     gsMatrix<T> _transformation(const gsMatrix<T> & basis1, const gsMatrix<T> & basis2 ) const;
@@ -159,20 +166,12 @@ public:
 
 private:
     /// Implementation of \ref _computeMetricUndeformed for planar geometries
-    template<short_t _dim, bool _TFT>
-    typename std::enable_if<_dim==2 && !_TFT, void>::type _computeMetricDeformed_impl(const index_t patch, bool basis) const;
+    template<short_t _dim>
+    typename std::enable_if<_dim==2, void>::type _computeMetricDeformed_impl(const index_t patch, bool basis) const;
 
     /// Implementation of \ref _computeMetricUndeformed for surface geometries
-    template<short_t _dim, bool _TFT>
-    typename std::enable_if<_dim==3 && !_TFT, void>::type _computeMetricDeformed_impl(const index_t patch, bool basis) const;
-
-    /// Implementation of \ref _computeMetricUndeformed for planar geometries
-    template<short_t _dim, bool _TFT>
-    typename std::enable_if<_dim==2 &&  _TFT, void>::type _computeMetricDeformed_impl(const index_t patch, bool basis) const;
-
-    /// Implementation of \ref _computeMetricUndeformed for surface geometries
-    template<short_t _dim, bool _TFT>
-    typename std::enable_if<_dim==3 &&  _TFT, void>::type _computeMetricDeformed_impl(const index_t patch, bool basis) const;
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, void>::type _computeMetricDeformed_impl(const index_t patch, bool basis) const;
 
     /// Implementation of \ref _getMetric for planar geometries
     template<short_t _dim>

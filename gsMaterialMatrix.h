@@ -89,31 +89,40 @@ public:
     void setOptions(gsOptionList opt) {m_options.update(opt,gsOptionList::addIfUnknown); }
 
     /// See \ref gsMaterialMatrixBase for details
-    void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+    void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    void covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+    void covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    void contransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+    void contransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> eval3D_matrix_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> eval3D_dmatrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
     void setParameters(const std::vector<gsFunction<T>*> &pars)
@@ -206,6 +215,7 @@ protected:
      * @return     The matrices (9x1 per column), stored per thickness per in-plane point [(u1,t1) (u2,t1),...,(u1,t2),(u2,t2)]
      */
     gsMatrix<T> _eval_Incompressible_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    gsMatrix<T> _eval_Incompressible_matrix_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
 
     /**
      * @brief      Evalluates the incompressible stress vector
@@ -239,6 +249,7 @@ protected:
      * @return     The matrices (9x1 per column), stored per thickness per in-plane point [(u1,t1) (u2,t1),...,(u1,t2),(u2,t2)]
      */
     gsMatrix<T> _eval_Compressible_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    gsMatrix<T> _eval_Compressible_matrix_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
 
     /**
      * @brief      Evalluates the compressible stress vector
@@ -278,6 +289,8 @@ private:
      */
     template<enum Material _mat, bool _com>
     typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_matrix_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
 
     /**
      * @brief      Implementation of the 3D (in-plane+thickness) evaluator of the material matrix, specialization compressible models
@@ -293,6 +306,8 @@ private:
      */
     template<enum Material _mat, bool _com>
     typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_matrix_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
 
     /**
      * @brief      Implementation of the 3D (in-plane+thickness) evaluator of the material matrix, specialization for incompressible models
@@ -308,6 +323,8 @@ private:
      */
     template<enum Material _mat, bool _com>
     typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_matrix_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
 
     /**
      * @brief      Implementation of the 3D (in-plane+thickness) evaluator of the stress vector, specialization for SvK material (incompressible)

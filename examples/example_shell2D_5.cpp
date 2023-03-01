@@ -166,9 +166,7 @@ public:
             this->deriv_into(u.col(k),ders);
             ders = ders.transpose().blockTranspose(targetDim()).transpose();
             for (index_t d = 0; d!=ders.cols(); d++)
-            {
-                result.col(k).segment(d*E.rows(),(d+1)*E.rows()) = ders.reshapeCol(d,E.rows(),E.rows()) * E;
-            }
+                result.col(k).segment(d*E.rows(),E.rows()) = ders.reshapeCol(d,E.rows(),E.rows()) * E;
         }
     }
 };
@@ -449,13 +447,17 @@ public:
         result.resize(3,u.cols());
         gsMatrix<T> E, Evec;
         gsVector<T> value(1),init(1);
-        gsVector<T,3> n1_vec, n2_vec;
+        gsVector<T,3> n1_vec, n2_vec, n3_vec;
         T n1, n2, m1, m2;
 
         index_t iter;
 
         T theta;
         T gamma;
+        T dgammadT;
+        T dfdT;
+        gsMatrix<T> dgammadE;
+        gsMatrix<T> dfdE;
         for (index_t k = 0; k!=u.cols(); k++)
         {
             E = Evec = u.col(k);
@@ -478,6 +480,7 @@ public:
             gsMatrix<T> res;
             this->eval_into(Es.col(0),res);
 
+            theta = res(0,0);
             n1 = math::cos(theta);
             n2 = math::sin(theta);
             m1 = -math::sin(theta);
@@ -485,149 +488,48 @@ public:
 
             n1_vec<<n1*n1, n2*n2, 2*n1*n2;
             n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-
-            gamma = - ( n1_vec.transpose() * S ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
-
-            T dCdE = 0;
-
-            // gsDebugVar(- ( n1_vec.transpose() * C ) / ( n1_vec.transpose() * C * n1_vec ).value());
-            // gsDebugVar(( n1_vec.transpose() * S * ( n1_vec.transpose() * dCdE * n1_vec ).value() ) / math::pow( (n1_vec.transpose() * C * n1_vec ).value(),2 ));
-
-            gsMatrix<T> dgammadE = - ( n1_vec.transpose() * C ) / ( n1_vec.transpose() * C * n1_vec ).value();
-                        //+ ( n1_vec.transpose() * S * ( n1_vec.transpose() * dCdE * n1_vec ).value() ) / math::pow( (n1_vec.transpose() * C * n1_vec ).value(),2 );
+            n3_vec<<m1*m1-n1*n1, m2*m2-n2*n2, 2*(m1*m2-n1*n2);
 
             gsMatrix<T> I(3,3); I.setIdentity();
-            gsDebugVar(n2_vec.transpose() * ( C * I));
-            gsDebugVar(n2_vec.transpose() * (dgammadE * C * n1_vec).value());
-            gsMatrix<T> dTdE = n2_vec.transpose() * ( C * I) + n2_vec.transpose() * (dgammadE * C * n1_vec).value();//+ gamma * dCdE * n1_vec)
-            gsDebugVar(dTdE);
-            result.col(k) = dTdE.transpose();
-        }
-    }
 
-private:
-    const gsMaterialMatrixBase<T> * m_mm;
-    const index_t m_patch;
-    const gsMatrix<T> m_u;
-    const gsMatrix<T> m_z;
-};
-
-template <typename T>
-class objFunT : public gsFunction<T>
-{
-public:
-    objFunT(const gsMaterialMatrixBase<T> * mm, index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, const gsMatrix<T> & E)
-    :
-    m_mm(mm),
-    m_patch(patch),
-    m_u(u),
-    m_z(z),
-    m_E(E)
-    {
-        GISMO_ASSERT(m_u.cols()==1 || m_z.cols()==1,"Currently only works for one point");
-    }
-
-    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
-    {
-        result.resize(1,u.cols());
-        gsMatrix<T> E = m_E;
-        gsVector<T,3> n1_vec, n2_vec;
-        T n1, n2, m1, m2;
-
-        T theta;
-        T gamma;
-
-        gsMatrix<T> S, C;
-        gsMatrix<T> Cs = m_mm->eval3D_matrix(m_patch,m_u,m_z,MaterialOutput::MatrixA);
-
-        C = Cs.col(0); // replace with C(E)
-        C.resize(3,3);
-        toMatrix(E);
-        S = m_mm->S(E);
-
-        // Make voight notation
-        S.resize(4,1);
-
-        std::swap(S(3,0),S(1,0));
-        S.conservativeResize(3,1);
-
-        for (index_t k = 0; k!=u.cols(); k++)
-        {
-            theta = u(0,k);
-
-            n1 = math::cos(theta);
-            n2 = math::sin(theta);
-            m1 = -math::sin(theta);
-            m2 = math::cos(theta);
-
-            n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-            n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
             gamma = - ( n1_vec.transpose() * S ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
-            T f = (n2_vec.transpose() * C * n1_vec).value() + gamma * (n2_vec.transpose() * C * n1_vec).value();
-            result(0,k) = f;
+            T tmp = ( n2_vec.transpose() * C * n1_vec ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
+            dgammadT = - 2 * gamma * tmp;
+            dgammadE = - ( n1_vec.transpose() * C * I) / ( n1_vec.transpose() * C * n1_vec ).value();
+
+            // gsDebugVar(dgammadT);
+
+            dfdT = (n3_vec.transpose() * S).value() + dgammadT * (n2_vec.transpose() * C * n1_vec).value()
+                  + gamma * (n3_vec.transpose() * C * n1_vec).value() + 2*gamma * (n2_vec.transpose() * C * n2_vec).value();
+
+
+            dfdE = n2_vec.transpose() * C * I + dgammadE * (n2_vec.transpose() * C * n1_vec).value();// + gamma * dCdE * n1_vec );
+
+            gsDebugVar(dfdE);
+            gsDebugVar(dfdT);
+            // gsDebugVar(result.col(k));
+
+            result.col(k) = -dfdE.transpose() / dfdT;
+
+            ////// FOR LATER with dCdE
+
+            // gamma = - ( n1_vec.transpose() * S ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
+
+            // T dCdE = 0;
+
+            // // gsDebugVar(- ( n1_vec.transpose() * C ) / ( n1_vec.transpose() * C * n1_vec ).value());
+            // // gsDebugVar(( n1_vec.transpose() * S * ( n1_vec.transpose() * dCdE * n1_vec ).value() ) / math::pow( (n1_vec.transpose() * C * n1_vec ).value(),2 ));
+
+            // gsMatrix<T> dgammadE = - ( n1_vec.transpose() * C ) / ( n1_vec.transpose() * C * n1_vec ).value();
+            //             //+ ( n1_vec.transpose() * S * ( n1_vec.transpose() * dCdE * n1_vec ).value() ) / math::pow( (n1_vec.transpose() * C * n1_vec ).value(),2 );
+
+            // gsMatrix<T> I(3,3); I.setIdentity();
+            // gsDebugVar(n2_vec.transpose() * ( C * I));
+            // gsDebugVar(n2_vec.transpose() * (dgammadE * C * n1_vec).value());
+            // gsMatrix<T> dTdE = n2_vec.transpose() * ( C * I) + n2_vec.transpose() * (dgammadE * C * n1_vec).value();//+ gamma * dCdE * n1_vec)
+            // gsDebugVar(dTdE);
+            // result.col(k) = dTdE.transpose();
         }
-    }
-
-    short_t domainDim() const
-    {
-        return 3;
-    }
-
-    short_t targetDim() const
-    {
-        return 1;
-    }
-
-    void deriv_into2(const gsMatrix<T>& u, gsMatrix<T>& result) const
-    {
-//     result.resize(1,u.cols());
-//     gsMatrix<T> E, Evec;
-//     gsVector<T,3> n1_vec, n2_vec;
-//     T n1, n2, m1, m2;
-
-//     T theta;
-//     T dgammadE;
-//     for (index_t k = 0; k!=u.cols(); k++)
-//     {
-//         E = Evec = u.col(k);
-
-//         gsMatrix<T> S, C;
-//         gsMatrix<T> Cs = m_mm->eval3D_matrix(m_patch,m_u,m_z,MaterialOutput::MatrixA);
-//         gsMatrix<T> Es = m_mm->eval3D_strain(m_patch,m_u,m_z,MaterialOutput::Generic);
-
-//         C = Cs.col(0); // replace with C(E)
-//         C.resize(3,3);
-//         toMatrix(E);
-//         S = m_mm->S(E);
-
-//         T dCdE = 0;
-
-//         // Make voight notation
-//         S.resize(4,1);
-
-//         std::swap(S(3,0),S(1,0));
-//         S.conservativeResize(3,1);
-
-//         thetaFunE<T> tfE(m_mm,m_patch,m_u,m_z);
-//         gsMatrix<T> res;
-//         tfE.eval_into(Es.col(0),res);
-
-//         theta = res(0,0);
-
-//         n1 = math::cos(theta);
-//         n2 = math::sin(theta);
-//         m1 = -math::sin(theta);
-//         m2 = math::cos(theta);
-
-//         n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-//         n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-//         gamma = - ( n1_vec.transpose() * m_S ).value() / ( n1_vec.transpose() * m_C * n1_vec ).value();
-//         dgammadE = - ( n1_vec.transpose() * C ) / ( n1_vec.transpose() * C * n1_vec ).value()
-//                 + ( n1_vec.transpose() * S * ( n1_vec.transpose() * dCdE * n1_vec ).value() ) / math::pow( (n1_vec.transpose() * C * n1_vec ).value(),2 );
-
-//         T res = n2_vec.transpose() * ( C + dgammadE * C * n1_vec + gamma * dCdE * n1_vec );
-//         result(0,k) = res;
-        // }
     }
 
 private:
@@ -635,7 +537,6 @@ private:
     const index_t m_patch;
     const gsMatrix<T> m_u;
     const gsMatrix<T> m_z;
-    const gsMatrix<T> m_E;
 };
 
 template <typename T>
@@ -891,9 +792,13 @@ public:
 
             n1_vec<<n1*n1, n2*n2, 2*n1*n2;
             n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-            dgammadE = - ( n1_vec.transpose() * C ) / ( n1_vec.transpose() * C * n1_vec ).value()
-                    + ( n1_vec.transpose() * S * ( n1_vec.transpose() * dCdE * n1_vec ).value() ) / math::pow( (n1_vec.transpose() * C * n1_vec ).value(),2 );
-            result.col(k) = dgammadE;
+            dgammadE = - ( n1_vec.transpose() * C ) / ( n1_vec.transpose() * C * n1_vec ).value();
+                    // + ( n1_vec.transpose() * S * ( n1_vec.transpose() * dCdE * n1_vec ).value() ) / math::pow( (n1_vec.transpose() * C * n1_vec ).value(),2 );
+
+            gsDebugVar(result.col(k));
+            gsDebugVar(dgammadE);
+
+            result.col(k) = dgammadE.transpose();
         }
     }
 
@@ -1092,6 +997,109 @@ public:
     short_t targetDim() const
     {
         return 3;
+    }
+
+    void deriv_into2(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    {
+        result.resize(3,u.cols());
+        gsMatrix<T> E, Evec;
+        gsVector<T> value(1),init(1);
+        gsVector<T,3> n1_vec, n2_vec, n3_vec;
+        T n1, n2, m1, m2;
+
+        index_t iter;
+
+        thetaFunE<T> tfE(m_mm,m_patch,m_u,m_z);
+        gsMatrix<T> res;
+        tfE.eval_into(u,res);
+
+        T theta;
+        T gamma;
+        T dgammadT;
+        T dfdT;
+        gsMatrix<T> dgammadE;
+        gsMatrix<T> dfdE;
+        gsMatrix<T> dTdE;
+        for (index_t k = 0; k!=u.cols(); k++)
+        {
+            E = Evec = u.col(k);
+
+            gsMatrix<T> S, C;
+            gsMatrix<T> Cs = m_mm->eval3D_matrix(m_patch,m_u,m_z,MaterialOutput::MatrixA);
+
+            C = Cs.col(0); // replace with C(E)
+            C.resize(3,3);
+            toMatrix(E);
+            S = m_mm->S(E);
+
+            // Make voight notation
+            S.resize(4,1);
+
+            std::swap(S(3,0),S(1,0));
+            S.conservativeResize(3,1);
+
+            theta = res(0,k);
+
+            gsDebugVar(theta);
+            n1 = math::cos(theta);
+            n2 = math::sin(theta);
+            m1 = -math::sin(theta);
+            m2 = math::cos(theta);
+
+            n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+            n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
+            n3_vec<<m1*m1-n1*n1, m2*m2-n2*n2, 2*(m1*m2-n1*n2);
+
+            gsMatrix<T> I(3,3); I.setIdentity();
+
+            gamma = - ( n1_vec.transpose() * S ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
+            gsDebugVar(gamma);
+            T tmp = ( n2_vec.transpose() * C * n1_vec ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
+            dgammadT = - 2 * gamma * tmp;
+            dgammadE = - ( n1_vec.transpose() * C * I) / ( n1_vec.transpose() * C * n1_vec ).value();
+            dgammadE.transposeInPlace();
+            gsDebugVar(dgammadE);
+
+            dfdT = (n3_vec.transpose() * S).value() + dgammadT * (n2_vec.transpose() * C * n1_vec).value()
+                  + gamma * (n3_vec.transpose() * C * n1_vec).value() + 2*gamma * (n2_vec.transpose() * C * n2_vec).value();
+
+
+            dfdE = n2_vec.transpose() * C * I + dgammadE.transpose() * (n2_vec.transpose() * C * n1_vec).value();// + gamma * dCdE * n1_vec );
+
+            dTdE = -dfdE.transpose() / dfdT;
+
+            gsDebugVar(dfdE);
+            gsDebugVar(dfdT);
+            gsDebugVar(dTdE);
+            // gsDebugVar(result.col(k));
+
+            gsDebugVar(n1_vec.transpose()*dgammadE + ( n2_vec.transpose() * dgammadT + 2*gamma*n2_vec.transpose())*dTdE);
+
+            result.col(k) = -dfdE.transpose() / dfdT;
+
+
+
+
+
+            ////// FOR LATER with dCdE
+
+            // gamma = - ( n1_vec.transpose() * S ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
+
+            // T dCdE = 0;
+
+            // // gsDebugVar(- ( n1_vec.transpose() * C ) / ( n1_vec.transpose() * C * n1_vec ).value());
+            // // gsDebugVar(( n1_vec.transpose() * S * ( n1_vec.transpose() * dCdE * n1_vec ).value() ) / math::pow( (n1_vec.transpose() * C * n1_vec ).value(),2 ));
+
+            // gsMatrix<T> dgammadE = - ( n1_vec.transpose() * C ) / ( n1_vec.transpose() * C * n1_vec ).value();
+            //             //+ ( n1_vec.transpose() * S * ( n1_vec.transpose() * dCdE * n1_vec ).value() ) / math::pow( (n1_vec.transpose() * C * n1_vec ).value(),2 );
+
+            // gsMatrix<T> I(3,3); I.setIdentity();
+            // gsDebugVar(n2_vec.transpose() * ( C * I));
+            // gsDebugVar(n2_vec.transpose() * (dgammadE * C * n1_vec).value());
+            // gsMatrix<T> dTdE = n2_vec.transpose() * ( C * I) + n2_vec.transpose() * (dgammadE * C * n1_vec).value();//+ gamma * dCdE * n1_vec)
+            // gsDebugVar(dTdE);
+            // result.col(k) = dTdE.transpose();
+        }
     }
 
 private:
@@ -1521,12 +1529,16 @@ public:
         Ew = gamma * n1_vec;
         E  = m_e + Ew;
         Sp = m_C * (m_e + Ew);
+
+        dEw = n1_vec.transpose() * dgammadE
+                + dgammadT * n1_vec.transpose() * dTdE
+                + 2 * gamma * n2_vec.transpose() * dTdE;
     }
 
 public:
     mutable gsMatrix<T> C_I, C_II;
     mutable T gamma, theta;
-    mutable gsMatrix<T> Ew, E, Sp;
+    mutable gsMatrix<T> Ew, E, Sp, dEw;
     mutable gsMatrix<T> dgammadE, dfdE, dTdE;
     mutable T dgammadT, dfdT;
 
@@ -2146,6 +2158,9 @@ int main(int argc, char *argv[])
     matCompute.compute(THETA(0,0));
 
 
+    gsDebugVar(THETA(0,0));
+    gsDebugVar(matCompute.gamma);
+
     real_t n1, n2, m1, m2;
     n1 = math::cos(THETA(0,0));
     n2 = math::sin(THETA(0,0));
@@ -2166,6 +2181,17 @@ int main(int argc, char *argv[])
     objE.deriv_into2(e,result);
     gsDebugVar(result);
 
+    gsDebug<<"---------------------------------------------------------------------------------\n";
+    gsDebug<<"                            f(THETA)                                                \n";
+    gsDebug<<"---------------------------------------------------------------------------------\n";
+    gsVector<> Stmp = C*e;
+    objective<real_t> f(C,Stmp);
+    f.deriv_into(THETA,result);
+    gsDebugVar(result);
+    f.deriv_into2(THETA,result);
+    gsDebugVar(result);
+
+    gsDebugVar(matCompute.dfdT);
 
     gsDebug<<"---------------------------------------------------------------------------------\n";
     gsDebug<<"                            Dummy C(E)                                                \n";
@@ -2191,7 +2217,7 @@ gsDebugVar(result.transpose().blockTranspose(9).transpose());
 
     dummyC.deriv_mult_into(dummyE,dummyE,result);
 
-    return 0;
+    // return 0;
 
     gsDebug<<"---------------------------------------------------------------------------------\n";
     gsDebug<<"                            dTHETA(E) /dE                                               \n";
@@ -2203,27 +2229,13 @@ gsDebugVar(result.transpose().blockTranspose(9).transpose());
     theta.deriv_into2(e,result);
     gsDebugVar(result);
 
-    // gsDebug<<"Analytical:\n";
-    // gsDebugVar(matCompute.dTdE);
+    gsDebug<<"Analytical:\n";
+    gsDebugVar(matCompute.dTdE);
 
     gsInfo<<"Norm = "<<(result-matCompute.dTdE).norm()<<"\n";
 
     // gamma.deriv_into(e,result);
     // gsDebugVar(result);
-
-    gsDebug<<"---------------------------------------------------------------------------------\n";
-    gsDebug<<"                            F(THETA)                                                \n";
-    gsDebug<<"---------------------------------------------------------------------------------\n";
-    gsVector<> Stmp = C*e;
-    objective<real_t> f(C,Stmp);
-    f.deriv_into(THETA,result);
-    gsDebugVar(result);
-    f.deriv_into2(THETA,result);
-    gsDebugVar(result);
-
-    gsDebugVar(matCompute.dfdT);
-
-
 
     gsDebug<<"---------------------------------------------------------------------------------\n";
     gsDebug<<"                            GAMMA(E)                                                \n";
@@ -2258,7 +2270,7 @@ gsDebugVar(result.transpose().blockTranspose(9).transpose());
     // gamma.deriv_into(e,result);
     // gsDebugVar(result);
 
-return 0;
+// return 0;
 
 
     gsDebug<<"---------------------------------------------------------------------------------\n";
@@ -2274,8 +2286,8 @@ return 0;
     gammaT.deriv_into2(THETA,result2);
     gsDebugVar(result2);
 
-    // gsDebug<<"Analytical:\n";
-    // gsDebugVar(matCompute.dgammadT);
+    gsDebug<<"Analytical:\n";
+    gsDebugVar(matCompute.dgammadT);
 
 
     // gamma.deriv_into(e,result);
@@ -2283,7 +2295,6 @@ return 0;
 
     gsInfo<<"Norm = "<<std::abs(result.value()-matCompute.dgammadT)<<"\n";
 
-    return 0;
 
     gsDebug<<"---------------------------------------------------------------------------------\n";
     gsDebug<<"                            Ew                                                   \n";
@@ -2296,17 +2307,32 @@ return 0;
 
     // ew = result;
 
-    // gsDebug<<"Analytical:\n";
-    // gsDebugVar(matCompute.Ew);
+    gsDebug<<"Analytical:\n";
+    gsDebugVar(matCompute.Ew);
 
     gsDebug<<"---------------------------------------------------------------------------------\n";
     gsDebug<<"                            dEw/dE                                                   \n";
     gsDebug<<"---------------------------------------------------------------------------------\n";
 
+    gsDebug<<"Analytical:\n";
+    gsDebugVar(matCompute.dEw);
+
     gsDebug<<"Numeric:\n";
     Ew.deriv_into(e,result);
     gsDebugVar(result.reshape(3,3));
     gsDebugVar(result);
+
+    gsDebug<<"Numeric:\n";
+    result.resize(0,0);
+    Ew.deriv_into2(e,result);
+    gsDebugVar(result.reshape(3,3));
+    gsDebugVar(result);
+
+
+    gsDebug<<"Analytical:\n";
+    gsDebugVar(matCompute.dEw);
+    return 0;
+
 
     gsDebugVar(C * result.reshape(3,3));
     gsDebugVar(C);

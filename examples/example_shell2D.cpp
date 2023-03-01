@@ -16,322 +16,12 @@
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/getMaterialMatrix.h>
 #include <gsKLShell/gsMaterialMatrixEval.h>
+#include <gsKLShell/gsMaterialMatrixIntegrate.h>
 
 #include <gsKLShell/gsMaterialMatrixTFT.h>
 #include <gsKLShell/gsMaterialMatrixLinear.h>
 
-#include <gsKLShell/gsGLStrain.h>
-
-
-#ifdef GISMO_WITH_IPOPT
-#include <gsIpopt/gsOptProblem.h>
-#endif
-//#include <gsThinShell/gsNewtonIterator.h>
-
-
 using namespace gismo;
-
-/**
- * @brief
- * Simple optimization example, to demonstrate the definition of an
- * optimization problem using the base class gsOptProblem.
- *
- *  This class implements the following NLP.
- *
- * min_x f(x) = (... )^2     (objetive function) --> square minimize it to zero
- *  s.t.
- *       beta > 0
- *       t sigma t > 0
- *       0.5 * pi <= theta <= 0.5 * pi
- *
- */
-#ifdef GISMO_WITH_IPOPT
-
-template <typename T>
-class gsOptProblemExample : public gsOptProblem<T>
-{
-public:
-
-    gsOptProblemExample(const gsMatrix<T> & C, const gsMatrix<T> & e)
-    :
-    m_C(C),
-    m_e(e)
-    {
-        m_numDesignVars  = 1;
-        m_numConstraints = 1;
-        m_numConJacNonZero = 1;
-
-        m_desLowerBounds.resize(m_numDesignVars);
-        m_desUpperBounds.resize(m_numDesignVars);
-
-        // theta has a lower bound of -1 and an upper bound of 1
-    const T inf = std::numeric_limits<T>::infinity();
-        m_desLowerBounds[0] = -0.5*M_PI;
-        m_desUpperBounds[0] =  0.5*M_PI;
-
-        m_conLowerBounds.resize(m_numConstraints);
-        m_conUpperBounds.resize(m_numConstraints);
-
-        // we have one equality constraint, so we set the bounds on
-        // this constraint to be equal (and zero).
-        m_conLowerBounds[0] = 0;
-        m_conUpperBounds[0] = inf;
-
-        // m_conLowerBounds[0] = -1;
-        // m_conUpperBounds[0] = 1;
-
-        // we initialize x in bounds, in the upper right quadrant
-        m_curDesign.resize(m_numDesignVars,1);
-        m_curDesign(0,0) = 0.0;
-
-        //
-        m_conJacRows.resize(m_numConJacNonZero);
-        m_conJacCols.resize(m_numConJacNonZero);
-    }
-
-
-public:
-
-    T evalObj( const gsAsConstVector<T> & u ) const
-    {
-        T theta = u(0,0);
-        T n1 = math::cos(theta);
-        T n2 = math::sin(theta);
-        T m1 = -math::sin(theta);
-        T m2 = math::cos(theta);
-
-        gsVector<T,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-        gsVector<T,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-        gsVector<T,3> n3_vec; n3_vec<<m1*m1-n1*n1, m2*m2-n2*n2, 2*(m1*m2-n1*n2);
-        gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
-
-        gsMatrix<T,1,1> gamma = - ( n1_vec.transpose() * m_C * m_e ) / ( n1_vec.transpose() * m_C * n1_vec );
-
-        gsMatrix<T,1,1> result = n2_vec.transpose() * m_C * m_e + gamma * n2_vec.transpose() * m_C * n1_vec;
-        GISMO_ASSERT(result.rows()==1 && result.cols() ==1,"f is not scalar!");
-
-        return result(0,0) * result(0,0);
-    }
-
-    void evalCon_into( const gsAsConstVector<T> & u, gsAsVector<T> & result) const
-    {
-        T theta = u(0,0);
-        result.resize(m_numConstraints,1);
-        // return the value of the constraints: g(x)
-        real_t n1 = math::cos(theta);
-        real_t n2 = math::sin(theta);
-        real_t m1 = -math::sin(theta);
-        real_t m2 = math::cos(theta);
-
-        gsVector<real_t,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-        gsVector<real_t,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-        gsVector<real_t,3> n3_vec; n3_vec<<m1*m1-n1*n1, m2*m2-n2*n2, 2*(m1*m2-n1*n2);
-        gsVector<real_t,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
-
-        gsMatrix<real_t,1,1> gamma = - ( n1_vec.transpose() * m_C * m_e ) / ( n1_vec.transpose() * m_C * n1_vec );
-        result(0) = gamma(0,0);
-    }
-
-    void jacobCon_into( const gsAsConstVector<T> & u, gsAsVector<T> & result) const
-    {
-        // at the moment only a full finite difference matrix is returned.
-
-        gsVector<T> uu = u;
-        gsVector<T> e1( this->m_numConstraints );
-        gsVector<T> e2( this->m_numConstraints );
-        gsAsVector<T> ee1( e1.data() , e1.rows() );
-        gsAsVector<T> ee2( e2.data() , e2.rows() );
-
-        index_t lastDesginVar = -1;
-
-        // TODO: Replace by a better value or use AD...
-        const T h = T(0.00001);
-
-        for( index_t i = 0 ; i < this->m_numConJacNonZero; ++i )
-        {
-            index_t row = this->m_conJacRows[i];  // constrains
-            index_t col = this->m_conJacCols[i];  // designVariables
-
-            if( lastDesginVar != col )
-            {
-                gsAsConstVector<T> uuMap( uu.data() , uu.rows() );
-
-                uu(col) -= h/2.;
-                evalCon_into( uuMap, ee1);
-                uu(col) += h;
-                evalCon_into( uuMap, ee2 );
-                uu(col) = u(col);
-
-                lastDesginVar = col;
-            }
-
-            result(i) = (0.5*e1(row) - 0.5*e2(row)) / h;
-
-        }
-
-    }
-
-private:
-
-    using gsOptProblem<T>::m_numDesignVars;
-    using gsOptProblem<T>::m_numConstraints;
-    using gsOptProblem<T>::m_numConJacNonZero;
-
-    using gsOptProblem<T>::m_desLowerBounds;
-    using gsOptProblem<T>::m_desUpperBounds;
-
-    using gsOptProblem<T>::m_conLowerBounds;
-    using gsOptProblem<T>::m_conUpperBounds;
-
-    using gsOptProblem<T>::m_conJacRows;
-    using gsOptProblem<T>::m_conJacCols;
-
-    using gsOptProblem<T>::m_curDesign;
-
-    const gsMatrix<T> m_C;
-    const gsMatrix<T> m_e;
-};
-#endif
-
-template<class T>
-T findMod(T a, T b)
-{
-    T mod;
-    // Handling negative values
-    if (a < 0)
-        mod = -a;
-    else
-        mod =  a;
-    if (b < 0)
-        b = -b;
-
-    // Finding mod by repeated subtraction
-
-    while (mod >= b)
-        mod = mod - b;
-
-    // Sign of result typically depends
-    // on sign of a.
-    if (a < 0)
-        return -mod;
-
-    return mod;
-}
-
-template <class T>
-class gsScalarRootFinder
-{
-protected:
-    T m_x;
-    T m_xmin;
-    T m_xmax;
-    T m_error;
-    T m_tolerance;
-
-    index_t m_maxIterations;
-    index_t m_iteration;
-
-    typedef std::function < T ( T const &) > function_t;
-    function_t m_function;
-
-public:
-    gsScalarRootFinder(T xmin, T xmax, function_t fun)
-    :
-    m_xmin(xmin),
-    m_xmax(xmax),
-    m_function(fun),
-    m_iteration(0),
-    m_maxIterations(15),
-    m_error(1.0),
-    m_tolerance(1e-15)
-    {
-
-    }
-
-    void compute()
-    {
-        // From: https://lemesurierb.github.io/elementary-numerical-analysis-python/notebooks/root-finding-without-derivatives-python.html
-        T x_older = m_xmin;
-        T x_more_recent = m_xmax;
-        T x_new;
-        T f_x_older = m_function(x_older);
-        T f_x_more_recent = m_function(x_more_recent);
-        T f_x_new;
-        for (m_iteration = 0; m_iteration <= m_maxIterations; m_iteration++)
-        {
-            x_new = (x_older * f_x_more_recent - f_x_older * x_more_recent)/(f_x_more_recent - f_x_older);
-            x_new = findMod(x_new , M_PI);
-
-            f_x_new = m_function(x_new);
-
-            gsDebugVar(x_new);
-            gsDebugVar(x_more_recent);
-
-            x_older = x_more_recent;
-            x_more_recent = x_new;
-            f_x_older = f_x_more_recent;
-            f_x_more_recent = f_x_new;
-
-            m_error = std::abs(x_older - x_more_recent);
-
-            gsDebug<<m_iteration<<"\t"<<m_error<<"\n";
-
-            if (m_error < m_tolerance)
-                break;
-        }
-        if (m_iteration < m_maxIterations)
-        {
-            m_x = x_new;
-        }
-        else
-        {
-            gsWarn<<"Did not converge in "<<m_iteration<<"iterations\n";
-            m_x = NAN;
-        }
-
-
-        // real_t a = m_xmin;
-        // real_t b = m_xmax;
-        // real_t fa = m_function(a);
-        // real_t fb = m_function(b);
-        // real_t c;
-        // for (m_iteration = 0; m_iteration!= m_maxIterations; m_iteration++)
-        // {
-        //         c = (a * fb - fa * b)/(fb - fa);
-        //         real_t fc = m_function(c);
-        //         if (fa * fc < 0)
-        //         {
-        //             b = c;
-        //             fb = fc;
-        //         }
-        //         else
-        //         {
-        //             a = c;
-        //             fa = fc;
-        //         }
-
-        //         m_error = std::abs(b-a);
-
-        //         gsDebug<<m_iteration<<"\t"<<m_error<<"\n";
-
-        //     if (m_error < m_tolerance)
-        //         break;
-        // }
-        // if (m_iteration < m_maxIterations)
-        // {
-        //     m_x = c;
-        // }
-        // else
-        // {
-        //     gsWarn<<"Did not converge in "<<m_iteration<<"iterations\n";
-        //     m_x = NAN;
-        // }
-
-    }
-
-    T result() { return m_x; }
-    T error()  { return m_error; }
-};
 
 // Choose among various shell examples, default = Thin Plate
 int main(int argc, char *argv[])
@@ -452,7 +142,10 @@ int main(int argc, char *argv[])
         mp.patch(0).coefs().col(0) *= length;
         mp.patch(0).coefs().col(1) *= width;
 
-        mp.addInterface(0,boundary::east, 0, boundary::west);
+        mp.computeTopology();
+        gsDebugVar(mp);
+        // mp.addInterface(0,boundary::east, 0, boundary::west);
+        // gsDebugVar(mp);
 
     }
 
@@ -572,6 +265,21 @@ int main(int argc, char *argv[])
         GISMO_ERROR("Test case not known");
     //! [Set boundary conditions]
 
+        typedef gsExprAssembler<>::space       space;
+        gsExprAssembler<> A(1,1);
+        space u = A.getSpace(dbasis, 2, 0); // last argument is the space ID
+        u.setup(bc,dirichlet::l2Projection,0);
+        A.setIntegrationElements(dbasis);
+        A.initSystem();
+        gsDebugVar(A.numDofs());
+        gsDebugVar(u.mapper().freeSize());
+        gsDebugVar(u.mapper().size());
+        gsDebugVar(u.mapper().firstIndex());
+        gsDebugVar(u.mapper().freeSize());
+        gsDebugVar(u.mapper().firstIndex()+u.mapper().freeSize());
+    // return 0;
+
+
     //! [Make material functions]
     // Linear isotropic material model and Neo-Hookean material
     gsConstantFunction<> force(tmp,2);
@@ -678,7 +386,7 @@ int main(int argc, char *argv[])
     // Construct the gsThinShellAssembler
     gsThinShellAssemblerBase<real_t>* assembler;
     assembler = new gsThinShellAssembler<2, real_t, false>(mp,dbasis,bc,force,materialMatrix);
-
+    assembler->options().setInt("Continuity",0);
     // Add point loads to the assembler
     assembler->setPointLoads(pLoads);
     //! [Make assembler]
@@ -862,50 +570,24 @@ int main(int argc, char *argv[])
     gsVector<> pt(2);
     pt<<0.5,0.5;
 
-    gsMaterialMatrixBaseDim<2,real_t> baseDim(mp,mp_def);
-    baseDim._computeMetricUndeformed(0,pt,true);
-    baseDim._computeMetricDeformed(0,pt,true);
-    gsDebugVar(baseDim._getGcov_ori(0,0.0));
-    gsDebugVar(baseDim._getGcov_def(0,0.0));
-
-    gsGLStrain<2,real_t> strain(mp,mp_def);
-    gsDebugVar(strain.eval(0,pt,z));
-
-    gsMatrix<> Emat = strain.eval(0,pt,z);
-    gsDebugVar(Emat);
-    strain.toMatrix(Emat);
-    gsDebugVar(Emat);
-
-    gsMatrix<> result;
-
-    // GLStrain.eval_into(pt,result);
-    // gsDebugVar(result);
-
-
-
-
-
-
-    return 0;
-
     gsMaterialMatrixLinear<2,real_t> * materialMatrixLinear = new gsMaterialMatrixLinear<2,real_t>(mp,t,parameters,rho);
     gsMaterialMatrixTFT<2,real_t> * materialMatrixTFT = new gsMaterialMatrixTFT<2,real_t>(materialMatrixLinear);
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> matA(materialMatrixTFT,&mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB> matB(materialMatrixTFT,&mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC> matC(materialMatrixTFT,&mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD> matD(materialMatrixTFT,&mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> vecN(materialMatrixTFT,&mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::VectorM> vecM(materialMatrixTFT,&mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::PStrainN> pstrain(materialMatrix,&mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::PStressN> pstress(materialMatrix,&mp_def,z);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixA> matA(materialMatrixTFT,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixB> matB(materialMatrixTFT,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixC> matC(materialMatrixTFT,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixD> matD(materialMatrixTFT,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorN> vecN(materialMatrixTFT,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorM> vecM(materialMatrixTFT,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::PStrainN> pstrain(materialMatrix,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::PStressN> pstress(materialMatrix,&mp_def);
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> matAL(materialMatrixLinear,&mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB> matBL(materialMatrixLinear,&mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC> matCL(materialMatrixLinear,&mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD> matDL(materialMatrixLinear,&mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> vecNL(materialMatrixLinear,&mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::VectorM> vecML(materialMatrixLinear,&mp_def,z);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixA> matAL(materialMatrixLinear,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixB> matBL(materialMatrixLinear,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixC> matCL(materialMatrixLinear,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixD> matDL(materialMatrixLinear,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorN> vecNL(materialMatrixLinear,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorM> vecML(materialMatrixLinear,&mp_def);
 
 
     gsMaterialMatrixEval<real_t,MaterialOutput::TensionField> tensionfield(materialMatrixLinear,&mp_def,z);
@@ -914,217 +596,43 @@ int main(int argc, char *argv[])
     gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> mat(materialMatrixLinear,&mp_def,z);
     gsMaterialMatrixEval<real_t,MaterialOutput::StretchDir> pdir(materialMatrixLinear,&mp_def,z);
 
+    gsDebugVar(matA.eval(pt));
+    gsDebugVar(matAL.eval(pt));
+
+    gsDebugVar(matB.eval(pt));
+    gsDebugVar(matBL.eval(pt));
+
+    gsDebugVar(matC.eval(pt));
+    gsDebugVar(matCL.eval(pt));
+
+    gsDebugVar(matD.eval(pt));
+    gsDebugVar(matDL.eval(pt));
+
+    gsDebugVar(matD.eval(pt));
+    gsDebugVar(matDL.eval(pt));
+
+    gsDebugVar(vecN.eval(pt));
+    gsDebugVar(vecNL.eval(pt));
+
+    gsDebugVar(vecM.eval(pt));
+    gsDebugVar(vecML.eval(pt));
 
 
     gsField<> tensionField(mp_def, tensionfield, true);
     gsInfo<<"Plotting in Paraview...\n";
     gsWriteParaview<>( tensionField, "TensionField", 10000, true);
 
-    matA.eval_into(pt,result);
-    gsMatrix<real_t,3,3> Amat = result.reshape(3,3);
-    gsDebugVar(Amat);
+    gsThinShellAssemblerBase<real_t> * assembler2;
+    gsThinShellAssemblerBase<real_t> * assembler3;
+    assembler2 = new gsThinShellAssembler<2, real_t, false>(mp,dbasis,bc,force,materialMatrixLinear);
+    assembler2->assemble();
+    assembler3 = new gsThinShellAssembler<2, real_t, false>(mp,dbasis,bc,force,materialMatrixTFT);
+    assembler3->assemble();
 
-    matB.eval_into(pt,result);
-    gsMatrix<real_t,3,3> Bmat = result.reshape(3,3);
-    gsDebugVar(Bmat);
-
-    matC.eval_into(pt,result);
-    gsMatrix<real_t,3,3> Cmat = result.reshape(3,3);
-    gsDebugVar(Cmat);
-
-    matD.eval_into(pt,result);
-    gsMatrix<real_t,3,3> Dmat = result.reshape(3,3);
-    gsDebugVar(Dmat);
-
-    vecN.eval_into(pt,result);
-    gsMatrix<real_t,3,1> Nvec = result;
-    gsDebugVar(Nvec);
-
-    vecM.eval_into(pt,result);
-    gsMatrix<real_t,3,1> Mvec = result;
-    gsDebugVar(Mvec);
-
-///////////////////////
-
-    matAL.eval_into(pt,result);
-    gsMatrix<real_t,3,3> AmatL = result.reshape(3,3);
-    gsDebugVar(AmatL);
-
-    matBL.eval_into(pt,result);
-    gsMatrix<real_t,3,3> BmatL = result.reshape(3,3);
-    gsDebugVar(BmatL);
-
-    matCL.eval_into(pt,result);
-    gsMatrix<real_t,3,3> CmatL = result.reshape(3,3);
-    gsDebugVar(CmatL);
-
-    matDL.eval_into(pt,result);
-    gsMatrix<real_t,3,3> DmatL = result.reshape(3,3);
-    gsDebugVar(DmatL);
-
-    vecNL.eval_into(pt,result);
-    gsMatrix<real_t,3,1> NvecL = result;
-    gsDebugVar(NvecL);
-
-    vecML.eval_into(pt,result);
-    gsMatrix<real_t,3,1> MvecL = result;
-    gsDebugVar(MvecL);
-
-
-// //     pstrain.eval_into(pt,result);
-// //     gsDebugVar(result);
-
-
-//     pdir.eval_into(pt,result);
-//     gsDebugVar(result);
-
-//     mp_def.patch(0).eval_into(pt,result);
-//     gsDebugVar(result);
-
-//     tensionfield.eval_into(pt,result);
-//     gsDebugVar(result);
-
-//     gsWarn<<"This should not be pstrain.\n";
-//     pstrain.eval_into(pt,result);
-//     gsMatrix<real_t,3> e = result; // THIS IS ACTUALLY S!!
-//     gsDebugVar(e);
-
-//     mat.eval_into(pt,result);
-//     gsMatrix<real_t,3,3> C = result.reshape(3,3);
-//     gsDebugVar(Amat);
-
-
-//     typedef std::function < real_t ( real_t const &) > function_t;
-//     function_t f_fun = [&C,&e](real_t const & theta)
-//     {
-//         real_t n1 = math::cos(theta);
-//         real_t n2 = math::sin(theta);
-//         real_t m1 = -math::sin(theta);
-//         real_t m2 = math::cos(theta);
-
-//         gsVector<real_t,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-//         gsVector<real_t,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-//         gsVector<real_t,3> n3_vec; n3_vec<<m1*m1-n1*n1, m2*m2-n2*n2, 2*(m1*m2-n1*n2);
-//         gsVector<real_t,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
-
-//         gsMatrix<real_t,1,1> gamma = - ( n1_vec.transpose() * C * e ) / ( n1_vec.transpose() * C * n1_vec );
-//         gsMatrix<real_t,1,1> result = n2_vec.transpose() * C * e + gamma * n2_vec.transpose() * C * n1_vec;
-//         GISMO_ASSERT(result.rows()==1 && result.cols() ==1,"f is not scalar!");
-//         return result(0,0);
-//     };
-
-//     typedef std::function < real_t ( real_t const &) > function_t;
-//     function_t gamma_fun = [&C,&e](real_t const & theta)
-//     {
-//         real_t n1 = math::cos(theta);
-//         real_t n2 = math::sin(theta);
-//         real_t m1 = -math::sin(theta);
-//         real_t m2 = math::cos(theta);
-
-//         gsVector<real_t,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-//         gsVector<real_t,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-//         gsVector<real_t,3> n3_vec; n3_vec<<m1*m1-n1*n1, m2*m2-n2*n2, 2*(m1*m2-n1*n2);
-//         gsVector<real_t,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
-
-//         gsMatrix<real_t,1,1> gamma = - ( n1_vec.transpose() * C * e ) / ( n1_vec.transpose() * C * n1_vec );
-//         return gamma(0,0);
-//     };
-
-
-//     gsVector<> x = gsVector<>::LinSpaced(100,-0.5 * M_PI,0.5 * M_PI);
-
-// #ifdef GISMO_WITH_IPOPT
-//     gsOptProblemExample<real_t> opt(C,e);
-
-//     for (index_t k = 0; k!=x.size(); k++)
-//     {
-//         std::vector<real_t> X,dX,C,dC;
-//         X.push_back(x[k]);
-//         dX.resize(1);
-//         gsAsVector<> der(dX);
-
-//         C.resize(1);
-//         gsAsVector<> con(C);
-
-//         dC.resize(1);
-//         gsAsVector<> dcon(dC);
-
-
-//         opt.gradObj_into(gsAsConstVector<>(X),der);
-//         opt.evalCon_into(gsAsConstVector<>(X),con);
-//         opt.jacobCon_into(gsAsConstVector<>(X),dcon);
-//         gsInfo<<x[k]<<","<<opt.evalObj(gsAsConstVector<>(X))<<","<<der<<","<<con<<","<<dcon<<"\n";
-//     }
-
-
-//     // Run optimizer
-//     opt.solve();
-
-//     // Print some details in the output
-//     gsDebugVar(opt.objective());
-//     gsDebugVar(opt.iterations());
-//     gsDebugVar(opt.currentDesign());
-//     real_t theta = opt.currentDesign()(0,0);
-
-//     // gsScalarRootFinder<real_t> rf(0.5*M_PI,0.99*M_PI,f_fun);
-//     // rf.compute();
-//     // real_t theta = rf.result();
-//     // gsDebugVar(rf.result());
-//     // gsDebugVar(rf.error());
-
-//     real_t n1 = math::cos(theta);
-//     real_t n2 = math::sin(theta);
-//     real_t m1 = -math::sin(theta);
-//     real_t m2 = math::cos(theta);
-//     gsVector<real_t,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-//     gsVector<real_t,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-//     gsVector<real_t,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
-
-//     gsMatrix<real_t,1,1> denum = n1_vec.transpose() * C * n1_vec;
-
-//     gsMatrix<real_t,3,3> C_I = C - 1 / (  n1_vec.transpose() * C * n1_vec ) * C * ( n1_vec * n1_vec.transpose() ) * C;
-
-
-
-//     gsMatrix<real_t,1,1> gamma = - ( n1_vec.transpose() * C * e ) / ( n1_vec.transpose() * C * n1_vec );
-
-//     gsMatrix<real_t,1,1> tmp2 = (n1_vec.transpose() * C * n2_vec);
-
-//     GISMO_ASSERT(tmp2.rows()==1 && tmp2.cols()==1,"Must be scalar");
-
-//     gsMatrix<real_t,1,1> df = n4_vec.transpose() * C * (e + gamma(0,0) * n1_vec)
-//                             + 2 * gamma * ( n2_vec.transpose() * C * n2_vec
-//                             - math::pow(tmp2(0,0),2) / (n1_vec.transpose() * C * n1_vec) );
-
-
-//     gsMatrix<real_t,3,1> b = n2_vec - ( (n1_vec.transpose() * C * n2_vec)(0,0) / ( n1_vec.transpose() * C * n1_vec )(0,0)) * n1_vec;
-
-
-//     gsMatrix<real_t,3,3> C_II = C_I + 2 * gamma(0,0) / df(0,0) * (C * b * b.transpose() * C);
-
-//     gsDebugVar(C_I);
-//     gsDebugVar(C_II);
-//     gsDebugVar(C);
-
-//     gsDebugVar(C_I * e);
-//     gsDebugVar(C_II*e);
-
-//     gsDebugVar(n1_vec.transpose() * C_I * e);
-//     gsDebugVar(n1_vec.transpose() * C_II* e);
-//     gsDebugVar(n2_vec.transpose() * C_I * e);
-//     gsDebugVar(n2_vec.transpose() * C_II* e);
-
-
-//     gsDebugVar(gamma);
-// #else
-//     gsInfo<<"GISMO_WITH_IPOPT is not enabled\n";
-// #endif
-
-
-    ///////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////
-
+    assembler->assemble();
+    gsDebugVar(assembler->matrix().toDense());
+    gsDebugVar(assembler2->matrix().toDense());
+    gsDebugVar(assembler3->matrix().toDense());
 
     delete assembler;
     return EXIT_SUCCESS;

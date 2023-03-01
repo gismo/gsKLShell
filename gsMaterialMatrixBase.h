@@ -32,7 +32,12 @@ template <class T>
 class gsMaterialMatrixBase
 {
 public:
+    enum {Linear=0};
 
+    gsMaterialMatrixBase()
+    :
+    m_defpatches(nullptr)
+    {}
     /// Destructor
     virtual ~gsMaterialMatrixBase() {};
 
@@ -147,6 +152,71 @@ public:
      */
     inline virtual gsMatrix<T>  eval3D_matrix(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
     { GISMO_NO_IMPLEMENTATION; }
+
+    inline virtual gsMatrix<T>  eval3D_matrix(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    {
+        gsMatrix<T> zmat(1,1);
+        zmat<<z;
+        return eval3D_matrix(patch,u,zmat,out);
+    }
+
+    inline virtual gsMatrix<T>  eval3D_matrix_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T>& u, const T z, enum MaterialOutput out) const
+    { GISMO_NO_IMPLEMENTATION; }
+
+    /**
+     * @brief      Evaluates the derivative of the matrix on \a patch on in-plane points \a u with height \a z
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     * @param[in]  out    (for classes with MatIntegration==Integrated, more details about \ref MaterialOutput can be found in \ref gsMaterialMatrixUtils)
+     *
+     * @return     Matrix with the result (matrix) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     *             every column has 9*3=27 entries. To obtain the derivatives of C, one can do the following
+     *
+     *             dC = eval.reshapeCol(k,9,3);
+     *             dCd11 = dC.reshapeCol(0,3,3);
+     *             dCd22 = dC.reshapeCol(1,3,3);
+     *             dCd11 = dC.reshapeCol(2,3,3);
+     *
+     */
+    inline virtual gsMatrix<T>  eval3D_dmatrix(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
+    {
+        GISMO_NO_IMPLEMENTATION;
+        // return gsMatrix<T>::Zero(27,u.cols()*z.rows());
+    }
+
+    inline virtual gsMatrix<T>  eval3D_dmatrix(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    {
+        gsMatrix<T> zmat(1,1);
+        zmat<<z;
+        return eval3D_dmatrix(patch,u,zmat,out);
+    }
+
+    // /**
+    //  * @brief      { function_description }
+    //  *
+    //  * @param[in]  patch  The patch
+    //  * @param[in]  u      { parameter_description }
+    //  * @param[in]  z      { parameter_description }
+    //  * @param[in]  out    The out
+    //  *
+    //  * @return     { description_of_the_return_value }
+    //  */
+    // inline virtual gsMatrix<T>  eval3D_dmatrix(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
+    // {
+    //     GISMO_NO_IMPLEMENTATION;
+    //     // return gsMatrix<T>::Zero(27,u.cols()*z.rows());
+    // }
+
+    // inline virtual gsMatrix<T>  eval3D_dmatrix(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    // {
+    //     gsMatrix<T> zmat(1,1);
+    //     zmat<<z;
+    //     return eval3D_dmatrix(patch,u,zmat,out);
+    // }
+
     /**
      * @brief      Evaluates the vector on \a patch on in-plane points \a u with height \a z
      *
@@ -159,6 +229,14 @@ public:
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
     inline virtual gsMatrix<T>  eval3D_vector(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
+    { GISMO_NO_IMPLEMENTATION; }
+    inline virtual gsMatrix<T>  eval3D_vector(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    {
+        gsMatrix<T> zmat(1,1);
+        zmat<<z;
+        return eval3D_vector(patch,u,zmat,out);
+    }
+    inline virtual gsMatrix<T>  eval3D_vector_C(const gsMatrix<T> & C, const index_t patch, const gsVector<T>& u, const T z, enum MaterialOutput out) const
     { GISMO_NO_IMPLEMENTATION; }
     /**
      * @brief      Evaluates the principal stress on \a patch on in-plane points \a u with height \a z

@@ -67,7 +67,7 @@ gsMaterialMatrixIntegrate<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<
     if (m_materialMat->isVecIntegrated() == MatIntegration::NotIntegrated)
         this->integrateZ_into(u,getMoment(),result);
     else if (m_materialMat->isVecIntegrated() == MatIntegration::Integrated)
-        result = this->eval(u);
+        result = this->_eval(u);
     else if (m_materialMat->isVecIntegrated() == MatIntegration::Constant)
         this->multiplyZ_into(u,0,result);
     else if (m_materialMat->isVecIntegrated() == MatIntegration::Linear)
@@ -84,7 +84,7 @@ gsMaterialMatrixIntegrate<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<
     if (m_materialMat->isVecIntegrated() == MatIntegration::NotIntegrated)
         this->integrateZ_into(u,getMoment(),result);
     else if (m_materialMat->isVecIntegrated() == MatIntegration::Integrated)
-        result = this->eval(u);
+        result = this->_eval(u);
     else if (m_materialMat->isVecIntegrated() == MatIntegration::Constant)
         this->multiplyZ_into(u,2,result);
     else if (m_materialMat->isVecIntegrated() == MatIntegration::Linear)
@@ -102,7 +102,7 @@ gsMaterialMatrixIntegrate<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<
     if (m_materialMat->isMatIntegrated() == MatIntegration::NotIntegrated)
         this->integrateZ_into(u,getMoment(),result);
     else if (m_materialMat->isMatIntegrated() == MatIntegration::Integrated)
-        result = this->eval(u);
+        result = this->_eval(u);
     else if (m_materialMat->isMatIntegrated() == MatIntegration::Constant)
         this->multiplyZ_into(u,getMoment(),result);
     else if (m_materialMat->isMatIntegrated() == MatIntegration::Linear)
@@ -119,7 +119,7 @@ gsMaterialMatrixIntegrate<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<
     if (m_materialMat->isMatIntegrated() == MatIntegration::NotIntegrated)
         this->integrateZ_into(u,getMoment(),result);
     else if (m_materialMat->isMatIntegrated() == MatIntegration::Integrated)
-        result = this->eval(u);
+        result = this->_eval(u);
     else if (m_materialMat->isMatIntegrated() == MatIntegration::Constant)
         this->multiplyZ_into(u,getMoment(),result);
     else if (m_materialMat->isMatIntegrated() == MatIntegration::Linear)
@@ -136,7 +136,7 @@ gsMaterialMatrixIntegrate<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<
     if (m_materialMat->isMatIntegrated() == MatIntegration::NotIntegrated)
         this->integrateZ_into(u,getMoment(),result);
     else if (m_materialMat->isMatIntegrated() == MatIntegration::Integrated)
-        result = this->eval(u);
+        result = this->_eval(u);
     else if (m_materialMat->isMatIntegrated() == MatIntegration::Constant)
         this->multiplyZ_into(u,getMoment(),result);
     else if (m_materialMat->isMatIntegrated() == MatIntegration::Linear)
@@ -194,7 +194,7 @@ void gsMaterialMatrixIntegrate<T,out>::integrateZ_into(const gsMatrix<T>& u, con
         w.col(k)=quWeights;
         z.col(k)=quNodes.transpose();
     }
-    vals = this->eval3D(u,z);
+    vals = this->_eval3D(u,z);
 
     T res;
     for (index_t k = 0; k != u.cols(); ++k) // for all points
@@ -237,7 +237,7 @@ void gsMaterialMatrixIntegrate<T,out>::multiplyLinZ_into(const gsMatrix<T>& u, c
 
     T fac = (moment % 2 == 0) ? 0. : 1.;
 
-    gsMatrix<T> vals = this->eval3D(u,z);
+    gsMatrix<T> vals = this->_eval3D(u,z);
     for (index_t k = 0; k != u.cols(); ++k) // for all points
     {
             // 1/(alpha+1) * [ (t/2)^(alpha+1) * g(...)  - (-t/2)^(alpha+1) * g(...) ]
@@ -264,7 +264,7 @@ void gsMaterialMatrixIntegrate<T,out>::multiplyZ_into(const gsMatrix<T>& u, inde
         gsMatrix<T> Tmat;
         m_materialMat->thickness_into(m_pIndex,u,Tmat);
         T Thalf;
-        gsMatrix<T> vals = this->eval(u);
+        gsMatrix<T> vals = this->_eval(u);
         for (index_t k = 0; k != u.cols(); ++k) // for all points
         {
             Thalf = Tmat(0, k) / 2.0;
@@ -276,15 +276,15 @@ void gsMaterialMatrixIntegrate<T,out>::multiplyZ_into(const gsMatrix<T>& u, inde
 }
 
 template <class T, enum MaterialOutput out>
-gsMatrix<T> gsMaterialMatrixIntegrate<T,out>::eval(const gsMatrix<T>& u) const
+gsMatrix<T> gsMaterialMatrixIntegrate<T,out>::_eval(const gsMatrix<T>& u) const
 {
     gsMatrix<T> Z(1,u.cols());
     Z.setZero();
-    return this->eval3D(u,Z);
+    return this->_eval3D(u,Z);
 }
 
 template <class T, enum MaterialOutput out>
-gsMatrix<T> gsMaterialMatrixIntegrate<T,out>::eval3D(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
+gsMatrix<T> gsMaterialMatrixIntegrate<T,out>::_eval3D(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
 {
         return this->eval3D_impl<out>(u,Z);
 }
