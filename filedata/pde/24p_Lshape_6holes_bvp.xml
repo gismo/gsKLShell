@@ -41,19 +41,19 @@
 <!-- <Function type="FunctionExpr" id="22" tag="Loads" dim="3">0</Function> -->
 
 <!-- Point load coordinates -->
-<Matrix rows="2" cols="1" id="30" tag="Loads" >
-    0.5
-    0.0
+<Matrix rows="2" cols="2" id="30" tag="Loads" >
+    0.5 0.5
+    0.0 0.0
 </Matrix>
 <!-- Point load forces -->
-<Matrix rows="3" cols="1" id="31" tag="Loads" >
+<Matrix rows="3" cols="2" id="31" tag="Loads" >
     1.0 0.0
     0.0 0.0
-    0.0 0
+    0.0 1e-3
 </Matrix>
 <!-- Point load patchIds -->
-<Matrix rows="1" cols="1" id="32" tag="Loads" >
-    0
+<Matrix rows="1" cols="2" id="32" tag="Loads" >
+    0 0
 </Matrix>
 
 <Matrix rows="2" cols="1" id="50" >
