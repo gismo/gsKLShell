@@ -415,6 +415,27 @@ int main(int argc, char *argv[])
         solVector = solver.solve(Force);
         gsInfo<<"Finished\n";
 
+        if (plot)
+        {
+            /// Make a gsMappedSpline to represent the solution
+            // 1. Get all the coefficients (including the ones from the eliminated BCs.)
+            gsMatrix<real_t> solFull = assembler.fullSolutionVector(solVector);
+            gsMatrix<real_t> solZero = solFull;
+            solZero.setZero();
+
+            // 2. Reshape all the coefficients to a Nx3 matrix
+            GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
+            solZero.resize(solZero.rows()/3,3);
+            solFull.resize(solFull.rows()/3,3);
+
+            // 3. Make the mapped spline
+            gsMappedSpline<2,real_t> mspline(bb2,solFull);
+
+            gsField<> solField(geom, mspline,true);
+
+            gsWriteParaview<>(solField, dirname + "/LinearSolution", 1000,mesh);
+        }
+
         gsInfo<<"Assembling nonlinear stiffness matrix..."<<std::flush;
         gsSparseMatrix<> dK = Jacobian(solVector);
         dK = dK - K_L;

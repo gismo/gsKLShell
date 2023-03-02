@@ -3,36 +3,22 @@
 
 <!-- Material properties -->
   <!-- Thickness -->
-  <Function type="FunctionExpr" id="10" tag="Material" dim="3">0.01</Function>
+  <Function type="FunctionExpr" id="10" tag="Material" dim="3">0.6</Function>
   <!-- E modulus -->
-  <Function type="FunctionExpr" id="11" tag="Material" dim="3">2e11</Function>
+  <Function type="FunctionExpr" id="11" tag="Material" dim="3">71240</Function>
   <!-- Poisson ratio -->
-  <Function type="FunctionExpr" id="12" tag="Material" dim="3">0.3</Function>
+  <Function type="FunctionExpr" id="12" tag="Material" dim="3">0.31</Function>
   <!-- Density -->
   <Function type="FunctionExpr" id="13" tag="Material" dim="3">0.0</Function>
-
-  <!-- Mooney-Rivlin -->
-    <!-- Ratio -->
-    <Function type="FunctionExpr" id="14" tag="Material" dim="3">7</Function>
-
-  <!-- Ogden -->
-    <!-- Alpha1 -->
-    <Function type="FunctionExpr" id="15" tag="Material" dim="3">2.0</Function>
-    <!-- Mu1 -->
-    <Function type="FunctionExpr" id="16" tag="Material" dim="3">0.4375</Function>
-    <!-- Alpha2 -->
-    <Function type="FunctionExpr" id="17" tag="Material" dim="3">-2.0</Function>
-    <!-- Mu2 -->
-    <Function type="FunctionExpr" id="18" tag="Material" dim="3">-0.0625</Function>
 
 <!-- Boundary conditions and loads -->
 <boundaryConditions id="20" multipatch="1">
   <Function type="FunctionExpr" dim="3" index="0">0</Function>
   <bc type="Dirichlet" function="0" unknown="0" component="-1">
-    0 1
+    14 3
   </bc>
   <bc type="Weak Clamped" function="0" unknown="0" component="-1">
-    0 1
+    14 3
   </bc>
   <bc type="Collapsed" function="0" unknown="0" component="2">
   </bc>
@@ -55,28 +41,28 @@
 <!-- <Function type="FunctionExpr" id="22" tag="Loads" dim="3">0</Function> -->
 
 <!-- Point load coordinates -->
-<Matrix rows="2" cols="0" id="30" tag="Loads" >
+<Matrix rows="2" cols="1" id="30" tag="Loads" >
     0.5
     0.0
 </Matrix>
 <!-- Point load forces -->
-<Matrix rows="3" cols="0" id="31" tag="Loads" >
-    1.0
-    0.0
-    0.0
+<Matrix rows="3" cols="1" id="31" tag="Loads" >
+    1.0 0.0
+    0.0 0.0
+    0.0 0
 </Matrix>
 <!-- Point load patchIds -->
-<Matrix rows="1" cols="0" id="32" tag="Loads" >
-    22
+<Matrix rows="1" cols="1" id="32" tag="Loads" >
+    0
 </Matrix>
 
-<Matrix rows="2" cols="0" id="50" >
-  0.0   1.0   0.5
-  0.0   1.0   0.0
+<Matrix rows="2" cols="1" id="50" >
+  0.5
+  0.0
 </Matrix>
 <!-- Reference point patch indices -->
-<Matrix rows="1" cols="0" id="51" >
-  13    15    25
+<Matrix rows="1" cols="1" id="51" >
+  0
 </Matrix>
 
 <!-- Manufactured solution -->
