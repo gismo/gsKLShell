@@ -546,7 +546,19 @@ private:
         else if ( (math::abs(tmp.at(1)) < tol) && (math::abs(tmp.at(0)) > 1-tol ) )     // then the normal is vector 1 and the tangent vector 2
             colIndex = 1;
         else                    // then the normal is unknown??
+        {
+            // gsDebugVar(cJac);
+            // gsDebugVar(onormal);
+            // gsDebugVar(tmp);
+            // gsDebugVar(math::abs(tmp.at(0)));
+            // gsDebugVar(math::abs(tmp.at(1)));
+            // gsDebugVar(math::abs(tmp.at(0)) < tol);
+            // gsDebugVar(math::abs(tmp.at(1)) > 1-tol );
+            // gsDebugVar(math::abs(tmp.at(1)) < tol);
+            // gsDebugVar(math::abs(tmp.at(0)) > 1-tol );
+
             gsInfo<<"warning: choice unknown\n";
+        }
 
         // tangent = cJac.col(colIndex);
         tangent_expr<Scalar> tan_expr = tangent_expr<Scalar>(_G);
@@ -554,7 +566,10 @@ private:
         utangent = tangent.normalized();
 
         index_t sign = tangent.dot(cJac.col(colIndex));
-        sign = (Scalar(0) < sign) - (sign < Scalar(0));
+        if (colIndex!=-1)
+            sign = (Scalar(0) < sign) - (sign < Scalar(0));
+        else
+            sign = 0;
 
         // Now we will compute the derivatives of the basis functions
         bGrads = _u.data().values[1].col(k);
