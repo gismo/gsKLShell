@@ -13,6 +13,8 @@
 
 #include <gismo.h>
 #include <gsKLShell/getMaterialMatrix.h>
+#include <gsKLShell/gsMaterialMatrixLinear.h>
+#include <gsKLShell/gsMaterialMatrix.h>
 #include <gsKLShell/gsMaterialMatrixIntegrate.h>
 #include <gsKLShell/gsMaterialMatrixEval.h>
 #include <gsKLShell/gsThinShellUtils.h>
@@ -64,20 +66,31 @@ int main (int argc, char** argv)
     // mp_def.embed(3);
 
 
-    real_t thickness = 1.0;
+    real_t thickness = 1e-2;
     real_t E_modulus = 1.0;
-    real_t PoissonRatio = 0.499;
+    real_t PoissonRatio = (Compressibility==1 || material==0) ? 0.45 : 0.5;
     real_t Ratio = 2;
     gsFunctionExpr<> t(std::to_string(thickness), 3);
     gsFunctionExpr<> E(std::to_string(E_modulus),3);
     gsFunctionExpr<> nu(std::to_string(PoissonRatio),3);
     gsConstantFunction<> ratio(Ratio,3);
 
-
-    std::vector<gsFunction<>*> parameters(3);
-    parameters[0] = &E;
-    parameters[1] = &nu;
-    parameters[2] = &ratio;
+    std::vector<gsFunction<>*> parameters;
+    if (material==0 || material==1 || material==2)
+    {
+        parameters.resize(2);
+        parameters[0] = &E;
+        parameters[1] = &nu;
+    }
+    else if (material==3)
+    {
+        parameters.resize(3);
+        parameters[0] = &E;
+        parameters[1] = &nu;
+        parameters[2] = &ratio;
+    }
+    else
+        GISMO_ERROR("Material unknown");
 
     gsMaterialMatrixBase<real_t>* materialMatrix;
     gsOptionList options;

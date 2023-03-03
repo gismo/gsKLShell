@@ -16,13 +16,77 @@
 #pragma once
 
 #include <gsCore/gsFunction.h>
-#include <gsKLShell/gsMaterialMatrixLinear.h>
+#include <gsKLShell/gsMaterialMatrixContainer.h>
 #include <gsKLShell/gsMaterialMatrixUtils.h>
 #include <gsIO/gsOptionList.h>
 
 namespace gismo
 {
 
+template <class T, enum MaterialOutput out> class gsMaterialMatrixEvalSingle;
+
+template <class T, enum MaterialOutput out>
+class gsMaterialMatrixEval : public gsFunction<T>
+{
+public:
+    /// Constructor
+    gsMaterialMatrixEval(  const gsMaterialMatrixContainer<T> & materialMatrices,
+                            const gsFunctionSet<T> * deformed,
+                            const gsMatrix<T> z)
+    :
+    m_materialMatrices(materialMatrices),
+    m_deformed(deformed),
+    m_z(z),
+    m_piece(nullptr)
+    {
+    }
+
+    /// Constructor
+    gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * materialMatrix,
+                            const gsFunctionSet<T> * deformed,
+                            const gsMatrix<T> z)
+    :
+    m_materialMatrices(deformed->nPieces()),
+    m_deformed(deformed),
+    m_z(z),
+    m_piece(nullptr)
+    {
+        for (index_t p = 0; p!=deformed->nPieces(); ++p)
+            m_materialMatrices.add(materialMatrix);
+    }
+
+    /// Domain dimension, always 2 for shells
+    short_t domainDim() const {return 2;}
+
+    /**
+     * @brief      Target dimension
+     *
+     * For a scalar (e.g. density) the target dimension is 1, for a vector (e.g. stress tensor in Voight notation) the target dimension is 3 and for a matrix (e.g. the material matrix) the target dimension is 9, which can be reshaped to a 3x3 matrix.
+     *
+     * @return     Returns the target dimension depending on the specified type (scalar, vector, matrix etc.)
+     */
+    short_t targetDim() const { return this->piece(0).targetDim(); }
+
+    /// Implementation of piece, see \ref gsFunction
+    const gsFunction<T> & piece(const index_t p) const
+    {
+        m_piece = new gsMaterialMatrixEvalSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed,m_z);
+        return *m_piece;
+    }
+
+    /// Destructor
+    ~gsMaterialMatrixEval() { delete m_piece; }
+
+    /// Implementation of eval_into, see \ref gsFunction
+    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    { GISMO_NO_IMPLEMENTATION; }
+
+protected:
+    gsMaterialMatrixContainer<T> m_materialMatrices;
+    const gsFunctionSet<T> * m_deformed;
+    gsMatrix<T> m_z;
+    mutable gsMaterialMatrixEvalSingle<T,out> * m_piece;
+};
 
 /**
  * @brief      This class serves as the evaluator of material matrices, based on \ref gsMaterialMatrixBase
@@ -33,12 +97,13 @@ namespace gismo
  * @ingroup    KLShell
  */
 template <class T, enum MaterialOutput out>
-class gsMaterialMatrixEval : public gsFunction<T>
+class gsMaterialMatrixEvalSingle : public gsFunction<T>
 {
 public:
 
     /// Constructor
-    gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * materialMatrix,
+    gsMaterialMatrixEvalSingle( index_t patch,
+                                gsMaterialMatrixBase<T> * materialMatrix,
                                 const gsFunctionSet<T> * deformed,
                                 const gsMatrix<T> z);
 
@@ -78,7 +143,7 @@ private:
     typename std::enable_if<_out==MaterialOutput::PStressN ||
                             _out==MaterialOutput::PStressM ||
                             _out==MaterialOutput::PStrainN ||
-                            _out==MaterialOutput::PStrainM   , short_t>::type targetDim_impl() const { return 3; };
+                            _out==MaterialOutput::PStrainM   , short_t>::type targetDim_impl() const { return 2; };
 
     /// Implementation of \ref targetDim for principal stretch fields
     template<enum MaterialOutput _out>
@@ -103,12 +168,23 @@ private:
                             _out==MaterialOutput::StrainN ||
                             _out==MaterialOutput::StrainM   , short_t>::type targetDim_impl() const { return 3; };
 
+    /// Implementation of \ref targetDim for the thickness
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Thickness, short_t>::type targetDim_impl() const { return 1; };
+
+    /// Implementation of \ref targetDim for the parameters
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Parameters, short_t>::type targetDim_impl() const { return m_materialMat->numParameters(); };
+
+    /// Implementation of \ref targetDim for principal stress directions
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Deformation, short_t>::type targetDim_impl() const { return 9; };
 
 public:
     /// Implementation of piece, see \ref gsFunction
     const gsFunction<T> & piece(const index_t p) const
     {
-        m_piece = new gsMaterialMatrixEval(*this);
+        m_piece = new gsMaterialMatrixEvalSingle(*this);
         m_piece->setPatch(p);
         return *m_piece;
     }
@@ -119,7 +195,7 @@ protected:
 
 public:
     /// Destructor
-    ~gsMaterialMatrixEval() { delete m_piece; }
+    ~gsMaterialMatrixEvalSingle() { delete m_piece; }
 
     /// Implementation of eval_into, see \ref gsFunction
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const;
@@ -178,13 +254,24 @@ private:
                             _out==MaterialOutput::StrainN ||
                             _out==MaterialOutput::StrainM   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
+    /// Specialisation of \ref eval_into for the thickness
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Thickness, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the parameters
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Parameters, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the deformation gradient
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Deformation, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
 
 protected:
-    gsMaterialMatrixBase<T> * m_materialMat;
-    gsMatrix<T> m_z;
-
-    mutable gsMaterialMatrixEval<T,out> * m_piece;
     index_t m_pIndex;
+    gsMaterialMatrixBase<T> * m_materialMat;
+    mutable gsMaterialMatrixEvalSingle<T,out> * m_piece;
+    gsMatrix<T> m_z;
 };
 
 } // namespace

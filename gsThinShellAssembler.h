@@ -16,6 +16,7 @@
 #pragma once
 
 #include <gsKLShell/gsMaterialMatrix.h>
+#include <gsKLShell/gsMaterialMatrixContainer.h>
 #include <gsKLShell/gsThinShellFunctions.h>
 
 #include <gsPde/gsPointLoads.h>
@@ -25,6 +26,30 @@
 
 namespace gismo
 {
+
+/**
+ * @brief      Defines the coupling type over interfaces
+ */
+struct shell_coupling
+{
+    enum type
+    {
+        automatic           = -1, // (applies weak_penalty when needed, strong_Dpatch elsewhere)
+        weak_penalty        = 0,
+        weak_nitsche        = 1,
+        strong_C0           = 2,
+        strong_Dpatch       = 3,
+        strong_ASG1         = 4,
+    };
+
+    enum continuity
+    {
+        Cminus1             = -1,
+        C0                  = 0,
+        C1                  = 1,
+    };
+};
+
 
 template<class T> class gsThinShellAssemblerBase;
 /**
@@ -44,9 +69,27 @@ template <short_t d, class T, bool bending>
 class gsThinShellAssembler : public gsThinShellAssemblerBase<T>
 {
 public:
+    typedef gsBoxTopology::ifContainer ifContainer;
+
+public:
 
     /**
-     * @brief      Constructor for te shell assembler
+     * @brief      Constructor for the shell assembler
+     *
+     * @param[in]  patches         The geometry
+     * @param[in]  basis           The basis
+     * @param[in]  bconditions     The boundary condition
+     * @param[in]  surface_force   The surface force
+     * @param      materialmatrix  The material matrix container
+     */
+    gsThinShellAssembler(const gsMultiPatch<T> & patches,
+                        const gsMultiBasis<T> & basis,
+                        const gsBoundaryConditions<T> & bconditions,
+                        const gsFunction<T> & surface_force,
+                        const gsMaterialMatrixContainer<T> & materialmatrices);
+
+    /**
+     * @brief      Constructor for the shell assembler
      *
      * @param[in]  patches         The geometry
      * @param[in]  basis           The basis
@@ -59,6 +102,21 @@ public:
                         const gsBoundaryConditions<T> & bconditions,
                         const gsFunction<T> & surface_force,
                         gsMaterialMatrixBase<T> * materialmatrix);
+
+    /**
+     * @brief      Constructor for te shell assembler
+     *
+     * @param[in]  patches         The geometry
+     * @param[in]  basis           The basis
+     * @param[in]  bconditions     The boundary condition
+     * @param[in]  surface_force   The surface force
+     * @param      materialmatrix  The material matrix class
+     */
+    // gsThinShellAssembler(const gsMultiPatch<T> & patches,
+    //                     const gsMultiBasis<T> & basis,
+    //                     const gsBoundaryConditions<T> & bconditions,
+    //                     const gsFunction<T> & surface_force,
+    //                     const gsPiecewiseFunction<T> & materialmatrices);
 
     /// Default empty constructor
     gsThinShellAssembler() { }
@@ -91,11 +149,12 @@ public:
     gsExprAssembler<T> assembler() {return m_assembler; }
 
     /// See \ref gsThinShellAssemblerBase for details
-    void setOptions(gsOptionList & options) {m_options.update(options,gsOptionList::addIfUnknown); }
+    void setOptions(gsOptionList & options);
 
     //--------------------- PROBLEM FORMULATION-------------------------------//
     /// See \ref gsThinShellAssemblerBase for details
     void setPointLoads(const gsPointLoads<T> & pLoads){ m_pLoads = pLoads; }
+    void setPointMass(const gsPointLoads<T> & pMass){ m_pMass = pMass; }
 
     /// See \ref gsThinShellAssemblerBase for details
     void setFoundation(const gsFunction<T> & foundation) { m_foundFun = &foundation; m_foundInd = true; }
@@ -249,6 +308,14 @@ public:
     //--------------------- GEOMETRY ACCESS --------------------------------//
     /// See \ref gsThinShellAssemblerBase for details
     const gsMultiPatch<T> & geometry()      const  {return m_patches;}
+    gsMultiPatch<T> & geometry()  {return m_patches;}
+    void setGeometry(const gsMultiPatch<T> & patches) { m_patches = patches; }
+
+    //--------------------- BASIS ACCESS --------------------------------//
+    /// See \ref gsThinShellAssemblerBase for details
+    const gsMultiBasis<T> & basis()      const  {return m_basis;}
+    gsMultiBasis<T> & basis()  {return m_basis;}
+    void setBasis(const gsMultiBasis<T> & basis) { m_basis = basis; }
 
     // / See \ref gsThinShellAssemblerBase for details
     // const gsFunctionSet<T> & defGeometry()   const  {return *m_defpatches;}
@@ -256,17 +323,32 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     T getArea(const gsFunctionSet<T> & geometry);
 
+    /// See \ref gsThinShellAssemblerBase for details
+    T getDisplacementNorm(const gsFunctionSet<T> & deformed);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    T getElasticEnergy(const gsFunctionSet<T> & deformed);
+
     //--------------------- MATERIAL ACCESS --------------------------------//
-    gsMaterialMatrixBase<T> * material()    const  {return m_materialMat;}
+    gsMaterialMatrixContainer<T> materials()    const  {return m_materialMatrices;}
+    gsMaterialMatrixBase<T> * material(const index_t p)    const  {return m_materialMatrices.piece(p);}
 
     //--------------------- SYSTEM ACCESS ----------------------------------//
     const gsSparseMatrix<T> & matrix()      const   {return m_assembler.matrix();}
-    // gsSparseMatrix<T> & matrix() {return const_cast <gsSparseMatrix<T> &>(m_assembler.matrix());}
+    gsSparseMatrix<T> & massMatrix() {return m_mass;}
 
     const gsMatrix<T>       & rhs()         const {return m_rhs.size()==0 ? m_assembler.rhs() : m_rhs;}
     // const gsMatrix<T>       & rhs()     const {return m_assembler.rhs();}
 
-    //--------------------- SOLUTION CONSTRUCTION ----------------------------------//
+    //--------------------- INTERFACE HANDLING -----------------------------//
+    void addStrongC0(const gsBoxTopology::ifContainer & interfaces);
+    void addStrongC1(const gsBoxTopology::ifContainer & interfaces);
+    void addWeakC0(const gsBoxTopology::ifContainer & interfaces);
+    void addWeakC1(const gsBoxTopology::ifContainer & interfaces);
+    void addUncoupled(const gsBoxTopology::ifContainer & interfaces);
+    void initInterfaces();
+
+    //--------------------- SOLUTION CONSTRUCTION --------------------------//
     gsMultiPatch<T> constructMultiPatch(const gsMatrix<T> & solVector) const;
     void updateMultiPatch(const gsMatrix<T> & solVector, gsMultiPatch<T> & mp) const;
 
@@ -321,41 +403,161 @@ protected:
     void _getOptions() const;
 
     void _assembleNeumann();
+
+    template <bool matrix>
+    void _assemblePressure();
+    template <bool matrix>
+    void _assemblePressure(const gsFunctionSet<T> & deformed);
+
+    template <bool matrix>
+    void _assembleFoundation();
+    template <bool matrix>
+    void _assembleFoundation(const gsFunctionSet<T> & deformed);
+
+    template <bool matrix>
     void _assembleWeakBCs();
+    template <bool matrix>
     void _assembleWeakBCs(const gsFunctionSet<T> & deformed);
+
+    template <bool matrix>
+    void _assembleWeakIfc();
+    template <bool matrix>
+    void _assembleWeakIfc(const gsFunctionSet<T> & deformed);
+
     void _assembleDirichlet();
 
     void _applyLoads();
+    void _applyMass();
+
+    void _ifcTest(const T tol = 1e-2);
+    bool _isInPlane(const boundaryInterface & ifc, const T tol = 1e-2);
 
 private:
-    template<int _d, bool _bending>
-    typename std::enable_if<_d==3 && _bending, void>::type
+    template<int _d>
+    typename std::enable_if<_d==3, void>::type
     _assembleNeumann_impl();
 
-    template<int _d, bool _bending>
-    typename std::enable_if<!(_d==3 && _bending), void>::type
+    template<int _d>
+    typename std::enable_if<!(_d==3), void>::type
     _assembleNeumann_impl();
 
-    template<int _d, bool _bending>
-    typename std::enable_if<_d==3 && _bending, void>::type
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
+    _assemblePressure_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
+    _assemblePressure_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3), void>::type
+    _assemblePressure_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
+    _assemblePressure_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
+    _assemblePressure_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3), void>::type
+    _assemblePressure_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
+    _assembleFoundation_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
+    _assembleFoundation_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3), void>::type
+    _assembleFoundation_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
+    _assembleFoundation_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
+    _assembleFoundation_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3), void>::type
+    _assembleFoundation_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
     _assembleWeakBCs_impl();
 
-    template<int _d, bool _bending>
-    typename std::enable_if<!(_d==3 && _bending), void>::type
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
     _assembleWeakBCs_impl();
 
-    template<int _d, bool _bending>
-    typename std::enable_if<_d==3 && _bending, void>::type
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && matrix, void>::type
+    _assembleWeakBCs_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && !matrix, void>::type
+    _assembleWeakBCs_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
     _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool _bending>
-    typename std::enable_if<!(_d==3 && _bending), void>::type
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
     _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && matrix, void>::type
+    _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && !matrix, void>::type
+    _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
+    _assembleWeakIfc_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
+    _assembleWeakIfc_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && matrix, void>::type
+    _assembleWeakIfc_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && !matrix, void>::type
+    _assembleWeakIfc_impl();
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && matrix, void>::type
+    _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<_d==3 && !matrix, void>::type
+    _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && matrix, void>::type
+    _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
+
+    template<int _d, bool matrix>
+    typename std::enable_if<!(_d==3) && !matrix, void>::type
+    _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
 
 protected:
     typedef gsExprAssembler<>::geometryMap geometryMap;
     typedef gsExprAssembler<>::space       space;
     typedef gsExprAssembler<>::solution    solution;
+    typedef gsExprAssembler<>::element     element;
 
     std::vector<gsDofMapper>  m_dofMappers;
     gsDofMapper m_mapper;
@@ -372,6 +574,8 @@ protected:
 
     mutable gsMatrix<T> m_ddofs;
 
+    gsSparseMatrix<T> m_mass;
+
     const gsFunction<T> * m_forceFun;
     const gsFunction<T> * m_thickFun;
     const gsFunction<T> * m_foundFun;
@@ -379,9 +583,9 @@ protected:
     typename gsFunction<T>::Ptr m_YoungsModulus;
     typename gsFunction<T>::Ptr m_PoissonsRatio;
 
-    mutable gsMaterialMatrixBase<T> * m_materialMat;
+    gsMaterialMatrixContainer<T> m_materialMatrices;
 
-    gsPointLoads<T>  m_pLoads;
+    gsPointLoads<T>  m_pLoads, m_pMass;
 
     mutable gsMatrix<T> m_solvector;
 
@@ -392,13 +596,25 @@ protected:
     mutable bool m_foundInd;
     mutable bool m_pressInd;
 
-    mutable index_t m_type; // shell_type
-
     mutable index_t m_continuity;
 
-    mutable T m_alpha_d,m_alpha_r; // shell_type
+    mutable T m_alpha_d_bc,m_alpha_r_bc,m_alpha_d_ifc,m_alpha_r_ifc;
+    mutable index_t m_IfcDefault;
+
+    mutable ifContainer m_inPlane, m_outPlane, m_uncoupled, m_strongC0, m_weakC0, m_strongC1, m_weakC1, m_unassigned;
 
 };
+
+#ifdef GISMO_BUILD_PYBIND11
+
+  /**
+   * @brief Initializes the Python wrapper for the class: gsThinShellAssembler
+   */
+  void pybind11_init_gsThinShellAssembler2(pybind11::module &m);
+  void pybind11_init_gsThinShellAssembler3(pybind11::module &m);
+  void pybind11_init_gsThinShellAssembler3nb(pybind11::module &m);
+
+#endif // GISMO_BUILD_PYBIND11
 
 /**
  * @brief      Base class for the gsThinShellAssembler
@@ -411,7 +627,10 @@ template <class T>
 class gsThinShellAssemblerBase
 {
 public:
-    /// Default empty constructor
+    /// Default deconstructor
+    gsThinShellAssemblerBase() {};
+
+    /// Default deconstructor
     virtual ~gsThinShellAssemblerBase() {};
 
     /// Returns the options of the assembler
@@ -425,6 +644,9 @@ public:
 
     /// Registers a \ref gsPointLoads object for point loads acting on the shell
     virtual void setPointLoads(const gsPointLoads<T> & pLoads) = 0;
+
+    /// Registers a \ref gsPointLoads object for a point mass acting on the shell. The point masss must be 1-dimensional
+    virtual void setPointMass(const gsPointLoads<T> & pLoads) = 0;
 
     /**
      * @brief      Registers a stiffness function to be used for handling an elastic foundation, only relevant for 3D shells, with out-of-plane deformations
@@ -517,16 +739,31 @@ public:
     virtual void assembleMatrix(const gsMatrix<T>       & solVector ) = 0;
 
     /**
-     * @brief      Assembles the tangential stiffness matrix (nonlinear)
+     * @brief      Assembles the tangential stiffness matrix (nonlinear) using the Mixed Integration Point (MIP) method
+     *
+     * For more details, see
+     *  Leonetti, L., Magisano, D., Madeo, A., Garcea, G., Kiendl, J., & Reali, A. (2019).
+     *  A simplified Kirchhoff–Love large deformation model for elastic shells and its effective isogeometric formulation.
+     *  Computer Methods in Applied Mechanics and Engineering, 354, 369–396.
+     *  https://doi.org/10.1016/j.cma.2019.05.025
      *
      * @param[in]  deformed  The deformed geometry
+     * @param[in]  previous  The previous geometry
+     * @param      update    The update vector
      */
     virtual void assembleMatrix(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update) = 0;
 
     /**
-     * @brief      Assembles the tangential stiffness matrix (nonlinear)
+     * @brief      Assembles the tangential stiffness matrix (nonlinear) using the Mixed Integration Point (MIP) method
      *
-     * @param[in]  deformed  The solution vector
+     * For more details, see
+     *  Leonetti, L., Magisano, D., Madeo, A., Garcea, G., Kiendl, J., & Reali, A. (2019).
+     *  A simplified Kirchhoff–Love large deformation model for elastic shells and its effective isogeometric formulation.
+     *  Computer Methods in Applied Mechanics and Engineering, 354, 369–396.
+     *  https://doi.org/10.1016/j.cma.2019.05.025
+     *
+     * @param[in]  solVector   The current  solution vector
+     * @param[in]  prevVector  The previous solution vector
      */
     virtual void assembleMatrix(const gsMatrix<T> & solVector, const gsMatrix<T> & prevVector) = 0;
 
@@ -561,21 +798,49 @@ public:
 
     /// Returns the undeformed geometry
     virtual const gsMultiPatch<T> & geometry()    const = 0;
+    virtual gsMultiPatch<T> & geometry() = 0;
+
+    ///
+    virtual const gsMultiBasis<T> & basis()      const  = 0;
+    virtual gsMultiBasis<T> & basis() = 0;
+
+    virtual void setGeometry(const gsMultiPatch<T> & patches) = 0;
+    virtual void setBasis(const gsMultiBasis<T> & basis) = 0;
+
 
     // /// Returns the deformed geometry
     // virtual const gsFunctionSet<T> & defGeometry() const = 0;
 
-    /// Returns the material matrix used in the class
-    virtual gsMaterialMatrixBase<T> * material()          const = 0;
+    /// Returns the material matrices used in the class
+    virtual gsMaterialMatrixContainer<T> materials()          const = 0;
+    /// Returns the material matrix on patch p used in the class
+    virtual gsMaterialMatrixBase<T> * material(const index_t p)          const = 0;
 
     /// Returns the area of \a geometry
     virtual T getArea(const gsFunctionSet<T> & geometry) = 0;
 
+    /// Returns the displacement norm, i.e. norm = sqrt(u'*u/area)
+    virtual T getDisplacementNorm(const gsFunctionSet<T> & deformed) = 0;
+
+    /// Returns the elastic energy norm, i.e. norm = 0.5 * u'*F_int
+    virtual T getElasticEnergy(const gsFunctionSet<T> & deformed) = 0;
+
     /// Returns a reference to the system matrix that is assembled
     virtual const gsSparseMatrix<T> & matrix()  const  = 0;
 
+    /// Returns a reference to the mass matrix that is assembled
+    virtual gsSparseMatrix<T> & massMatrix() = 0;
+
     /// Returns a reference to the right-hand side vector that is assembled
     virtual const gsMatrix<T>       & rhs()     const  = 0;
+
+    //--------------------- INTERFACE HANDLING -----------------------------//
+    virtual void addStrongC0(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual void addStrongC1(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual void addWeakC0(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual void addWeakC1(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual void addUncoupled(const gsBoxTopology::ifContainer & interfaces) = 0;
+    virtual void initInterfaces() = 0;
 
     /// Construct solution field from computed solution vector \a solVector and returns a multipatch
     virtual gsMultiPatch<T> constructMultiPatch(const gsMatrix<T> & solVector) const = 0;
@@ -604,24 +869,8 @@ public:
     /// Compute the principal stretches in \a points given a \a deformed geometry. Optionally, the stretches can be computed on through-thickness coordinate \a z
     virtual gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsFunctionSet<T> & deformed, const T z=0) = 0;
 
-
-
-
     // Pascal
-virtual   gsDofMapper getMapper() = 0;
-
-
-
-
-
-
-
-
-
-
-
-
-
+    virtual   gsDofMapper getMapper() = 0;
 
     /// Projects function \a fun on the basis and geometry stored in the class and returns the coefficients in \a result
     virtual void projectL2_into(const gsFunction<T> &fun, gsMatrix<T> & result) = 0;
@@ -635,6 +884,15 @@ virtual   gsDofMapper getMapper() = 0;
     virtual void plotSolution(std::string string, const gsMatrix<T> & solVector) = 0;;
 
 };
+
+#ifdef GISMO_BUILD_PYBIND11
+
+  /**
+   * @brief Initializes the Python wrapper for the class: gsThinShellAssembler
+   */
+  void pybind11_init_gsThinShellAssemblerBase(pybind11::module &m);
+
+#endif // GISMO_BUILD_PYBIND11
 
 } // namespace gismo
 

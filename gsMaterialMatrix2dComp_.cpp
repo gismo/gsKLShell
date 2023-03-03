@@ -24,5 +24,44 @@ namespace gismo
 
   // OG
   CLASS_TEMPLATE_INST gsMaterialMatrix<2,real_t,34,true>;
+
+  #ifdef GISMO_BUILD_PYBIND11
+
+    namespace py = pybind11;
+
+    void pybind11_init_gsMaterialMatrixNH2c(py::module &m)
+    {
+      using Base = gsMaterialMatrixBaseDim<2,real_t>;
+      using Class = gsMaterialMatrix<2,real_t,11,true>;
+      py::class_<Class,Base>(m, "gsMaterialNH2c")
+
+      // Constructors
+      .def(py::init<gsFunctionSet<real_t>&,gsFunction<real_t>&>())
+      ;
+    }
+
+    void pybind11_init_gsMaterialMatrixMR2c(py::module &m)
+    {
+      using Base = gsMaterialMatrixBaseDim<2,real_t>;
+      using Class = gsMaterialMatrix<2,real_t,13,true>;
+      py::class_<Class,Base>(m, "gsMaterialMR2c")
+
+      // Constructors
+      .def(py::init<gsFunctionSet<real_t>&,gsFunction<real_t>&>())
+      ;
+    }
+
+    void pybind11_init_gsMaterialMatrixOG2c(py::module &m)
+    {
+      using Base = gsMaterialMatrixBaseDim<2,real_t>;
+      using Class = gsMaterialMatrix<2,real_t,34,true>;
+      py::class_<Class,Base>(m, "gsMaterialOG2c")
+
+      // Constructors
+      .def(py::init<gsFunctionSet<real_t>&,gsFunction<real_t>&>())
+      ;
+    }
+
+  #endif
 }
 

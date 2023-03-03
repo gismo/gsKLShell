@@ -81,14 +81,25 @@ namespace gismo
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
                                         const gsFunctionSet<T> & mp,
+                                        const gsFunction<T> & thickness
+                                        )
+                                        :
+                                        Base(&mp,nullptr,&thickness,nullptr)
+{
+    _initialize();
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
+                                        const gsFunctionSet<T> & mp,
                                         const gsFunction<T> & thickness,
                                         const std::vector<gsFunction<T>*> &pars
                                         )
                                         :
-                                        Base(mp),
-                                        m_thickness(&thickness),
-                                        m_pars(pars)
+                                        Base(&mp,nullptr,&thickness,nullptr)
 {
+    GISMO_ASSERT(pars.size()>=2,"Two or more material parameters should be assigned!");
+    m_pars = pars;
     _initialize();
 }
 
@@ -97,14 +108,13 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
                                     const gsFunctionSet<T> & mp,
                                     const gsFunction<T> & thickness,
                                     const std::vector<gsFunction<T>*> &pars,
-                                    const gsFunction<T> & density
+                                    const gsFunction<T> & Density
                                     )
                                     :
-                                    Base(mp),
-                                    m_thickness(&thickness),
-                                    m_pars(pars),
-                                    m_density(&density)
+                                    Base(&mp,nullptr,&thickness,&Density)
 {
+    GISMO_ASSERT(pars.size()>=2,"Two or more material parameters should be assigned!");
+    m_pars = pars;
     _initialize();
 }
 
@@ -441,6 +451,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_stretchDir_into_impl(const gsMatrix
             {
                 res = this->_evalStretch(c,m_gcon_ori);
                 result.col(i) = res.second.reshape(9,1);
+                break;
             }
             GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, abs(dc33) = "<<abs(dc33)<<" and tolerance = "<<tol<<"\n");
         }
@@ -671,6 +682,142 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_pstress_impl(const index_t p
     return result;
 }
 
+//////// Material getters and setters
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::setYoungsModulus(const gsFunction<T> & YoungsModulus)
+{
+    if ((index_t)m_pars.size() < 1)
+        m_pars.resize(1);
+    m_pars[0] = const_cast<gsFunction<T> *>(&YoungsModulus);
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsFunction<T> * gsMaterialMatrix<dim,T,matId,comp,mat,imp>::getYoungsModulus()
+{
+    GISMO_ASSERT((index_t)m_pars.size()>=1,"Something went wrong: Size of parameter container should be >= 1, but is "<<m_pars.size());
+    return m_pars[0];
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::setPoissonsRatio(const gsFunction<T> & PoissonsRatio)
+{
+    if ((index_t)m_pars.size() < 2)
+        m_pars.resize(2);
+    m_pars[1] = const_cast<gsFunction<T> *>(&PoissonsRatio);
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsFunction<T> * gsMaterialMatrix<dim,T,matId,comp,mat,imp>::getPoissonsRatio()
+{
+    GISMO_ASSERT((index_t)m_pars.size()>=2,"Something went wrong: Size of parameter container should be >= 2, but is "<<m_pars.size());
+    return m_pars[1];
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat==Material::MR, void>::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setRatio_impl(const gsFunction<T> & Ratio)
+{
+    if ((index_t)m_pars.size() < 3)
+        m_pars.resize(3);
+    m_pars[2] = const_cast<gsFunction<T> *>(&Ratio);
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat!=Material::MR, void>::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setRatio_impl(const gsFunction<T> & Ratio)
+{
+    GISMO_NO_IMPLEMENTATION;
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat==Material::MR, gsFunction<T> * >::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getRatio_impl()
+{
+    GISMO_ASSERT((index_t)m_pars.size()>2,"Something went wrong: Size of parameter container should be > 2, but is "<<m_pars.size());
+    return m_pars[2];
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat!=Material::MR, gsFunction<T> * >::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getRatio_impl()
+{
+    GISMO_NO_IMPLEMENTATION;
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat==Material::OG, void>::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setMu_impl(const index_t & i, const gsFunction<T> & Mu_i)
+{
+    if ((index_t)m_pars.size() < 2+2*i+1)
+        m_pars.resize(2+2*i+1);
+    m_pars[2+2*i] = const_cast<gsFunction<T> *>(&Mu_i);
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat!=Material::OG, void>::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setMu_impl(const index_t & i, const gsFunction<T> & Mu_i)
+{
+    GISMO_NO_IMPLEMENTATION;
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat==Material::OG, gsFunction<T> * >::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getMu_impl(const index_t & i)
+{
+    GISMO_ASSERT((index_t)m_pars.size()>2+2*i,"Something went wrong: Size of parameter container should be > 2, but is "<<m_pars.size());
+    return m_pars[2+2*i];
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat!=Material::OG, gsFunction<T> * >::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getMu_impl(const index_t & i)
+{
+    GISMO_NO_IMPLEMENTATION;
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat==Material::OG, void>::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setAlpha_impl(const index_t & i, const gsFunction<T> & Alpha_i)
+{
+    if ((index_t)m_pars.size() < 2+2*i+2)
+        m_pars.resize(2+2*i+2);
+    m_pars[2+2*i+1] = const_cast<gsFunction<T> *>(&Alpha_i);
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat!=Material::OG, void>::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setAlpha_impl(const index_t & i, const gsFunction<T> & Alpha_i)
+{
+    GISMO_NO_IMPLEMENTATION;
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat==Material::OG, gsFunction<T> * >::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getAlpha_impl(const index_t & i)
+{
+    GISMO_ASSERT((index_t)m_pars.size()>2+2*i+1,"Something went wrong: Size of parameter container should be > 2, but is "<<m_pars.size());
+    return m_pars[2+2*i+1];
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat!=Material::OG, gsFunction<T> * >::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getAlpha_impl(const index_t & i)
+{
+    GISMO_NO_IMPLEMENTATION;
+}
+
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
@@ -817,9 +964,10 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_pst
     //        z matrix with, per point, a column with z integration points
     // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
-    gsMatrix<T> result(3, u.cols() * z.rows());
-    result.setZero();
+
     this->_computePoints(patch,u);
+    gsMatrix<T> result(2, u.cols() * z.rows());
+    result.setZero();
 
     for (index_t k=0; k!=u.cols(); k++)
     {
@@ -833,7 +981,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_pst
 
             result(0, j * u.cols() + k) = _Sii(0);
             result(1, j * u.cols() + k) = _Sii(1);
-            result(2, j * u.cols() + k) = 0;
         }
     }
 
@@ -896,7 +1043,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Cijkl_impl(const index_t i, const i
     // Mooney-Rivlin
     // Parameter 3 is the ratio between c1 and c2.; c1 = m_parvals.at(2)*c2
     // --------------------------
-    GISMO_ENSURE(m_numPars==3,"Mooney-Rivlin model needs to be a 3 parameter model");
+    GISMO_ENSURE(m_pars.size()==3,"Mooney-Rivlin model needs to be a 3 parameter model");
     T traceCt =  m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
                 m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
                 m_Gcov_def(1,0)*m_Gcon_ori(1,0) +
@@ -1078,7 +1225,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Cijkl3D_impl(const index_t i, const
     // --------------------------
     // Mooney-Rivlin
     // --------------------------
-    GISMO_ENSURE(m_numPars==3,"Mooney-Rivlin model needs to be a 3 parameter model");
+    GISMO_ENSURE(m_pars.size()==3,"Mooney-Rivlin model needs to be a 3 parameter model");
 
     T mu = m_parvals.at(0) / (2 * (1 + m_parvals.at(1)));
     GISMO_ENSURE(3 - 6 * m_parvals.at(1) != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
@@ -1272,7 +1419,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Sij_impl(const index_t i, const ind
     // Mooney-Rivlin
     // Parameter 3 is the ratio between c1 and c2.
     // --------------------------
-    GISMO_ENSURE(m_numPars==3,"Mooney-Rivlin model needs to be a 3 parameter model");
+    GISMO_ENSURE(m_pars.size()==3,"Mooney-Rivlin model needs to be a 3 parameter model");
     T mu = m_parvals.at(0) / (2.*(1. + m_parvals.at(1)));
     T traceCt =  m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
                 m_Gcov_def(0,1)*m_Gcon_ori(0,1) +
@@ -1356,7 +1503,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Sij_impl(const index_t i, const ind
     // Mooney-Rivlin
     // Parameter 3 is the ratio between c1 and c2.
     // --------------------------
-    GISMO_ENSURE(m_numPars==3,"Mooney-Rivlin model needs to be a 3 parameter model");
+    GISMO_ENSURE(m_pars.size()==3,"Mooney-Rivlin model needs to be a 3 parameter model");
     T mu = m_parvals.at(0) / (2.*(1. + m_parvals.at(1)));
     T K  = m_parvals.at(0) / ( 3 - 6 * m_parvals.at(1));
     T traceCt = m_Gcov_def(0,0)*m_Gcon_ori(0,0) +
@@ -2087,7 +2234,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_dPsi_da_impl(const index_t a) const
 {
     GISMO_ENSURE(3 - 6 * m_parvals.at(1) != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
     T tmp = 0.0;
-    int n = (m_numPars-2)/2;
+    int n = (m_pars.size()-2)/2;
     T alpha_i, mu_i, Lambda;
     for (index_t k=0; k!=n; k++)
     {
@@ -2104,7 +2251,7 @@ typename std::enable_if<!_comp && (_mat==Material::OG), T>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_dPsi_da_impl(const index_t a) const
 {
     T tmp = 0.0;
-    int n = (m_numPars-2)/2;
+    int n = (m_pars.size()-2)/2;
     T alpha_i, mu_i;
     for (index_t k=0; k!=n; k++)
     {
@@ -2219,7 +2366,7 @@ template <enum Material _mat, bool _comp>
 typename std::enable_if<!_comp && (_mat==Material::MR), T>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_d2Psi_dab_impl(const index_t a, const index_t b) const
 {
-    GISMO_ENSURE(m_numPars==3,"Mooney-Rivlin model needs to be a 3 parameter model");
+    GISMO_ENSURE(m_pars.size()==3,"Mooney-Rivlin model needs to be a 3 parameter model");
     T mu = m_parvals.at(0) / (2 * (1 + m_parvals.at(1)));
 
     T I_1   = m_stretches(0)*m_stretches(0) + m_stretches(1)*m_stretches(1) + m_stretches(2)*m_stretches(2);
@@ -2239,7 +2386,7 @@ typename std::enable_if<_comp && (_mat==Material::OG), T>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_d2Psi_dab_impl(const index_t a, const index_t b) const
 {
     T tmp = 0.0;
-    int n = (m_numPars-2)/2;
+    int n = (m_pars.size()-2)/2;
     T alpha_i, mu_i, Lambda;
     for (index_t k=0; k!=n; k++)
     {
@@ -2262,7 +2409,7 @@ typename std::enable_if<!_comp && (_mat==Material::OG), T>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_d2Psi_dab_impl(const index_t a, const index_t b) const
 {
     T tmp = 0.0;
-    int n = (m_numPars-2)/2;
+    int n = (m_pars.size()-2)/2;
     T alpha_i, mu_i;
     for (index_t k=0; k!=n; k++)
     {

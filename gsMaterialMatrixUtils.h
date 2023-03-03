@@ -113,10 +113,14 @@ enum class MaterialOutput : short_t
     StretchDir = 13,    // ONLY ON MID-PLANE
     CovTransform = 14,  // Transformation matrix from spectral to covariant basis
     ConTransform = 15,  // Transformation matrix from spectral to contravariant basis
-    TensionField = 16,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
+    Transformation = 16,
+    TensionField = 17,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
     Strain  = 97,
     StrainN = 98,
     StrainM = 99,
+    Thickness = 100,
+    Parameters = 101,
+    Deformation = 102,
 };
 
 

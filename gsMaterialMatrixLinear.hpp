@@ -131,14 +131,58 @@ namespace gismo
 template <short_t dim, class T>
 gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                         const gsFunctionSet<T> & mp,
+                                        const gsFunction<T> & thickness
+                                        )
+                                        :
+                                        Base(&mp,nullptr,&thickness,nullptr)
+{
+
+}
+
+template <short_t dim, class T >
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
+                                        const gsFunctionSet<T> & mp,
+                                        const gsFunction<T> & thickness,
+                                        const gsFunction<T> & YoungsModulus,
+                                        const gsFunction<T> & PoissonsRatio
+                                        )
+                                        :
+                                        Base(&mp,nullptr,&thickness,nullptr)
+{
+    m_pars.resize(2);
+    m_pars[0] = const_cast<gsFunction<T> *>(&YoungsModulus);
+    m_pars[1] = const_cast<gsFunction<T> *>(&PoissonsRatio);
+    _initialize();
+}
+
+template <short_t dim, class T >
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
+                                        const gsFunctionSet<T> & mp,
+                                        const gsFunction<T> & thickness,
+                                        const gsFunction<T> & YoungsModulus,
+                                        const gsFunction<T> & PoissonsRatio,
+                                        const gsFunction<T> & Density
+                                        )
+                                        :
+                                        Base(&mp,nullptr,&thickness,&Density)
+{
+    m_pars.resize(2);
+    m_pars[0] = const_cast<gsFunction<T> *>(&YoungsModulus);
+    m_pars[1] = const_cast<gsFunction<T> *>(&PoissonsRatio);
+    _initialize();
+}
+
+template <short_t dim, class T >
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
+                                        const gsFunctionSet<T> & mp,
                                         const gsFunction<T> & thickness,
                                         const std::vector<gsFunction<T>*> &pars
                                         )
                                         :
-                                        Base(mp),
-                                        m_thickness(&thickness),
-                                        m_pars(pars)
+                                        Base(&mp,nullptr,&thickness,nullptr)
 {
+    GISMO_ASSERT(pars.size()==2,"Two material parameters should be assigned!");
+    m_pars = pars;
     _initialize();
 }
 
@@ -150,11 +194,10 @@ gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                     const gsFunction<T> & density
                                     )
                                     :
-                                    Base(mp),
-                                    m_thickness(&thickness),
-                                    m_pars(pars),
-                                    m_density(&density)
+                                    Base(&mp,nullptr,&thickness,&density)
 {
+    GISMO_ASSERT(pars.size()==2,"Two material parameters should be assigned!");
+    m_pars = pars;
     _initialize();
 }
 
@@ -356,8 +399,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-                // this->_getMetric(k, z(j, k), false); // on point i, on height z(0,j)
-                this->_getMetric(k, z(j, k) * m_Tmat(0, k), false); // on point i, on height z(0,j)
+                // _getMetric(k, z(j, k), false); // on point i, on height z(0,j)
+                _getMetric(k, z(j, k) * m_Tmat(0, k), false); // on point i, on height z(0,j)
 
                 gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
                 /*
@@ -589,7 +632,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
     this->_computePoints(patch,u,true);
     this->_computePars(patch,u);
 
-    gsMatrix<T> result(3, u.cols() * z.rows());
+    gsMatrix<T> result(2, u.cols() * z.rows());
     result.setZero();
     gsMatrix<T,3,3> S;
     gsMatrix<T> E;
@@ -602,8 +645,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // this->_getMetric(k, z(j, k), true); // on point i, on height z(0,j)
-            this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
+            // _getMetric(k, z(j, k), true); // on point i, on height z(0,j)
+            _getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
 
             E = _E(0,out);
 
@@ -943,18 +986,18 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalPStress(c
     gsVector<T> pstresses;
     gsMatrix<T> pstressvec;
     std::pair<gsVector<T>,gsMatrix<T>> result;
-    pstresses.resize(3,1);    pstresses.setZero();
+    pstresses.resize(2,1);    pstresses.setZero();
     pstressvec.resize(3,3);   pstressvec.setZero();
 
-    Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
+    // Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
 
-    gsMatrix<T> B(3,3);
-    B.setZero();
-    for (index_t k = 0; k != 2; k++)
-        for (index_t l = 0; l != 2; l++)
-            B += S(k,l) * m_gcov_ori.col(k) * m_gcov_ori.col(l).transpose();
+    // gsMatrix<T> B(3,3);
+    // B.setZero();
+    // for (index_t k = 0; k != 2; k++)
+    //     for (index_t l = 0; l != 2; l++)
+    //         B += S(k,l) * m_gcov_ori.col(k) * m_gcov_ori.col(l).transpose();
 
-    eigSolver.compute(B);
+    // eigSolver.compute(B);
 
     index_t zeroIdx = -1;
     real_t tol = 1e-14;
@@ -963,19 +1006,21 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalPStress(c
     for (index_t k=0; k!=3; k++)
         zeroIdx = std::abs(eigSolver.eigenvalues()[k] ) / max < tol ? k : zeroIdx;
 
-    GISMO_ASSERT(zeroIdx!=-1,"No zero found?");
+    // GISMO_ASSERT(zeroIdx!=-1,"No zero found?");
 
-    index_t count = 0;
-    pstressvec.col(2) = m_gcon_ori.col(2);
-    pstresses(2,0) = S(2,2);
+    // index_t count = 0;
+    // pstressvec.col(2) = m_gcon_ori.col(2);
+    // pstresses(2,0) = S(2,2);
 
-    for (index_t k=0; k!=3; k++)
-    {
-        if (k==zeroIdx) continue;
-        pstressvec.col(count) = eigSolver.eigenvectors().col(k);
-        pstresses(count,0) = eigSolver.eigenvalues()(k,0);
-        count++;
-    }
+    // for (index_t k=0; k!=3; k++)
+    // {
+    //     if (k==zeroIdx) continue;
+    //     pstressvec.col(count) = eigSolver.eigenvectors().col(k);
+    //     pstresses(count,0) = eigSolver.eigenvalues()(k,0);
+    //     count++;
+    // }
+
+    // BUG: targetDim of pstresses is 2, not 3!
 
     result.first = pstresses;
     result.second = pstressvec;

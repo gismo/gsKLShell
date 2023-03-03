@@ -134,7 +134,7 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         if (impl==Implementation::Composite)
             GISMO_ERROR("Construct composite material models using the constructor of gsMaterialMatrixComposite directly.");
         else
-            return new gsMaterialMatrixLinear<d,T>(mp,thickness,parameters,rho);
+            return new gsMaterialMatrixLinear<d,T>(mp,thickness,*parameters.at(0),*parameters.at(1),rho);
     }
     else
     {
@@ -297,7 +297,7 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         if (impl==Implementation::Composite)
                 GISMO_ERROR("Construct composite material models using the constructor of gsMaterialMatrixComposite directly.");
         else
-                return new gsMaterialMatrixLinear<d,T>(mp,thickness,parameters);
+                return new gsMaterialMatrixLinear<d,T>(mp,thickness,*parameters.at(0),*parameters.at(1));
     }
     else
     {

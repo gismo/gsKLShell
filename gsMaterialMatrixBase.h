@@ -38,6 +38,9 @@ public:
     :
     m_defpatches(nullptr)
     {}
+    
+    //GISMO_UPTR_FUNCTION_NO_IMPLEMENTATION(gsMaterialMatrixBase, clone)
+
     /// Destructor
     virtual ~gsMaterialMatrixBase() {};
 
@@ -87,7 +90,7 @@ public:
      *
      * @param[in]  patch   The patch to be evaluated on
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The resut
+     * @param      result  The result
      */
     inline virtual void    density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
     { GISMO_NO_IMPLEMENTATION; }
@@ -96,7 +99,7 @@ public:
      *
      * @param[in]  patch   The patch to be evaluated on
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The resut
+     * @param      result  The result
      */
     inline virtual void    stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
     { GISMO_NO_IMPLEMENTATION; }
@@ -105,7 +108,7 @@ public:
      *
      * @param[in]  patch   The patch to be evaluated on
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The resut
+     * @param      result  The result
      */
     inline virtual void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
     { GISMO_NO_IMPLEMENTATION; }
@@ -114,18 +117,27 @@ public:
      *
      * @param[in]  patch   The patch to be evaluated on
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The resut
+     * @param      result  The result
      */
     inline virtual void  thickness_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
     { GISMO_NO_IMPLEMENTATION; }
+
+    /**
+     * @brief      Evaluates the parameters of the shell
+     *
+     * @param[in]  patch   The patch to be evaluated on
+     * @param[in]  u       The in-plane shell coordinates to be eveluated on
+     * @param      result  The result
+     */
+    inline virtual void  parameters_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
 
     /**
      * @brief      todo
      *
      * @param[in]  patch   The patch to be evaluated on
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The resut
-     */
+     * @param      result  The result
+     */    
     inline virtual void  covtransform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
     { GISMO_NO_IMPLEMENTATION; }
 
@@ -138,6 +150,25 @@ public:
      */
     inline virtual void  contransform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
     { GISMO_NO_IMPLEMENTATION; }
+
+    /**
+     * @brief      Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) convariant basis
+     *
+     * @param[in]  patch   The patch to be evaluated on
+     * @param[in]  u       The in-plane shell coordinates to be eveluated on
+     * @param      result  The result
+     */
+    inline virtual void  transform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+
+    /**
+     * @brief      Computes the deformation tensor C = F'F
+     *
+     * @param[in]  patch   The patch to be evaluated on
+     * @param[in]  u       The in-plane shell coordinates to be eveluated on
+     * @param      result  The result
+     */
+    inline virtual void  deformation_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const = 0;
+
 
     /**
      * @brief      Evaluates the matrix on \a patch on in-plane points \a u with height \a z
@@ -291,12 +322,44 @@ public:
     { GISMO_NO_IMPLEMENTATION; }
 
 
+    virtual void setYoungsModulus(const gsFunction<T> & YoungsModulus)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsFunction<T> * getYoungsModulus()
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual void setPoissonsRatio(const gsFunction<T> & PoissonsRatio)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsFunction<T> * getPoissonsRatio()
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual void setRatio(const gsFunction<T> & Ratio)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsFunction<T> * getRatio()
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual void setMu(const index_t & i, const gsFunction<T> & Mu_i)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsFunction<T> * getMu(const index_t & i)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual void setAlpha(const index_t & i, const gsFunction<T> & Alpha_i)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsFunction<T> * getAlpha(const index_t & i)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual void setDensity(const gsFunction<T> & Density)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsFunction<T> * getDensity()
+    { GISMO_NO_IMPLEMENTATION; }
+
     /**
      * @brief      Sets the material parameters.
      *
      * @param[in]  pars  Function pointers for the parameters in a container
      */
     inline virtual void setParameters(const std::vector<gsFunction<T>*> &pars)
+    { GISMO_NO_IMPLEMENTATION; }
+
+    /**
+     * @brief      Gets the number of parameters
+     *
+     */
+    inline virtual index_t numParameters()
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -320,5 +383,14 @@ public:
 protected:
     const gsFunctionSet<T> * m_defpatches;
 };
+
+#ifdef GISMO_BUILD_PYBIND11
+
+  /**
+   * @brief Initializes the Python wrapper for the class: gsMaterialMatrixBase
+   */
+  void pybind11_init_gsMaterialMatrixBase(pybind11::module &m);
+
+#endif // GISMO_BUILD_PYBIND11
 
 } // namespace

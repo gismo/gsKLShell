@@ -39,12 +39,52 @@ template <  short_t dim,
 class gsMaterialMatrixLinear : public gsMaterialMatrixBaseDim<dim,T>
 {
 public:
+
+    GISMO_CLONE_FUNCTION(gsMaterialMatrixLinear)
+
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 
     enum {Linear=1};
 
     /**
+     * @brief      Constructor without material parameters
+     *
+     * @param[in]  mp             Original geometry
+     * @param[in]  thickness      Thickness function
+     */
+    gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
+                        const gsFunction<T> & thickness);
+
+    /**
      * @brief      Constructor without deformed multipatch and density
+     *
+     * @param[in]  mp             Original geometry
+     * @param[in]  thickness      Thickness function
+     * @param[in]  YoungsModulus  The youngs modulus
+     * @param[in]  PoissonRatio   The poisson ratio
+     */
+    gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
+                        const gsFunction<T> & thickness,
+                        const gsFunction<T> & YoungsModulus,
+                        const gsFunction<T> & PoissonRatio);
+
+    /**
+     * @brief      Full constructor
+     *
+     * @param[in]  mp             Original geometry
+     * @param[in]  thickness      Thickness function
+     * @param[in]  YoungsModulus  The youngs modulus
+     * @param[in]  PoissonRatio   The poisson ratio
+     * @param[in]  Density        The density
+     */
+    gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
+                        const gsFunction<T> & thickness,
+                        const gsFunction<T> & YoungsModulus,
+                        const gsFunction<T> & PoissonRatio,
+                        const gsFunction<T> & Density);
+
+    /**
+     * @brief      Constructor without density
      *
      * @param[in]  mp         Original geometry
      * @param[in]  thickness  Thickness function
@@ -85,6 +125,7 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     void setOptions(gsOptionList opt) {m_options.update(opt,gsOptionList::addIfUnknown); }
 
+    /// See \ref gsMaterialMatrixBase for details
     /// See \ref gsMaterialMatrixBase for details
     void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override;
 
@@ -136,12 +177,43 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
+/// Sets the YoungsModulus
+    void setYoungsModulus(const gsFunction<T> & YoungsModulus)
+    {
+        if ((index_t)m_pars.size() < 1)
+            m_pars.resize(1);
+        m_pars[0] = const_cast<gsFunction<T> *>(&YoungsModulus);
+    }
+
+    /// Gets the YoungsModulus
+    gsFunction<T> * getYoungsModulus() {return m_pars[0];}
+
+    /// Sets the Poisson's Ratio
+    void setPoissonsRatio(const gsFunction<T> & PoissonsRatio)
+    {
+        if ((index_t)m_pars.size() < 2)
+            m_pars.resize(2);
+        m_pars[1] = const_cast<gsFunction<T> *>(&PoissonsRatio);
+    }
+    /// Gets the Poisson's Ratio
+    gsFunction<T> * getPoissonsRatio() {return m_pars[1];}
+
+    /// Sets the Density
+    void setDensity(const gsFunction<T> & Density)
+    {
+        m_density = const_cast<gsFunction<T> *>(&Density);
+    }
+    /// Gets the Density
+    gsFunction<T> * getDensity() {return const_cast<gsFunction<T> *>(m_density);}
+
     /// See \ref gsMaterialMatrixBase for details
     void setParameters(const std::vector<gsFunction<T>*> &pars)
     {
+        GISMO_ASSERT(pars.size()==2,"Two material parameters should be assigned!");
         m_pars = pars;
-        m_numPars = m_pars.size();
     }
+
+    index_t numParameters() { return m_pars.size(); }
 
     /// See \ref gsMaterialMatrixBase for details
     void info() const;
@@ -251,21 +323,20 @@ protected:
     std::pair<gsVector<T>,gsMatrix<T>> _evalPStrain(const gsMatrix<T> & C ) const;
 
 protected:
-    // general
-    index_t m_numPars; // how many parameters for the material model?
-
     // constructor
     using Base::m_patches;
     using Base::m_defpatches;
-    const gsFunction<T> * m_thickness;
-    std::vector<gsFunction<T>* > m_pars;
-    const gsFunction<T> * m_density;
+    using Base::m_thickness;
+    using Base::m_pars;
+    using Base::m_density;
 
     mutable gsMatrix<T> m_Emat,m_Nmat,m_Tmat,m_rhomat;
-    mutable real_t m_lambda, m_mu;
+    mutable real_t m_lambda, m_mu, m_Cconstant;
 
-    mutable gsMatrix<T>                 m_parmat;
-    mutable gsVector<T>                 m_parvals;
+    using Base::m_parmat;
+    using Base::m_parvals;
+    using Base::m_Tmat;
+    using Base::m_rhomat;
 
     mutable gsMatrix<T> m_pstress, m_pstressvec, m_pstrain, m_pstrainvec;
 
@@ -322,6 +393,16 @@ protected:
     gsOptionList m_options;
 
 };
+
+#ifdef GISMO_BUILD_PYBIND11
+
+  /**
+   * @brief Initializes the Python wrapper for the class: gsMaterialMatrixLinear
+   */
+  void pybind11_init_gsMaterialMatrixLinear2(pybind11::module &m);
+  void pybind11_init_gsMaterialMatrixLinear3(pybind11::module &m);
+
+#endif // GISMO_BUILD_PYBIND11
 
 } // namespace
 
