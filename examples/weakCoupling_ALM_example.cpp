@@ -60,6 +60,7 @@ int main(int argc, char *argv[])
     index_t ALMmethod        = 2; // (0: Load control; 1: Riks' method; 2: Crisfield's method; 3: consistent crisfield method)
     real_t dL         = 0; // Arc length
     real_t dLb        = 0.5; // Arc length to find bifurcation
+    real_t Lmax       = std::numeric_limits<real_t>::max();
     real_t tol        = 1e-6;
     real_t tolU       = 1e-6;
     real_t tolF       = 1e5;
@@ -106,6 +107,7 @@ int main(int argc, char *argv[])
     cmd.addInt("M","ALMmethod", "Arc length method; 1: Crisfield's method; 2: RIks' method.", ALMmethod);
     cmd.addReal("L","dLb", "arc length", dLb);
     cmd.addReal("l","dL", "arc length after bifurcation", dL);
+    cmd.addReal("b","Lmax", "Maximum L", Lmax);
     cmd.addInt("n", "maxmodes", "Number of modes to be computed", nmodes);
     cmd.addInt("N", "maxsteps", "Maximum number of steps", step);
     cmd.addInt("q","QuasiNewtonInt","Use the Quasi Newton method every INT iterations",quasiNewtonInt);
@@ -486,7 +488,9 @@ int main(int argc, char *argv[])
     if (write)
         numWriter.init(headers);
 
-    for (index_t k=0; k<step; k++)
+    index_t k=0;
+    index_t L=0;
+    while (k < step && L < Lmax)
     {
         gsInfo<<"Load step "<< k<<"\n";
         // assembler->constructSolution(solVector,solution);
@@ -514,11 +518,11 @@ int main(int argc, char *argv[])
             arcLength->setLength(dLb);
             SingularPoint = false;
         }
-        else if (k == 10)
-        {
-            dLb0 = dLb = dL;
-            arcLength->setLength(dLb);
-        }
+        // else if (k == 10)
+        // {
+        //     dLb0 = dLb = dL;
+        //     arcLength->setLength(dLb);
+        // }
         indicator = arcLength->indicator();
 
         solVector = arcLength->solutionU();
@@ -590,6 +594,9 @@ int main(int argc, char *argv[])
           arcLength->setLength(dLb);
         }
         bisected = false;
+
+        L = arcLength->solutionL();
+        k++;
     }
 
     if (plot)
