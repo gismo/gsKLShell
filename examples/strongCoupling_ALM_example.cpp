@@ -185,10 +185,10 @@ int main(int argc, char *argv[])
 
     if (points.cols()>0)
     {
-        gsMatrix<> pointLoadPoints(3,points.cols());
-        for (index_t k =0; k!=points.cols(); k++)
-            pointLoadPoints.col(k) = mp.patch(pid_ploads.at(k)).eval(points.col(k));
-        gsWriteParaviewPoints(pointLoadPoints,"pointLoadPoints");
+        // gsMatrix<> pointLoadPoints(3,points.cols());
+        // for (index_t k =0; k!=points.cols(); k++)
+        //     pointLoadPoints.col(k) = mp.patch(pid_ploads.at(k)).eval(points.col(k));
+        // gsWriteParaviewPoints(pointLoadPoints,"pointLoadPoints");
 
         for (index_t k =0; k!=points.cols(); k++)
             pLoads.addLoad(points.col(k), loads.col(k), pid_ploads.at(k) ); // in parametric domain!
@@ -531,7 +531,7 @@ int main(int argc, char *argv[])
             gsMappedSpline<2,real_t> mspline(bb2,solFull);
 
             gsMatrix<> allCoefs;
-            gsL2Projection<real_t>::projectGeometry(dbasis,mspline,allCoefs);
+            gsL2Projection<real_t>::projectFunction(dbasis,mspline,geom,allCoefs);
             allCoefs.resize(allCoefs.rows()/3,3);
             for (index_t p = 0; p != geom.nPatches(); p++)
             {
@@ -648,7 +648,7 @@ int main(int argc, char *argv[])
         if (arcLength->stabilityChange() && SingularPoint)
         {
             gsInfo<<"Bifurcation spotted!"<<"\n";
-            arcLength->computeSingularPoint(1e-4, 5, Uold, Lold, 1e-4, 1e-5, false);
+            arcLength->computeSingularPoint(1e-4, 5, Uold, Lold, 1e-4, 0, false);
             arcLength->switchBranch();
             dLb0 = dLb = dL;
             arcLength->setLength(dLb);
