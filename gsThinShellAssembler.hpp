@@ -1510,13 +1510,17 @@ void gsThinShellAssembler<d, T, bending>::assembleMass(bool lumped)
 
     // assemble system
     if (!lumped)
+    {
         m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
+        m_mass = m_assembler.matrix();
+        this->_applyMass();
+    }
     else
+    {
+        // To do: add point masses in lumped case
         m_assembler.assemble(mm0.val()*(m_space.rowSum())*meas(m_ori));
-
-    m_mass = m_assembler.matrix();
-
-    this->_applyMass();
+        m_rhs = m_assembler.rhs();
+    }
 }
 
 template <short_t d, class T, bool bending>
