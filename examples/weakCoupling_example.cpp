@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
     bool plot       = false;
     bool stress     = false;
     bool nonlinear  = false;
+    bool homogeneous = false;
 
     index_t numRefine  = 0;
     index_t degree = 3;
@@ -59,6 +60,7 @@ int main(int argc, char *argv[])
     cmd.addSwitch("plot", "plot",plot);
     cmd.addSwitch("stress", "stress",stress);
     cmd.addSwitch( "nl", "Print information", nonlinear );
+    cmd.addSwitch("homogeneous", "homogeneous dirichlet BCs",homogeneous);
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
@@ -80,13 +82,22 @@ int main(int argc, char *argv[])
     if (mp.geoDim()==2)
         mp.embed(3);
 
-    fd.read(fn2);
-    index_t num = 0;
-    gsInfo<<"Reading BCs from "<<fn2<<"...";
-    num = fd.template count<gsBoundaryConditions<>>();
-    GISMO_ENSURE(num==1,"Number of boundary condition objects in XML should be 1, but is "<<num);
-    fd.template getFirst<gsBoundaryConditions<>>(bc); // Multipatch domain
-    gsInfo<<"Finished\n";
+    if (homogeneous)
+    {
+        for (gsMultiPatch<>::const_biterator bit = mp.bBegin(); bit != mp.bEnd(); ++bit)
+            bc.addCondition(*bit, condition_type::dirichlet, 0, false, 0, -1);
+    }
+    else
+    {
+        index_t num = 0;
+        gsInfo<<"Reading BCs from "<<fn2<<"...";
+        num = fd.template count<gsBoundaryConditions<>>();
+        GISMO_ENSURE(num==1,"Number of boundary condition objects in XML should be 1, but is "<<num);
+        fd.template getFirst<gsBoundaryConditions<>>(bc); // Multipatch domain
+        gsInfo<<"Finished\n";
+
+    }
+
 
     bc.setGeoMap(mp);
 
@@ -119,10 +130,19 @@ int main(int argc, char *argv[])
 
     // Reference points
     gsMatrix<index_t> refPatches;
-    gsMatrix<> refPoints, refValue; // todo: add refValue..
+    gsMatrix<> refPoints, refPars, refValue; // todo: add refValue..
     gsInfo<<"Reading reference point locations from "<<fn2<<" (ID=50) ...";
     if ( fd.hasId(50) )
         fd.getId(50,refPoints);
+    if (refPoints.rows()==2)
+    {
+        refPars = refPoints;
+        gsInfo<<"Reference points are provided in parametric coordinates.\n";
+    }
+    else if (refPoints.rows()==3)
+        gsInfo<<"Reference points are provided in physical coordinates.\n";
+    else
+        gsInfo<<"No reference points are provided.\n";
     gsInfo<<"Finished\n";
     gsInfo<<"Reading reference patches from "<<fn2<<" (ID=51) ...";
     if ( fd.hasId(51) )
@@ -135,6 +155,7 @@ int main(int argc, char *argv[])
         refValue = gsMatrix<>::Zero(mp.geoDim(),refPoints.cols());
     gsInfo<<"Finished\n";
     GISMO_ENSURE(refPatches.cols()==refPoints.cols(),"Number of reference points and patches do not match");
+
 
     // Material properties
     gsFunctionExpr<> t,E,nu,rho;
@@ -319,30 +340,50 @@ int main(int argc, char *argv[])
     gsField<> solField(mp_def, deformation);
     if (refPoints.cols()!=0)
     {
-        gsMatrix<> ppoints(3,1), result;
-        ppoints<<0.5,0,0.25;
-        mp.patch(refPatches(0,0)).invertPoints(ppoints,result);
-        gsDebugVar(result);
+        gsMatrix<> result;
+        if (refPoints.rows()==3) // then they are provided in the physical domain and should be mapped to the parametric domain
+        {
+            refPars.resize(2,refPoints.cols());
+            for (index_t p = 0; p!=refPoints.cols(); p++)
+            {
+                mp.patch(refPatches(0,p)).invertPoints(refPoints.col(p),result,1e-10);
+                if (result.at(0)==std::numeric_limits<real_t>::infinity()) // if failed
+                    gsWarn<<"Point inversion failed\n";
+                refPars.col(p) = result;
+            }
+        }
 
+        gsInfo<<"Physical coordinates of points\n";
+        for (index_t p=0; p!=refPars.cols(); p++)
+        {
+            gsInfo<<",x"<<std::to_string(p)<<",y"<<std::to_string(p)<<",z"<<std::to_string(p);
+        }
+        gsInfo<<"\n";
 
+        for (index_t p=0; p!=refPars.cols(); ++p)
+        {
+            mp.patch(refPatches(0,p)).eval_into(refPars.col(p),result);
+            gsInfo<<result.row(0)<<","<<result.row(1)<<","<<result.row(2)<<",";
+        }
+        gsInfo<<"\n";
         gsMatrix<> refs(1,mp.geoDim()*refPoints.cols());
-        for (index_t p=0; p!=refPoints.cols(); p++)
-            refs.block(0,p*mp.geoDim(),1,mp.geoDim()) = mp.piece(refPatches(0,p)).eval(refPoints.col(p)).transpose();
+        for (index_t p=0; p!=refPars.cols(); p++)
+            refs.block(0,p*mp.geoDim(),1,mp.geoDim()) = mp.piece(refPatches(0,p)).eval(refPars.col(p)).transpose();
         gsInfo<<"Reference point coordinates\n";
-        for (index_t p=0; p!=refPoints.cols(); ++p)
+        for (index_t p=0; p!=refPars.cols(); ++p)
             gsInfo<<"x"<<std::to_string(p)<<"\ty"<<std::to_string(p)<<"\tz"<<std::to_string(p)<<"\t";
         gsInfo<<"\n";
-        for (index_t p=0; p!=refPoints.cols(); ++p)
+        for (index_t p=0; p!=refPars.cols(); ++p)
             gsInfo<<refs(0,mp.geoDim()*p)<<"\t"<<refs(0,mp.geoDim()*p+1)<<"\t"<<refs(0,mp.geoDim()*p+2)<<"\t";
         gsInfo<<"\n";
 
-        for (index_t p=0; p!=refPoints.cols(); p++)
-            refs.block(0,p*mp.geoDim(),1,mp.geoDim()) = solField.value(refPoints.col(p),refPatches(0,p)).transpose();
+        for (index_t p=0; p!=refPars.cols(); p++)
+            refs.block(0,p*mp.geoDim(),1,mp.geoDim()) = solField.value(refPars.col(p),refPatches(0,p)).transpose();
         gsInfo<<"Computed values\n";
-        for (index_t p=0; p!=refPoints.cols(); ++p)
+        for (index_t p=0; p!=refPars.cols(); ++p)
             gsInfo<<"x"<<std::to_string(p)<<"\ty"<<std::to_string(p)<<"\tz"<<std::to_string(p)<<"\t";
         gsInfo<<"\n";
-        for (index_t p=0; p!=refPoints.cols(); ++p)
+        for (index_t p=0; p!=refPars.cols(); ++p)
             gsInfo<<refs(0,mp.geoDim()*p)<<"\t"<<refs(0,mp.geoDim()*p+1)<<"\t"<<refs(0,mp.geoDim()*p+2)<<"\t";
         gsInfo<<"\n";
 
