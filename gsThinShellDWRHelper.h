@@ -49,23 +49,23 @@ public:
         this->computeError(deformed,primalL);
     }
 
-    void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL, bool pointload = false)
+    void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL, bool withLoads = false)
     {
         gsMatrix<T> points;
         bContainer bnds;
-        this->computeError(deformed,primalL,bnds,points,true,pointload);
+        this->computeError(deformed,primalL,bnds,points,true,withLoads);
     }
 
-    void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL, bool pointload = false,
+    void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL, bool withLoads = false,
                         std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false)
     {
         gsMatrix<T> points;
         bContainer bnds;
-        this->computeError(deformed,primalL,bnds,points,true,pointload,filename,np,parametric,mesh);
+        this->computeError(deformed,primalL,bnds,points,true,withLoads,filename,np,parametric,mesh);
     }
 
     void computeError(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> primalL,
-                        const bContainer & bnds, const gsMatrix<T> & points, bool interior = true,bool pointload=false,
+                        const bContainer & bnds, const gsMatrix<T> & points, bool interior = true,bool withLoads=false,
                         std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false)
     {
         gsMultiPatch<T> dualL, dualH;
@@ -135,21 +135,52 @@ public:
         m_assembler->constructMultiPatchH(solVector,dualH);
         gsInfo << "done.\n";
 
-        m_errors = m_assembler->computeErrorElements(dualL,dualH,deformed,pointload,filename,np,parametric,mesh);
-        m_sqerrors = m_assembler->computeSquaredErrorElements(dualL,dualH,deformed,pointload,filename,np,parametric,mesh);
-        m_error = m_assembler->error();
+        m_error = m_assembler->computeError(dualL,dualH,deformed,withLoads,filename,np,parametric,mesh);
+        m_errors = m_assembler->computeErrorElements(dualL,dualH,deformed,withLoads);
+        m_sqerrors = m_assembler->computeSquaredErrorElements(dualL,dualH,deformed,withLoads);
     }
 
     T error() const { return  m_error; }
-    std::vector<T> errors() const { return m_errors; }
-    std::vector<T> absErrors() const
+    std::vector<T> errors(bool normalize=false) const
+    {
+        if (normalize)
+        {
+            std::vector<T> result = m_errors;
+            for (typename std::vector<T>::iterator it = result.begin(); it!=result.end(); it++)
+                *it = std::abs(*it) / std::abs(m_error);
+            return result;
+        }
+        else
+            return m_errors;
+
+    }
+    std::vector<T> absErrors(bool normalize=false) const
     { 
         std::vector<T> result = m_errors;
-        for (typename std::vector<T>::iterator it = result.begin(); it!=result.end(); it++)
-            *it = std::abs(*it);
+        if (normalize)
+        {
+            for (typename std::vector<T>::iterator it = result.begin(); it!=result.end(); it++)
+                *it = std::abs(*it)  / std::abs(m_error);
+        }
+        else
+        {
+            for (typename std::vector<T>::iterator it = result.begin(); it!=result.end(); it++)
+                *it = std::abs(*it);
+        }
         return result;
     }
-    std::vector<T> sqErrors() const { return m_sqerrors; }
+    std::vector<T> sqErrors(bool normalize=false) const
+    {
+        if (normalize)
+        {
+            std::vector<T> result = m_sqerrors;
+            for (typename std::vector<T>::iterator it = result.begin(); it!=result.end(); it++)
+                *it = std::abs(*it) / (math::pow(m_error,2));
+            return result;
+        }
+        else
+            return m_sqerrors;
+    }
 
 protected:
     // bool m_verbose;

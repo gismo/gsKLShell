@@ -1298,26 +1298,26 @@ gsMatrix<T> gsThinShellAssemblerDWR<d, T, bending>::projectL2_H(const gsFunction
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 template <short_t d, class T, bool bending>
-T gsThinShellAssemblerDWR<d, T, bending>::computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload,
+T gsThinShellAssemblerDWR<d, T, bending>::computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool withLoads,
                                                         std::string filename, unsigned np, bool parametric, bool mesh)
 {
-    computeError_impl<0>(dualL,dualH,pointload,filename,np,parametric,mesh);
+    computeError_impl<0>(dualL,dualH,withLoads,filename,np,parametric,mesh);
     return m_error;
 }
 
 template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload,
+std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool withLoads,
                                                         std::string filename, unsigned np, bool parametric, bool mesh)
 {
-    computeError_impl<1>(dualL,dualH,pointload,filename,np,parametric,mesh);
+    computeError_impl<1>(dualL,dualH,withLoads,filename,np,parametric,mesh);
     return m_errors;
 }
 
 template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload,
+std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool withLoads,
                                                         std::string filename, unsigned np, bool parametric, bool mesh)
 {
-    computeError_impl<2>(dualL,dualH,pointload,filename,np,parametric,mesh);
+    computeError_impl<2>(dualL,dualH,withLoads,filename,np,parametric,mesh);
     return m_errors;
 }
 
@@ -1325,7 +1325,7 @@ template <short_t d, class T, bool bending>
 template <index_t _elWise>
 void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl( const gsMultiPatch<T> & dualL,
                                                                 const gsMultiPatch<T> & dualH,
-                                                                bool pointload,
+                                                                bool withLoads,
                                                                 std::string filename,
                                                                 unsigned np,
                                                                 bool parametric,
@@ -1354,7 +1354,7 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl( const gsMultiPat
     {
         integral = ev.integral(expr * meas(Gori)); // this one before otherwise it gives an error (?)
         bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm());
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToError(dualL,dualH,integral);
 
         m_error = integral+bintegral;
@@ -1362,10 +1362,10 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl( const gsMultiPat
     else if (_elWise == 1) // element-wise
     {
         m_error = ev.integralElWise(expr * meas(Gori));
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToError(dualL,dualH,m_error);
         m_errors = ev.elementwise();
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToElWiseError(dualL,dualH,m_errors);
     }
     else if (_elWise == 2) // function-wise
@@ -1387,34 +1387,34 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl( const gsMultiPat
 }
 
 template <short_t d, class T, bool bending>
-T gsThinShellAssemblerDWR<d, T, bending>::computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload,
+T gsThinShellAssemblerDWR<d, T, bending>::computeError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool withLoads,
                                                         std::string filename, unsigned np, bool parametric, bool mesh)
 {
-    computeError_impl<d,bending,0>(dualL,dualH,deformed,pointload,filename,np,parametric,mesh);
+    computeError_impl<d,bending,0>(dualL,dualH,deformed,withLoads,filename,np,parametric,mesh);
     return m_error;
 }
 
 template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload,
+std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool withLoads,
                                                         std::string filename, unsigned np, bool parametric, bool mesh)
 {
-    computeError_impl<d,bending,1>(dualL,dualH,deformed,pointload,filename,np,parametric,mesh);
+    computeError_impl<d,bending,1>(dualL,dualH,deformed,withLoads,filename,np,parametric,mesh);
     return m_errors;
 }
 
 template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload,
+std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool withLoads,
                                                         std::string filename, unsigned np, bool parametric, bool mesh)
 {
-    computeError_impl<d,bending,2>(dualL,dualH,deformed,pointload,filename,np,parametric,mesh);
+    computeError_impl<d,bending,2>(dualL,dualH,deformed,withLoads,filename,np,parametric,mesh);
     return m_errors;
 }
 
 template <short_t d, class T, bool bending>
 template<short_t _d, bool _bending, index_t _elWise>
 typename std::enable_if<_d==3 && _bending, void>::type
-gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload,
-                                                            // bool pointload,
+gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool withLoads,
+                                                            // bool withLoads,
                                                             std::string filename, unsigned np, bool parametric, bool mesh)
 
 {
@@ -1461,12 +1461,13 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
 
     gsExprEvaluator<T> ev(exprAssembler);
 
-    T integral, bintegral;
+    T integral, bintegral = 0;
     if (_elWise == 0)
     {
-        bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm());
+        if (withLoads)
+            bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm()); // goes wrong with sizes?
         integral = ev.integral(expr * meas(Gori));
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToError(dualL,dualH,integral);
 
         m_error = integral+bintegral;
@@ -1474,10 +1475,10 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> 
     else if (_elWise == 1) // element-wise
     {
         m_error = ev.integralElWise(expr * meas(Gori));
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToError(dualL,dualH,m_error);
         m_errors = ev.elementwise();
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToElWiseError(dualL,dualH,m_errors);
     }
     else if (_elWise == 2) // function-wise
@@ -1519,7 +1520,7 @@ typename std::enable_if<!(_d==3 && _bending), void>::type
 gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(  const gsMultiPatch<T> & dualL,
                                                             const gsMultiPatch<T> & dualH,
                                                             const gsMultiPatch<T> & deformed,
-                                                            bool pointload,
+                                                            bool withLoads,
                                                             std::string filename,
                                                             unsigned np,
                                                             bool parametric,
@@ -1562,16 +1563,16 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(  const gsMultiPatch<T
         bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm());
         integral = ev.integral(expr * meas(Gori));
         m_error = bintegral+integral;
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToError(dualL,dualH,m_error);
     }
     else if (_elWise == 1) // element-wise
     {
         m_error = ev.integralElWise(expr * meas(Gori));
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToError(dualL,dualH,m_error);
         m_errors = ev.elementwise();
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToElWiseError(dualL,dualH,m_errors);
     }
     else if (_elWise == 2) // function-wise
@@ -1607,26 +1608,26 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(  const gsMultiPatch<T
 }
 
 template <short_t d, class T, bool bending>
-T gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload,
+T gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool withLoads,
                                                         std::string filename, unsigned np, bool parametric, bool mesh)
 {
-    computeSquaredError_impl<0>(dualL,dualH,pointload,filename,np,parametric,mesh);
+    computeSquaredError_impl<0>(dualL,dualH,withLoads,filename,np,parametric,mesh);
     return m_error;
 }
 
 template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeSquaredErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload,
+std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeSquaredErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool withLoads,
                                                         std::string filename, unsigned np, bool parametric, bool mesh)
 {
-    computeSquaredError_impl<1>(dualL,dualH,pointload,filename,np,parametric,mesh);
+    computeSquaredError_impl<1>(dualL,dualH,withLoads,filename,np,parametric,mesh);
     return m_errors;
 }
 
 template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeSquaredErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool pointload,
+std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeSquaredErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool withLoads,
                                                         std::string filename, unsigned np, bool parametric, bool mesh)
 {
-    computeSquaredError_impl<2>(dualL,dualH,pointload,filename,np,parametric,mesh);
+    computeSquaredError_impl<2>(dualL,dualH,withLoads,filename,np,parametric,mesh);
     return m_errors;
 }
 
@@ -1634,7 +1635,7 @@ template <short_t d, class T, bool bending>
 template <index_t _elWise>
 void gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl( const gsMultiPatch<T> & dualL,
                                                                 const gsMultiPatch<T> & dualH,
-                                                                bool pointload,
+                                                                bool withLoads,
                                                                 std::string filename,
                                                                 unsigned np,
                                                                 bool parametric,
@@ -1663,7 +1664,7 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl( const gsM
     {
         integral = ev.integral(expr * meas(Gori)); // this one before otherwise it gives an error (?)
         bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm());
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToError(dualL,dualH,integral);
 
         m_error = integral+bintegral;
@@ -1671,10 +1672,10 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl( const gsM
     else if (_elWise == 1) // element-wise
     {
         m_error = ev.integralElWise(expr * meas(Gori));
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToError(dualL,dualH,m_error);
         m_errors = ev.elementwise();
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToElWiseError(dualL,dualH,m_errors);
     }
     else if (_elWise == 2) // function-wise
@@ -1696,34 +1697,34 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl( const gsM
 }
 
 template <short_t d, class T, bool bending>
-T gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload,
+T gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool withLoads,
                                                         std::string filename, unsigned np, bool parametric, bool mesh)
 {
-    computeSquaredError_impl<d,bending,0>(dualL,dualH,deformed,pointload,filename,np,parametric,mesh);
+    computeSquaredError_impl<d,bending,0>(dualL,dualH,deformed,withLoads,filename,np,parametric,mesh);
     return m_error;
 }
 
 template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeSquaredErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload,
+std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeSquaredErrorElements(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool withLoads,
                                                         std::string filename, unsigned np, bool parametric, bool mesh)
 {
-    computeSquaredError_impl<d,bending,1>(dualL,dualH,deformed,pointload,filename,np,parametric,mesh);
+    computeSquaredError_impl<d,bending,1>(dualL,dualH,deformed,withLoads,filename,np,parametric,mesh);
     return m_errors;
 }
 
 template <short_t d, class T, bool bending>
-std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeSquaredErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload,
+std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeSquaredErrorDofs(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool withLoads,
                                                         std::string filename, unsigned np, bool parametric, bool mesh)
 {
-    computeSquaredError_impl<d,bending,2>(dualL,dualH,deformed,pointload,filename,np,parametric,mesh);
+    computeSquaredError_impl<d,bending,2>(dualL,dualH,deformed,withLoads,filename,np,parametric,mesh);
     return m_errors;
 }
 
 template <short_t d, class T, bool bending>
 template<short_t _d, bool _bending, index_t _elWise>
 typename std::enable_if<_d==3 && _bending, void>::type
-gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool pointload,
-                                                            // bool pointload,
+gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool withLoads,
+                                                            // bool withLoads,
                                                             std::string filename, unsigned np, bool parametric, bool mesh)
 
 {
@@ -1775,7 +1776,7 @@ gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl(const gsMultiPa
     {
         bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm());
         integral = ev.integral(expr * meas(Gori));
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToError(dualL,dualH,integral);
 
         m_error = integral+bintegral;
@@ -1783,10 +1784,10 @@ gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl(const gsMultiPa
     else if (_elWise == 1) // element-wise
     {
         m_error = ev.integralElWise(expr * meas(Gori));
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToError(dualL,dualH,m_error);
         m_errors = ev.elementwise();
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToElWiseError(dualL,dualH,m_errors);
     }
     else if (_elWise == 2) // function-wise
@@ -1828,7 +1829,7 @@ typename std::enable_if<!(_d==3 && _bending), void>::type
 gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl(  const gsMultiPatch<T> & dualL,
                                                             const gsMultiPatch<T> & dualH,
                                                             const gsMultiPatch<T> & deformed,
-                                                            bool pointload,
+                                                            bool withLoads,
                                                             std::string filename,
                                                             unsigned np,
                                                             bool parametric,
@@ -1871,16 +1872,16 @@ gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl(  const gsMulti
         bintegral = ev.integralBdrBc( m_bcs.get("Neumann"), bexpr * tv(Gori).norm());
         integral = ev.integral(expr * meas(Gori));
         m_error = bintegral+integral;
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToError(dualL,dualH,m_error);
     }
     else if (_elWise == 1) // element-wise
     {
         m_error = ev.integralElWise(expr * meas(Gori));
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToError(dualL,dualH,m_error);
         m_errors = ev.elementwise();
-        if (m_pLoads.numLoads()!=0 && pointload)
+        if (m_pLoads.numLoads()!=0 && withLoads)
             _applyLoadsToElWiseError(dualL,dualH,m_errors);
     }
     else if (_elWise == 2) // function-wise
