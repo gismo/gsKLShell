@@ -82,6 +82,7 @@ int main(int argc, char *argv[])
     if (mp.geoDim()==2)
         mp.embed(3);
 
+    fd.read(fn2);
     if (homogeneous)
     {
         for (gsMultiPatch<>::const_biterator bit = mp.bBegin(); bit != mp.bEnd(); ++bit)

@@ -3,7 +3,7 @@
 
 <!-- Material properties -->
   <!-- Thickness -->
-  <Function type="FunctionExpr" id="10" tag="Material" dim="3">0.01</Function>
+  <Function type="FunctionExpr" id="10" tag="Material" dim="3">1</Function>
   <!-- E modulus -->
   <Function type="FunctionExpr" id="11" tag="Material" dim="3">210e3</Function>
   <!-- Poisson ratio -->
@@ -60,42 +60,35 @@
 <Function type="FunctionExpr" id="21" tag="Loads" dim="3">
   <c> 0 </c>
   <c> 0 </c>
-  <c> 1</c>
+  <c> 0</c>
 </Function>
 <!-- Distributed pressure function -->
 <!-- <Function type="FunctionExpr" id="22" tag="Loads" dim="3">0</Function> -->
 
 <!-- Point load coordinates -->
-<Matrix rows="2" cols="0" id="30" tag="Loads" >
+<Matrix rows="2" cols="1" id="30" tag="Loads" >
+  10
+  2
 </Matrix>
 <!-- Point load forces -->
-<Matrix rows="3" cols="0" id="31" tag="Loads" >
+<Matrix rows="3" cols="1" id="31" tag="Loads" >
+  0
+  1e3
+  0
 </Matrix>
 <!-- Point load patch indices -->
-<Matrix rows="1" cols="0" id="32" tag="Loads" >
+<Matrix rows="1" cols="1" id="32" tag="Loads" >
+  40
 </Matrix>
 
-<!-- Manufactured solution -->
-<Function type="FunctionExpr" id="41" tag="Loads" dim="3">
-  <c> 0 </c>
-  <c> 0 </c>
-  <c> 1*sin(pi*x)*sin(pi*y)</c>
-</Function>
-
 <!-- Reference point coordinates -->
-<Matrix rows="2" cols="2" id="50" >
-  0.5 0.5
-  0.5 0.5
+<Matrix rows="2" cols="1" id="50">
+  10
+  2
 </Matrix>
 <!-- Reference point patch indices (cols) -->
-<Matrix rows="1" cols="2" id="51" >
-  0   1
-</Matrix>
-
-<!-- Reference point coordinates -->
-<Matrix rows="3" cols="2" id="52" >
-  0.5 0.5 0.5
-  0.5 0.5 0.5
+<Matrix rows="1" cols="1" id="51">
+  40
 </Matrix>
 
 <!-- Assembler options -->

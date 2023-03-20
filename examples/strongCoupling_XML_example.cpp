@@ -101,6 +101,11 @@ int main(int argc, char *argv[])
 
     gsInfo<<"Reading geometry from "<<geomFileName<<"..."<<std::flush;
     gsReadFile<>(geomFileName, geom);
+    if (geom.nInterfaces()==0 && geom.nBoundary()==0)
+    {
+        gsInfo<<"No topology found. Computing it...";
+        geom.computeTopology();
+    }
     gsInfo<<"Finished\n";
 
     gsInfo<<"Reading mapped basis from "<<basisFileName<<"..."<<std::flush;
@@ -114,7 +119,15 @@ int main(int argc, char *argv[])
     if (homogeneous)
     {
         for (gsMultiPatch<>::const_biterator bit = geom.bBegin(); bit != geom.bEnd(); ++bit)
-            bc.addCondition(*bit, condition_type::dirichlet, 0, false, 0, -1);
+        {
+            bc.addCondition(*bit, condition_type::dirichlet, 0, 0, false, 0);
+            bc.addCondition(*bit, condition_type::dirichlet, 0, 0, false, 1);
+            bc.addCondition(*bit, condition_type::dirichlet, 0, 0, false, 2);
+
+            bc.addCondition(*bit, condition_type::weak_clamped, 0, 0, false, 0);
+            bc.addCondition(*bit, condition_type::weak_clamped, 0, 0, false, 1);
+            bc.addCondition(*bit, condition_type::weak_clamped, 0, 0, false, 2);
+        }
     }
     else
     {
@@ -124,8 +137,10 @@ int main(int argc, char *argv[])
         GISMO_ENSURE(num==1,"Number of boundary condition objects in XML should be 1, but is "<<num);
         fd.template getFirst<gsBoundaryConditions<>>(bc); // Multipatch domain
         gsInfo<<"Finished\n";
+
     }
 
+    gsInfo<<bc<<"\n";
     bc.setGeoMap(geom);
 
     // Loads
@@ -222,7 +237,11 @@ int main(int argc, char *argv[])
     gsThinShellAssembler<3, real_t, true> assembler;
 
     //! [Solver loop]
+    // #ifdef GISMO_WITH_PARDISO
+    // gsSparseSolver<>::PardisoLU solver;
+    // #else
     gsSparseSolver<>::CGDiagonal solver;
+    // #endif
     gsVector<> solVector;
 
     assembler = gsThinShellAssembler<3, real_t, true>(geom,dbasis,bc,force,&materialMatrix);
@@ -396,7 +415,7 @@ int main(int argc, char *argv[])
         // 4. Plot the mapped spline on the original geometry
         gsField<> solField(geom, mspline,true);
         gsInfo<<"Plotting in Paraview...\n";
-        gsWriteParaview<>( solField, "Deformation", 10, mesh);
+        gsWriteParaview<>( solField, "Deformation", 1000, mesh);
 
         // // 4. Plot the mapped spline on the original geometry
         // gsField<> solField2(mp_def, def,true);
