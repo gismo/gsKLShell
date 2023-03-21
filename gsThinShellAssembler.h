@@ -264,6 +264,18 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     void assembleVector(const gsMatrix<T>       & solVector );
 
+    /// See \ref gsThinShellAssemblerBase for details
+    void assemblePressureVector(const gsFunctionSet<T> & deformed);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void assemblePressureVector(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void assembleFoundationVector(const gsFunctionSet<T> & deformed);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void assembleFoundationVector(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed);
+
 private:
     /// Implementation of assembleVector for surfaces (3D)
     template<int _d, bool _bending>
@@ -405,14 +417,14 @@ protected:
     void _assembleNeumann();
 
     template <bool matrix>
-    void _assemblePressure();
+    void _assemblePressure(const gsFunction<T> & pressFun);
     template <bool matrix>
-    void _assemblePressure(const gsFunctionSet<T> & deformed);
+    void _assemblePressure(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed);
 
     template <bool matrix>
-    void _assembleFoundation();
+    void _assembleFoundation(const gsFunction<T> & foundFun);
     template <bool matrix>
-    void _assembleFoundation(const gsFunctionSet<T> & deformed);
+    void _assembleFoundation(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed);
 
     template <bool matrix>
     void _assembleWeakBCs();
@@ -443,51 +455,51 @@ private:
 
     template<int _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
-    _assemblePressure_impl();
+    _assemblePressure_impl(const gsFunction<T> & pressFun);
 
     template<int _d, bool matrix>
     typename std::enable_if<_d==3 && !matrix, void>::type
-    _assemblePressure_impl();
+    _assemblePressure_impl(const gsFunction<T> & pressFun);
 
     template<int _d, bool matrix>
     typename std::enable_if<!(_d==3), void>::type
-    _assemblePressure_impl();
+    _assemblePressure_impl(const gsFunction<T> & pressFun);
 
     template<int _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
-    _assemblePressure_impl(const gsFunctionSet<T> & deformed);
+    _assemblePressure_impl(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed);
 
     template<int _d, bool matrix>
     typename std::enable_if<_d==3 && !matrix, void>::type
-    _assemblePressure_impl(const gsFunctionSet<T> & deformed);
+    _assemblePressure_impl(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed);
 
     template<int _d, bool matrix>
     typename std::enable_if<!(_d==3), void>::type
-    _assemblePressure_impl(const gsFunctionSet<T> & deformed);
+    _assemblePressure_impl(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed);
 
     template<int _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
-    _assembleFoundation_impl();
+    _assembleFoundation_impl(const gsFunction<T> & foundFun);
 
     template<int _d, bool matrix>
     typename std::enable_if<_d==3 && !matrix, void>::type
-    _assembleFoundation_impl();
+    _assembleFoundation_impl(const gsFunction<T> & foundFun);
 
     template<int _d, bool matrix>
     typename std::enable_if<!(_d==3), void>::type
-    _assembleFoundation_impl();
+    _assembleFoundation_impl(const gsFunction<T> & foundFun);
 
     template<int _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
-    _assembleFoundation_impl(const gsFunctionSet<T> & deformed);
+    _assembleFoundation_impl(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed);
 
     template<int _d, bool matrix>
     typename std::enable_if<_d==3 && !matrix, void>::type
-    _assembleFoundation_impl(const gsFunctionSet<T> & deformed);
+    _assembleFoundation_impl(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed);
 
     template<int _d, bool matrix>
     typename std::enable_if<!(_d==3), void>::type
-    _assembleFoundation_impl(const gsFunctionSet<T> & deformed);
+    _assembleFoundation_impl(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed);
 
     template<int _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
@@ -780,6 +792,36 @@ public:
      * @param[in]  deformed  The solution vector
      */
     virtual void assembleVector(const gsMatrix<T>       & solVector ) = 0;
+
+    /**
+     * @brief      Assembles the follower pressure part of the residual vector
+     *
+     * @param[in]  deformed  The deformed geometry
+     */
+    virtual void assemblePressureVector(const gsFunctionSet<T> & deformed) = 0;
+
+    /**
+     * @brief      Assembles the follower pressure part of the residual vector
+     *
+     * @param[in]  pressFun  The pressure function
+     * @param[in]  deformed  The deformed geometry
+     */
+    virtual void assemblePressureVector(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed) = 0;
+
+    /**
+     * @brief      Assembles the elastic foundation part of the residual vector
+     *
+     * @param[in]  deformed  The deformed geometry
+     */
+    virtual void assembleFoundationVector(const gsFunctionSet<T> & deformed) = 0;
+
+    /**
+     * @brief      Assembles the elastic foundation part of the residual vector
+     *
+     * @param[in]  foundFun  The foundation function
+     * @param[in]  deformed  The deformed geometry
+     */
+    virtual void assembleFoundationVector(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed) = 0;
 
     /**
      * @brief      Computes the force on a boundary
