@@ -598,9 +598,9 @@ int main(int argc, char *argv[])
                 errors.addTimestep(fileName,r,".vts");
                 errors.addTimestep(fileName,r,"_mesh.vtp");
 
-                mesher.container_into(elErrors,elts);
-                fileName = dirname + "/" + "boxes_" + util::to_string(r) + "_";
-                gsWriteParaview(elts,fileName);
+                //mesher.container_into(elErrors,elts);
+                //fileName = dirname + "/" + "boxes_" + util::to_string(r) + "_";
+                //gsWriteParaview(elts,fileName);
             }
 
             mesher.markRef_into(elErrors,markRef);
