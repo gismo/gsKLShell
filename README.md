@@ -11,7 +11,7 @@
 
 Module for the isogeometric Kirchhoff-Love shell element. The module is based on `gismo`'s Expression Assembler `gsExprAssembler`.
 
-|CMake flags|```-DGISMO_KLSHELL=ON``` (default ```OFF```)|
+|CMake flags|```-DGISMO_OPTIONAL="<other submodules>;gsKLShell"```|
 |--:|---|
 |License|[MPL 2.0](https://www.mozilla.org/en-US/MPL/2.0/)|
 |OS support|Linux, Windows, macOS|
@@ -28,7 +28,7 @@ No dependencies
 #### Installation
 ```
 cd path/to/build/dir
-cmake . -DGISMO_KLSHELL=ON
+cmake . -DGISMO_OPTIONAL="<other submodules>;gsKLShell"
 make
 ```
 
