@@ -37,8 +37,7 @@ gsMaterialMatrixIntegrateSingle<T,out>::gsMaterialMatrixIntegrateSingle(index_t 
                                                                         )
 :
 m_pIndex(patch),
-m_materialMat(materialMatrix),
-m_piece(nullptr)
+m_materialMat(materialMatrix)
 {
     m_materialMat->setDeformed(deformed);
     // m_materialMat = new gsMaterialMatrix(materialMatrix);
@@ -270,7 +269,7 @@ gsMatrix<T> gsMaterialMatrixIntegrateSingle<T,out>::eval(const gsMatrix<T>& u) c
 template <class T, enum MaterialOutput out>
 gsMatrix<T> gsMaterialMatrixIntegrateSingle<T,out>::eval3D(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
 {
-        return this->eval3D_impl<out>(u,Z);
+    return this->eval3D_impl<out>(u,Z);
 }
 
 template <class T, enum MaterialOutput out>

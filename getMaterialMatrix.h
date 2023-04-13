@@ -114,7 +114,7 @@ gsMatrix<T> gsCompositeMatrixRaw(   const T G11,
  *
  */
 template<short_t d, class T>
-gsMaterialMatrixBase<T> * getMaterialMatrix(
+typename gsMaterialMatrixBase<T>::Ptr getMaterialMatrix(
                                 const gsMultiPatch<T>               & mp,
                                 const gsFunction<T>                 & thickness,
                                 const std::vector<gsFunction<T> *>  & parameters,
