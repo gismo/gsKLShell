@@ -21,90 +21,7 @@
 
 using namespace gismo;
 
-template <typename T>
-class objective : public gsFunction<T>
-{
-public:
-    objective(const gsMatrix<T> & C, const gsMatrix<T> & S)
-    :
-    m_C(C),
-    m_S(S)
-    {
-    }
-
-    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
-    {
-        result.resize(1,u.cols());
-        gsVector<T,3> n1_vec, n2_vec;
-        T theta, gamma;
-        T n1, n2, m1, m2;
-
-        for (index_t k = 0; k!=u.cols(); k++)
-        {
-            theta = u(0,k);
-            n1 = math::cos(theta);
-            n2 = math::sin(theta);
-            m1 = -math::sin(theta);
-            m2 = math::cos(theta);
-
-            n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-            n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-
-            gamma = - ( n1_vec.transpose() * m_S ).value() / ( n1_vec.transpose() * m_C * n1_vec ).value();
-
-            T res = (n2_vec.transpose() * m_S).value() + gamma * (n2_vec.transpose() * m_C * n1_vec).value();
-
-            result(0,k) = res;
-        }
-    }
-
-    short_t domainDim() const
-    {
-        return 1;
-    }
-
-    short_t targetDim() const
-    {
-        return 1;
-    }
-
-    void deriv_into2(const gsMatrix<T>& u, gsMatrix<T>& result) const
-    {
-        result.resize(1,u.cols());
-        gsVector<T,3> n1_vec, n2_vec, n3_vec, n4_vec;
-        T theta, gamma, dgammadT;
-        T n1, n2, m1, m2;
-
-        for (index_t k = 0; k!=u.cols(); k++)
-        {
-            theta = u(0,k);
-            n1 = math::cos(theta);
-            n2 = math::sin(theta);
-            m1 = -math::sin(theta);
-            m2 = math::cos(theta);
-
-            n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-            n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-            n3_vec<<m1*m1-n1*n1, m2*m2-n2*n2, 2*(m1*m2-n1*n2);
-            n4_vec<<m1*m1, m2*m2, 2*m1*m2;
-
-            gamma = - ( n1_vec.transpose() * m_S ).value() / ( n1_vec.transpose() * m_C * n1_vec ).value();
-            T tmp = ( n2_vec.transpose() * m_C * n1_vec ).value() / ( n1_vec.transpose() * m_C * n1_vec ).value();
-            dgammadT = - 2 * gamma * tmp;
-            // gsDebugVar(dgammadT);
-
-            T res = (n3_vec.transpose() * m_S).value() + dgammadT * (n2_vec.transpose() * m_C * n1_vec).value()
-                  + gamma * (n3_vec.transpose() * m_C * n1_vec).value() + 2*gamma * (n2_vec.transpose() * m_C * n2_vec).value();
-            // T res = (n2_vec.transpose() * m_S).value() + gamma * (n2_vec.transpose() * m_C * n1_vec).value();
-
-            result(0,k) = res;
-        }
-    }
-
-private:
-    const gsMatrix<T> m_C;
-    const gsMatrix<T> m_S;
-};
+template <typename T> class objective;
 
 template <typename T>
 class gsTFTMat
@@ -212,37 +129,79 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_matrix(const index_t patch
     // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    return this->_eval3D_matrix_impl<true>(patch,u,z);
-    // return this->_eval3D_matrix_impl<linear>(patch,u,z);
+    // return this->_eval3D_matrix_impl<true>(patch,u,z);
+    return this->_eval3D_matrix_impl<linear>(patch,u,z);
 }
 
 template <short_t dim, class T, bool linear >
 gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
-    // GISMO_ASSERT(out==MaterialOutput::VectorN,"Tension Field Theory only works for membrane models, hence only outputs the N vector");
-
-    // Input: u in-plane points
-    //        z matrix with, per point, a column with z integration points
-    // Output: (n=u.cols(), m=z.rows())
-    //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
-
-    // WARNING: Check which values of out correspond to the output we want
-    return this->_eval3D_vector_impl<true>(patch,u,z);
-    // return this->_eval3D_vector_impl<linear>(patch,u,z);
+    return this->eval3D_stress(patch,u,z,out);
 }
 
-/// Provides an implementation of eval3D_matrix for \a gsMaterialMatrixLinear
 template <short_t dim, class T, bool linear >
-template <bool _linear>
-typename std::enable_if<_linear, gsMatrix<T> >::type
-gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
 {
-    gsMatrix<T> result = m_materialMat->eval3D_matrix(patch,u,z,out);
-    return result;
     gsMatrix<T> TF = m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
-
+    gsMatrix<T> result = m_materialMat->eval3D_pstress(patch,u,z,out);
     index_t colIdx;
-    T gamma, theta;
+    gsTFTMat<T> tftData;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            colIdx = j*u.cols()+k;
+            if (TF(0,colIdx) == 1 || TF(0,colIdx) == 0) // taut & wrinkled
+            {
+                // do nothing
+            }
+            else if (TF(0,colIdx) == -1) // slack
+            {
+                // Set to zero
+                result.col(colIdx).setZero();
+            }
+            else
+                GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+{
+    gsMatrix<T> TF = m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
+    gsMatrix<T> result = m_materialMat->eval3D_pstrain(patch,u,z,out);
+    index_t colIdx;
+    gsTFTMat<T> tftData;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            colIdx = j*u.cols()+k;
+            if (TF(0,colIdx) == 1 || TF(0,colIdx) == 0) // taut & wrinkled
+            {
+                // do nothing
+            }
+            else if (TF(0,colIdx) == -1) // slack
+            {
+                // Set to zero
+                result.col(colIdx).setZero();
+            }
+            else
+                GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    gsMatrix<T> result = m_materialMat->eval3D_strain(patch,u,z,out);
+    gsMatrix<T> TF = m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
+    index_t colIdx;
+    T theta;
     gsTFTMat<T> tftData;
     for (index_t k=0; k!=u.cols(); k++)
     {
@@ -261,12 +220,74 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
             else if (TF(0,colIdx) == 0) // wrinkled
             {
                 gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
-                gsMatrix<T> N = m_materialMat->eval3D_vector(patch,u.col(k),z(j,k),MaterialOutput::VectorN);
-                gsMatrix<T> thetas = eval_theta(C,N);
-
-                gsMatrix<T> dC = m_materialMat->eval3D_dmatrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
+                gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);
+                gsAsMatrix<T,Dynamic,Dynamic> E = result.reshapeCol(colIdx,3,1);
+                gsMatrix<T> thetas = eval_theta(C,N,E);
                 theta = thetas(0,0);
-                result.col(colIdx) = this->_compute_C(theta,C.reshape(3,3),N.reshape(3,1),dC.reshape(9,3)).reshape(9,1);
+                result.col(colIdx) = this->_compute_E(theta,C.reshape(3,3),N,E);
+            }
+            else
+                GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    // Input: u in-plane points
+    //        z matrix with, per point, a column with z integration points
+    // Output: (n=u.cols(), m=z.rows())
+    //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+
+    // WARNING: Check which values of out correspond to the output we want
+    return this->_eval3D_stress_impl<true>(patch,u,z);
+    // return this->_eval3D_stress_impl<linear>(patch,u,z);
+}
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+{
+    return m_materialMat->eval3D_tensionfield(patch,u,z,out);
+}
+
+
+/// Provides an implementation of eval3D_matrix for \a gsMaterialMatrixLinear
+template <short_t dim, class T, bool linear >
+template <bool _linear>
+typename std::enable_if<_linear, gsMatrix<T> >::type
+gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+{
+    gsMatrix<T> result = m_materialMat->eval3D_matrix(patch,u,z,MaterialOutput::MatrixA);
+    gsMatrix<T> TF = m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
+
+    index_t colIdx;
+    T theta;
+    gsTFTMat<T> tftData;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            colIdx = j*u.cols()+k;
+            if (TF(0,colIdx) == 1) // taut
+            {
+                // do nothing
+            }
+            else if (TF(0,colIdx) == -1) // slack
+            {
+                // Set to zero
+                result.col(colIdx).setZero();
+            }
+            else if (TF(0,colIdx) == 0) // wrinkled
+            {
+                gsMatrix<T> C = result.col(k);
+                gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);
+                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),out);
+                gsMatrix<T> thetas = eval_theta(C,N,E);
+
+                theta = thetas(0,0);
+                result.col(colIdx) = this->_compute_C(theta,C.reshape(3,3),N.reshape(3,1)).reshape(9,1);
             }
             else
                 GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
@@ -280,21 +301,54 @@ template <bool _linear>
 typename std::enable_if<!_linear, gsMatrix<T> >::type
 gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
 {
-    GISMO_NO_IMPLEMENTATION;
+    gsMatrix<T> result = m_materialMat->eval3D_matrix(patch,u,z,out);
+    gsMatrix<T> TF = m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
+
+    index_t colIdx;
+    T theta;
+    gsTFTMat<T> tftData;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            colIdx = j*u.cols()+k;
+            if (TF(0,colIdx) == 1) // taut
+            {
+                // do nothing
+            }
+            else if (TF(0,colIdx) == -1) // slack
+            {
+                // Set to zero
+                result.col(colIdx).setZero();
+            }
+            else if (TF(0,colIdx) == 0) // wrinkled
+            {
+                gsMatrix<T> C = result.col(colIdx);
+                gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);
+                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),out);
+                gsMatrix<T> thetas = eval_theta(C,N,E);
+
+                gsMatrix<T> dC = m_materialMat->eval3D_dmatrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
+                theta = thetas(0,0);
+                result.col(colIdx) = this->_compute_C(theta,C.reshape(3,3),N.reshape(3,1),dC.reshape(9,3)).reshape(9,1);
+            }
+            else
+                GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
+        }
+    }
+    return result;
 }
 
 /// Provides an implementation of eval3D_matrix for \a gsMaterialMatrixLinear
 template <short_t dim, class T, bool linear >
 template <bool _linear>
 typename std::enable_if<_linear, gsMatrix<T> >::type
-gsMaterialMatrixTFT<dim,T,linear>::_eval3D_vector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+gsMaterialMatrixTFT<dim,T,linear>::_eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
 {
-    gsMatrix<T> result = m_materialMat->eval3D_vector(patch,u,z,out);
-    return result;
+    gsMatrix<T> result = m_materialMat->eval3D_stress(patch,u,z,MaterialOutput::VectorN);
     gsMatrix<T> TF = m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
-
     index_t colIdx;
-    T gamma, theta;
+    T theta;
     gsTFTMat<T> tftData;
     for (index_t k=0; k!=u.cols(); k++)
     {
@@ -313,26 +367,23 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_vector_impl(const index_t patch, cons
             else if (TF(0,colIdx) == 0) // wrinkled
             {
                 gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
-                gsMatrix<T> N = m_materialMat->eval3D_vector(patch,u.col(k),z(j,k),MaterialOutput::VectorN);
-                gsMatrix<T> thetas = eval_theta(C,N);
+                gsAsMatrix<T,Dynamic,Dynamic> N = result.reshapeCol(colIdx,3,1);
+                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),out);
+                gsMatrix<T> thetas = eval_theta(C,N,E);
                 theta = thetas(0,0);
-                gsDebugVar(N);
-                gsDebugVar(C);
-                result.col(colIdx) = this->_compute_S(theta,C,N);
+                result.col(colIdx) = this->_compute_S(theta,C.reshape(3,3),N);
             }
             else
                 GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
         }
     }
-    gsDebugVar(result);
-
     return result;
 }
 
 template <short_t dim, class T, bool linear >
 template <bool _linear>
 typename std::enable_if< !_linear, gsMatrix<T> >::type
-gsMaterialMatrixTFT<dim,T,linear>::_eval3D_vector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+gsMaterialMatrixTFT<dim,T,linear>::_eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
 {
     gsDebugVar("Bye");
     // gsDebugVar(MaterialMat::Linear);
@@ -340,9 +391,10 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_vector_impl(const index_t patch, cons
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs, const gsMatrix<T> & Ns)
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs, const gsMatrix<T> & Ns, const gsMatrix<T> & Es)
 {
     GISMO_ASSERT(Cs.cols()==Ns.cols(),"Number of C matrices and N vectors is different");
+    GISMO_ASSERT(Cs.cols()==Es.cols(),"Number of C matrices and E vectors is different");
     gsMatrix<T> result(1,Cs.cols());
     gsVector<T> value(1),init(1);
     gsVector<T,3> n1_vec, n2_vec;
@@ -368,7 +420,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
     {
         return (a-b).norm() < comp_tol;
     };
-
+    // TODO: make option for the number of start points
     gsVector<T> x = gsVector<T>::LinSpaced(10,-0.5 * M_PI,0.5 * M_PI);
 
     for (index_t k = 0; k!=Cs.cols(); k++)
@@ -381,6 +433,117 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
         gsMatrix<T> N = Ns.col(k);
                     N.resize(3,1);
 
+        objective<T> obj(C,N);
+
+        // See Lu et al., Finite Element Analysis of Membrane Wrinkling, 2001, International Journal for numerical methods in engineering
+        T E11 = Es(0,k);
+        T E22 = Es(1,k);
+        T E12 = 0.5 * Es(2,k);
+        T R_E = math::sqrt( math::pow((E11-E22)/2.,2) + E12*E12 );
+        T theta_0E = math::asin( (E22-E11) / (2*R_E) );
+        T theta_1E = math::asin( - math::sqrt(E12*E12 - E11*E22) / R_E );
+        T theta_2E = math::asin(   math::sqrt(E12*E12 - E11*E22) / R_E );
+
+        T pi = 4*math::atan(1);
+        T N11 = Ns(0,k);
+        T N22 = Ns(1,k);
+        T N12 = Ns(2,k);
+        T R_N = math::sqrt( math::pow((N11-N22)/2.,2) + N12*N12 );
+        T theta_0N = math::asin( (N22-N11) / (2*R_N) );
+        T theta_1N = math::asin( - math::sqrt(N12*N12 - N11*N22) / R_N );
+        T theta_2N = math::asin(   math::sqrt(N12*N12 - N11*N22) / R_N );
+        T theta_1 = std::fmod((theta_1N - theta_0N + theta_0E + pi),(2*pi));
+        T theta_2 = std::fmod((theta_2N - theta_0N + theta_0E + pi),(2*pi));
+
+        T Q_E_min = theta_1E - theta_0E;
+        T Q_E_max = theta_2E - theta_0E;
+        T Q_S_min, Q_S_max;
+
+        T min, max;
+        if (theta_1 < theta_2)
+        {
+            Q_S_min = theta_1 - pi - theta_0E;
+            Q_S_max = theta_2 - pi - theta_0E;
+
+            // set difference:
+            min = math::max(Q_E_min,Q_S_min);
+            max = math::min(Q_E_max,Q_S_max);
+            min /=2;
+            max /=2;
+        }
+        else if (theta_1 > theta_2)
+        {
+            // try first interval
+            Q_S_min = theta_1 - pi - theta_0E;
+            Q_S_max = pi - theta_0E;
+            // set difference:
+            min = math::max(Q_E_min,Q_S_min);
+            max = math::min(Q_E_max,Q_S_max);
+            min /=2;
+            max /=2;
+            if (obj.eval(min)*obj.eval(max)>0)
+            {
+                // second interval
+                Q_S_min = - pi - theta_0E;
+                Q_S_max = theta_2 - pi - theta_0E;
+                // set difference:
+                min = math::max(Q_E_min,Q_S_min);
+                max = math::min(Q_E_max,Q_S_max);
+                min /=2;
+                max /=2;
+                if (obj.eval(min)*obj.eval(max)>0)
+                    GISMO_ERROR("Root is not found??");
+            }
+        }
+        else
+        {
+            gsDebugVar(theta_1);
+            gsDebugVar(theta_2);
+            min = -pi;
+            max = pi;
+            gsWarn<<"Interval not specified\n";
+            // GISMO_ERROR("Don't know what to do!");
+        }
+
+        T f = obj.findRoot(min,max,theta,1e-12);
+        // GISMO_ASSERT(f<1e-12,"Something went wrong. f(theta)="<<f<<", tolerance = 1e-12");
+        if (f > 1e-4)
+        {
+            gsWarn<<"Theta not found?? min = "<<min<<"; max = "<<max<<"; theta = "<<theta<<"; f(theta) = "<<f<<"\n";
+            // theta = 0.0;
+        }
+
+        n1 = math::cos(theta);
+        n2 = math::sin(theta);
+        m1 = -math::sin(theta);
+        m2 = math::cos(theta);
+
+        n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+        n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
+        gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
+
+
+        gamma = - ( n1_vec.transpose() * N ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
+
+        // GISMO_ASSERT((n1_vec.transpose() * N).value() < 0,"Stress criterion must be smaller than 0, but n1_vec.transpose() * N = "<<n1_vec.transpose() * N);
+        // GISMO_ASSERT((n4_vec.transpose() * Es.col(k)).value() > 0,"Strain criterion must be larger than 0, but n4_vec.transpose() * N = "<<n4_vec.transpose() * Es.col(k));
+        // GISMO_ASSERT(gamma>=0,"Gamma must be >=0, but gamma = "<<gamma);
+        result(0,k) = theta;
+
+/*
+// #pragma omp parallel
+// {
+// #       ifdef _OPENMP
+//         const int tid = omp_get_thread_num();
+//         const int nt  = omp_get_num_threads();
+// #       endif
+
+        // Start iteration over elements of patchInd
+// #       ifdef _OPENMP
+//         for (index_t t=tid; t<x.size(); t+= nt)
+// #       else
+//         for (index_t t=0; t<x.size(); t++)
+// #       endif
         std::vector<gsVector<T>> results; results.reserve(x.size());
         for (index_t t=0; t!=x.size(); t++)
         {
@@ -405,11 +568,15 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
             res.at(0) = std::fmod(theta,M_PI);
             res.at(1) = gamma;
 
-            if (res(1) > 0)
+            if (res(1) >= 0)
             {
+                // if (res(1) ==0)
+                //     // gsWarn<<"Gamma is zero\n";
+                //
                 results.push_back(res);
             }
         }
+// }
 
         std::sort(results.begin(), results.end(),lexcomp);
 
@@ -419,9 +586,91 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
         GISMO_ASSERT(results.size()>=1,"No suitable theta found");
 
         theta = results.at(0)(0);
-
         result(0,k) = theta;
+
+    */
     }
+    return result;
+}
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_E(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & E)
+{
+    gsMatrix<T> result = E;
+
+    T n1 = math::cos(theta);
+    T n2 = math::sin(theta);
+    gsVector<T,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+
+    // Gamma
+    T gamma = - ( n1_vec.transpose() * S ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
+
+    gsMatrix<T> Ew = gamma * n1_vec;
+    result += Ew;
+    return result;
+}
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_S(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S)
+{
+    gsMatrix<T> result = S;
+
+    T n1 = math::cos(theta);
+    T n2 = math::sin(theta);
+    gsVector<T,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+
+    // Gamma
+    T gamma = - ( n1_vec.transpose() * S ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
+
+    gsMatrix<T> Ew = gamma * n1_vec;
+    result += C * Ew;
+    return result;
+}
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S)
+{
+    GISMO_ASSERT(C .rows()==3,"Number of rows of C must be 3, but is "<<C.rows());
+    GISMO_ASSERT(C .cols()==3,"Number of cols of C must be 3, but is "<<C.cols());
+    GISMO_ASSERT(S .rows()==3,"Number of rows of S must be 3, but is "<<S.rows());
+    GISMO_ASSERT(S .cols()==1,"Number of cols of S must be 1, but is "<<S.cols());
+
+    gsMatrix<T> result = C;
+
+    T n1 = math::cos(theta);
+    T n2 = math::sin(theta);
+    T m1 = -math::sin(theta);
+    T m2 = math::cos(theta);
+    gsVector<T,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+    gsVector<T,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
+    gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
+
+    // Gamma
+    T gamma = - ( n1_vec.transpose() * S ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
+
+    // dGamma/dE
+    gsMatrix<T> I(3,3); I.setIdentity();
+    gsMatrix<T> dgammadE = - ( n1_vec.transpose() * C * I) / ( n1_vec.transpose() * C * n1_vec ).value();
+
+    dgammadE.transposeInPlace();
+
+    // dGamma/dT
+    T tmp = ( n2_vec.transpose() * C * n1_vec ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
+    T dgammadT = - 2 * gamma * tmp;
+
+    // dF/dE
+    // gsMatrix<T> dfdE = ( n2_vec.transpose() - tmp * n1_vec.transpose() ) * C * I;
+    gsMatrix<T> dfdE = n2_vec.transpose() * C * I + dgammadE.transpose() * (n2_vec.transpose() * C * n1_vec).value();
+    dfdE.transposeInPlace();
+
+    // dF/dT
+    T dfdT = (n4_vec.transpose() * ( S + C * gamma * n1_vec )).value() +
+            2 * gamma * ( n2_vec.transpose() * C * n2_vec - math::pow(( n1_vec.transpose() * C * n2_vec ).value(),2) / (n1_vec.transpose() * C * n1_vec).value() );
+
+    // dT/dE
+    gsMatrix<T> dTdE = - dfdE / dfdT;
+
+    result += C * ( n1_vec * dgammadE.transpose() + dgammadT * n1_vec * dTdE.transpose() - 2*gamma * n2_vec * dTdE.transpose() );
     return result;
 }
 
@@ -478,33 +727,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
     // dT/dE
     gsMatrix<T> dTdE = - dfdE / dfdT;
 
-    // dF
-    gsMatrix<T,1,1> tmp2 = (n1_vec.transpose() * C * n2_vec);
-    T df =  (n4_vec.transpose() * (S + C * gamma * n1_vec)).value()
-            + 2 * gamma * ( (n2_vec.transpose() * C * n2_vec).value() - math::pow(tmp2(0,0),2)
-                / (n1_vec.transpose() * C * n1_vec)
-            );
-
     result += C * ( n1_vec * dgammadE.transpose() + dgammadT * n1_vec * dTdE.transpose() - 2*gamma * n2_vec * dTdE.transpose() );
-
-    return result;
-}
-
-
-template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_S(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S)
-{
-    gsMatrix<T> result = S;
-
-    T n1 = math::cos(theta);
-    T n2 = math::sin(theta);
-    gsVector<T,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-
-    // Gamma
-    T gamma = - ( n1_vec.transpose() * S ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
-
-    gsMatrix<T> Ew = gamma * n1_vec;
-    result += C * Ew;
     return result;
 }
 
@@ -542,7 +765,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_S(const T theta, const g
 //     };
 
 //     gsMatrix<T> Cs = m_materialMat->eval3D_matrix(patch,u,z,MaterialOutput::MatrixA);
-//     gsMatrix<T> Ns = m_materialMat->eval3D_vector(patch,u,z,MaterialOutput::VectorN);
+//     gsMatrix<T> Ns = m_materialMat->eval3D_stress(patch,u,z,MaterialOutput::VectorN);
 
 //     gsVector<T> x = gsVector<T>::LinSpaced(10,-0.5 * M_PI,0.5 * M_PI);
 
@@ -602,3 +825,235 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_S(const T theta, const g
 // }
 
 } // end namespace
+
+template <typename T>
+class objective : public gsFunction<T>
+{
+public:
+    objective(const gsMatrix<T> & C, const gsMatrix<T> & S)
+    :
+    m_C(C),
+    m_S(S)
+    {
+    }
+
+    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    {
+        result.resize(1,u.cols());
+        gsVector<T,3> n1_vec, n2_vec;
+        T theta, gamma;
+        T n1, n2, m1, m2;
+
+        for (index_t k = 0; k!=u.cols(); k++)
+        {
+            theta = u(0,k);
+            n1 = math::cos(theta);
+            n2 = math::sin(theta);
+            m1 = -math::sin(theta);
+            m2 = math::cos(theta);
+
+            n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+            n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
+
+            gamma = - ( n1_vec.transpose() * m_S ).value() / ( n1_vec.transpose() * m_C * n1_vec ).value();
+
+            T res = (n2_vec.transpose() * m_S).value() + gamma * (n2_vec.transpose() * m_C * n1_vec).value();
+
+            result(0,k) = res;
+        }
+    }
+
+    T eval(const T & theta) const
+    {
+        gsMatrix<T> t(1,1);
+        t<<theta;
+        gsMatrix<T> res;
+        this->eval_into(t,res);
+        return res(0,0);
+    }
+
+    short_t domainDim() const
+    {
+        return 1;
+    }
+
+    short_t targetDim() const
+    {
+        return 1;
+    }
+
+    void deriv_into2(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    {
+        result.resize(1,u.cols());
+        gsVector<T,3> n1_vec, n2_vec, n3_vec, n4_vec;
+        T theta, gamma, dgammadT;
+        T n1, n2, m1, m2;
+
+        for (index_t k = 0; k!=u.cols(); k++)
+        {
+            theta = u(0,k);
+            n1 = math::cos(theta);
+            n2 = math::sin(theta);
+            m1 = -math::sin(theta);
+            m2 = math::cos(theta);
+
+            n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+            n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
+            n3_vec<<m1*m1-n1*n1, m2*m2-n2*n2, 2*(m1*m2-n1*n2);
+            n4_vec<<m1*m1, m2*m2, 2*m1*m2;
+
+            gamma = - ( n1_vec.transpose() * m_S ).value() / ( n1_vec.transpose() * m_C * n1_vec ).value();
+            T tmp = ( n2_vec.transpose() * m_C * n1_vec ).value() / ( n1_vec.transpose() * m_C * n1_vec ).value();
+            dgammadT = - 2 * gamma * tmp;
+            // gsDebugVar(dgammadT);
+
+            T res = (n3_vec.transpose() * m_S).value() + dgammadT * (n2_vec.transpose() * m_C * n1_vec).value()
+                  + gamma * (n3_vec.transpose() * m_C * n1_vec).value() + 2*gamma * (n2_vec.transpose() * m_C * n2_vec).value();
+            // T res = (n2_vec.transpose() * m_S).value() + gamma * (n2_vec.transpose() * m_C * n1_vec).value();
+
+            result(0,k) = res;
+        }
+    }
+
+    T findRoot(const T & a, const T & b, T & x, const T & t = 1e-12, const index_t & itmax = 1000)
+    {
+        /*
+         * Implementation of Brent's method for finding the root \a c of a scalar equation \a *this within the interval [a,b]
+         *
+         * Adopted from: https://people.math.sc.edu/Burkardt/cpp_src/brent/brent.html
+         * The brent.cpp file, function zero(  )
+         * https://people.math.sc.edu/Burkardt/cpp_src/brent/brent.cpp
+         */
+        T c;
+        T d;
+        T e;
+        T fa;
+        T fb;
+        T fc;
+        T m;
+        T macheps;
+        T p;
+        T q;
+        T r;
+        T s;
+        T sa;
+        T sb;
+        T tol;
+//
+//  Make local copies of A and B.
+//
+        sa = a;
+        sb = b;
+        fa = this->eval( sa );
+        fb = this->eval( sb );
+
+        c = sa;
+        fc = fa;
+        e = sb - sa;
+        d = e;
+
+        macheps = std::numeric_limits<T>::epsilon();
+
+        for ( index_t it = 0; it!=itmax; it++ )
+        {
+            if ( std::fabs ( fc ) < std::fabs ( fb ) )
+            {
+                sa = sb;
+                sb = c;
+                c = sa;
+                fa = fb;
+                fb = fc;
+                fc = fa;
+            }
+
+            tol = 2.0 * macheps * std::fabs ( sb ) + t;
+            m = 0.5 * ( c - sb );
+
+            if ( std::fabs ( m ) <= tol || fb == 0.0 )
+            {
+                x = sb;
+                return std::fabs ( m );
+                // break;
+            }
+
+            if ( std::fabs ( e ) < tol || std::fabs ( fa ) <= std::fabs ( fb ) )
+            {
+                e = m;
+                d = e;
+            }
+            else
+            {
+                s = fb / fa;
+
+                if ( sa == c )
+                {
+                    p = 2.0 * m * s;
+                    q = 1.0 - s;
+                }
+                else
+                {
+                    q = fa / fc;
+                    r = fb / fc;
+                    p = s * ( 2.0 * m * q * ( q - r ) - ( sb - sa ) * ( r - 1.0 ) );
+                    q = ( q - 1.0 ) * ( r - 1.0 ) * ( s - 1.0 );
+                }
+
+                if ( 0.0 < p )
+                {
+                    q = - q;
+                }
+                else
+                {
+                    p = - p;
+                }
+
+                s = e;
+                e = d;
+
+                if ( 2.0 * p < 3.0 * m * q - std::fabs ( tol * q ) &&
+                    p < std::fabs ( 0.5 * s * q ) )
+                {
+                    d = p / q;
+                }
+                else
+                {
+                    e = m;
+                    d = e;
+                }
+            }
+            sa = sb;
+            fa = fb;
+
+            if ( tol < std::fabs ( d ) )
+            {
+                sb = sb + d;
+            }
+            else if ( 0.0 < m )
+            {
+                sb = sb + tol;
+            }
+            else
+            {
+                sb = sb - tol;
+            }
+
+            fb = this->eval( sb );
+
+            if ( ( 0.0 < fb && 0.0 < fc ) || ( fb <= 0.0 && fc <= 0.0 ) )
+            {
+                c = sa;
+                fc = fa;
+                e = sb - sa;
+                d = e;
+            }
+        }
+
+
+        GISMO_ERROR("Brent's method did not find a root");
+        return std::numeric_limits<T>::max();
+    }
+
+private:
+    const gsMatrix<T> m_C;
+    const gsMatrix<T> m_S;
+};

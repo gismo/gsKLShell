@@ -105,7 +105,7 @@ public:
     const gsMatrix<Scalar> & eval(const index_t k) const {return eval_impl(_u,k); }
 
     index_t rows() const { return 1; }
-    index_t cols() const { return cols_impl(_u); }
+    index_t cols() const { return _u.dim(); }
 
     void parse(gsExprHelper<Scalar> & evList) const
     {
@@ -172,33 +172,16 @@ private:
     }
 
     template<class U> inline
-    typename util::enable_if< util::is_same<U,gsFeVariable<Scalar> >::value, const gsMatrix<Scalar> & >::type
-    eval_impl(const U & u, const index_t k)  const
-    {
-        grad_expr<U> vGrad = grad_expr<U>(u);
-        bGrads = vGrad.eval(k);
-
-        return make_vector(k);
-    }
-
-    // Specialisation for a solution
-    template<class U> inline
     typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k)  const
     {
         GISMO_ASSERT(1==_u.data().actives.cols(), "Single actives expected");
         grad_expr<gsFeSolution<Scalar>> sGrad =  grad_expr<gsFeSolution<Scalar>>(_u);
-        bGrads = sGrad.eval(k);
-
-        return make_vector(k);
-    }
-
-    const gsMatrix<Scalar> & make_vector(const index_t k) const
-    {
         res.resize(rows(), cols()); // rows()*
+
         normal = _G.data().normal(k);// not normalized to unit length
         normal.normalize();
-
+        bGrads = sGrad.eval(k);
         cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
         const Scalar measure =  _G.data().measures.at(k);
 
@@ -210,28 +193,6 @@ private:
         res = (m_v - ( normal*m_v.transpose() ) * normal).transpose(); // outer-product version
         return res;
     }
-
-    template<class U> inline
-    typename util::enable_if< util::is_same<U,gsGeometryMap<Scalar> >::value, index_t >::type
-    cols_impl(const U & u)  const
-    {
-        return _u.data().dim.second;
-    }
-
-    template<class U> inline
-    typename util::enable_if<util::is_same<U,gsFeSpace<Scalar> >::value || util::is_same<U,gsFeSolution<Scalar> >::value, index_t >::type
-    cols_impl(const U & u) const
-    {
-        return _u.dim();
-    }
-
-    template<class U> inline
-    typename util::enable_if<util::is_same<U,gsFeVariable<Scalar> >::value, index_t >::type
-    cols_impl(const U & u) const
-    {
-        return _u.source().targetDim();
-    }
-
 };
 
 /**
@@ -431,135 +392,6 @@ public:
                         const short_t r = c*cardV;
                         m_v.noalias() = ( vecFun(c, vGrads.at(2*i  ) ).cross( cJac.col3d(1) )
                                          -vecFun(c, vGrads.at(2*i+1) ).cross( cJac.col3d(0) ))
-                                        / measure;
-
-                        // n_der.noalias() = (m_v - ( normal.dot(m_v) ) * normal);
-                        n_der.noalias() = (m_v - ( normal*m_v.transpose() ) * normal); // outer-product version
-
-                        m_uv.noalias() = ( vecFun(d, uGrads.at(2*j  ) ).cross( vecFun(c, vGrads.at(2*i+1) ) )
-                                          +vecFun(c, vGrads.at(2*i  ) ).cross( vecFun(d, uGrads.at(2*j+1) ) ))
-                                          / measure; //check
-
-                        m_u_der.noalias() = (m_uv - ( normal.dot(m_v) ) * m_u);
-                        // m_u_der.noalias() = (m_uv - ( normal*m_v.transpose() ) * m_u); // outer-product version TODO
-
-                        // ---------------  Second variation of the normal
-                        tmp = m_u_der - (m_u.dot(n_der) + normal.dot(m_u_der) ) * normal - (normal.dot(m_u) ) * n_der;
-                        // tmp = m_u_der - (m_u.dot(n_der) + normal.dot(m_u_der) ) * normal - (normal.dot(m_u) ) * n_der;
-
-                        // Evaluate the product
-                        tmp = cDer2 * tmp; // E_f_der2, last component
-                        tmp.row(2) *= 2.0;
-                        result = evEf * tmp;
-
-                        res(s + j, r + i ) = result(0,0);
-                    }
-                }
-            }
-        }
-        return res;
-    }
-
-    index_t rows() const
-    {
-        return 1; // because the resulting matrix has scalar entries for every combination of active basis functions
-    }
-
-    index_t cols() const
-    {
-        return 1; // because the resulting matrix has scalar entries for every combination of active basis functions
-    }
-
-    void parse(gsExprHelper<Scalar> & evList) const
-    {
-        evList.add(_u);
-        _u.data().flags |= NEED_ACTIVE | NEED_VALUE | NEED_GRAD;
-        evList.add(_v);
-        _v.data().flags |= NEED_ACTIVE | NEED_VALUE | NEED_GRAD;
-        evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_2ND_DER | NEED_MEASURE;
-        _Ef.parse(evList);
-    }
-
-    const gsFeSpace<Scalar> & rowVar() const { return _u.rowVar(); }
-    const gsFeSpace<Scalar> & colVar() const { return _v.rowVar(); }
-
-    void print(std::ostream &os) const { os << "var2("; _u.print(os); os <<")"; }
-};
-
-
-/**
- * @brief      Second variation of the surface normal times a vector.
- *
- * @tparam     E1    Type of u
- * @tparam     E2    Type of v
- * @tparam     E3    Type of the vector
- */
-template<class E1, class E2, class E3>
-class var2dot_expr : public _expr<var2dot_expr<E1,E2,E3> >
-{
-public:
-    typedef typename E1::Scalar Scalar;
-
-private:
-    typename E1::Nested_t _u;
-    typename E2::Nested_t _v;
-    typename gsGeometryMap<Scalar>::Nested_t _G;
-    typename E3::Nested_t _Ef;
-
-public:
-    enum{ Space = 3, ScalarValued= 0, ColBlocks= 0 };
-
-    var2dot_expr( const E1 & u, const E2 & v, const gsGeometryMap<Scalar> & G, _expr<E3> const& Ef) : _u(u),_v(v), _G(G), _Ef(Ef) { }
-
-    mutable gsMatrix<Scalar> res;
-
-    mutable gsMatrix<Scalar> uGrads, vGrads, cJac, cDer2, evEf, result;
-    mutable gsVector<Scalar> m_u, m_v, normal, m_uv, m_u_der, n_der, n_der2, tmp; // memomry leaks when gsVector<T,3>, i.e. fixed dimension
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    // helper function
-    static inline gsVector<Scalar,3> vecFun(index_t pos, Scalar val)
-    {
-        gsVector<Scalar,3> result = gsVector<Scalar,3>::Zero();
-        result[pos] = val;
-        return result;
-    }
-
-    const gsMatrix<Scalar> & eval(const index_t k) const
-    {
-        res.resize(_u.cardinality(), _u.cardinality());
-
-        normal = _G.data().normal(k);
-        normal.normalize();
-        uGrads = _u.data().values[1].col(k);
-        vGrads = _v.data().values[1].col(k);
-        cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
-        cDer2 = _G.data().values[2].reshapeCol(k, _G.data().dim.second, _G.data().dim.second);
-
-        const index_t cardU = _u.data().values[0].rows(); // number of actives per component of u
-        const index_t cardV = _v.data().values[0].rows(); // number of actives per component of v
-        const Scalar measure =  _G.data().measures.at(k);
-
-        evEf = _Ef.eval(k);
-
-        for (index_t j = 0; j!= cardU; ++j) // for all basis functions u (1)
-        {
-            for (index_t i = 0; i!= cardV; ++i) // for all basis functions v (1)
-            {
-                for (index_t d = 0; d!= _u.dim(); ++d) // for all basis functions u (2)
-                {
-                    m_u.noalias() = ( vecFun(d, uGrads.at(2*j  ) ).cross( cJac.col(1).template head<3>() )
-                                     -vecFun(d, uGrads.at(2*j+1) ).cross( cJac.col(0).template head<3>() ))
-                                    / measure;
-
-                    const short_t s = d*cardU;
-
-                    for (index_t c = 0; c!= _v.dim(); ++c) // for all basis functions v (2)
-                    {
-                        const short_t r = c*cardV;
-                        m_v.noalias() = ( vecFun(c, vGrads.at(2*i  ) ).cross( cJac.col(1).template head<3>() )
-                                         -vecFun(c, vGrads.at(2*i+1) ).cross( cJac.col(0).template head<3>() ))
                                         / measure;
 
                         // n_der.noalias() = (m_v - ( normal.dot(m_v) ) * normal);
@@ -1208,7 +1040,7 @@ private:
 
 
         // evaluate the geometry map of U
-        tmp = _u.data().values[2].reshapeCol(k, cols(), _u.data().dim.second);
+        tmp =_u.data().values[2].reshapeCol(k, cols(), _u.data().dim.second );
         vEv = _v.eval(k);
         res = vEv * tmp.transpose();
         return res;
@@ -1224,46 +1056,18 @@ private:
             hess(v) . normal = hess(v_i) * n_i (vector-scalar multiplication. The result is then of the form
             [hess(v_1)*n_1 .., hess(v_2)*n_2 .., hess(v_3)*n_3 ..]. Here, the dots .. represent the active basis functions.
         */
-        const index_t numAct = u.data().values[0].rows(); // number of actives of a basis function
-        const index_t cardinality = u.cardinality();      // total number of actives (=3*numAct)
-        res.resize(rows() * cardinality, cols());
-        tmp.transpose() = _u.data().values[2].reshapeCol(k, cols(), numAct);
+        const index_t numAct = u.data().values[0].rows();   // number of actives of a basis function
+        const index_t cardinality = u.cardinality();        // total number of actives (=3*numAct)
+        res.resize(rows()*cardinality, cols() );
+        tmp.transpose() =_u.data().values[2].reshapeCol(k, cols(), numAct );
         vEv = _v.eval(k);
 
-        for (index_t i = 0; i != _u.dim(); i++)
-            res.block(i * numAct, 0, numAct, cols()) = tmp * vEv.at(i);
+        for (index_t i = 0; i!=_u.dim(); i++)
+            res.block(i*numAct, 0, numAct, cols() ) = tmp * vEv.at(i);
 
         return res;
     }
 
-    template<class U> inline
-    typename util::enable_if<util::is_same<U,gsFeVariable<Scalar> >::value, const gsMatrix<Scalar> & >::type
-    eval_impl(const U & u, const index_t k) const
-    {
-        /*
-            Here, we multiply the hessian of the geometry map by a vector, which possibly has multiple actives.
-            The laplacian of the variable has the form: hess(v)
-            [d11 c1, d22 c1, d12 c1]
-            [d11 c2, d22 c2, d12 c2]
-            [d11 c3, d22 c3, d12 c3]
-            And we want to compute [d11 c .v; d22 c .v;  d12 c .v] ( . denotes a dot product and c and v are both vectors)
-            So we simply evaluate for every active basis function v_k the product hess(c).v_k
-        */
-
-        gsMatrix<> tmp2;
-        tmp = u.data().values[2].col(k);
-        index_t nDers = _u.source().domainDim() * (_u.source().domainDim() + 1) / 2;
-        index_t dim = _u.source().targetDim();
-        tmp2.resize(nDers, dim);
-        for (index_t comp = 0; comp != u.source().targetDim(); comp++)
-            tmp2.col(comp) = tmp.block(comp * nDers, 0, nDers, 1); //star,length
-
-        vEv = _v.eval(k);
-        res = vEv * tmp2.transpose();
-        return res;
-    }
-
-    /// Specialization for a solution
     template<class U> inline
     typename util::enable_if<util::is_same<U,gsFeSolution<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k) const
@@ -1279,9 +1083,9 @@ private:
         */
 
         hess_expr<gsFeSolution<Scalar>> sHess = hess_expr<gsFeSolution<Scalar>>(_u); // NOTE: This does not parse automatically!
-        tmp = sHess.eval(k); // .transpose();?
+        tmp = sHess.eval(k);
         vEv = _v.eval(k);
-        res = vEv * tmp.transpose();
+        res = vEv * tmp;
         return res;
     }
 
@@ -1293,18 +1097,19 @@ private:
     }
 
     template<class U> inline
-    typename util::enable_if<util::is_same<U,gsFeSpace<Scalar> >::value || util::is_same<U,gsFeSolution<Scalar> >::value, index_t >::type
+    typename util::enable_if< !util::is_same<U,gsGeometryMap<Scalar>  >::value, index_t >::type
     cols_impl(const U & u) const
     {
         return _u.dim();
     }
 
-    template<class U> inline
-    typename util::enable_if<util::is_same<U,gsFeVariable<Scalar> >::value, index_t >::type
-    cols_impl(const U & u) const
-    {
-        return _u.source().targetDim();
-    }
+    // template<class U> inline
+    // typename util::enable_if<util::is_same<U,gsFeSolution<Scalar> >::value, index_t >::type
+    // cols_impl(const U & u) const
+    // {
+    //     return _u.dim();
+    // }
+
 };
 
 
@@ -1353,14 +1158,12 @@ public:
 
     index_t rows() const //(components)
     {
-        // return _u.data().values[2].rows() / _u.data().values[0].rows(); // numHessian dimensions
-        // return _u.source().targetDim(); // no. dimensions should be 3
-        return rows_impl(_u); // _u.dim() for space or targetDim() for geometry
+        return 3; // _u.dim() for space or targetDim() for geometry
     }
 
-    index_t cols() const // number of function components (targetiDim)
+    index_t cols() const
     {
-        return cols_impl(_u);
+        return _u.source().domainDim() * ( _u.source().domainDim() + 1 ) / 2;
     }
 
     void parse(gsExprHelper<Scalar> & evList) const
@@ -1377,7 +1180,6 @@ public:
     void print(std::ostream &os) const { os << "deriv2("; _u.print(os); os <<")"; }
 
     private:
-        /// Specialization for a geometry map
         template<class U> inline
         typename util::enable_if< util::is_same<U,gsGeometryMap<Scalar> >::value, const gsMatrix<Scalar> & >::type
         eval_impl(const U & u, const index_t k)  const
@@ -1461,16 +1263,10 @@ public:
             const index_t numAct = u.data().values[0].rows();   // number of actives of a basis function
             const index_t cardinality = u.cardinality();        // total number of actives (=3*numAct)
 
-            gsDebugVar(numAct);
-            gsDebugVar(cardinality);
-            gsDebugVar(_u.dim());
-
             res.resize(rows(), _u.dim() *_u.cardinality()); // (3 x 3*cardinality)
             res.setZero();
 
             tmp = _u.data().values[2].reshapeCol(k, cols(), numAct );
-            gsDebugVar(tmp);
-            gsDebugVar(res);
             for (index_t d = 0; d != cols(); ++d)
             {
                 const index_t s = d*(cardinality + 1);
@@ -1479,35 +1275,6 @@ public:
             }
 
             return res;
-        }
-
-        template<class U> inline
-        typename util::enable_if< util::is_same<U,gsFeVariable<Scalar> >::value || util::is_same<U,gsGeometryMap<Scalar> >::value || util::is_same<U,gsFeSpace<Scalar> >::value, index_t >::type
-        rows_impl(const U & u)  const
-        {
-            return _u.source().domainDim() * ( _u.source().domainDim() + 1 ) / 2;
-        }
-
-        template<class U> inline
-        typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value, index_t >::type
-        rows_impl(const U & u) const
-        {
-            return _u.parDim() * ( _u.parDim() + 1 ) / 2;
-        }
-
-        ////////////
-        template<class U> inline
-        typename util::enable_if< util::is_same<U,gsFeVariable<Scalar> >::value || util::is_same<U,gsGeometryMap<Scalar> >::value, index_t >::type
-        cols_impl(const U & u)  const
-        {
-            return u.source().targetDim();
-        }
-
-        template<class U> inline
-        typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value || util::is_same<U,gsFeSpace<Scalar> >::value, index_t >::type
-        cols_impl(const U & u) const
-        {
-            return _u.dim();
         }
 
 };
@@ -1873,7 +1640,8 @@ public:
         else if (_G.targetDim()==2)
         {
             // Compute covariant bases in deformed and undeformed configuration
-            normal = _G.data().normals.col(k);
+            normal.resize(3);
+            normal<<0,0,1;
             normal.normalize();
             covBasis.resize(2,2);
             conBasis.resize(2,2);
@@ -1979,13 +1747,6 @@ unitVec_expr uv(const index_t index, const index_t dim) { return unitVec_expr(in
 
 template<class E> EIGEN_STRONG_INLINE
 var1_expr<E> var1(const E & u, const gsGeometryMap<typename E::Scalar> & G) { return var1_expr<E>(u, G); }
-
-template<class E1, class E2> EIGEN_STRONG_INLINE
-var1dif_expr<E1,E2> var1dif(const E1 & u,const E2 & v, const gsGeometryMap<typename E1::Scalar> & G) { return var1dif_expr<E1,E2>(u,v, G); }
-
-template<class E1, class E2, class E3> EIGEN_STRONG_INLINE
-var2dot_expr<E1,E2,E3> var2dot(const E1 & u, const E2 & v, const gsGeometryMap<typename E1::Scalar> & G, const E3 & Ef)
-{ return var2dot_expr<E1,E2,E3>(u,v, G, Ef); }
 
 template<class E1, class E2, class E3> EIGEN_STRONG_INLINE
 var2dot_expr<E1,E2,E3> var2(const E1 & u, const E2 & v, const gsGeometryMap<typename E1::Scalar> & G, const E3 & Ef)

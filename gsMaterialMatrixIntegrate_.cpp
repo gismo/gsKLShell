@@ -32,6 +32,8 @@ namespace gismo
   CLASS_TEMPLATE_INST gsMaterialMatrixIntegrateSingle<real_t,MaterialOutput::MatrixD>;
   CLASS_TEMPLATE_INST gsMaterialMatrixIntegrateSingle<real_t,MaterialOutput::PStressN>;
   CLASS_TEMPLATE_INST gsMaterialMatrixIntegrateSingle<real_t,MaterialOutput::PStressM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixIntegrateSingle<real_t,MaterialOutput::PStrainN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixIntegrateSingle<real_t,MaterialOutput::PStrainM>;
   CLASS_TEMPLATE_INST gsMaterialMatrixIntegrateSingle<real_t,MaterialOutput::Stretch>;
   CLASS_TEMPLATE_INST gsMaterialMatrixIntegrateSingle<real_t,MaterialOutput::StretchDir>;
 }

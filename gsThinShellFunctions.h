@@ -43,12 +43,15 @@ struct stress_type
         total              = 5,  /// compute normal and shear stresses due to both components
         membrane_strain    = 6,  /// compute normal and shear stresses due to both components
         flexural_strain    = 7,  /// compute normal and shear stresses due to both components
+        principal_membrane_strain    = 16,  /// compute normal and shear stresses due to both components
+        principal_flexural_strain    = 17,  /// compute normal and shear stresses due to both components
         principal_stretch  = 8,  /// principal stretches
         principal_stress_membrane  = 9,  /// principal stress membrane
         principal_stress_flexural  = 10,  /// principal stress bending
         principal_stretch_dir1  = 11,  /// principal stretch directions
         principal_stretch_dir2  = 12,  /// principal stretch directions
         principal_stretch_dir3  = 13,  /// principal stretch directions
+        tension_field  = 99,
     };
 };
 
@@ -132,6 +135,12 @@ public:
             case stress_type::membrane_strain :
                 return 3;
                 break;
+            case stress_type::principal_membrane_strain :
+                return 3;
+                break;
+            case stress_type::principal_flexural_strain :
+                return 3;
+                break;
 
             case stress_type::flexural_strain :
                 return 3;
@@ -140,10 +149,10 @@ public:
                 return 3;
                 break;
             case stress_type::principal_stress_membrane :
-                return 3;
+                return 2;
                 break;
             case stress_type::principal_stress_flexural :
-                return 3;
+                return 2;
                 break;
             case stress_type::principal_stretch_dir1 :
                 return 3;
@@ -153,6 +162,9 @@ public:
                 break;
             case stress_type::principal_stretch_dir3 :
                 return 3;
+                break;
+            case stress_type::tension_field :
+                return 1;
                 break;
             /*
                 DEFAULT includes:

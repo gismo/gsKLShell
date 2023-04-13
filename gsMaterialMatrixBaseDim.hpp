@@ -33,13 +33,13 @@ namespace gismo
 template <short_t dim, class T >
 void gsMaterialMatrixBaseDim<dim,T>::density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_map.mine().flags = NEED_VALUE;
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
+    m_map_ori.mine().flags = NEED_VALUE;
+    m_map_ori.mine().points = u;
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map_ori);
 
     result.resize(1, u.cols());
-    m_thickness->piece(patch).eval_into(m_map.mine().values[0], m_Tmat);
-    m_density->piece(patch).eval_into(m_map.mine().values[0], m_rhomat);
+    m_thickness->piece(patch).eval_into(m_map_ori.mine().values[0], m_Tmat);
+    m_density->piece(patch).eval_into(m_map_ori.mine().values[0], m_rhomat);
     for (index_t i = 0; i != u.cols(); ++i) // points
     {
         result(0,i) = m_Tmat(0,i)*m_rhomat(0,i);
@@ -50,10 +50,10 @@ void gsMaterialMatrixBaseDim<dim,T>::density_into(const index_t patch, const gsM
 template <short_t dim, class T >
 void gsMaterialMatrixBaseDim<dim,T>::thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
-    m_map.mine().flags = NEED_VALUE;
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-    m_thickness->piece(patch).eval_into(m_map.mine().values[0], result);
+    m_map_ori.mine().flags = NEED_VALUE;
+    m_map_ori.mine().points = u;
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map_ori);
+    m_thickness->piece(patch).eval_into(m_map_ori.mine().values[0], result);
 }
 
 template <short_t dim, class T >
@@ -67,7 +67,7 @@ void gsMaterialMatrixBaseDim<dim,T>::stretch_into(const index_t patch, const gsM
     {
         _getMetric(i,0.0,true); // on point i, with height 0.0
         C = tmp.reshapeCol(i,3,3);
-        res = this->_evalStretch(C);
+        res = this->_evalStretch(C,m_gcon_ori);
         result.col(i) = res.second.reshape(3,1);
     }
 }
@@ -83,40 +83,64 @@ void gsMaterialMatrixBaseDim<dim,T>::stretchDir_into(const index_t patch, const 
     {
         _getMetric(i,0.0,true); // on point i, with height 0.0
         C = tmp.reshapeCol(i,3,3);
-        res = this->_evalStretch(C);
+        res = this->_evalStretch(C,m_gcon_ori);
         result.col(i) = res.second.reshape(9,1);
     }
 }
 
+// Legacy
 // Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) convariant basis
 template <short_t dim, class T >
 void gsMaterialMatrixBaseDim<dim,T>::transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
+    this->contransform_into(patch,u,result);
+}
+
+// Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) covariant basis
+template <short_t dim, class T>
+void gsMaterialMatrixBaseDim<dim,T>::covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+{
     result.resize(9, u.cols());
     gsMatrix<T> tmp, conbasis,sbasis;
-    stretchDir_into(patch,u,tmp);
+    this->stretchDir_into(patch,u,tmp);
     for (index_t i=0; i!= u.cols(); i++)
     {
-        _getMetric(i,0.0,true); // on point i, with height 0.0
+        this->_getMetric(i,0.0,true); // on point i, with height 0.0
+        sbasis = tmp.reshapeCol(i,3,3);
+        conbasis = m_gcov_ori;
+        result.col(i) = this->_transformation(conbasis,sbasis).reshape(9,1);
+    }
+}
+
+// Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) convariant basis
+template <short_t dim, class T>
+void gsMaterialMatrixBaseDim<dim,T>::contransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+{
+    result.resize(9, u.cols());
+    gsMatrix<T> tmp, conbasis,sbasis;
+    this->stretchDir_into(patch,u,tmp);
+    for (index_t i=0; i!= u.cols(); i++)
+    {
+        this->_getMetric(i,0.0,true); // on point i, with height 0.0
         sbasis = tmp.reshapeCol(i,3,3);
         conbasis = m_gcon_ori;
-        result.col(i) = _transformation(conbasis,sbasis).reshape(9,1);
+        result.col(i) = this->_transformation(conbasis,sbasis).reshape(9,1);
     }
 }
 
 template <short_t dim, class T >
 void gsMaterialMatrixBaseDim<dim,T>::parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
-    m_map.mine().flags = NEED_VALUE;
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
+    m_map_ori.mine().flags = NEED_VALUE;
+    m_map_ori.mine().points = u;
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map_ori);
 
     gsMatrix<T> tmp;
-    result.resize(m_pars.size(),m_map.mine().values[0].cols());
+    result.resize(m_pars.size(),m_map_ori.mine().values[0].cols());
     result.setZero();
     for (size_t v=0; v!=m_pars.size(); v++)
     {
-        m_pars[v]->piece(patch).eval_into(m_map.mine().values[0], tmp);
+        m_pars[v]->piece(patch).eval_into(m_map_ori.mine().values[0], tmp);
         result.row(v) = tmp;
     }
 }
@@ -125,8 +149,8 @@ void gsMaterialMatrixBaseDim<dim,T>::parameters_into(const index_t patch, const 
 template <short_t dim, class T >
 void gsMaterialMatrixBaseDim<dim,T>::deformation_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
+    m_map_ori.mine().points = u;
+    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map_ori);
 
     _computePoints(patch,u,true);
 
@@ -149,18 +173,17 @@ void gsMaterialMatrixBaseDim<dim,T>::_computePoints(const index_t patch, const g
     gsMatrix<T> tmp;
 
     this->_computeMetricUndeformed(patch,u,basis);
-
     if (Base::m_defpatches->nPieces()!=0)
         this->_computeMetricDeformed(patch,u,basis);
 
-    m_thickness->piece(patch).eval_into(m_map.mine().values[0], m_Tmat);
+    m_thickness->piece(patch).eval_into(m_map_ori.mine().values[0], m_Tmat);
 
-    m_parmat.resize(m_pars.size(),m_map.mine().values[0].cols());
+    m_parmat.resize(m_pars.size(),m_map_ori.mine().values[0].cols());
     m_parmat.setZero();
 
     for (size_t v=0; v!=m_pars.size(); v++)
     {
-        m_pars[v]->piece(patch).eval_into(m_map.mine().values[0], tmp);
+        m_pars[v]->piece(patch).eval_into(m_map_ori.mine().values[0], tmp);
         m_parmat.row(v) = tmp;
     }
 
@@ -1153,6 +1176,98 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalStretch(
     return result;
 }
 
+
+template <short_t dim, class T>
+std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalPStress(const gsMatrix<T> & S) const
+{
+    gsVector<T> pstresses;
+    gsMatrix<T> pstressvec;
+    std::pair<gsVector<T>,gsMatrix<T>> result;
+    pstresses.resize(2,1);    pstresses.setZero();
+    pstressvec.resize(3,2);   pstressvec.setZero();
+
+    typename Eigen::SelfAdjointEigenSolver< typename gsMatrix<T>::Base >  eigSolver;
+
+    gsMatrix<T> B(3,3);
+    B.setZero();
+    for (index_t k = 0; k != 2; k++)
+        for (index_t l = 0; l != 2; l++)
+            B += S(k,l) * m_gcov_ori.col(k) * m_gcov_ori.col(l).transpose();
+
+    eigSolver.compute(B);
+
+    index_t zeroIdx = -1;
+    T tol = 1e-14;
+    T max = eigSolver.eigenvalues().array().abs().maxCoeff();
+    max = (max==0) ? 1 : max;
+    for (index_t k=0; k!=3; k++)
+        zeroIdx = std::abs(eigSolver.eigenvalues()[k] ) / max < tol ? k : zeroIdx;
+
+    GISMO_ASSERT(zeroIdx!=-1,"No zero found?");
+
+    index_t count = 0;
+
+    for (index_t k=0; k!=3; k++)
+    {
+        if (k==zeroIdx) continue;
+        pstressvec.col(count) = eigSolver.eigenvectors().col(k);
+        pstresses(count,0) = eigSolver.eigenvalues()(k,0);
+        count++;
+    }
+
+    result.first = pstresses;
+    result.second = pstressvec;
+
+    return result;
+}
+
+template <short_t dim, class T>
+std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalPStrain(const gsMatrix<T> & S) const
+{
+    gsVector<T> pstrains;
+    gsMatrix<T> pstrainvec;
+    std::pair<gsVector<T>,gsMatrix<T>> result;
+    pstrains.resize(3,1);    pstrains.setZero();
+    pstrainvec.resize(3,3);   pstrainvec.setZero();
+
+    typename Eigen::SelfAdjointEigenSolver< typename gsMatrix<T>::Base >  eigSolver;
+
+    gsMatrix<T> B(3,3);
+    B.setZero();
+    for (index_t k = 0; k != 2; k++)
+        for (index_t l = 0; l != 2; l++)
+            B += S(k,l) * m_gcon_ori.col(k) * m_gcon_ori.col(l).transpose();
+
+    eigSolver.compute(B);
+
+    index_t zeroIdx = -1;
+    T tol = 1e-14;
+    T max = eigSolver.eigenvalues().array().abs().maxCoeff();
+    max = (max==0) ? 1 : max;
+    for (index_t k=0; k!=3; k++)
+        zeroIdx = std::abs(eigSolver.eigenvalues()[k] ) / max < 1e-14 ? k : zeroIdx;
+
+    GISMO_ASSERT(zeroIdx!=-1,"No zero found?");
+
+    index_t count = 0;
+    pstrainvec.col(2) = m_gcon_ori.col(2);
+    pstrains(2,0) = S(2,2);
+
+    for (index_t k=0; k!=3; k++)
+    {
+        if (k==zeroIdx) continue;
+        pstrainvec.col(count) = eigSolver.eigenvectors().col(k);
+        pstrains(count,0) = eigSolver.eigenvalues()(k,0);
+        count++;
+    }
+
+    result.first = pstrains;
+    result.second = pstrainvec;
+
+    return result;
+}
+
+
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
@@ -1161,6 +1276,22 @@ void gsMaterialMatrixBaseDim<dim,T>::_computeStretch(const gsMatrix<T> & C, cons
     std::pair<gsVector<T>,gsMatrix<T>> result = _evalStretch(C,gcon_ori);
     m_stretches = result.first;
     m_stretchvec = result.second;
+}
+
+template <short_t dim, class T>
+void gsMaterialMatrixBaseDim<dim,T>::_computePStress(const gsMatrix<T> & S) const
+{
+    std::pair<gsVector<T>,gsMatrix<T>> result = _evalPStress(S);
+    m_pstress = result.first;
+    m_pstressvec = result.second;
+}
+
+template <short_t dim, class T>
+void gsMaterialMatrixBaseDim<dim,T>::_computePStrain(const gsMatrix<T> & E) const
+{
+    std::pair<gsVector<T>,gsMatrix<T>> result = _evalPStrain(E);
+    m_pstrain = result.first;
+    m_pstrainvec = result.second;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------

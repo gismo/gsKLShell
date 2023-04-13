@@ -24,6 +24,8 @@ template <class T>
 void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
     result.setZero(targetDim(),u.cols());
+    gsMatrix<T> z(1,1);
+    z.setZero();
 
     m_assembler.cleanUp();
 
@@ -37,10 +39,21 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     variable S0 = m_assembler.getCoeff(m_S0);
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMatrices,m_defpatches);
     variable S1 = m_assembler.getCoeff(m_S1);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::PStressN> m_Sp0(m_materialMatrices,m_defpatches);
+    // gsMaterialMatrixIntegrate<T,MaterialOutput::PStressN> m_Sp0(m_materialMatrices,m_defpatches);
+    // variable Sp0 = m_assembler.getCoeff(m_Sp0);
+    // gsMaterialMatrixIntegrate<T,MaterialOutput::PStressM> m_Sp1(m_materialMatrices,m_defpatches);
+    // variable Sp1 = m_assembler.getCoeff(m_Sp1);
+    gsMaterialMatrixEval<T,MaterialOutput::PStressN> m_Sp0(m_materialMatrices,m_defpatches,z);
     variable Sp0 = m_assembler.getCoeff(m_Sp0);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::PStressM> m_Sp1(m_materialMatrices,m_defpatches);
+    gsMaterialMatrixEval<T,MaterialOutput::PStressM> m_Sp1(m_materialMatrices,m_defpatches,z);
     variable Sp1 = m_assembler.getCoeff(m_Sp1);
+    gsMaterialMatrixEval<T,MaterialOutput::PStrainN> m_Ep0(m_materialMatrices,m_defpatches,z);
+    variable Ep0 = m_assembler.getCoeff(m_Ep0);
+    gsMaterialMatrixEval<T,MaterialOutput::PStrainM> m_Ep1(m_materialMatrices,m_defpatches,z);
+    variable Ep1 = m_assembler.getCoeff(m_Ep1);
+    gsMaterialMatrixEval<real_t,MaterialOutput::TensionField> m_TF(m_materialMatrices,m_defpatches,z);
+    variable TF  = m_assembler.getCoeff(m_TF);
+
     gsMaterialMatrixIntegrate<T,MaterialOutput::Stretch> m_lambda(m_materialMatrices,m_defpatches);
     variable lambda = m_assembler.getCoeff(m_lambda);
     gsMaterialMatrixIntegrate<T,MaterialOutput::StretchDir> m_lambdadir(m_materialMatrices,m_defpatches);
@@ -51,6 +64,7 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
 
     auto That   = cartcon(m_ori);
     auto Ttilde = cartcov(m_ori);
+    auto Ttilde_def = cartcov(m_def);
     // auto Tmat   = cartcov(m_def);
     auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) * That;
     auto E_f    = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) * That;
@@ -105,10 +119,20 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
             for (index_t k = 0; k != u.cols(); ++k)
                 result.col(k) = ev.eval(E_f.tr(),u.col(k),m_patchID);
             break;
+        case stress_type::principal_membrane_strain:
+            for (index_t k = 0; k != u.cols(); ++k)
+                result.col(k) = ev.eval(Ep0,u.col(k),m_patchID);
+            break;
+        case stress_type::principal_flexural_strain :
+            for (index_t k = 0; k != u.cols(); ++k)
+                result.col(k) = ev.eval(Ep1,u.col(k),m_patchID);
+            break;
+
         case stress_type::principal_stretch :
             for (index_t k = 0; k != u.cols(); ++k)
                 result.col(k) = ev.eval(lambda,u.col(k),m_patchID);
             break;
+
         case stress_type::principal_stress_membrane :
             for (index_t k = 0; k != u.cols(); ++k)
                 result.col(k) = ev.eval(Sp0,u.col(k),m_patchID);
@@ -137,6 +161,12 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
             {
                 tmp = ev.eval(lambdadir,u.col(k),m_patchID);
                 result.col(k) = tmp.reshape(3,3).col(2);
+            }
+            break;
+        case stress_type::tension_field :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                result.col(k) = ev.eval(TF,u.col(k),m_patchID);
             }
             break;
 

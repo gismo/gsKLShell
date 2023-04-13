@@ -158,6 +158,10 @@ private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::StretchDir, short_t>::type targetDim_impl() const { return 9; };
 
+    /// Implementation of \ref targetDim for the transformation
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Transformation, short_t>::type targetDim_impl() const { return 9; };
+
     /// Implementation of \ref targetDim for transformations
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::CovTransform ||
@@ -172,6 +176,12 @@ private:
     typename std::enable_if<_out==MaterialOutput::Strain  ||
                             _out==MaterialOutput::StrainN ||
                             _out==MaterialOutput::StrainM   , short_t>::type targetDim_impl() const { return 3; };
+
+    /// Specialisation of \ref targetDim for strain
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Stress  ||
+                            _out==MaterialOutput::StressN ||
+                            _out==MaterialOutput::StressM   , short_t>::type targetDim_impl() const { return 3; };
 
     /// Implementation of \ref targetDim for the thickness
     template<enum MaterialOutput _out>
@@ -234,6 +244,10 @@ private:
 
     /// Specialisation of \ref eval_into for the covariant basis transformation
     template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Transformation, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the covariant basis transformation
+    template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::CovTransform, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// Specialisation of \ref eval_into for the contravariant basis transformation
@@ -249,6 +263,13 @@ private:
     typename std::enable_if<_out==MaterialOutput::Strain  ||
                             _out==MaterialOutput::StrainN ||
                             _out==MaterialOutput::StrainM   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for strain
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Stress  ||
+                            _out==MaterialOutput::StressN ||
+                            _out==MaterialOutput::StressM   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
 
     /// Specialisation of \ref eval_into for the thickness
     template<enum MaterialOutput _out>

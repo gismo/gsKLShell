@@ -139,23 +139,13 @@ public:
     void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    void covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override;
-
-    /// See \ref gsMaterialMatrixBase for details
-    void contransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override;
-
-    /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    gsMatrix<T> eval3D_matrix (const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_dmatrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
-    // /// See \ref gsMaterialMatrixBase for details
-    // gsMatrix<T> eval3D_dmatrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
-
-
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    gsMatrix<T> eval3D_vector (const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_matrix_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T>& u, const T z, enum MaterialOutput out = MaterialOutput::Generic) const override;
@@ -173,6 +163,9 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_cauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
@@ -213,10 +206,8 @@ public:
         m_pars = pars;
     }
 
-    index_t numParameters() { return m_pars.size(); }
-
     /// See \ref gsMaterialMatrixBase for details
-    void info() const;
+    void info() const override;
 
     gsMatrix<T> S(const gsMatrix<T> & strain) const;
 
@@ -230,7 +221,6 @@ public:
 
     /// Computes the derivative of the matrix C as function of the deformation tensor C=FTF
     gsMatrix<T> dC(const gsMatrix<T> & C, const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const;
-
 
 public:
     /// Shared pointer for gsMaterialMatrixLinear
@@ -293,35 +283,6 @@ protected:
      */
     gsMatrix<T> _E      (const T z, enum MaterialOutput out) const;
 
-    /**
-     * @brief      Computes the map and the metric quantities on specified points.
-     *
-     * @param[in]  patch  The patch index
-     * @param[in]  u      The in-plane point coordinates
-     */
-    void _computePoints(const index_t patch, const gsMatrix<T> & u, bool basis = true) const;
-    void _computePoints(const gsMatrix<T> & C, const index_t patch, const gsMatrix<T> & u, bool basis = true) const;
-
-    /**
-     * @brief      Computes the parameters on specified points.
-     *
-     * @param[in]  patch  The patch index
-     * @param[in]  u      The in-plane point coordinates
-     */
-    void _computePars(const index_t patch, const gsMatrix<T> & u) const;
-
-    /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
-    void _computePStress(const gsMatrix<T> & C ) const;
-
-    /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
-    void _computePStrain(const gsMatrix<T> & C ) const;
-
-    /// Computes the stretch given deformation tensor C, into a pair
-    std::pair<gsVector<T>,gsMatrix<T>> _evalPStress(const gsMatrix<T> & C ) const;
-
-        /// Computes the stretch given deformation tensor C, into a pair
-    std::pair<gsVector<T>,gsMatrix<T>> _evalPStrain(const gsMatrix<T> & C ) const;
-
 protected:
     // constructor
     using Base::m_patches;
@@ -330,15 +291,13 @@ protected:
     using Base::m_pars;
     using Base::m_density;
 
-    mutable gsMatrix<T> m_Emat,m_Nmat,m_Tmat,m_rhomat;
+    mutable gsMatrix<T> m_Emat,m_Nmat;
     mutable real_t m_lambda, m_mu, m_Cconstant;
 
     using Base::m_parmat;
     using Base::m_parvals;
     using Base::m_Tmat;
     using Base::m_rhomat;
-
-    mutable gsMatrix<T> m_pstress, m_pstressvec, m_pstrain, m_pstrainvec;
 
     // Geometric data point
     using Base::m_map_ori;
@@ -386,9 +345,6 @@ protected:
 
     using Base::m_J0_sq;
     using Base::m_J_sq;
-
-
-
 
     gsOptionList m_options;
 

@@ -59,6 +59,7 @@ public:
     m_thickness(thickness),
     m_density(Density)
     {
+        GISMO_ASSERT(mp->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
         membersSetZero();
         this->setDeformed(mp_def);
     }
@@ -86,6 +87,12 @@ public:
     virtual void transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
+    virtual void covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+
+    /// See \ref gsMaterialMatrixBase for details
+    virtual void contransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+
+    /// See \ref gsMaterialMatrixBase for details
     virtual void deformation_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     virtual void setDensity(const gsFunction<T> & Density)
@@ -108,7 +115,8 @@ public:
      * @brief      Gets the number of parameters
      *
      */
-    inline virtual index_t numParameters() { return m_pars.size(); }
+    inline virtual index_t numParameters() const override { return m_pars.size(); }
+
     /// See \ref gsMaterialMatrixBase for details
     inline virtual void resetParameters()
     {
@@ -210,8 +218,20 @@ public:
     /// Computes the stretch given deformation tensor C, into a pair
     std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C, const gsMatrix<T> & gcon_ori ) const;
 
+    /// Computes the stretch given deformation tensor C, into a pair
+    std::pair<gsVector<T>,gsMatrix<T>> _evalPStress(const gsMatrix<T> & C ) const;
+
+    /// Computes the stretch given deformation tensor C, into a pair
+    std::pair<gsVector<T>,gsMatrix<T>> _evalPStrain(const gsMatrix<T> & C ) const;
+
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     void _computeStretch(const gsMatrix<T> & C, const gsMatrix<T> & gcon_ori ) const;
+
+    /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
+    void _computePStress(const gsMatrix<T> & C ) const;
+
+    /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
+    void _computePStrain(const gsMatrix<T> & C ) const;
 
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     gsMatrix<T> _transformation(const gsMatrix<T> & basis1, const gsMatrix<T> & basis2 ) const;
@@ -382,11 +402,11 @@ protected:
     mutable gsMatrix<T> m_Acov_ori_mat, m_Acon_ori_mat, m_Acov_def_mat, m_Acon_def_mat, m_Bcov_ori_mat, m_Bcov_def_mat;
     mutable gsMatrix<T> m_acov_ori_mat, m_acon_ori_mat, m_acov_def_mat, m_acon_def_mat, m_ncov_ori_mat, m_ncov_def_mat;
 
-    mutable gsMatrix<T> m_stretches, m_stretchvec;
+    mutable gsMatrix<T> m_stretches, m_stretchvec, m_pstress, m_pstressvec, m_pstrain, m_pstrainvec;
 
     mutable T           m_J0_sq, m_J_sq;
-public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW //must be present whenever the class contains fixed size matrices
+// public:
+//     EIGEN_MAKE_ALIGNED_OPERATOR_NEW //must be present whenever the class contains fixed size matrices
 
 };
 

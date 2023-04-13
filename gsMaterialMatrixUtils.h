@@ -115,12 +115,17 @@ enum class MaterialOutput : short_t
     ConTransform = 15,  // Transformation matrix from spectral to contravariant basis
     Transformation = 16,
     TensionField = 17,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
-    Strain  = 97,
-    StrainN = 98,
-    StrainM = 99,
+    Strain  = 87,
+    StrainN = 88,
+    StrainM = 89,
+    Stress  = 97,
+    StressN = 98,
+    StressM = 99,
     Thickness = 100,
     Parameters = 101,
     Deformation = 102,
+
+    // FINISH VON MISES WITH THE CAUCHY STRESS!!!
 };
 
 

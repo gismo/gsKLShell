@@ -139,9 +139,6 @@ public:
     /// Move assignment operator
     gsThinShellAssembler& operator= ( gsThinShellAssembler&& other );
 
-
-
-
     /// See \ref gsThinShellAssemblerBase for details
     gsOptionList & options() {return m_options;}
 
@@ -174,13 +171,6 @@ public:
     }
 
     /// See \ref gsThinShellAssemblerBase for details
-    void setBasis(const gsMultiBasis<T> & basis);
-
-    /// See \ref gsThinShellAssemblerBase for details
-    void setUndeformed(const gsMultiPatch<T> & patches);
-
-
-    /// See \ref gsThinShellAssemblerBase for details
     void homogenizeDirichlet();
 
     /// See \ref gsThinShellAssemblerBase for details
@@ -192,14 +182,6 @@ public:
 
     /// See \ref gsThinShellAssemblerBase for details
     void assemble();
-
-    /// See \ref gsThinShellAssemblerBase for details
-    void setSpaceBasis(const gsFunctionSet<T> & spaceBasis)
-    {
-        m_spaceBasis = &spaceBasis;
-        this->_getOptions();
-        this->_initialize();
-    }
 
 private:
     /// Specialisation of assemble() for surfaces (3D)
@@ -321,13 +303,37 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     const gsMultiPatch<T> & geometry()      const  {return m_patches;}
     gsMultiPatch<T> & geometry()  {return m_patches;}
-    void setGeometry(const gsMultiPatch<T> & patches) { m_patches = patches; }
+    void setGeometry(const gsMultiPatch<T> & patches)
+    {
+        this->_getOptions();
+        m_patches = patches;
+        this->_initialize();
+    }
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void setUndeformed(const gsMultiPatch<T> & patches)
+    {
+        this->setGeometry(patches);
+    }
 
     //--------------------- BASIS ACCESS --------------------------------//
     /// See \ref gsThinShellAssemblerBase for details
     const gsMultiBasis<T> & basis()      const  {return m_basis;}
     gsMultiBasis<T> & basis()  {return m_basis;}
-    void setBasis(const gsMultiBasis<T> & basis) { m_basis = basis; }
+    void setBasis(const gsMultiBasis<T> & basis)
+    {
+        m_basis = basis;
+        this->_getOptions();
+        this->_initialize();
+    }
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void setSpaceBasis(const gsFunctionSet<T> & spaceBasis)
+    {
+        m_spaceBasis = &spaceBasis;
+        this->_getOptions();
+        this->_initialize();
+    }
 
     // / See \ref gsThinShellAssemblerBase for details
     // const gsFunctionSet<T> & defGeometry()   const  {return *m_defpatches;}
@@ -412,7 +418,7 @@ protected:
     /// Initializes the method
     void _initialize();
     void _defaultOptions();
-    void _getOptions() const;
+    void _getOptions();
 
     void _assembleNeumann();
 
@@ -592,8 +598,6 @@ protected:
     const gsFunction<T> * m_thickFun;
     const gsFunction<T> * m_foundFun;
     const gsFunction<T> * m_pressFun;
-    typename gsFunction<T>::Ptr m_YoungsModulus;
-    typename gsFunction<T>::Ptr m_PoissonsRatio;
 
     gsMaterialMatrixContainer<T> m_materialMatrices;
 
@@ -696,7 +700,6 @@ public:
      * @param[in]  bconditions  The undeformed geometry
      */
     virtual void setUndeformed(const gsMultiPatch<T> & patches) = 0;
-
 
     /// Sets the Dirichlet BCs to zero
     virtual void homogenizeDirichlet() = 0;
@@ -847,8 +850,6 @@ public:
     virtual gsMultiBasis<T> & basis() = 0;
 
     virtual void setGeometry(const gsMultiPatch<T> & patches) = 0;
-    virtual void setBasis(const gsMultiBasis<T> & basis) = 0;
-
 
     // /// Returns the deformed geometry
     // virtual const gsFunctionSet<T> & defGeometry() const = 0;

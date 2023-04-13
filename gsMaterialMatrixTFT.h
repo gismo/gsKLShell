@@ -43,6 +43,9 @@ template <  short_t dim,
 class gsMaterialMatrixTFT : public gsMaterialMatrixBaseDim<dim,T>
 {
 public:
+
+    GISMO_CLONE_FUNCTION(gsMaterialMatrixTFT)
+
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 
     /**
@@ -52,7 +55,7 @@ public:
      * @param[in]  thickness  Thickness function
      * @param[in]  pars       Vector with parameters (E, nu)
      */
-    gsMaterialMatrixTFT(gsMaterialMatrixBaseDim<dim,T> * materialmatrix)
+    gsMaterialMatrixTFT(gsMaterialMatrixBase<T> * materialmatrix)
     :
     m_materialMat(materialmatrix)
     {
@@ -119,9 +122,28 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
+    /// Returns the principal stresses stored in the underlying material model where the tension-field is non-slack
+    ///
+    /// @param[in]  patch  The patch
+    /// @param[in]  u      Evaluation points
+    /// @param[in]  z      Evaluation thickness
+    /// @param[in]  out    (not used)
+    ///
+    /// @return     { description_of_the_return_value }
+    ///
+    gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const
-    { return m_materialMat->eval3D_pstress( patch,u,z,out); }
+    gsMatrix<T> eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
     void setParameters(const std::vector<gsFunction<T>*> &pars)
@@ -134,8 +156,8 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     void setDeformed(const gsFunctionSet<T> * deformed)
     {
-        gsDebugVar(deformed);
-        m_materialMat->setDeformed(deformed);
+        m_defpatches = deformed;
+        m_materialMat->setDeformed(m_defpatches);
     }
 
 protected:
@@ -146,21 +168,24 @@ protected:
     typename std::enable_if<!_linear, gsMatrix<T> >::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     template <bool _linear>
-    typename std::enable_if< _linear, gsMatrix<T> >::type _eval3D_vector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    typename std::enable_if< _linear, gsMatrix<T> >::type _eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     template <bool _linear>
-    typename std::enable_if<!_linear, gsMatrix<T> >::type _eval3D_vector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    typename std::enable_if<!_linear, gsMatrix<T> >::type _eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
-    static gsMatrix<T> _compute_C(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & dC);
+    static gsMatrix<T> _compute_E(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & E);
 
     static gsMatrix<T> _compute_S(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S);
 
+    static gsMatrix<T> _compute_C(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S);
+
+    static gsMatrix<T> _compute_C(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & dC);
 
     // /// Computes theta
     // gsMatrix<T> eval_theta(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     /// Computes theta
-    static gsMatrix<T> eval_theta(const gsMatrix<T> & Cs, const gsMatrix<T> & Ns);
+    static gsMatrix<T> eval_theta(const gsMatrix<T> & Cs, const gsMatrix<T> & Ns, const gsMatrix<T> & Es);
 
 
 public:
@@ -171,7 +196,8 @@ public:
     typedef memory::unique_ptr< gsMaterialMatrixTFT > uPtr;
 
 protected:
-    mutable gsMaterialMatrixBaseDim<dim,T> * m_materialMat;
+    mutable gsMaterialMatrixBase<T> * m_materialMat;
+    using Base::m_defpatches;
 
 };
 

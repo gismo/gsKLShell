@@ -147,9 +147,9 @@ void gsThinShellAssembler<d, T, bending>::_defaultOptions()
     m_options.addInt("IfcDefault","Default weak(!) interface coupling; C^k, k={-1,0,1}",1);
 
     // Assembler options
-    m_options.addInt("DirichletStrategy","Method for enforcement of Dirichlet BCs [11..14]",11);
+    // m_options.addInt("DirichletStrategy","Method for enforcement of Dirichlet BCs [11..14]",11);
     m_options.addInt("DirichletValues","Method for computation of Dirichlet DoF values [100..103]",101);
-    m_options.addInt("InterfaceStrategy","Method of treatment of patch interfaces [0..3]",1);
+    // m_options.addInt("InterfaceStrategy","Method of treatment of patch interfaces [0..3]",1);
     m_options.addReal("bdA","Estimated nonzeros per column of the matrix: bdA*deg + bdB",2);
     m_options.addInt("bdB","Estimated nonzeros per column of the matrix: bdA*deg + bdB",1);
     m_options.addReal("bdO","Overhead of sparse mem. allocation: (1+bdO)(bdA*deg + bdB) [0..1]",0.333);
@@ -157,16 +157,21 @@ void gsThinShellAssembler<d, T, bending>::_defaultOptions()
     m_options.addInt("quB","Number of quadrature points: quA*deg + quB",1);
     m_options.addInt("quRule","Quadrature rule [1:GaussLegendre,2:GaussLobatto]",1);
     m_options.addString("Solver","Sparse linear solver", "CGDiagonal");
+    m_continuity = -1;
 }
 
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::_getOptions() const
+void gsThinShellAssembler<d, T, bending>::_getOptions()
 {
+    // If the continuity changed, we need to re-initialize the space.
+    index_t continuity = m_continuity;
+    m_continuity = m_options.getInt("Continuity");
+    if (continuity != m_options.getInt("Continuity"))
+        this->_initialize();
+
     m_alpha_d_bc = m_options.getReal("WeakDirichlet");
     m_alpha_r_bc = m_options.getReal("WeakClamped");
-    m_continuity = m_options.getInt("Continuity");
-
     m_alpha_d_ifc = m_alpha_r_ifc = m_options.getReal("IfcDirichlet");
     // m_alpha_r_ifc = m_options.getReal("IfcClamped");
     m_IfcDefault = m_options.getInt("IfcDefault");
@@ -184,7 +189,6 @@ void gsThinShellAssembler<d, T, bending>::setOptions(gsOptionList & options)
     // If the continuity changed, we need to re-initialize the space.
     if (continuity != m_options.getInt("Continuity"))
         this->_initialize();
-
 }
 
 template <short_t d, class T, bool bending>
@@ -218,7 +222,7 @@ void gsThinShellAssembler<d, T, bending>::_initialize()
     GISMO_ASSERT(m_forceFun->targetDim()==d,"Force must have " << d<<" dimensions but has "<<m_forceFun->targetDim());
 
     // test interfaces on in-plane and out-of-plane connection and put them in respective containers
-    _ifcTest();
+    // _ifcTest();
     // match interfaces where needed
     // todo
     // Put the interfaces in the right container depending on the
@@ -261,7 +265,6 @@ void gsThinShellAssembler<d, T, bending>::initInterfaces()
     // Find unassigned interfaces and add them to the right containers
     for (gsBoxTopology::const_iiterator it = m_patches.topology().iBegin(); it!=m_patches.topology().iEnd(); it++)
     {
-        gsDebugVar(*it);
         if (
                 std::find(m_strongC0.begin(), m_strongC0.end(), *it) == m_strongC0.end() // m_strongC0 does not contain *it
             &&  std::find(m_strongC1.begin(), m_strongC1.end(), *it) == m_strongC1.end() // m_strongC1 does not contain *it
@@ -283,21 +286,6 @@ void gsThinShellAssembler<d, T, bending>::initInterfaces()
 
     // Set strong C0 using the setup function.
 }
-
-template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::setUndeformed(const gsMultiPatch<T> & patches)
-{
-    m_patches = patches;
-    _initialize();
-}
-
-template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::setBasis(const gsMultiBasis<T> & basis)
-{
-    m_basis = basis;
-    _initialize();
-}
-
 
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_assembleNeumann()
