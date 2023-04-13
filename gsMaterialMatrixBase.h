@@ -32,14 +32,21 @@ template <class T>
 class gsMaterialMatrixBase
 {
 public:
+
     enum {Linear=0};
 
-    gsMaterialMatrixBase()
-    :
-    m_defpatches(nullptr)
-    {}
+    /// Shared pointer for gsGeometry
+    typedef memory::shared_ptr< gsMaterialMatrixBase > Ptr;
+
+    /// Unique pointer for gsGeometry
+    typedef memory::unique_ptr< gsMaterialMatrixBase > uPtr;
+
+    // gsMaterialMatrixBase()
+    // :
+    // m_defpatches(nullptr)
+    // {}
     
-    //GISMO_UPTR_FUNCTION_NO_IMPLEMENTATION(gsMaterialMatrixBase, clone)
+    GISMO_UPTR_FUNCTION_NO_IMPLEMENTATION(gsMaterialMatrixBase, clone)
 
     /// Destructor
     virtual ~gsMaterialMatrixBase() {};

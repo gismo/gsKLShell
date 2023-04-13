@@ -37,8 +37,7 @@ gsMaterialMatrixIntegrateSingle<T,out>::gsMaterialMatrixIntegrateSingle(index_t 
                                                                         )
 :
 m_pIndex(patch),
-m_materialMat(materialMatrix),
-m_piece(nullptr)
+m_materialMat(materialMatrix)
 {
     m_materialMat->setDeformed(deformed);
     // m_materialMat = new gsMaterialMatrix(materialMatrix);
@@ -132,7 +131,7 @@ gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsM
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::PStrainN || _out==MaterialOutput::PStrainM, void>::type
-gsMaterialMatrixIntegrate<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     if (m_materialMat->isMatIntegrated() == MatIntegration::NotIntegrated)
         this->integrateZ_into(u,getMoment(),result);
@@ -196,7 +195,6 @@ void gsMaterialMatrixIntegrateSingle<T,out>::integrateZ_into(const gsMatrix<T>& 
         z.col(k)=quNodes.transpose();
     }
     vals = this->_eval3D(u,z);
-
     T res;
     for (index_t k = 0; k != u.cols(); ++k) // for all points
     {
@@ -287,7 +285,7 @@ gsMatrix<T> gsMaterialMatrixIntegrateSingle<T,out>::_eval(const gsMatrix<T>& u) 
 template <class T, enum MaterialOutput out>
 gsMatrix<T> gsMaterialMatrixIntegrateSingle<T,out>::_eval3D(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
 {
-        return this->eval3D_impl<out>(u,Z);
+    return this->eval3D_impl<out>(u,Z);
 }
 
 template <class T, enum MaterialOutput out>
