@@ -30,7 +30,7 @@ class gsMaterialMatrixEval : public gsFunction<T>
 {
 public:
     /// Constructor
-    gsMaterialMatrixEval(  const gsMaterialMatrixContainer<T> & materialMatrices,
+    gsMaterialMatrixEval(   const gsMaterialMatrixContainer<T> & materialMatrices,
                             const gsFunctionSet<T> * deformed,
                             const gsMatrix<T> z)
     :
@@ -40,11 +40,10 @@ public:
     {
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
             m_pieces.push_back(new gsMaterialMatrixEvalSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed,m_z));
-
     }
 
     /// Constructor
-    gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * materialMatrix,
+    gsMaterialMatrixEval(   gsMaterialMatrixBase<T> * materialMatrix,
                             const gsFunctionSet<T> * deformed,
                             const gsMatrix<T> z)
     :
@@ -57,7 +56,6 @@ public:
             m_materialMatrices.add(materialMatrix);
             m_pieces.push_back(new gsMaterialMatrixEvalSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed,m_z));
         }
-
     }
 
     /// Destructor
@@ -98,7 +96,7 @@ protected:
 /**
  * @brief      This class serves as the evaluator of material matrices, based on \ref gsMaterialMatrixBase
  *
- * @tparam     T     Real tyoe
+ * @tparam     T     Real type
  * @tparam     out   Output type (see \ref MaterialOutput)
  *
  * @ingroup    KLShell

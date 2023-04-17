@@ -35,15 +35,16 @@ class gsMaterialMatrixBaseDim : public gsMaterialMatrixBase<T>
 
 public:
 
-    gsMaterialMatrixBaseDim() : m_patches(nullptr)
+    gsMaterialMatrixBaseDim() : m_patches(nullptr), m_thickness(nullptr), m_density(nullptr)
     {
         membersSetZero();
     }
 
     gsMaterialMatrixBaseDim(const gsFunctionSet<T> & mp)
     :
-    m_patches(&mp)
+    m_patches(&mp), m_thickness(nullptr), m_density(nullptr)
     {
+        GISMO_ASSERT(mp.targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
         membersSetZero();
     }
 
