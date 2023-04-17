@@ -37,8 +37,7 @@ gsMaterialMatrixIntegrateSingle<T,out>::gsMaterialMatrixIntegrateSingle(index_t 
                                                                         )
 :
 m_pIndex(patch),
-m_materialMat(materialMatrix),
-m_piece(nullptr)
+m_materialMat(materialMatrix)
 {
     m_materialMat->setDeformed(deformed);
     // m_materialMat = new gsMaterialMatrix(materialMatrix);

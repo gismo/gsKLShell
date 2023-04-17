@@ -812,6 +812,8 @@ template <bool matrix>
 void gsThinShellAssembler<d, T, bending>::_assembleWeakIfc()
 {
     this->_getOptions();
+    if (m_weakC0.size()==0 && m_weakC1.size()==0)
+        return;
     _assembleWeakIfc_impl<d,matrix>();
 }
 
@@ -837,9 +839,10 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
     auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
     auto mmDcart = (con2cartI * reshape(mmD,3,3) * cart2cov);
 
-    element el = m_assembler.getElement();
-    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / el.area(m_ori);
-    auto alpha_r = m_alpha_r_ifc * reshape(mmDcart,9,1).max().val() / el.area(m_ori);
+    element el   = m_assembler.getElement();
+    auto h       = (el.area(m_ori.left()) + el.area(m_ori.right())) / 2;
+    auto alpha_r = m_alpha_r_ifc * reshape(mmDcart,9,1).max().val() / h;
+    auto alpha_d = m_alpha_d_ifc * reshape(mmAcart,9,1).max().val() / h;
 
     // C^0 coupling
     m_assembler.assembleIfc(m_weakC0,

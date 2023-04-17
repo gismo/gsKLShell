@@ -86,7 +86,7 @@ private:
 
     mutable gsMatrix<Scalar> res;
     mutable gsMatrix<Scalar> bGrads, cJac;
-    mutable gsVector<Scalar,3> m_v, normal;
+    mutable gsVector<Scalar,3> m_v, normal, unormal;
 public:
     enum{ Space = E::Space, ScalarValued= 0, ColBlocks= 0};
 
@@ -126,7 +126,7 @@ private:
         evList.add(_u);
         _u.data().flags |= NEED_ACTIVE | NEED_GRAD; // need actives for cardinality
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_MEASURE;
+        _G.data().flags |= NEED_NORMAL | NEED_DERIV;
     }
 
     template<class U> inline
@@ -134,7 +134,7 @@ private:
     parse_impl(gsExprHelper<Scalar> & evList) const
     {
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_MEASURE;
+        _G.data().flags |= NEED_NORMAL | NEED_DERIV;
 
         grad(_u).parse(evList); //
 
@@ -149,10 +149,11 @@ private:
         res.resize(_u.cardinality(), cols()); // rows()*
 
         normal = _G.data().normal(k);// not normalized to unit length
-        normal.normalize();
+        unormal = normal.normalized();
+
         bGrads = _u.data().values[1].col(k);
         cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
-        const Scalar measure =  _G.data().measures.at(k);
+        const Scalar measure = (cJac.col3d(0).cross( cJac.col3d(1) )).norm();
 
         for (index_t d = 0; d!= cols(); ++d) // for all basis function components
         {
@@ -165,7 +166,7 @@ private:
 
                 // ---------------  First variation of the normal
                 // res.row(s+j).noalias() = (m_v - ( normal.dot(m_v) ) * normal).transpose();
-                res.row(s+j).noalias() = (m_v - ( normal*m_v.transpose() ) * normal).transpose(); // outer-product version
+                res.row(s+j).noalias() = (m_v - ( unormal*m_v.transpose() ) * unormal).transpose(); // outer-product version
             }
         }
         return res;
@@ -183,7 +184,7 @@ private:
         normal.normalize();
         bGrads = sGrad.eval(k);
         cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
-        const Scalar measure =  _G.data().measures.at(k);
+        const Scalar measure = (cJac.col3d(0).cross( cJac.col3d(1) )).norm();
 
         m_v.noalias() = ( ( bGrads.col3d(0) ).cross( cJac.col3d(1) )
                       -   ( bGrads.col3d(1) ).cross( cJac.col3d(0) ) ) / measure;
@@ -245,7 +246,7 @@ public:
 
         const index_t cardU = _u.data().values[0].rows(); // number of actives per component of u
         const index_t cardV = _v.data().values[0].rows(); // number of actives per component of v
-        const Scalar measure =  _G.data().measures.at(k);
+        const Scalar measure = (cJac.col3d(0).cross( cJac.col3d(1) )).norm();
 
         evEf = _Ef.eval(k);
 
@@ -310,7 +311,7 @@ public:
         evList.add(_v);
         _v.data().flags |= NEED_ACTIVE | NEED_VALUE | NEED_GRAD;
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_MEASURE;
+        _G.data().flags |= NEED_NORMAL | NEED_DERIV;
         _Ef.parse(evList);
     }
 
@@ -371,7 +372,7 @@ public:
 
         const index_t cardU = _u.data().values[0].rows(); // number of actives per component of u
         const index_t cardV = _v.data().values[0].rows(); // number of actives per component of v
-        const Scalar measure =  _G.data().measures.at(k);
+        const Scalar measure = (cJac.col3d(0).cross( cJac.col3d(1) )).norm();
 
         evEf = _Ef.eval(k);
 
@@ -438,7 +439,7 @@ public:
         evList.add(_v);
         _v.data().flags |= NEED_ACTIVE | NEED_VALUE | NEED_GRAD;
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_2ND_DER | NEED_MEASURE;
+        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_2ND_DER;
         _Ef.parse(evList);
     }
 
@@ -506,7 +507,7 @@ private:
         evList.add(_u);
         _u.data().flags |= NEED_GRAD | NEED_ACTIVE;
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV | NEED_MEASURE;
+        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV;
     }
 
     template<class U> inline
@@ -514,7 +515,7 @@ private:
     parse_impl(gsExprHelper<Scalar> & evList) const
     {
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV | NEED_MEASURE;
+        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV;
 
         grad(_u).parse(evList); //
 
@@ -541,7 +542,7 @@ private:
             The normal is a contravariant vector and hence the corresponding column of the Jacobian times the outward normal should give 1. We use this property.
         */
         index_t colIndex = -1;
-        if ( (math::abs(tmp.at(0)) < tol) && (math::abs(tmp.at(1)) > 1-tol ) )         // then the normal is vector 2 and the tangent vector 1
+        if      ( (math::abs(tmp.at(0)) < tol) && (math::abs(tmp.at(1)) > 1-tol ) )         // then the normal is vector 2 and the tangent vector 1
             colIndex = 0;
         else if ( (math::abs(tmp.at(1)) < tol) && (math::abs(tmp.at(0)) > 1-tol ) )     // then the normal is vector 1 and the tangent vector 2
             colIndex = 1;
@@ -553,7 +554,7 @@ private:
         tangent = tan_expr.eval(k);
         utangent = tangent.normalized();
 
-        index_t sign = tangent.dot(cJac.col(colIndex));
+        Scalar sign = tangent.dot(cJac.col(colIndex));
         sign = (Scalar(0) < sign) - (sign < Scalar(0));
 
         // Now we will compute the derivatives of the basis functions
@@ -602,7 +603,7 @@ private:
         tangent = tan_expr.eval(k);
         // utangent = tangent.normalized();
 
-        index_t sign = tangent.dot(cJac.col(colIndex));
+        Scalar sign = tangent.dot(cJac.col(colIndex));
 
         bGrads = _u.data().values[1].col(k);
         dtan = sign*bGrads.col(colIndex);
@@ -670,7 +671,7 @@ private:
         evList.add(_u);
         _u.data().flags |= NEED_GRAD | NEED_ACTIVE;
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV | NEED_MEASURE; // all needed?
+        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV; // all needed?
 
         tv(_G).parse(evList);
         tvar1(_u,_G).parse(evList);
@@ -682,7 +683,7 @@ private:
     parse_impl(gsExprHelper<Scalar> & evList) const
     {
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV | NEED_MEASURE; // all needed?
+        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV; // all needed?
 
         grad(_u).parse(evList); //
         tv(_G).parse(evList);
@@ -834,13 +835,13 @@ public:
 
         const index_t cardU = _u.data().values[0].rows(); // number of actives per component of u
         const index_t cardV = _v.data().values[0].rows(); // number of actives per component of v
-        const Scalar measure =  _G.data().measures.at(k);
+        const Scalar measure = (cJac.col3d(0).cross( cJac.col3d(1) )).norm();
 
         tangent_expr<Scalar> tan_expr = tangent_expr<Scalar>(_G);
         tangent = tan_expr.eval(k);
         utangent = tangent.normalized();
 
-        index_t sign = tangent.dot(cJac.col(colIndex));
+        Scalar sign = tangent.dot(cJac.col(colIndex));
         sign = (Scalar(0) < sign) - (sign < Scalar(0));
 
         // // For the normal vector variation
@@ -927,7 +928,7 @@ public:
         evList.add(_v);
         _v.data().flags |= NEED_ACTIVE | NEED_VALUE | NEED_GRAD;
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV | NEED_MEASURE;
+        _G.data().flags |= NEED_NORMAL | NEED_OUTER_NORMAL | NEED_DERIV;
         _C.parse(evList);
     }
 
