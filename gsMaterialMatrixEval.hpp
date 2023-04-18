@@ -29,7 +29,6 @@ gsMaterialMatrixEvalSingle<T,out>::gsMaterialMatrixEvalSingle(    index_t patch,
 :
 m_pIndex(patch),
 m_materialMat(materialMatrix),
-m_piece(nullptr),
 m_z(z)
 {
     m_materialMat->setDeformed(deformed);
@@ -54,7 +53,6 @@ gsMaterialMatrixEvalSingle<T,out>::gsMaterialMatrixEvalSingle(    index_t patch,
 :
 m_pIndex(patch),
 m_materialMat(materialMatrix),
-m_piece(nullptr),
 m_z(z)
 {
     m_materialMat->setUndeformed(deformed);

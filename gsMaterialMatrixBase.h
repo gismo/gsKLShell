@@ -33,6 +33,12 @@ class gsMaterialMatrixBase
 {
 public:
 
+    /// Shared pointer for gsGeometry
+    typedef memory::shared_ptr< gsMaterialMatrixBase > Ptr;
+
+    /// Unique pointer for gsGeometry
+    typedef memory::unique_ptr< gsMaterialMatrixBase > uPtr;
+    
     GISMO_UPTR_FUNCTION_NO_IMPLEMENTATION(gsMaterialMatrixBase, clone)
 
     /// Destructor
