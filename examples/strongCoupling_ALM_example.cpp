@@ -127,6 +127,11 @@ int main(int argc, char *argv[])
     if (method==2 || method==3)
         GISMO_ENSURE(degree > 2,"Degree must be larger than 2 for the approx and exact C1 methods, but it is "<<degree);
 
+    std::string commands = "mkdir -p " + dirname;
+    const char *command = commands.c_str();
+    int systemRet = system(command);
+    GISMO_ASSERT(systemRet!=-1,"Something went wrong with calling the system argument");
+
 
     if (dL==0)
     {
@@ -193,9 +198,8 @@ int main(int argc, char *argv[])
         for (index_t k =0; k!=points.cols(); k++)
             pLoads.addLoad(points.col(k), loads.col(k), pid_ploads.at(k) ); // in parametric domain!
 
+        gsInfo<<pLoads;
     }
-
-    gsInfo<<pLoads;
 
     // // Loads
     // gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
@@ -625,10 +629,10 @@ int main(int argc, char *argv[])
         numWriter.init(headers);
 
     index_t k=0;
-    index_t L=0;
+    real_t L=0;
     while (k < step && L < Lmax)
     {
-        gsInfo<<"Load step "<< k<<"\n";
+        gsInfo<<"Load step "<< k<<"; Lold = "<<L<<"\n";
         // assembler->constructSolution(solVector,solution);
         arcLength->step();
 

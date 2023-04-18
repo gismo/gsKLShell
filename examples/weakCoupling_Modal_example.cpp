@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
 {
     //! [Parse command line]
     bool plot       = false;
+    bool plotG      = false;
     bool mesh       = false;
     bool first      = false;
     bool write      = false;
@@ -68,6 +69,7 @@ int main(int argc, char *argv[])
     cmd.addInt( "M", "mode", "Mode number", mode );
     cmd.addReal( "S", "shift", "Set the shift of the solver.",  shift );
     cmd.addSwitch("plot", "plot",plot);
+    cmd.addSwitch("plotG", "plot geometry",plotG);
     cmd.addSwitch("mesh", "mesh",mesh);
     cmd.addSwitch("first", "Plot only first mode",first);
     cmd.addSwitch("write", "write",write);
@@ -142,8 +144,9 @@ int main(int argc, char *argv[])
         const char *command = commands.c_str();
         int systemRet = system(command);
         GISMO_ASSERT(systemRet!=-1,"Something went wrong with calling the system argument");
-        gsWriteParaview(mp,"mp",10,true,false);
     }
+    if (plotG)
+    	gsWriteParaview(mp,"mp",10,true,false);
 
     // for (size_t p = 0; p!=mp.nPatches(); ++p)
     //     gsDebugVar(mp.patch(p));
@@ -220,7 +223,7 @@ int main(int argc, char *argv[])
         solver.init();
         solver.compute(selectionRule,1000,1e-6,sortRule);
 
-        if (solver.info()==Spectra::CompInfo::Successful)         { gsDebug<<"Spectra converged in "<<solver.num_iterations()<<" iterations and with "<<solver.num_operations()<<"operations. \n"; }
+        if (solver.info()==Spectra::CompInfo::Successful)         { gsInfo<<"Spectra converged in "<<solver.num_iterations()<<" iterations and with "<<solver.num_operations()<<"operations. \n"; }
         else if (solver.info()==Spectra::CompInfo::NumericalIssue){ GISMO_ERROR("Spectra did not converge! Error code: NumericalIssue"); }
         else if (solver.info()==Spectra::CompInfo::NotConverging) { GISMO_ERROR("Spectra did not converge! Error code: NotConverging"); }
         else if (solver.info()==Spectra::CompInfo::NotComputed)   { GISMO_ERROR("Spectra did not converge! Error code: NotComputed");   }
@@ -282,9 +285,9 @@ int main(int argc, char *argv[])
             for (index_t p = 0; p!=mp.nPatches(); p++)
             {
                 fileName = output + util::to_string(m) + "_";
-                collection.addTimestep(fileName,p,m,".vts");
+                collection.addPart(fileName + "vts",m,"solution",p);
                 if (mesh)
-                    collection.addTimestep(fileName,p,m,"_mesh.vtp");
+                    collection.addPart(fileName + "_mesh.vtp",m,"mesh",p);
             }
         }
         collection.save();

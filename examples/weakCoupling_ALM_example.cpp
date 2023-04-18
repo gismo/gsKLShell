@@ -120,6 +120,12 @@ int main(int argc, char *argv[])
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
 
+    std::string commands = "mkdir -p " + dirname;
+    const char *command = commands.c_str();
+    int systemRet = system(command);
+    GISMO_ASSERT(systemRet!=-1,"Something went wrong with calling the system argument");
+
+
     if (dL==0)
     {
       dL = dLb;
@@ -170,16 +176,18 @@ int main(int argc, char *argv[])
     else
         pid_ploads = gsMatrix<index_t>::Zero(1,points.cols());
 
-    gsMatrix<> pointLoadPoints(3,points.cols());
-    for (index_t k =0; k!=points.cols(); k++)
-        pointLoadPoints.col(k) = mp.patch(pid_ploads.at(k)).eval(points.col(k));
-    gsWriteParaviewPoints(pointLoadPoints,"pointLoadPoints");
+    if (points.cols()>0)
+    {
+	    gsMatrix<> pointLoadPoints(3,points.cols());
+	    for (index_t k =0; k!=points.cols(); k++)
+	        pointLoadPoints.col(k) = mp.patch(pid_ploads.at(k)).eval(points.col(k));
+	    gsWriteParaviewPoints(pointLoadPoints,"pointLoadPoints");
 
-    for (index_t k =0; k!=points.cols(); k++)
-        pLoads.addLoad(points.col(k), loads.col(k), pid_ploads.at(k) ); // in parametric domain!
+	    for (index_t k =0; k!=points.cols(); k++)
+        	pLoads.addLoad(points.col(k), loads.col(k), pid_ploads.at(k) ); // in parametric domain!
 
-    gsInfo<<pLoads;
-
+	    gsInfo<<pLoads;
+    }
     // // Loads
     // gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
     // gsMatrix<> points,loads;
@@ -489,10 +497,10 @@ int main(int argc, char *argv[])
         numWriter.init(headers);
 
     index_t k=0;
-    index_t L=0;
+    real_t L=0;
     while (k < step && L < Lmax)
     {
-        gsInfo<<"Load step "<< k<<"\n";
+        gsInfo<<"Load step "<< k<<"; Lold = "<<L<<"\n";
         // assembler->constructSolution(solVector,solution);
         arcLength->step();
 

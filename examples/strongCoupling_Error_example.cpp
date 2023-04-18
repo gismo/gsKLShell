@@ -519,13 +519,25 @@ int main(int argc, char *argv[])
             // ppoints.col(1)<<0.25,0,0.0625;
             // ppoints.col(2)<<0.5,0,0.25;
 
-            gsMatrix<> result;
             if (refPoints.rows()==3) // then they are provided in the physical domain and should be mapped to the parametric domain
             {
                 refPars.resize(2,refPoints.cols());
                 for (index_t p = 0; p!=refPoints.cols(); p++)
                 {
-                    mp.patch(refPatches(0,p)).invertPoints(refPoints.col(p),result,1e-10);
+		    real_t tol = 1e-12;
+		    bool converged = false;
+		    index_t k=0;
+		    gsMatrix<> result;
+ 		    while (!converged && k < 10)
+		    {
+			result.resize(0,0);
+			geom.patch(refPatches(0,p)).invertPoints(refPoints.col(p),result,tol);
+			converged = !(result.at(0)==std::numeric_limits<real_t>::infinity());
+			tol *= 10;
+			if (tol > 1e-5)
+			    gsWarn<<"Tolerance of point inversion is "<<tol<<"\n"<<"Point is: "<<result.transpose()<<" and the point to be found is: "<<refPoints.col(p)<<"\n";
+			k++;
+		    }
                     if (result.at(0)==std::numeric_limits<real_t>::infinity()) // if failed
                         gsWarn<<"Point inversion failed\n";
                     refPars.col(p) = result;
@@ -533,8 +545,8 @@ int main(int argc, char *argv[])
             }
 
             for (index_t p=0; p!=refPars.cols(); p++)
-                // refs.block(r,p*mp.geoDim(),1,mp.geoDim()) = def.piece(refPatches(0,p)).eval(refPoints.col(p)).transpose();
-                refs.block(r,p*mp.geoDim(),1,mp.geoDim()) = solField.value(refPars.col(p),refPatches(0,p)).transpose();
+                // refs.block(r,p*geom.geoDim(),1,geom.geoDim()) = def.piece(refPatches(0,p)).eval(refPoints.col(p)).transpose();
+                refs.block(r,p*geom.geoDim(),1,geom.geoDim()) = solField.value(refPars.col(p),refPatches(0,p)).transpose();
 
             gsInfo<<"Physical coordinates of points\n";
             for (index_t p=0; p!=refPars.cols(); p++)
@@ -543,6 +555,7 @@ int main(int argc, char *argv[])
             }
             gsInfo<<"\n";
 
+	    gsMatrix<> result;
             for (index_t p=0; p!=refPars.cols(); ++p)
             {
                 geom.patch(refPatches(0,p)).eval_into(refPars.col(p),result);
