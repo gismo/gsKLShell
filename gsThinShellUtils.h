@@ -554,8 +554,17 @@ private:
         tangent = tan_expr.eval(k);
         utangent = tangent.normalized();
 
-        Scalar sign = tangent.dot(cJac.col(colIndex));
-        sign = (Scalar(0) < sign) - (sign < Scalar(0));
+        index_t sign = 0;
+        if (colIndex!=-1)
+        {
+            Scalar dot = tangent.dot(cJac.col(colIndex));
+            sign = (Scalar(0) < dot) - (dot < Scalar(0));
+        }
+        else
+        {
+            gsWarn<<"No suitable tangent and outer normal vector found for point "<<_G.data().values[0].transpose()<<"\n";
+            return res;
+        }
 
         // Now we will compute the derivatives of the basis functions
         bGrads = _u.data().values[1].col(k);
