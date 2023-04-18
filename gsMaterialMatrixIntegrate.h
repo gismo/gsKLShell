@@ -71,8 +71,16 @@ public:
     m_deformed(deformed)
     {
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
+        {
             m_materialMatrices.add(materialMatrix);
-        this->_makePieces(undeformed);
+            this->_makePieces(undeformed);
+        }
+    }
+
+    /// Destructor
+    ~gsMaterialMatrixIntegrate()
+    {
+        freeAll(m_pieces);
     }
 
     /// Domain dimension, always 2 for shells
@@ -90,11 +98,8 @@ public:
     /// Implementation of piece, see \ref gsFunction
     const gsFunction<T> & piece(const index_t p) const
     {
-        return m_pieces[p];
+        return *m_pieces[p];
     }
-
-    /// Destructor
-    ~gsMaterialMatrixIntegrate() {  }
 
     /// Implementation of eval_into, see \ref gsFunction
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
@@ -105,20 +110,20 @@ protected:
     {
         m_pieces.resize(m_deformed->nPieces());
         for (size_t p = 0; p!=m_pieces.size(); ++p)
-            m_pieces.at(p) = gsMaterialMatrixIntegrateSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed);
+            m_pieces.at(p) = new gsMaterialMatrixIntegrateSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed);
     }
 
     void _makePieces(const gsFunctionSet<T> * undeformed)
     {
         m_pieces.resize(m_deformed->nPieces());
         for (size_t p = 0; p!=m_pieces.size(); ++p)
-            m_pieces.at(p) = gsMaterialMatrixIntegrateSingle<T,out>(p,m_materialMatrices.piece(p),undeformed,m_deformed);
+            m_pieces.at(p) = new gsMaterialMatrixIntegrateSingle<T,out>(p,m_materialMatrices.piece(p),undeformed,m_deformed);
     }
 
 protected:
     gsMaterialMatrixContainer<T> m_materialMatrices;
     const gsFunctionSet<T> * m_deformed;
-    std::vector<gsMaterialMatrixIntegrateSingle<T,out>> m_pieces;
+    mutable std::vector<gsMaterialMatrixIntegrateSingle<T,out> *> m_pieces;
 };
 
 /**
@@ -190,24 +195,11 @@ private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::StretchDir, short_t>::type targetDim_impl() const { return 9; };
 
-public:
-    // FIX THIS (MEMORY ERROR)
-    /// Implementation of piece, see \ref gsFunction
-    const gsFunction<T> & piece(const index_t p) const
-    {
-        m_piece = new gsMaterialMatrixIntegrateSingle(*this);
-        m_piece->setPatch(p);
-        return *m_piece;
-    }
-
 protected:
     /// Sets the patch index
     void setPatch(index_t p) {m_pIndex = p; }
 
 public:
-    /// Destructor
-    ~gsMaterialMatrixIntegrateSingle() { delete m_piece; }
-
     /// Implementation of eval_into, see \ref gsFunction
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
@@ -410,7 +402,6 @@ private:
 protected:
     index_t m_pIndex;
     gsMaterialMatrixBase<T> * m_materialMat;
-    mutable gsMaterialMatrixIntegrateSingle<T,out> * m_piece;
     gsMatrix<T> m_z;
 };
 

@@ -30,7 +30,7 @@ class gsMaterialMatrixEval : public gsFunction<T>
 {
 public:
     /// Constructor
-    gsMaterialMatrixEval(  const gsMaterialMatrixContainer<T> & materialMatrices,
+    gsMaterialMatrixEval(   const gsMaterialMatrixContainer<T> & materialMatrices,
                             const gsFunctionSet<T> * deformed,
                             const gsMatrix<T> z)
     :
@@ -42,7 +42,7 @@ public:
     }
 
     /// Constructor
-    gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * materialMatrix,
+    gsMaterialMatrixEval(   gsMaterialMatrixBase<T> * materialMatrix,
                             const gsFunctionSet<T> * deformed,
                             const gsMatrix<T> z)
     :
@@ -51,8 +51,9 @@ public:
     m_z(z)
     {
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
+        {
             m_materialMatrices.add(materialMatrix);
-
+        }
         this->_makePieces();
     }
 
@@ -100,11 +101,8 @@ public:
     /// Implementation of piece, see \ref gsFunction
     const gsFunction<T> & piece(const index_t p) const
     {
-        return m_pieces[p];
+        return *m_pieces[p];
     }
-
-    /// Destructor
-    ~gsMaterialMatrixEval() {  }
 
     /// Implementation of eval_into, see \ref gsFunction
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
@@ -115,27 +113,27 @@ protected:
     {
         m_pieces.resize(m_deformed->nPieces());
         for (size_t p = 0; p!=m_pieces.size(); ++p)
-            m_pieces.at(p) = gsMaterialMatrixEvalSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed,m_z);
+            m_pieces.at(p) = new gsMaterialMatrixEvalSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed,m_z);
     }
 
     void _makePieces(const gsFunctionSet<T> * undeformed)
     {
         m_pieces.resize(m_deformed->nPieces());
         for (size_t p = 0; p!=m_pieces.size(); ++p)
-            m_pieces.at(p) = gsMaterialMatrixEvalSingle<T,out>(p,m_materialMatrices.piece(p),undeformed,m_deformed,m_z);
+            m_pieces.at(p) = new gsMaterialMatrixEvalSingle<T,out>(p,m_materialMatrices.piece(p),undeformed,m_deformed,m_z);
     }
 
 protected:
     gsMaterialMatrixContainer<T> m_materialMatrices;
     const gsFunctionSet<T> * m_deformed;
     gsMatrix<T> m_z;
-    std::vector<gsMaterialMatrixEvalSingle<T,out>> m_pieces;
+    mutable std::vector<gsMaterialMatrixEvalSingle<T,out> *> m_pieces;
 };
 
 /**
  * @brief      This class serves as the evaluator of material matrices, based on \ref gsMaterialMatrixBase
  *
- * @tparam     T     Real tyoe
+ * @tparam     T     Real type
  * @tparam     out   Output type (see \ref MaterialOutput)
  *
  * @ingroup    KLShell
@@ -220,22 +218,11 @@ private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Deformation, short_t>::type targetDim_impl() const { return 9; };
 
-public:
-    /// Implementation of piece, see \ref gsFunction
-    const gsFunction<T> & piece(const index_t p) const
-    {
-        m_piece = new gsMaterialMatrixEvalSingle(*this);
-        m_piece->setPatch(p);
-        return *m_piece;
-    }
-
 protected:
     /// Sets the patch index
     void setPatch(index_t p) {m_pIndex = p; }
 
 public:
-    /// Destructor
-    ~gsMaterialMatrixEvalSingle() { delete m_piece; }
 
     /// Implementation of eval_into, see \ref gsFunction
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const;
@@ -291,7 +278,6 @@ private:
 protected:
     index_t m_pIndex;
     gsMaterialMatrixBase<T> * m_materialMat;
-    mutable gsMaterialMatrixEvalSingle<T,out> * m_piece;
     gsMatrix<T> m_z;
 };
 

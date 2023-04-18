@@ -33,7 +33,7 @@ namespace gismo
  * @ingroup    KLShell
  */
 template <class T>
-class gsMaterialMatrixContainer
+class gsMaterialMatrixContainer // change name to PtrContainer
 {
 public:
     typedef typename std::vector<gsMaterialMatrixBase<T> *> Container;
@@ -50,10 +50,8 @@ public:
 
     /// Constructor
     gsMaterialMatrixContainer( index_t size = 0 )
-    :
-    m_size(size)
     {
-        m_container.reserve(m_size);
+        m_container.reserve(size);
     }
 
     gsMaterialMatrixContainer(gsMaterialMatrixBase<T> * mat)
@@ -97,7 +95,7 @@ public:
         return pwf.print(os);
     }
 
-    /// Clear (delete) all functions
+    /// Clear all function pointers
     void clear()
     {
         m_container.clear();
@@ -105,7 +103,6 @@ public:
 
 protected:
     Container m_container;
-    index_t m_size;
 
 };
 
