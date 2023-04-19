@@ -84,11 +84,38 @@ int main(int argc, char *argv[])
     gsFileData<> fd;
     gsInfo<<"Reading geometry from "<<fn1<<"...";
     gsReadFile<>(fn1, mp);
-    if (mp.nInterfaces()==0 && mp.nBoundary()==0)
+    if ((mp.nInterfaces()==0 && mp.nBoundary()==0) || gsFileManager::getExtension(fn1)=="3dm")
     {
         gsInfo<<"No topology found. Computing it...";
-        mp.computeTopology();
+        mp.computeTopology(1e0,true);
     }
+
+    // // STEP 1: Get curve network with merged linear interfaces
+    // gsInfo<<"Loading curve network..."<<std::flush;
+    // // mp.constructInterfaceRep();
+    // mp.constructBoundaryRep();
+    // // auto & irep = mp.interfaceRep();
+    // auto & brep = mp.boundaryRep();
+    // // gsDebug <<" irep "<< irep.size() <<" \n" ;
+    // gsDebug <<" brep "<< brep.size() <<" \n" ;
+
+    // // outputing...
+    // gsMultiPatch<> crv_net, iface_net, bnd_net;
+    // // for (auto it = irep.begin(); it!=irep.end(); ++it)
+    // // {
+    // //     iface_net.addPatch((*it->second));
+    // //     crv_net.addPatch((*it->second));
+    // // }
+    // for (auto it = brep.begin(); it!=brep.end(); ++it)
+    // {
+    //     bnd_net.addPatch((*it->second));
+    //     // crv_net.addPatch((*it->second));
+    // }
+
+    // // if (plot) gsWriteParaview(iface_net,"iface_net",100);
+    // if (plot) gsWriteParaview(bnd_net,"bnd_net",100);
+    // // if (plot) gsWriteParaview(crv_net,"crv_net",100);
+
     gsInfo<<"Finished\n";
     if (mp.geoDim()==2)
         mp.embed(3);
@@ -186,14 +213,14 @@ int main(int argc, char *argv[])
 
     // Initialize the system
 
-    gsInfo<<"Assembling stiffness matrix..."<<std::flush;
-    assembler.assemble();
-    gsSparseMatrix<> matrix = assembler.matrix();
-    gsInfo<<"Finished\n";
-    gsVector<> vector = assembler.rhs();
     gsInfo<<"Assembling mass matrix..."<<std::flush;
     assembler.assembleMass();
     gsSparseMatrix<> mass   = assembler.massMatrix();
+    gsInfo<<"Finished\n";
+    gsInfo<<"Assembling stiffness matrix..."<<std::flush;
+    assembler.assemble();
+    gsSparseMatrix<> matrix = assembler.matrix();
+    gsVector<> vector = assembler.rhs();
     gsInfo<<"Finished\n";
 
     gsVector<> values;

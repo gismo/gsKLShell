@@ -530,6 +530,7 @@ private:
 
         const index_t A = _u.cardinality()/_u.dim();
         res.resize(_u.cardinality(), cols()); // rows()*
+        res.setZero();
         cJac = _G.data().jacobian(k);
 
         onormal = _G.data().outNormal(k);
@@ -547,19 +548,7 @@ private:
         else if ( (math::abs(tmp.at(1)) < tol) && (math::abs(tmp.at(0)) > 1-tol ) )     // then the normal is vector 1 and the tangent vector 2
             colIndex = 1;
         else                    // then the normal is unknown??
-        {
-            // gsDebugVar(cJac);
-            // gsDebugVar(onormal);
-            // gsDebugVar(tmp);
-            // gsDebugVar(math::abs(tmp.at(0)));
-            // gsDebugVar(math::abs(tmp.at(1)));
-            // gsDebugVar(math::abs(tmp.at(0)) < tol);
-            // gsDebugVar(math::abs(tmp.at(1)) > 1-tol );
-            // gsDebugVar(math::abs(tmp.at(1)) < tol);
-            // gsDebugVar(math::abs(tmp.at(0)) > 1-tol );
-
             gsInfo<<"warning: choice unknown\n";
-        }
 
         // tangent = cJac.col(colIndex);
         tangent_expr<Scalar> tan_expr = tangent_expr<Scalar>(_G);
@@ -600,6 +589,7 @@ private:
     {
         GISMO_ASSERT(1==_u.data().actives.cols(), "Single actives expected");
         res.resize(rows(), cols());
+        res.setZero();
 
         cJac = _G.data().jacobian(k);
         onormal = _G.data().outNormal(k);
@@ -611,8 +601,8 @@ private:
             The tangent is a covariant vector and hence the column of the Jacobian should be equal to the tangent.
             The normal is a contravariant vector and hence the corresponding column of the Jacobian times the outward normal should give 1. We use this property.
         */
-        index_t colIndex;
-        if ( (math::abs(tmp.at(0)) < tol) && (math::abs(tmp.at(1)) > 1-tol ) )         // then the normal is vector 2 and the tangent vector 1
+        index_t colIndex = -1;
+        if      ( (math::abs(tmp.at(0)) < tol) && (math::abs(tmp.at(1)) > 1-tol ) )         // then the normal is vector 2 and the tangent vector 1
             colIndex = 0;
         else if ( (math::abs(tmp.at(1)) < tol) && (math::abs(tmp.at(0)) > 1-tol ) )     // then the normal is vector 1 and the tangent vector 2
             colIndex = 1;
@@ -624,7 +614,17 @@ private:
         tangent = tan_expr.eval(k);
         // utangent = tangent.normalized();
 
-        Scalar sign = tangent.dot(cJac.col(colIndex));
+        index_t sign = 0;
+        if (colIndex!=-1)
+        {
+            Scalar dot = tangent.dot(cJac.col(colIndex));
+            sign = (Scalar(0) < dot) - (dot < Scalar(0));
+        }
+        else
+        {
+            gsWarn<<"No suitable tangent and outer normal vector found for point "<<_G.data().values[0].transpose()<<"\n";
+            return res;
+        }
 
         bGrads = _u.data().values[1].col(k);
         dtan = sign*bGrads.col(colIndex);
@@ -822,6 +822,7 @@ public:
         GISMO_ASSERT(_G.data().dim.second==3,"Domain dimension should be 3, is "<<_G.data().dim.second);
         GISMO_ASSERT(_C.cols()*_C.rows()==3, "Size of vector is incorrect");
         res.resize(_u.cardinality(), _u.cardinality());
+        res.setZero();
 
         eC = _C.eval(k);
         eC.resize(1,3);

@@ -16,6 +16,7 @@
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/gsMaterialMatrixLinear.h>
 #include <gsKLShell/gsThinShellUtils.h>
+#include <gsStructuralAnalysis/gsStructuralAnalysisUtils.h>
 
 using namespace gismo;
 
@@ -43,6 +44,7 @@ int main(int argc, char *argv[])
     real_t ifcDirichlet = 1.0;
     real_t ifcClamped = 1.0;
 
+    std::string dirname;
     gsCmdLine cmd("Composite basis tests.");
     cmd.addReal( "D", "DirBc", "Dirichlet BC penalty scalar",  bcDirichlet );
     cmd.addReal( "C", "ClaBc", "Clamped BC penalty scalar",  bcClamped );
@@ -53,6 +55,7 @@ int main(int argc, char *argv[])
     cmd.addString( "G", "geom","File containing the geometry",  fn1 );
     cmd.addString( "B", "bvp", "File containing the Boundary Value Problem (BVP)",  fn2 );
     cmd.addString( "O", "opt", "File containing solver options",  fn3 );
+    cmd.addString( "o", "out", "Dir name of the output",  dirname );
 
     cmd.addInt( "p", "degree", "Set the polynomial degree of the basis.", degree );
     cmd.addInt( "s", "smoothness", "Set the smoothness of the basis.",  smoothness );
@@ -101,6 +104,14 @@ int main(int argc, char *argv[])
 
 
     bc.setGeoMap(mp);
+
+    if ((plot || write) && !dirname.empty())
+    {
+        std::string commands = "mkdir -p " + dirname;
+        const char *command = commands.c_str();
+        int systemRet = system(command);
+        GISMO_ASSERT(systemRet!=-1,"Something went wrong with calling the system argument");
+    }
 
     // Loads
     gsFunctionExpr<> force, pressure;
@@ -310,33 +321,6 @@ int main(int argc, char *argv[])
     gsMultiPatch<> deformation = assembler.constructDisplacement(solVector);
     //! [Construct and evaluate solution]
 
-    gsExprEvaluator<> ev;
-    typedef gsExprAssembler<>::geometryMap geometryMap;
-    geometryMap m_ori   = ev.getMap(mp);
-    geometryMap m_def   = ev.getMap(mp_def);
-
-    gsMatrix<> pts(2,4);
-    pts.col(0)<<0.1,0.1;
-    pts.col(1)<<0.1,0.9;
-    pts.col(2)<<0.9,0.1;
-    pts.col(3)<<0.9,0.9;
-    auto test = (flat(jac(m_def).tr()*jac(m_def))).tr();
-    auto That   = cartcon(m_ori);
-    auto Ttilde = cartcov(m_ori);
-    auto cartJac_ori = That * jac(m_ori);
-    auto cartJac_def = That * jac(m_def);
-    auto E_m    = 0.5 * ( flat(cartJac_def.tr()*cartJac_def) - flat(cartJac_ori.tr()*cartJac_ori) );
-    // auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) );
-
-    ev.setIntegrationElements(dbasis);
-    ev.writeParaview(E_m,m_ori,"test1");
-    ev.writeParaview(flat(cartJac_ori.tr()*cartJac_ori) * meas(m_ori),m_ori,"test2");
-    ev.writeParaview(flat(cartJac_def.tr()*cartJac_def) * meas(m_ori),m_ori,"test3");
-
-    ev.writeParaview(flat(jac(m_ori).tr()*jac(m_ori)) * meas(m_ori),m_ori,"test4");
-    ev.writeParaview(flat(jac(m_def).tr()*jac(m_def)) * meas(m_ori),m_ori,"test5");
-
-
     //! [Construct and evaluate solution]
     gsField<> solField(mp_def, deformation);
     if (refPoints.cols()!=0)
@@ -403,25 +387,26 @@ int main(int argc, char *argv[])
         // gsField<> solField(mp, deformation);
         gsInfo<<"Plotting in Paraview...\n";
         // gsWriteParaview<>( solField, "Deformation", 1000, true);
-        gsWriteParaview<>( solField, "Deformation", 1000, false);
+        gsWriteParaview<>( solField,dirname + "/" + "Deformation", 1000, false);
 
     }
+
     if (stress)
     {
         gsPiecewiseFunction<> membraneStresses;
         gsDebugVar("MembraneStress construction");
         assembler.constructStress(mp,mp_def,membraneStresses,stress_type::membrane);
-        gsWriteParaview(mp,membraneStresses,"MembraneStress",5000);
+        gsWriteParaview(mp,membraneStresses,dirname + "/" + "MembraneStress",5000);
 
         gsPiecewiseFunction<> membraneStressesVM;
         gsDebugVar("MembraneStress (VM) construction");
         assembler.constructStress(mp,mp_def,membraneStressesVM,stress_type::von_mises_membrane);
-        gsWriteParaview(mp,membraneStressesVM,"MembraneStressVM",5000);
+        gsWriteParaview(mp,membraneStressesVM,dirname + "/" + "MembraneStressVM",5000);
 
         gsPiecewiseFunction<> flexuralStresses;
         gsDebugVar("FlexuralStress construction");
         assembler.constructStress(mp,mp_def,flexuralStresses,stress_type::flexural);
-        gsWriteParaview(mp,flexuralStresses,"FlexuralStress",5000);
+        gsWriteParaview(mp,flexuralStresses,dirname + "/" + "FlexuralStress",5000);
     }
     // ! [Export visualization in ParaView]
 
