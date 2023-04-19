@@ -187,12 +187,14 @@ int main(int argc, char *argv[])
     GISMO_ENSURE(degree>=mp.patch(0).degree(0),"Degree must be larger than or equal to the degree of the initial geometry, but degree = "<<degree<<" and the original degree = "<<mp.patch(0).degree(0));
     mp.degreeElevate(degree-mp.patch(0).degree(0));
 
+/*
         // h-refine each basis
         for (int r =0; r < 2; ++r)
         {
             mp.uniformRefine(1,degree-smoothness);
         }
         numRefine -= 2;
+*/
     if (last)
     {
         // h-refine each basis
@@ -381,7 +383,7 @@ int main(int argc, char *argv[])
             EnergyNorm[r] = solVector.transpose() * Jacobian(solVector) * solVector;
 
 
-        mp.uniformRefine();
+        mp.uniformRefine(1,degree-smoothness);
         dbasis = gsMultiBasis<>(mp);
     }
     //! [Solver loop]
