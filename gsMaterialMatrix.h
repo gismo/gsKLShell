@@ -1152,7 +1152,7 @@ private:
     }
 };
 
-#ifdef GISMO_BUILD_PYBIND11
+#ifdef GISMO_WITH_PYBIND11
 
   /**
    * @brief Initializes the Python wrapper for the class: gsMaterialMatrixLinear
@@ -1175,7 +1175,7 @@ private:
   void pybind11_init_gsMaterialMatrixOG3i(pybind11::module &m);
   void pybind11_init_gsMaterialMatrixOG3c(pybind11::module &m);
 
-#endif // GISMO_BUILD_PYBIND11
+#endif // GISMO_WITH_PYBIND11
 
 } // namespace
 
