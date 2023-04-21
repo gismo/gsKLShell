@@ -9,7 +9,7 @@
   <int label="MaxLevel" desc="Maximum refinement level" value="11"/>
   <int label="RefineExtension" desc="Extension refinement" value="0"/>
   <int label="RefineRule" desc="Rule used for refinement: 1=GARU, 2=PUCA, 3=BULK, 4=PBULK." value="3"/>
-  <real label="CoarsenParam" desc="Parameter used for coarsening" value="0.10"/>
+  <real label="CoarsenParam" desc="Parameter used for coarsening" value="0.005"/>
   <real label="CoarsenParamExtra" desc="Parameter used for coarsening" value="1e20"/>
   <real label="RefineParam" desc="Parameter used for refinement" value="0.5"/>
   <real label="RefineParamExtra" desc="Parameter used for refinement" value="1e-30"/>
