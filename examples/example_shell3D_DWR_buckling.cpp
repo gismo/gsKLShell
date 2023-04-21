@@ -202,17 +202,23 @@ int main(int argc, char *argv[])
         bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false,2 ); // unknown 2 - z
 
         //   [Analytical solution]
-        gammas.resize(8);
-        gammas[0] = 0.7692307692;
-        gammas[1] = 1.453488372;
-        gammas[2] = 2.688172043;
-        gammas[3] = 4.432515337;
-       	gammas[4] = 4.432515337;
-	gammas[5] = 4.432515337;
-	gammas[6] = 4.432515337;
-	gammas[7] = 4.432515337;
-	real_t sigma1 = 3.61523970735874E+02;
+        gsMatrix<> bbox;
+        mp.boundingBox(bbox);
+        real_t a = bbox(0,1)-bbox(0,0);
+        real_t b = bbox(1,1)-bbox(1,0);
+        real_t r = b/a; // ratio of the plate CHECK
+        for (index_t m=1; m!=10; m++)
+        {
+            real_t res = (math::pow(m,4) + 2*math::pow(m,2)*math::pow(r,2) + math::pow(r,4))/(PoissonRatio*math::pow(r,4) + 4*math::pow(m,2)*math::pow(r,2) + 2*PoissonRatio*math::pow(r,2) + PoissonRatio)
+            gammas.push_back(res);
+        }
+        real_t pi = math::atan(1)/4.;
+	    real_t sigma1 = 4 * pi * pi * D / (b*b*thickness);
+        gsDebugVar(sigma1);
         lambda_an = gammas[modeIdx]*sigma1*thickness / (Load);
+
+        for (auto it = gammas.begin(); it!=gammas.end(); it++)
+            gsDebugVar((*it)*sigma1*thickness / (Load));
         // ! [Analytical solution]
     }
     else if (testCase==1)
@@ -381,6 +387,8 @@ int main(int argc, char *argv[])
         gsDebugVar(eigsolverL.eigenvalues()[modeIdx]*Load);
         solVector = solVectorDualL = eigsolverL.eigenvectors().col(modeIdx);
         eigvalL = dualvalL = eigsolverL.eigenvalues()[modeIdx];
+        gsDebugVar(eigvalL);
+        gsDebugVar(lambda_an);
 
         // eigSolver.compute(K_L, K_NL-K_L);
         // gsDebugVar(eigSolver.eigenvalues()[modeIdx]*Load);
