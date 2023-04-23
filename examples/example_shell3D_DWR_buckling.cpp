@@ -209,12 +209,12 @@ int main(int argc, char *argv[])
         real_t r = b/a; // ratio of the plate CHECK
         for (index_t m=1; m!=10; m++)
         {
-            real_t res = (math::pow(m,4) + 2*math::pow(m,2)*math::pow(r,2) + math::pow(r,4))/(PoissonRatio*math::pow(r,4) + 4*math::pow(m,2)*math::pow(r,2) + 2*PoissonRatio*math::pow(r,2) + PoissonRatio)
+            real_t res = (math::pow(m,4) + 2*math::pow(m,2)*math::pow(r,2) + math::pow(r,4))/(PoissonRatio*math::pow(r,4) + 4*math::pow(m,2)*math::pow(r,2) + 2*PoissonRatio*math::pow(r,2) + PoissonRatio);
             gammas.push_back(res);
         }
-        real_t pi = math::atan(1)/4.;
-	    real_t sigma1 = 4 * pi * pi * D / (b*b*thickness);
-        gsDebugVar(sigma1);
+        real_t pi = 4*math::atan(1);
+        real_t K = 4;
+	    real_t sigma1 = K * pi * pi * D / (b*b*thickness);
         lambda_an = gammas[modeIdx]*sigma1*thickness / (Load);
 
         for (auto it = gammas.begin(); it!=gammas.end(); it++)
