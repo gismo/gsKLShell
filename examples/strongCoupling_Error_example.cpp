@@ -286,38 +286,6 @@ int main(int argc, char *argv[])
             geom = dpatch.exportToPatches();
             dbasis = dpatch.localBasis();
             bb2.init(dbasis,global2local);
-
-            ///////////////////////////////////////////
-            // Project the original geometry on dbasis
-            // Find the basis size
-            index_t size=0;
-            for (index_t p=0; p!=mp.nPatches(); p++)
-                size += mp.patch(p).coefs().rows();
-            // Do the projection on the coarsest obtained D-patch geometry (geom0)
-            if (r>0)
-            {
-                gsMatrix<> coefs;
-                gsL2Projection<real_t>::projectGeometry(dbasis,bb2,geom0,coefs);
-                gsMatrix<> allCoefs = global2local*coefs.reshape(global2local.cols(),mp.geoDim());
-
-                // Substitute all coefficients of geom with the newly obtained ones.
-                gsMultiBasis<> geombasis(geom);
-                gsDofMapper mapper(geombasis);
-                mapper.finalize();
-                for (index_t p = 0; p != geom.nPatches(); p++)
-                {
-                    for (index_t k=0; k!=mapper.patchSize(p); k++)
-                    {
-                        geom.patch(p).coefs().row(k) = allCoefs.row(mapper.index(k,p));
-                    }
-                }
-            }
-            else
-            {
-                geom = dpatch.exportToPatches();
-                geom0 = geom;
-            }
-            gsWriteParaview<>(geom,"geom",1000,true);
         }
         else if (method==2) // Pascal
         {
@@ -353,38 +321,6 @@ int main(int argc, char *argv[])
             geom = almostC1.exportToPatches();
             dbasis = almostC1.localBasis();
             bb2.init(dbasis,global2local);
-
-            ///////////////////////////////////////////
-            // Project the original geometry on dbasis
-            // Find the basis size
-            index_t size=0;
-            for (index_t p=0; p!=mp.nPatches(); p++)
-                size += mp.patch(p).coefs().rows();
-            // Do the projection on the coarsest obtained D-patch geometry (geom0)
-            if (r>0)
-            {
-                gsMatrix<> coefs;
-                gsL2Projection<real_t>::projectGeometry(dbasis,bb2,geom0,coefs);
-                gsMatrix<> allCoefs = global2local*coefs.reshape(global2local.cols(),mp.geoDim());
-
-                // Substitute all coefficients of geom with the newly obtained ones.
-                gsMultiBasis<> geombasis(geom);
-                gsDofMapper mapper(geombasis);
-                mapper.finalize();
-                for (index_t p = 0; p != geom.nPatches(); p++)
-                {
-                    for (index_t k=0; k!=mapper.patchSize(p); k++)
-                    {
-                        geom.patch(p).coefs().row(k) = allCoefs.row(mapper.index(k,p));
-                    }
-                }
-            }
-            else
-            {
-                geom = almostC1.exportToPatches();
-                geom0 = geom;
-            }
-            gsWriteParaview<>(geom,"geom",1000,true);
         }
         else
             GISMO_ERROR("Option "<<method<<" for method does not exist");
@@ -524,20 +460,20 @@ int main(int argc, char *argv[])
                 refPars.resize(2,refPoints.cols());
                 for (index_t p = 0; p!=refPoints.cols(); p++)
                 {
-		    real_t tol = 1e-12;
-		    bool converged = false;
-		    index_t k=0;
-		    gsMatrix<> result;
- 		    while (!converged && k < 10)
-		    {
-			result.resize(0,0);
-			geom.patch(refPatches(0,p)).invertPoints(refPoints.col(p),result,tol);
-			converged = !(result.at(0)==std::numeric_limits<real_t>::infinity());
-			tol *= 10;
-			if (tol > 1e-5)
-			    gsWarn<<"Tolerance of point inversion is "<<tol<<"\n"<<"Point is: "<<result.transpose()<<" and the point to be found is: "<<refPoints.col(p)<<"\n";
-			k++;
-		    }
+        		    real_t tol = 1e-12;
+        		    bool converged = false;
+        		    index_t k=0;
+        		    gsMatrix<> result;
+         		    while (!converged && k < 10)
+        		    {
+            			result.resize(0,0);
+            			geom.patch(refPatches(0,p)).invertPoints(refPoints.col(p),result,tol);
+            			converged = !(result.at(0)==std::numeric_limits<real_t>::infinity());
+            			tol *= 10;
+            			if (tol > 1e-5)
+            			    gsWarn<<"Tolerance of point inversion is "<<tol<<"\n"<<"Point is: "<<result.transpose()<<" and the point to be found is: "<<refPoints.col(p)<<"\n";
+            			k++;
+                    }
                     if (result.at(0)==std::numeric_limits<real_t>::infinity()) // if failed
                         gsWarn<<"Point inversion failed\n";
                     refPars.col(p) = result;

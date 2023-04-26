@@ -84,7 +84,7 @@
 <Function type="FunctionExpr" id="21" tag="Loads" dim="3">
   <c> 0 </c>
   <c> 0 </c>
-  <c> -80000 </c>
+  <c> -1e5 </c>
 </Function>
 <!-- Distributed pressure function -->
 <!-- <Function type="FunctionExpr" id="22" tag="Loads" dim="3">0</Function> -->

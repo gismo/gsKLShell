@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     real_t ifcDirichlet = 1.0;
     real_t ifcClamped = 1.0;
 
-    std::string dirname;
+    std::string dirname = ".";
     gsCmdLine cmd("Composite basis tests.");
     cmd.addReal( "D", "DirBc", "Dirichlet BC penalty scalar",  bcDirichlet );
     cmd.addReal( "C", "ClaBc", "Clamped BC penalty scalar",  bcClamped );

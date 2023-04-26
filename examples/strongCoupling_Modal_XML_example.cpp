@@ -101,6 +101,33 @@ int main(int argc, char *argv[])
     gsReadFile<>(geomFileName, geom);
     gsInfo<<"Finished\n";
 
+    // STEP 1: Get curve network with merged linear interfaces
+    gsInfo<<"Loading curve network..."<<std::flush;
+    geom.computeTopology();
+    geom.constructInterfaceRep();
+    geom.constructBoundaryRep();
+    auto & irep = geom.interfaceRep();
+    auto & brep = geom.boundaryRep();
+    // gsDebug <<" irep "<< irep.size() <<" \n" ;
+    gsDebug <<" brep "<< brep.size() <<" \n" ;
+
+    // outputing...
+    gsMultiPatch<> crv_net, iface_net, bnd_net;
+    for (auto it = irep.begin(); it!=irep.end(); ++it)
+    {
+        iface_net.addPatch((*it->second));
+        crv_net.addPatch((*it->second));
+    }
+    for (auto it = brep.begin(); it!=brep.end(); ++it)
+    {
+        bnd_net.addPatch((*it->second));
+        crv_net.addPatch((*it->second));
+    }
+
+    if (plot) gsWriteParaview(iface_net,"iface_net",100);
+    if (plot) gsWriteParaview(bnd_net,"bnd_net",100);
+    // if (plot) gsWriteParaview(crv_net,"crv_net",100);
+
     gsInfo<<"Reading mapped basis from "<<basisFileName<<"..."<<std::flush;
     fd.read(basisFileName);
     GISMO_ENSURE(fd.template getFirst<gsMultiBasis<>>(dbasis)        ,"No multibasis was read");
@@ -270,10 +297,10 @@ int main(int argc, char *argv[])
             gsWriteParaview<>(solField, fileName, 1000,mesh);
             for (index_t p = 0; p!=geom.nPatches(); p++)
             {
-                fileName = output + util::to_string(m) + "_";
-                collection.addTimestep(fileName,p,m,".vts");
+                fileName = output + util::to_string(m) + "_" + std::to_string(p);
+                collection.addPart(fileName + "vts",m,"solution",p);
                 if (mesh)
-                    collection.addTimestep(fileName,p,m,"_mesh.vtp");
+                    collection.addPart(fileName + "_mesh.vtp",m,"mesh",p);
             }
         }
         collection.save();
