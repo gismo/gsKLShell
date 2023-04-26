@@ -211,10 +211,10 @@ public:
     void assembleFoundation();
 
     /// See \ref gsThinShellAssemblerBase for details
-    void assemble(const gsFunctionSet<T> & deformed,     bool Matrix = true);
+    void assemble(const gsFunctionSet<T> & deformed, bool Matrix = true, bool homogenize = true);
 
     /// See \ref gsThinShellAssemblerBase for details
-    void assemble(const gsMatrix<T>     & solVector,    bool Matrix = true);
+    void assemble(const gsMatrix<T>     & solVector, bool Matrix = true, bool homogenize = true);
 
     /// See \ref gsThinShellAssemblerBase for details
     void assembleMatrix(const gsFunctionSet<T>   & deformed  );
@@ -264,10 +264,10 @@ private:
 
 public:
     /// See \ref gsThinShellAssemblerBase for details
-    void assembleVector(const gsFunctionSet<T>   & deformed  );
+    void assembleVector(const gsFunctionSet<T>   & deformed, bool homogenize = true);
 
     /// See \ref gsThinShellAssemblerBase for details
-    void assembleVector(const gsMatrix<T>       & solVector );
+    void assembleVector(const gsMatrix<T>       & solVector, bool homogenize = true);
 
     /// See \ref gsThinShellAssemblerBase for details
     void assemblePressureVector(const gsFunction<T>   & pressFun  );
@@ -294,12 +294,12 @@ private:
     /// Implementation of assembleVector for surfaces (3D)
     template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, void>::type
-    assembleVector_impl(const gsFunctionSet<T>   & deformed  );
+    assembleVector_impl(const gsFunctionSet<T>   & deformed, bool homogenize);
 
     /// Implementation of assembleVector for planar geometries (2D)
     template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), void>::type
-    assembleVector_impl(const gsFunctionSet<T>   & deformed  );
+    assembleVector_impl(const gsFunctionSet<T>   & deformed, bool homogenize);
 
 public:
     /// See \ref gsThinShellAssemblerBase for details
@@ -752,7 +752,7 @@ public:
      * @param[in]  deformed  The deformed multipatch
      * @param[in]  Matrix    True if the matrix should be assembled
      */
-    virtual void assemble(const gsFunctionSet<T> & deformed,     bool Matrix = true) = 0;
+    virtual void assemble(const gsFunctionSet<T> & deformed,     bool Matrix = true, bool homogenize = true) = 0;
 
     /**
      * @brief      Assembles the tangential stiffness matrix and the residual for an iteration of Newton's method
@@ -762,7 +762,7 @@ public:
      * @param[in]  deformed  The solution vector
      * @param[in]  Matrix    True if the matrix should be assembled
      */
-    virtual void assemble(const gsMatrix<T>     & solVector,    bool Matrix = true) = 0;
+    virtual void assemble(const gsMatrix<T>     & solVector,    bool Matrix = true, bool homogenize = true) = 0;
 
     /**
      * @brief      Assembles the tangential stiffness matrix (nonlinear)
@@ -812,14 +812,14 @@ public:
      *
      * @param[in]  deformed  The deformed geometry
      */
-    virtual void assembleVector(const gsFunctionSet<T>   & deformed  ) = 0;
+    virtual void assembleVector(const gsFunctionSet<T>   & deformed, bool homogenize) = 0;
 
     /**
      * @brief      Assembles the residual vector
      *
      * @param[in]  deformed  The solution vector
      */
-    virtual void assembleVector(const gsMatrix<T>       & solVector ) = 0;
+    virtual void assembleVector(const gsMatrix<T>       & solVector, bool homogenize) = 0;
 
     /**
      * @brief      Assembles the pressure contribution in the system matrix (linear)

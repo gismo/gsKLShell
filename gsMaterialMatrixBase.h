@@ -169,6 +169,24 @@ public:
      */
     inline virtual gsMatrix<T>  eval3D_vector(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
     /**
+     * @brief      Evaluates the Cauchy Stress vector on \a patch on in-plane points \a u with height \a z
+     *
+     * note: the Cauchy stress vector is returned in the actual basis
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     * @param[in]  out    (for classes with MatIntegration==Integrated, more details about \ref MaterialOutput can be found in \ref gsMaterialMatrixUtils)
+     *
+     * @return     Matrix with the result (vector) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
+    inline virtual gsMatrix<T>  eval3D_CauchyVector(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
+    {
+        GISMO_NO_IMPLEMENTATION;
+    }
+    // = 0;
+    /**
      * @brief      Evaluates the principal stress on \a patch on in-plane points \a u with height \a z
      *
      * @param[in]  patch  The patch
@@ -180,6 +198,7 @@ public:
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
     inline virtual gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const = 0;
+
 
     virtual void setThickness(const gsFunction<T> & Thickness)
     { GISMO_NO_IMPLEMENTATION; }

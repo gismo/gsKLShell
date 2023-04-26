@@ -86,7 +86,11 @@ gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::VectorN || _out==MaterialOutput::VectorM || _out==MaterialOutput::Generic, void>::type
+typename std::enable_if<_out==MaterialOutput::VectorN ||
+                        _out==MaterialOutput::CauchyVectorN ||
+                        _out==MaterialOutput::VectorM ||
+                        _out==MaterialOutput::CauchyVectorM ||
+                         _out==MaterialOutput::Generic, void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     result = m_materialMat->eval3D_vector(m_pIndex,u,m_z.replicate(1,u.cols()),_out);

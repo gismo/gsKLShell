@@ -101,12 +101,16 @@ enum class MaterialOutput : short_t
     Density = 1,
     VectorN = 2,
     VectorM = 3,
+    CauchyVectorN = 21,
+    CauchyVectorM = 31,
     MatrixA  = 4,
     MatrixB  = 5,
     MatrixC  = 6,
     MatrixD  = 7,
     PStressN = 8,
     PStressM = 9,
+    PCauchyStressN = 81,
+    PCauchyStressM = 91,
     Stretch = 10,       // ONLY ON MID-PLANE
     StretchDir = 11,    // ONLY ON MID-PLANE
     Transformation = 12,
