@@ -175,22 +175,38 @@ int main(int argc, char *argv[])
     std::vector<real_t> gammas;
     real_t Load = 0;
     real_t lambda_an = 0;
+    gsVector<> neuXp(3);
+    gsVector<> neuXm(3);
+    gsVector<> neuYp(3);
+    gsVector<> neuYm(3);
+    gsConstantFunction<> neuDataXp(neuXp,3);
+    gsConstantFunction<> neuDataXm(neuXm,3);
+    gsConstantFunction<> neuDataYp(neuYp,3);
+    gsConstantFunction<> neuDataYm(neuYm,3);
     if (testCase==0)
     {
-        Load = 1e-1;
-        gsVector<> point(2);
-        gsVector<> load (3);
-        point<< 1.0, 0.0 ; load << Load, 0.0, 0.0 ;
-        pLoads.addLoad(point, load, 0 );
+        Load = 1e0;
+        // gsVector<> point(2);
+        // gsVector<> load (3);
+        // point<< 1.0, 0.5 ; load << Load, 0.0, 0.0 ;
+        // pLoads.addLoad(point, load, 0 );
+        // point<< 0.5, 1.0 ; load << 0.0, Load, 0.0 ;
+        // pLoads.addLoad(point, load, 0 );
+
+        neuXp<<Load,0,0;
+        neuDataXp.setValue(neuXp,3);
+        neuYp<<0,Load,0;
+        neuDataYp.setValue(neuYp,3);
+
 
         // // Clamped-Clamped
-        bc.addCondition(boundary::east, condition_type::collapsed, 0, 0, false, 0 ); // unknown 0 - x
+        // bc.addCondition(boundary::east, condition_type::collapsed, 0, 0, false, 0 ); // unknown 0 - x
+        bc.addCondition(boundary::east, condition_type::neumann, &neuDataXp);
 
-        bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
         bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
 
-        // bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false,0 ); // unknown 0 - x
-        bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
+        // bc.addCondition(boundary::north, condition_type::collapsed, 0, 0, false, 1); // unknown 1 - y
+        bc.addCondition(boundary::north, condition_type::neumann, &neuDataYp);
         bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
 
         // bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false,0 ); // unknown 0 - x
@@ -198,7 +214,7 @@ int main(int argc, char *argv[])
         bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
 
         bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 0); // unknown 0 - x
-        bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false,1 ); // unknown 1 - y
+        // bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false,1 ); // unknown 1 - y
         bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false,2 ); // unknown 2 - z
 
         //   [Analytical solution]
@@ -207,37 +223,81 @@ int main(int argc, char *argv[])
         real_t a = bbox(0,1)-bbox(0,0);
         real_t b = bbox(1,1)-bbox(1,0);
         real_t r = b/a; // ratio of the plate CHECK
+        real_t pi = 3.141592653589793238462;
+        GISMO_ASSERT(r==1,"Only for ratio==1");
         for (index_t m=1; m!=10; m++)
         {
-            real_t res = (math::pow(m,4) + 2*math::pow(m,2)*math::pow(r,2) + math::pow(r,4))/(PoissonRatio*math::pow(r,4) + 4*math::pow(m,2)*math::pow(r,2) + 2*PoissonRatio*math::pow(r,2) + PoissonRatio);
-            gammas.push_back(res);
-        }
-        real_t pi = 4*math::atan(1);
-        real_t K = 4;
-	    real_t sigma1 = K * pi * pi * D / (b*b*thickness);
-        lambda_an = gammas[modeIdx]*sigma1*thickness / (Load);
+            for (index_t n=1; n!=10; n++)
+            {
 
-        for (auto it = gammas.begin(); it!=gammas.end(); it++)
-            gsDebugVar((*it)*sigma1*thickness / (Load));
+                // Robert M. Jones - Buckling of bars, plates and shells - p. 269, eq. 3.184 simplified for a=b, Nx=Ny
+                real_t res = D*pi*pi/(b*b)*(m*m+n*n);
+                gammas.push_back(res);
+                gsInfo<<std::setprecision(12)<<"res = "<<res<<"\n";
+            }
+        }
+        std::sort(gammas.begin(),gammas.end());
+
+        lambda_an = gammas[modeIdx] / (Load);
+
+
         // ! [Analytical solution]
     }
     else if (testCase==1)
     {
-        real_t Load = 1e3;
+        Load = 1e2;
+        // gsVector<> point(2);
+        // gsVector<> load (3);
+        // point<< 1.0, 0.5 ; load << Load, 0.0, 0.0 ;
+        // pLoads.addLoad(point, load, 0 );
+        // point<< 0.5, 1.0 ; load << 0.0, Load, 0.0 ;
+        // pLoads.addLoad(point, load, 0 );
 
-        gsVector<> point(2);
-        gsVector<> load (3);
-        point<< 0.5, 1.0 ; load << Load, 0.0, 0.0 ;
-        pLoads.addLoad(point, load, 0 );
+        neuXp<<Load,0,0;
+        neuDataXp.setValue(neuXp,3);
+        neuXm<<-Load,0,0;
+        neuDataXm.setValue(neuXm,3);
 
-        bc.addCondition(boundary::north, condition_type::collapsed, 0, 0, false, 0); // unknown 0 - x
-        bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
+
+        // // Clamped-Clamped
+        // bc.addCondition(boundary::east, condition_type::collapsed, 0, 0, false, 0 ); // unknown 0 - x
+        bc.addCondition(boundary::east, condition_type::neumann, &neuDataXm);
+        bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
+
+        // bc.addCondition(boundary::north, condition_type::collapsed, 0, 0, false, 1); // unknown 1 - y
         bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
 
-        bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 0); // unknown 0 - x
-        bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
+        // bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false,0 ); // unknown 0 - x
+        // bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
         bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
-        lambda_an = 0;
+
+        bc.addCondition(boundary::west, condition_type::neumann, &neuDataXp);
+        bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false,2 ); // unknown 2 - z
+
+        //   [Analytical solution]
+        gsMatrix<> bbox;
+        mp.boundingBox(bbox);
+        real_t a = bbox(0,1)-bbox(0,0);
+        real_t b = bbox(1,1)-bbox(1,0);
+        real_t r = b/a; // ratio of the plate CHECK
+        real_t pi = 3.141592653589793238462;
+        GISMO_ASSERT(r==1,"Only for ratio==1");
+        for (index_t m=1; m!=10; m++)
+        {
+            for (index_t n=1; n!=10; n++)
+            {
+
+                // Robert M. Jones - Buckling of bars, plates and shells - p. 269, eq. 3.184 simplified for a=b, Nx=Ny
+                real_t res = D*pi*pi*a*a/(m*m)*math::pow(math::pow((m/a),2) + math::pow((n/b),2),2);
+                gammas.push_back(res);
+                gsInfo<<std::setprecision(12)<<"res = "<<res<<"\n";
+            }
+        }
+        std::sort(gammas.begin(),gammas.end());
+        lambda_an = gammas[modeIdx] / (Load);
+
+
+        // ! [Analytical solution]
     }
 
     gsConstantFunction<> force(tmp, 3);
@@ -384,11 +444,8 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        gsDebugVar(eigsolverL.eigenvalues()[modeIdx]*Load);
         solVector = solVectorDualL = eigsolverL.eigenvectors().col(modeIdx);
         eigvalL = dualvalL = eigsolverL.eigenvalues()[modeIdx];
-        gsDebugVar(eigvalL);
-        gsDebugVar(lambda_an);
 
         // eigSolver.compute(K_L, K_NL-K_L);
         // gsDebugVar(eigSolver.eigenvalues()[modeIdx]*Load);
@@ -398,8 +455,6 @@ int main(int argc, char *argv[])
         DWR->constructMultiPatchL(solVector, primalL);
 
         Mnorm = DWR->matrixNorm(primalL, primalL,mp_def);
-        gsDebugVar(solVector.transpose() * (K_NL-K_L) * (solVector));
-        gsDebugVar(Mnorm);
 
         // Mass-normalize primal
         solVector *= 1 / Mnorm;
@@ -408,15 +463,11 @@ int main(int argc, char *argv[])
         // mass-normalize w.r.t. primal
         DWR->constructMultiPatchL(solVectorDualL, dualL);
         Mnorm = DWR->matrixNorm(primalL, dualL,mp_def);
-        gsDebugVar(solVector.transpose() * (K_NL-K_L) * (solVectorDualL));
-        gsDebugVar(Mnorm);
         solVectorDualL *= 1. / Mnorm;
+        gsDebugVar(Mnorm);
         DWR->constructMultiPatchL(solVectorDualL, dualL);
 
         gsInfo << "done.\n";
-
-        gsDebugVar(solVector.transpose() * (K_NL-K_L) * (solVectorDualL));
-        // gsDebugVar(solVector.transpose() * K_NL * (solVectorDualL - solVector));
 
         gsInfo << "Assembling dual matrix (H)... " << std::flush;
         DWR->assembleMatrixH();
@@ -443,7 +494,6 @@ int main(int argc, char *argv[])
         eigsolverH.compute(K_L,K_NL-K_L);
 #endif
 
-        gsDebugVar(eigsolverH.eigenvalues()[modeIdx]*Load);
         solVectorDualH = eigsolverH.eigenvectors().col(modeIdx);
         dualvalH = eigsolverH.eigenvalues()[modeIdx];
         //
@@ -518,7 +568,6 @@ int main(int argc, char *argv[])
                 mesher.markCrs_into(elErrors,markRef,markCrs);
                 mesher.refine(markRef);
                 mesher.unrefine(markCrs);
-                // gsDebugVar(markCrs);
             }
             mesher.rebuild();
         }

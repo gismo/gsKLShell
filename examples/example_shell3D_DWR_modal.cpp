@@ -471,6 +471,7 @@ int main(int argc, char *argv[])
         // mass-normalize w.r.t. primal
         DWR->constructMultiPatchL(solVectorDualL, dualL);
         Mnorm = DWR->matrixNorm(primalL, dualL);
+        gsDebugVar(Mnorm);
         solVectorDualL *= 1. / Mnorm;
         DWR->constructMultiPatchL(solVectorDualL, dualL);
 
@@ -502,6 +503,7 @@ int main(int argc, char *argv[])
         // mass-normalize w.r.t. primal
         DWR->constructMultiPatchH(solVectorDualH, dualH);
         Mnorm = DWR->matrixNorm(primalL, dualH);
+        gsDebugVar(Mnorm);
         solVectorDualH *= 1. / Mnorm;
         DWR->constructMultiPatchH(solVectorDualH, dualH);
 
