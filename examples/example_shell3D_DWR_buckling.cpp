@@ -444,8 +444,8 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        solVector = solVectorDualL = eigsolverL.eigenvectors().col(modeIdx);
         eigvalL = dualvalL = eigsolverL.eigenvalues()[modeIdx];
+        solVector = solVectorDualL = eigsolverL.eigenvectors().col(modeIdx);
 
         // eigSolver.compute(K_L, K_NL-K_L);
         // gsDebugVar(eigSolver.eigenvalues()[modeIdx]*Load);
@@ -494,8 +494,8 @@ int main(int argc, char *argv[])
         eigsolverH.compute(K_L,K_NL-K_L);
 #endif
 
-        solVectorDualH = eigsolverH.eigenvectors().col(modeIdx);
         dualvalH = eigsolverH.eigenvalues()[modeIdx];
+        solVectorDualH = eigsolverH.eigenvectors().col(modeIdx);
         //
         // eigSolver.compute(K_L, K_NL-K_L);
         // gsDebugVar(eigSolver.eigenvalues()[modeIdx]*Load);
@@ -626,6 +626,7 @@ int main(int argc, char *argv[])
         gsWriteParaview<>( fieldPL, "primalL", 1000);
     }
 
+    delete materialMatrix;
     delete DWR;
     return EXIT_SUCCESS;
 
