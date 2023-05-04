@@ -284,8 +284,8 @@ int main(int argc, char *argv[])
             gsWriteParaview<>(solField, fileName, 1000,mesh);
             for (index_t p = 0; p!=mp.nPatches(); p++)
             {
-                fileName = output + util::to_string(m) + "_";
-                collection.addPart(fileName + "vts",m,"solution",p);
+                fileName = output + util::to_string(m) + "_" + util::to_string(p);
+                collection.addPart(fileName + ".vts",m,"solution",p);
                 if (mesh)
                     collection.addPart(fileName + "_mesh.vtp",m,"mesh",p);
             }
