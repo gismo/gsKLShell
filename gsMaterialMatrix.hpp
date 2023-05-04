@@ -384,6 +384,39 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_vector_impl(const index_t pa
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    return _eval3D_vector_impl<mat,comp>(patch,u,z);
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat, bool _comp>
+typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_CauchyVector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
+{
+    gsMatrix<T> result = _eval_Incompressible_CauchyVector(patch, u, z);
+    return result;
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat, bool _comp>
+typename std::enable_if<!_comp && !(_mat==Material::SvK), gsMatrix<T>>::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_CauchyVector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
+{
+    gsMatrix<T> result = _eval_Incompressible_CauchyVector(patch, u, z);
+    return result;
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat, bool _comp>
+typename std::enable_if<_comp && !(_mat==Material::SvK), gsMatrix<T>>::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_CauchyVector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
+{
+    gsMatrix<T> result = _eval_Compressible_CauchyVector(patch, u, z);
+    return result;
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     return _eval3D_pstress_impl<mat,comp>(patch,u,z);
@@ -630,6 +663,13 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_vec
     }
 
     return result;
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
+{
+    // Same as _eval_Incompressible_vector, since J=1
+    return _eval_Incompressible_vector(patch,u,z);
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
@@ -1238,6 +1278,57 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
     this->_computePoints(patch,u);
     gsMatrix<T> result(9, u.cols() * z.rows());
     result.setZero();
+    gsMatrix<T> C33s = _eval_Compressible_C33(patch,u,z);
+    T C33;
+    gsMatrix<T,3,3> c, cinv;
+
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        // Evaluate material properties on the quadrature point
+        for (index_t v=0; v!=m_parmat.rows(); v++)
+            m_parvals.at(v) = m_parmat(v,k);
+
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+                        // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_Tmat(0, k)); // on point i, on height z(0,j)
+
+            C33 = C33s(0,j*u.cols()+k);
+
+            // Compute c
+            c.setZero();
+            c.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+            c(2,2) = C33; // c33
+            cinv.setZero();
+            cinv.block(0,0,2,2) = m_Gcon_def.block(0,0,2,2);
+
+            gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
+            /*
+                C = C1111,  C1122,  C1112
+                    symm,   C2222,  C2212
+                    symm,   symm,   C1212
+            */
+            C(0,0)          = _Cijkl(0,0,0,0,c,cinv); // C1111
+            C(1,1)          = _Cijkl(1,1,1,1,c,cinv); // C2222
+            C(2,2)          = _Cijkl(0,1,0,1,c,cinv); // C1212
+            C(1,0) = C(0,1) = _Cijkl(0,0,1,1,c,cinv); // C1122
+            C(2,0) = C(0,2) = _Cijkl(0,0,0,1,c,cinv); // C1112
+            C(2,1) = C(1,2) = _Cijkl(1,1,0,1,c,cinv); // C2212
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_C33(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
+{
+    // Input: j index in-plane point
+    //        z out-of-plane coordinate (through thickness) in R1 (z)
+    // Output: (n=u.cols(), m=z.rows())
+    //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+    this->_computePoints(patch,u);
+    gsMatrix<T> result(1, u.cols() * z.rows());
+    result.setZero();
 
     for (index_t k=0; k!=u.cols(); k++)
     {
@@ -1292,20 +1383,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
                 // if (abs(S33/S33_old) < tol)
                 if (abs(dc33) < tol)
                 {
-                    gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
-                    /*
-                        C = C1111,  C1122,  C1112
-                            symm,   C2222,  C2212
-                            symm,   symm,   C1212
-                    */
-                    C(0,0)          = _Cijkl(0,0,0,0,c,cinv); // C1111
-                    C(1,1)          = _Cijkl(1,1,1,1,c,cinv); // C2222
-                    C(2,2)          = _Cijkl(0,1,0,1,c,cinv); // C1212
-                    C(1,0) = C(0,1) = _Cijkl(0,0,1,1,c,cinv); // C1122
-                    C(2,0) = C(0,2) = _Cijkl(0,0,0,1,c,cinv); // C1112
-                    C(2,1) = C(1,2) = _Cijkl(1,1,0,1,c,cinv); // C2212
-
-                    break;
+                    result(0,j*u.cols()+k) = c(2,2);
                 }
                 GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, S33 = "<<S33<<" and tolerance = "<<tol<<"\n");
             }
@@ -1324,6 +1402,9 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_vecto
     this->_computePoints(patch,u);
     gsMatrix<T> result(3, u.cols() * z.rows());
     result.setZero();
+    gsMatrix<T> C33s = _eval_Compressible_C33(patch,u,z);
+    T C33;
+    gsMatrix<T,3,3> c, cinv;
 
     for (index_t k=0; k!=u.cols(); k++)
     {
@@ -1336,57 +1417,63 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_vecto
             // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
             this->_getMetric(k, z(j, k) * m_Tmat(0, k)); // on point i, on height z(0,j)
 
-            // Define objects
-            gsMatrix<T,3,3> c, cinv;
-            T S33, C3333, dc33;
-            // T S33_old;
-            S33 = 0.0;
-            dc33 = 0.0;
-            C3333 = 1.0;
+            C33 = C33s(0,j*u.cols()+k);
 
-            index_t itmax = 100;
-            T tol = 1e-10;
-
-            // Initialize c
+            // Compute c
             c.setZero();
             c.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
-            c(2,2) = math::pow(m_J0_sq,-1.0); // c33
-            // c(2,2) = 1.0; // c33
+            c(2,2) = C33; // c33
             cinv.setZero();
             cinv.block(0,0,2,2) = m_Gcon_def.block(0,0,2,2);
-            cinv(2,2) = 1.0/c(2,2);
+            cinv(2,2) = 1.0/C33;
 
-            m_J_sq = m_J0_sq * c(2,2);
-            S33 = _Sij(2,2,c,cinv);
-            // S33_old = (S33 == 0.0) ? 1.0 : S33;
-            C3333   = _Cijkl3D(2,2,2,2,c,cinv);
+            result(0,j*u.cols()+k) = _Sij(0,0,c,cinv); // S11
+            result(1,j*u.cols()+k) = _Sij(1,1,c,cinv); // S22
+            result(2,j*u.cols()+k) = _Sij(0,1,c,cinv); // S12
+        }
+    }
+    return result;
+}
 
-            dc33 = -2. * S33 / C3333;
-            for (index_t it = 0; it < itmax; it++)
-            {
-                c(2,2) += dc33;
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
+{
+    // Input: j index in-plane point
+    //        z out-of-plane coordinate (through thickness) in R1 (z)
+    // Output: (n=u.cols(), m=z.rows())
+    //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+    this->_computePoints(patch,u);
+    gsMatrix<T> result(3, u.cols() * z.rows());
+    result.setZero();
+    gsMatrix<T> C33s = _eval_Compressible_C33(patch,u,z);
+    T C33;
+    gsMatrix<T,3,3> c, cinv;
 
-                GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
-                cinv(2,2) = 1.0/c(2,2);
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        // Evaluate material properties on the quadrature point
+        for (index_t v=0; v!=m_parmat.rows(); v++)
+            m_parvals.at(v) = m_parmat(v,k);
 
-                m_J_sq = m_J0_sq * c(2,2) ;
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_Tmat(0, k)); // on point i, on height z(0,j)
 
-                S33     = _Sij(2,2,c,cinv);
-                C3333   = _Cijkl3D(2,2,2,2,c,cinv); //  or _Cijkl???
+            C33 = C33s(0,j*u.cols()+k);
 
-                dc33 = -2. * S33 / C3333;
-                // if (abs(S33/S33_old) < tol)
-                if (abs(dc33) < tol)
-                {
+            // Compute c
+            c.setZero();
+            c.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+            c(2,2) = C33; // c33
+            cinv.setZero();
+            cinv.block(0,0,2,2) = m_Gcon_def.block(0,0,2,2);
+            cinv(2,2) = 1.0/C33;
+            T detF = math::sqrt(m_J0_sq*C33);
 
-                    result(0,j*u.cols()+k) = _Sij(0,0,c,cinv); // S11
-                    result(1,j*u.cols()+k) = _Sij(1,1,c,cinv); // S22
-                    result(2,j*u.cols()+k) = _Sij(0,1,c,cinv); // S12
-
-                    break;
-                }
-                GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, S33 = "<<S33<<" and tolerance = "<<tol<<"\n");
-            }
+            result(0,j*u.cols()+k) = 1 / detF * _Sij(0,0,c,cinv); // S11
+            result(1,j*u.cols()+k) = 1 / detF * _Sij(1,1,c,cinv); // S22
+            result(2,j*u.cols()+k) = 1 / detF * _Sij(0,1,c,cinv); // S12
         }
     }
     return result;
@@ -1399,9 +1486,14 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_pstre
     //        z out-of-plane coordinate (through thickness) in R1 (z)
     // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+    GISMO_ENSURE(imp==Implementation::Spectral, "Only available for stretch-based materials.");
+
     this->_computePoints(patch,u);
     gsMatrix<T> result(2, u.cols() * z.rows());
     result.setZero();
+    gsMatrix<T> C33s = _eval_Compressible_C33(patch,u,z);
+    T C33;
+    gsMatrix<T,3,3> c, cinv;
 
     for (index_t k=0; k!=u.cols(); k++)
     {
@@ -1414,58 +1506,17 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_pstre
             // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
             this->_getMetric(k, z(j, k) * m_Tmat(0, k)); // on point i, on height z(0,j)
 
-            // Define objects
-            gsMatrix<T,3,3> c, cinv;
-            T S33, C3333, dc33;
-            // T S33_old;
-            S33 = 0.0;
-            dc33 = 0.0;
-            C3333 = 1.0;
+            C33 = C33s(0,j*u.cols()+k);
 
-            index_t itmax = 100;
-            T tol = 1e-10;
-
-            // Initialize c
+            // Compute c
             c.setZero();
             c.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
-            c(2,2) = math::pow(m_J0_sq,-1.0); // c33
-            // c(2,2) = 1.0; // c33
-
+            c(2,2) = C33; // c33
             cinv.setZero();
             cinv.block(0,0,2,2) = m_Gcon_def.block(0,0,2,2);
-            cinv(2,2) = 1.0/c(2,2);
 
-            m_J_sq = m_J0_sq * c(2,2);
-            S33 = _Sij(2,2,c,cinv);
-            // S33_old = (S33 == 0.0) ? 1.0 : S33;
-            C3333   = _Cijkl3D(2,2,2,2,c,cinv);
-
-            dc33 = -2. * S33 / C3333;
-            for (index_t it = 0; it < itmax; it++)
-            {
-                c(2,2) += dc33;
-
-                GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
-                cinv(2,2) = 1.0/c(2,2);
-
-                m_J_sq = m_J0_sq * c(2,2) ;
-
-                S33     = _Sij(2,2,c,cinv);
-                C3333   = _Cijkl3D(2,2,2,2,c,cinv); //  or _Cijkl???
-
-                dc33 = -2. * S33 / C3333;
-                // if (abs(S33/S33_old) < tol)
-                if (abs(dc33) < tol)
-                {
-                    GISMO_ENSURE(imp==Implementation::Spectral, "Only available for stretch-based materials.");
-
-                    result(0,j*u.cols()+k) = _Sii(0,c); // S11
-                    result(1,j*u.cols()+k) = _Sii(1,c); // S22
-
-                    break;
-                }
-                GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, S33 = "<<S33<<" and tolerance = "<<tol<<"\n");
-            }
+            result(0,j*u.cols()+k) = _Sii(0,c); // S11
+            result(1,j*u.cols()+k) = _Sii(1,c); // S22
         }
     }
     return result;

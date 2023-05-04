@@ -374,7 +374,6 @@ gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patc
     {
         gsAsMatrix<T,Dynamic,Dynamic> acov = m_acov_ori_mat.reshapeCol(k,2,2);
         acov = m_map.mine().jacobian(k);
-
         tmp = acov.transpose() * acov;
         m_Acov_ori_mat.reshapeCol(k,2,2) = tmp;
         m_Acon_ori_mat.reshapeCol(k,2,2) = tmp.inverse();
@@ -411,7 +410,7 @@ void gsMaterialMatrixBaseDim<dim,T>::_getMetric(index_t k, T z, bool basis) cons
     else
         ratio = det_def / det_ori;
 
-    GISMO_ENSURE(ratio > 0, "Jacobian determinant is negative! det(Gcov_def) = "<<m_Gcov_def.determinant()<<"; det(Gcov_ori) = "<<m_Gcov_ori.determinant());
+    GISMO_ENSURE(ratio >= 0, "Jacobian determinant is negative! det(Gcov_def) = "<<m_Gcov_def.determinant()<<"; det(Gcov_ori) = "<<m_Gcov_ori.determinant());
     m_J0_sq = ratio;
 }
 

@@ -61,6 +61,7 @@ public:
     m_thickness(thickness),
     m_density(Density)
     {
+        GISMO_ASSERT(mp->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
         membersSetZero();
         this->setUndeformed(mp);
         this->setDeformed(mp_def);

@@ -62,6 +62,7 @@ int main(int argc, char *argv[])
     fn1 = "pde/2p_square_geom.xml";
     fn2 = "pde/2p_square_bvp.xml";
     fn3 = "options/solver_options.xml";
+    std::string dirname = ".";
 
     gsCmdLine cmd("Composite basis tests.");
     cmd.addReal( "D", "Dir", "Dirichlet BC penalty scalar",  bcDirichlet );
@@ -69,6 +70,7 @@ int main(int argc, char *argv[])
     cmd.addString( "G", "geom","File containing the geometry",  fn1 );
     cmd.addString( "B", "bvp", "File containing the Boundary Value Problem (BVP)",  fn2 );
     cmd.addString( "O", "opt", "File containing solver options",  fn3 );
+    cmd.addString( "o", "out", "Dir name of the output",  dirname );
     cmd.addInt( "p", "degree", "Set the polynomial degree of the basis.", degree );
     cmd.addInt( "s", "smoothness", "Set the smoothness of the basis.",  smoothness );
     cmd.addInt( "r", "numRefine", "Number of refinement-loops.",  numRefine );
@@ -121,7 +123,11 @@ int main(int argc, char *argv[])
     if (homogeneous)
     {
         for (gsMultiPatch<>::const_biterator bit = mp.bBegin(); bit != mp.bEnd(); ++bit)
-            bc.addCondition(*bit, condition_type::dirichlet, 0, false, 0, -1);
+        {
+            bc.addCondition(*bit, condition_type::dirichlet, 0, 0, false, 0);
+            bc.addCondition(*bit, condition_type::dirichlet, 0, 0, false, 1);
+            bc.addCondition(*bit, condition_type::dirichlet, 0, 0, false, 2);
+        }
     }
     else
     {
@@ -134,7 +140,16 @@ int main(int argc, char *argv[])
 
     }
 
+    gsInfo<<bc<<"\n";
     bc.setGeoMap(mp);
+
+    if ((plot || write) && !dirname.empty())
+    {
+        std::string commands = "mkdir -p " + dirname;
+        const char *command = commands.c_str();
+        int systemRet = system(command);
+        GISMO_ASSERT(systemRet!=-1,"Something went wrong with calling the system argument");
+    }
 
     // Loads
     gsFunctionExpr<> force, pressure;
@@ -463,7 +478,7 @@ int main(int argc, char *argv[])
             refPars.resize(2,refPoints.cols());
             for (index_t p = 0; p!=refPoints.cols(); p++)
             {
-                mp.patch(refPatches(0,p)).invertPoints(refPoints.col(p),result,1e-10);
+                geom.patch(refPatches(0,p)).invertPoints(refPoints.col(p),result,1e-10);
                 if (result.at(0)==std::numeric_limits<real_t>::infinity()) // if failed
                     gsWarn<<"Point inversion failed\n";
                 refPars.col(p) = result;
@@ -522,7 +537,7 @@ int main(int argc, char *argv[])
         // 4. Plot the mapped spline on the original geometry
         gsField<> solField(geom, mspline,true);
         gsInfo<<"Plotting in Paraview...\n";
-        gsWriteParaview<>( solField, "Deformation", 1000, mesh);
+        gsWriteParaview<>( solField,dirname + "/" + "Deformation", 1000, mesh);
 
         // // 4. Plot the mapped spline on the original geometry
         // gsField<> solField2(mp_def, def,true);
@@ -552,35 +567,35 @@ int main(int argc, char *argv[])
         gsPiecewiseFunction<> membraneStresses;
         gsDebugVar("MembraneStress construction");
         assembler.constructStress(ori,def,membraneStresses,stress_type::membrane);
-        gsWriteParaview(ori,membraneStresses,"MembraneStress",5000);
+        gsWriteParaview(ori,membraneStresses,dirname + "/" + "MembraneStress",5000);
 
         gsPiecewiseFunction<> membraneStressesVM;
         gsDebugVar("MembraneStress (VM) construction");
         assembler.constructStress(ori,def,membraneStressesVM,stress_type::von_mises_membrane);
-        gsWriteParaview(ori,membraneStressesVM,"MembraneStressVM",5000);
+        gsWriteParaview(ori,membraneStressesVM,dirname + "/" + "MembraneStressVM",5000);
 
         gsPiecewiseFunction<> flexuralStresses;
         gsDebugVar("FlexuralStress construction");
         assembler.constructStress(ori,def,flexuralStresses,stress_type::flexural);
-        gsWriteParaview(geom,flexuralStresses,"FlexuralStress",5000);
+        gsWriteParaview(geom,flexuralStresses,dirname + "/" + "FlexuralStress",5000);
     }
     if (write)
     {
         std::vector<std::string> headers = {"u_x","u_y","u_z"};
-        gsStaticOutput<real_t> ptsWriter("pointcoordinates.csv",refPoints);
+        gsStaticOutput<real_t> ptsWriter(dirname + "pointcoordinates.csv",refPoints);
         ptsWriter.init(headers);
         gsMatrix<> pointResults(mp.geoDim(),refPoints.cols());
         for (index_t p=0; p!=refPoints.cols(); p++)
             pointResults.col(p) = mp.piece(refPatches(0,p)).eval(refPoints.col(p));
         ptsWriter.add(pointResults);
 
-        gsStaticOutput<real_t> numWriter("numerical.csv",refPoints);
+        gsStaticOutput<real_t> numWriter(dirname + "numerical.csv",refPoints);
         numWriter.init(headers);
         for (index_t p=0; p!=refPoints.cols(); p++)
             pointResults.col(p) = solField.value(refPoints.col(p),refPatches(0,p));
         numWriter.add(pointResults);
 
-        gsStaticOutput<real_t> refWriter("reference.csv",refPoints);
+        gsStaticOutput<real_t> refWriter(dirname + "reference.csv",refPoints);
         refWriter.init(headers);
         refWriter.add(refValue);
     }

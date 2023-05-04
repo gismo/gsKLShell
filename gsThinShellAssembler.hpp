@@ -1287,7 +1287,7 @@ void gsThinShellAssembler<d, T, bending>::_assembleDirichlet()
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
     // if statement
     m_space.setup(m_bcs, dirichlet::l2Projection, m_continuity);
-    m_assembler.initSystem();
+    // m_assembler.initSystem();
 }
 
 template <short_t d, class T, bool bending>
@@ -1860,15 +1860,15 @@ void gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsMatrix<T> & sol
 }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleVector(const gsFunctionSet<T> & deformed)
+void gsThinShellAssembler<d, T, bending>::assembleVector(const gsFunctionSet<T> & deformed, bool homogenize)
 {
-  assembleVector_impl<d, bending>(deformed);
+  assembleVector_impl<d, bending>(deformed,homogenize);
 }
 
 template<short_t d, typename T, bool bending>
 template<short_t _d, bool _bending>
 typename std::enable_if<_d==3 && _bending, void>::type
-gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> & deformed)
+gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> & deformed, bool homogenize)
 {
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1891,7 +1891,8 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     auto m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
 
 
-    this->homogenizeDirichlet();
+    if (homogenize) this->homogenizeDirichlet();
+    else            this->_assembleDirichlet();
 
     auto m_N        = S0.tr();
     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ;
@@ -1922,7 +1923,7 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
 template<short_t d, typename T, bool bending>
 template<short_t _d, bool _bending>
 typename std::enable_if<!(_d==3 && _bending), void>::type
-gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> & deformed)
+gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> & deformed, bool homogenize)
 {
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1939,7 +1940,8 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     space m_space       = m_assembler.trialSpace(0);
     auto m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
 
-    this->homogenizeDirichlet();
+    if (homogenize) this->homogenizeDirichlet();
+    else            this->_assembleDirichlet();
 
     auto m_N        = S0.tr();
     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ;
@@ -2370,29 +2372,29 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsFunctionSe
 }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleVector(const gsMatrix<T> & solVector)
+void gsThinShellAssembler<d, T, bending>::assembleVector(const gsMatrix<T> & solVector, bool homogenize)
 {
     gsMultiPatch<T> def;
     constructSolution(solVector, def);
-    assembleVector(def);
+    assembleVector(def,homogenize);
 }
 
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::assemble(const gsFunctionSet<T> & deformed,
-                                                   bool Matrix)
+                                                   bool Matrix, bool homogenize)
 {
     if (Matrix)
         assembleMatrix(deformed);
 
-    assembleVector(deformed);
+    assembleVector(deformed,homogenize);
 }
 template <short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::assemble(const gsMatrix<T> & solVector,
-                                                   bool Matrix)
+                                                   bool Matrix, bool homogenize)
 {
     gsMultiPatch<T> def;
     constructSolution(solVector, def);
-    assemble(def,Matrix);
+    assemble(def,Matrix,homogenize);
 }
 
 template <short_t d, class T, bool bending>

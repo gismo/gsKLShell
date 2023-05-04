@@ -179,7 +179,9 @@ private:
     /// Implementation of \ref targetDim for stress tensors
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorN ||
+                            _out==MaterialOutput::CauchyVectorN ||
                             _out==MaterialOutput::VectorM ||
+                            _out==MaterialOutput::CauchyVectorM ||
                             _out==MaterialOutput::Generic  , short_t>::type targetDim_impl() const { return 3; };
 
     /// Implementation of \ref targetDim for material tensors
@@ -235,7 +237,9 @@ private:
     /// Specialisation of \ref eval_into for the membrane stress tensor N, M and generic stress
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorN ||
+                            _out==MaterialOutput::CauchyVectorN ||
                             _out==MaterialOutput::VectorM ||
+                            _out==MaterialOutput::CauchyVectorM ||
                             _out==MaterialOutput::Generic , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// Specialisation of \ref eval_into for the moments of the material matrices
