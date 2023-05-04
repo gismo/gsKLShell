@@ -254,6 +254,7 @@ int main(int argc, char *argv[])
 
     for( index_t r = 0; r<=numRefine; ++r)
     {
+        mp = geom;
         gsInfo<<"--------------------------------------------------------------\n";
         time.restart();
         if (method==-1)
@@ -279,7 +280,7 @@ int main(int argc, char *argv[])
         else if (method==1)
         {
             // geom = mp;
-            gsDPatch<2,real_t> dpatch(geom);
+            gsDPatch<2,real_t> dpatch(mp);
             dpatch.options().setInt("RefLevel",r);
             dpatch.options().setInt("Pi",0);
             dpatch.options().setSwitch("SharpCorners",false);
