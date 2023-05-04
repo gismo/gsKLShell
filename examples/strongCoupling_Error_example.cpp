@@ -277,8 +277,11 @@ int main(int argc, char *argv[])
         }
         else if (method==1)
         {
-            geom = mp;
+            // geom = mp;
             gsDPatch<2,real_t> dpatch(geom);
+            dpatch.options().setInt("RefLevel",r);
+            dpatch.options().setInt("Pi",0);
+            dpatch.options().setSwitch("SharpCorners",false);
             dpatch.compute();
             dpatch.matrix_into(global2local);
 
