@@ -172,9 +172,10 @@ int main(int argc, char *argv[])
 
 
     real_t D = E_modulus * math::pow(thickness, 3) / (12 * (1 - math::pow(PoissonRatio, 2)));
-    std::vector<real_t> gammas;
+    std::vector<real_t> gammas_an, gammas_num;
     real_t Load = 0;
     real_t lambda_an = 0;
+    real_t lambda_num = 0;
     gsVector<> neuXp(3);
     gsVector<> neuXm(3);
     gsVector<> neuYp(3);
@@ -232,14 +233,16 @@ int main(int argc, char *argv[])
 
                 // Robert M. Jones - Buckling of bars, plates and shells - p. 269, eq. 3.184 simplified for a=b, Nx=Ny
                 real_t res = D*pi*pi/(b*b)*(m*m+n*n);
-                gammas.push_back(res);
-                gsInfo<<std::setprecision(12)<<"res = "<<res<<"\n";
+                gammas_an.push_back(res);
             }
         }
-        std::sort(gammas.begin(),gammas.end());
+        std::sort(gammas_an.begin(),gammas_an.end());
 
-        lambda_an = gammas[modeIdx] / (Load);
+        gammas_num = std::vector<real_t>{1.80755659914,4.51889147047,4.51889147113,7.23022635302,9.03778294184,9.03778294455,11.7491178247,11.7491178261,15.364231004,15.3642310052};
 
+        lambda_an  = gammas_an[modeIdx] / (Load);
+
+        lambda_num = gammas_num[modeIdx] / (Load);
 
         // ! [Analytical solution]
     }
@@ -289,13 +292,16 @@ int main(int argc, char *argv[])
 
                 // Robert M. Jones - Buckling of bars, plates and shells - p. 269, eq. 3.184 simplified for a=b, Nx=Ny
                 real_t res = D*pi*pi*a*a/(m*m)*math::pow(math::pow((m/a),2) + math::pow((n/b),2),2);
-                gammas.push_back(res);
-                gsInfo<<std::setprecision(12)<<"res = "<<res<<"\n";
+                gammas_an.push_back(res);
             }
         }
-        std::sort(gammas.begin(),gammas.end());
-        lambda_an = gammas[modeIdx] / (Load);
+        std::sort(gammas_an.begin(),gammas_an.end());
+        
+        gammas_num = std::vector<real_t>{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
+        lambda_an = gammas_an[modeIdx] / (Load);
+
+        lambda_num = gammas_num[modeIdx] / (Load);
 
         // ! [Analytical solution]
     }
@@ -320,12 +326,15 @@ int main(int argc, char *argv[])
     // points.col(2).setConstant(0.75);
 
     // measures
-    std::vector<real_t> exacts(numRefine+1);
+    std::vector<real_t> exacts_an(numRefine+1);
+    std::vector<real_t> exacts_num(numRefine+1);
     std::vector<real_t> approxs(numRefine+1);
-    std::vector<real_t> efficiencies(numRefine+1);
+    std::vector<real_t> efficiencies_an(numRefine+1);
+    std::vector<real_t> efficiencies_num(numRefine+1);
     std::vector<real_t> numGoal(numRefine+1);
     std::vector<real_t> estGoal(numRefine+1);
-    std::vector<real_t> exGoal(numRefine+1);
+    std::vector<real_t> exGoal_an(numRefine+1);
+    std::vector<real_t> exGoal_num(numRefine+1);
     std::vector<real_t> DoFs(numRefine+1);
 
     // solvers
@@ -434,11 +443,14 @@ int main(int argc, char *argv[])
         {
             gsWarn<<"No error computed because mode does not exist (system size)!\n";
             approxs[r] = 0;
-            exacts[r] = 0;
-            efficiencies[r] = 0;
+            exacts_an[r] = 0;
+            exacts_num[r] = 0;
+            efficiencies_an[r] = 0;
+            efficiencies_num[r] = 0;
             numGoal[r] = 0;
             estGoal[r] = 0;
-            exGoal[r] = 0;
+            exGoal_an[r] = 0;
+            exGoal_num[r] = 0;
             DoFs[r] = 0;
             mp.uniformRefine();
             continue;
@@ -522,18 +534,23 @@ int main(int argc, char *argv[])
             collection.addTimestep(fileName,r,"_mesh.vtp");
         }
 
-        exacts[r] = 0;
+        exacts_an[r] = 0;
+        exacts_num[r] = 0;
         numGoal[r] = eigvalL;
-        exGoal[r] = lambda_an;
+        exGoal_an[r] = lambda_an;
+        exGoal_num[r] = lambda_num;
         DoFs[r] = basisL.basis(0).numElements();
 
-        exacts[r] += exGoal[r];
-        exacts[r] -= numGoal[r];
+        exacts_an[r] += exGoal_an[r];
+        exacts_an[r] -= numGoal[r];
+        exacts_num[r] += exGoal_num[r];
+        exacts_num[r] -= numGoal[r];
         approxs[r] = DWR->computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL,mp_def);
 
         estGoal[r] = numGoal[r]+approxs[r];
 
-        efficiencies[r] = approxs[r]/exacts[r];
+        efficiencies_an[r] = approxs[r]/exacts_an[r];
+        efficiencies_num[r] = approxs[r]/exacts_num[r];
 
         if (adaptivity==0)
         {
@@ -581,17 +598,20 @@ int main(int argc, char *argv[])
     }
 
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
-    gsInfo<<"Ref.\tApprox    \tExact     \tEfficiency\tNumGoal   \tEstGoal   \texGoal    \t#elements \n";
+    gsInfo<<"Ref.\tApprox    \tExact_an  \tExact_num \tEff. an   \tEff. num  \tNumGoal   \tEstGoal   \texGoal_num\texGoal_an \t#elements \n";
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
     for(index_t r=0; r!=numRefine+1; r++)
     {
         gsInfo  <<std::setw(4 )<<std::left<<r<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<approxs[r]<<"\t";
-        gsInfo  <<std::setw(10)<<std::left<<exacts[r]<<"\t";
-        gsInfo  <<std::setw(10)<<std::left<<efficiencies[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<exacts_an[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<exacts_num[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<efficiencies_an[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<efficiencies_num[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<numGoal[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<estGoal[r]<<"\t";
-        gsInfo  <<std::setw(10)<<std::left<<exGoal[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<exGoal_an[r]<<"\t";
+        gsInfo  <<std::setw(10)<<std::left<<exGoal_num[r]<<"\t";
         gsInfo  <<std::setw(10)<<std::left<<DoFs[r]<<"\n";
     }
     gsInfo<<"-------------------------------------------------------------------------------------------------\n";
@@ -604,10 +624,10 @@ int main(int argc, char *argv[])
         std::ofstream file_out;
         file_out.open (filename);
 
-        file_out<<"Ref,Approx,Exact,Efficiency,NumGoal,EstGoal,exGoal,DoFs\n";
+        file_out<<"Ref,Approx,Exact_an,Exact_num,Efficiency_num,Efficiency_an,NumGoal,EstGoal,exGoal_an,exGoal_num,DoFs\n";
         for(index_t r=0; r!=numRefine+1; r++)
         {
-            file_out<<r<<","<<approxs[r]<<","<<exacts[r]<<","<<efficiencies[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<exGoal[r]<<","<<DoFs[r]<<"\n";
+            file_out<<r<<","<<approxs[r]<<","<<exacts_an[r]<<","<<exacts_num[r]<<","<<efficiencies_an[r]<<","<<efficiencies_num[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<exGoal_an[r]<<","<<exGoal_num[r]<<","<<DoFs[r]<<"\n";
         }
 
         file_out.close();
