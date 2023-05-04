@@ -201,7 +201,6 @@ int main(int argc, char *argv[])
     fd.read(fn3);
     fd.template getFirst<gsOptionList>(solverOptions);
 
-    gsMultiPatch<> geom = mp;
     gsMultiPatch<> geom0;
 
     // p-refine
@@ -220,6 +219,8 @@ int main(int argc, char *argv[])
             mp.uniformRefine(1,degree-smoothness);
         numRefine = 0;
     }
+
+    gsMultiPatch<> geom = mp;
 
     if (plot) gsWriteParaview(mp,"mp",1000,true,false);
 
