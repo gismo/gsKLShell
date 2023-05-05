@@ -218,7 +218,7 @@ void gsThinShellAssembler<d, T, bending>::_initialize()
     GISMO_ASSERT(m_forceFun->targetDim()==d,"Force must have " << d<<" dimensions but has "<<m_forceFun->targetDim());
 
     // test interfaces on in-plane and out-of-plane connection and put them in respective containers
-    _ifcTest();
+    // _ifcTest();
     // match interfaces where needed
     // todo
     // Put the interfaces in the right container depending on the

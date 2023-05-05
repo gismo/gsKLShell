@@ -21,6 +21,9 @@
 namespace gismo
 {
 
+template <short_t dim, class T>
+class gsMaterialMatrixBaseDimData;
+
 /**
  * @brief      This class defines the base class for material matrices
  *
@@ -187,6 +190,30 @@ protected:
 
     void membersSetZero()
     {
+        m_data.mine().membersSetZero();
+    }
+
+    const gsFunctionSet<T> * m_patches;
+    using Base::m_defpatches;
+
+    std::vector<gsFunction<T>* > m_pars;
+    const gsFunction<T> * m_thickness;
+    const gsFunction<T> * m_density;
+
+    // Geometric data point
+    mutable util::gsThreaded< gsMaterialMatrixBaseDimData<dim,T> > m_data;
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW //must be present whenever the class contains fixed size matrices
+
+};
+
+template<short_t dim, class T>
+class gsMaterialMatrixBaseDimData
+{
+public:
+
+    void membersSetZero()
+    {
         m_Acov_ori.setZero(); m_Acon_ori.setZero(); m_Acov_def.setZero(); m_Acon_def.setZero(); m_Bcov_ori.setZero(); m_Bcon_ori.setZero(); m_Bcov_def.setZero(); m_Bcon_def.setZero();
         m_acov_ori.setZero(); m_acon_ori.setZero(); m_acov_def.setZero(); m_acon_def.setZero();
         m_ncov_ori.setZero(); m_ncov_def.setZero();
@@ -196,20 +223,13 @@ protected:
         m_acov_ori_mat.setZero(); m_acon_ori_mat.setZero(); m_acov_def_mat.setZero(); m_acon_def_mat.setZero(); m_ncov_ori_mat.setZero(); m_ncov_def_mat.setZero();
 
     }
+    mutable gsMapData<T> m_map, m_map_def;
 
-    const gsFunctionSet<T> * m_patches;
-    using Base::m_defpatches;
 
-    std::vector<gsFunction<T>* > m_pars;
-    const gsFunction<T> * m_thickness;
-    const gsFunction<T> * m_density;
     // Material parameters and kinematics
     mutable gsMatrix<T> m_parmat;
     mutable gsVector<T> m_parvals;
     mutable gsMatrix<T> m_Tmat,m_rhomat;
-
-    // Geometric data point
-    mutable util::gsThreaded<gsMapData<T> > m_map, m_map_def;
 
     mutable gsMatrix<T,2,2> m_Acov_ori, m_Acon_ori, m_Acov_def, m_Acon_def, m_Bcov_ori, m_Bcon_ori, m_Bcov_def, m_Bcon_def;
     mutable gsMatrix<T,dim,2> m_acov_ori, m_acon_ori, m_acov_def, m_acon_def;
@@ -222,9 +242,8 @@ protected:
     mutable gsMatrix<T> m_stretches, m_stretchvec;
 
     mutable T           m_J0_sq, m_J_sq;
-public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW //must be present whenever the class contains fixed size matrices
 
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW //must be present whenever the class contains fixed size matrices
 };
 
 #ifdef GISMO_WITH_PYBIND11
