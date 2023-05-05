@@ -25,7 +25,7 @@ namespace gismo
   // OG
   CLASS_TEMPLATE_INST gsMaterialMatrix<3,real_t,34,false>;
 
-  #ifdef GISMO_BUILD_PYBIND11
+  #ifdef GISMO_WITH_PYBIND11
 
     namespace py = pybind11;
 

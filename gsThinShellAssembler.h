@@ -605,7 +605,7 @@ protected:
 
 };
 
-#ifdef GISMO_BUILD_PYBIND11
+#ifdef GISMO_WITH_PYBIND11
 
   /**
    * @brief Initializes the Python wrapper for the class: gsThinShellAssembler
@@ -614,7 +614,7 @@ protected:
   void pybind11_init_gsThinShellAssembler3(pybind11::module &m);
   void pybind11_init_gsThinShellAssembler3nb(pybind11::module &m);
 
-#endif // GISMO_BUILD_PYBIND11
+#endif // GISMO_WITH_PYBIND11
 
 /**
  * @brief      Base class for the gsThinShellAssembler
@@ -900,14 +900,14 @@ public:
 
 };
 
-#ifdef GISMO_BUILD_PYBIND11
+#ifdef GISMO_WITH_PYBIND11
 
   /**
    * @brief Initializes the Python wrapper for the class: gsThinShellAssembler
    */
   void pybind11_init_gsThinShellAssemblerBase(pybind11::module &m);
 
-#endif // GISMO_BUILD_PYBIND11
+#endif // GISMO_WITH_PYBIND11
 
 } // namespace gismo
 

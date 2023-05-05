@@ -1069,74 +1069,8 @@ protected:
     // const gsFunction<T> * m_density;
     using Base::m_density;
 
-    // // Geometric data point
-    // mutable gsMapData<T> m_map, m_map_def;
-    // mutable gsMatrix<T,2,2> m_Acov_ori, m_Acon_ori, m_Acov_def, m_Acon_def, m_Bcov_ori, m_Bcon_ori, m_Bcov_def, m_Bcon_def;
-    // mutable gsMatrix<T,dim,2> m_acov_ori, m_acon_ori, m_acov_def, m_acon_def;
-    // mutable gsMatrix<T,3,2> m_ncov_ori, m_ncov_def;
-    // mutable gsMatrix<T,3,3> m_Gcov_ori, m_Gcon_ori, m_Gcov_def, m_Gcon_def, m_Gcov_ori_L, m_Gcov_def_L;
-    // mutable gsMatrix<T,3,3> m_gcov_ori, m_gcov_def,m_gcon_ori, m_gcon_def;
-    // mutable gsMatrix<T> m_Acov_ori_mat, m_Acon_ori_mat, m_Acov_def_mat, m_Acon_def_mat, m_Bcov_ori_mat, m_Bcov_def_mat;
-    // mutable gsMatrix<T> m_acov_ori_mat, m_acon_ori_mat, m_acov_def_mat, m_acon_def_mat, m_ncov_ori_mat, m_ncov_def_mat;
-    // mutable T           m_J0_sq;
-
-
-    // // Material parameters and kinematics
-    // mutable gsMatrix<T> m_parmat;
-    // mutable gsVector<T> m_parvals;
-    // mutable gsMatrix<T> m_Tmat,m_rhomat;
-    using Base::m_parmat;
-    using Base::m_parvals;
-    using Base::m_Tmat;
-    using Base::m_rhomat;
-
-    // Geometric data point
-    using Base::m_map;
-    using Base::m_map_def;
-
-    using Base::m_Acov_ori;
-    using Base::m_Acon_ori;
-    using Base::m_Acov_def;
-    using Base::m_Acon_def;
-    using Base::m_Bcov_ori;
-    using Base::m_Bcon_ori;
-    using Base::m_Bcov_def;
-    using Base::m_Bcon_def;
-    using Base::m_acov_ori;
-    using Base::m_acon_ori;
-    using Base::m_acov_def;
-    using Base::m_acon_def;
-    using Base::m_ncov_ori;
-    using Base::m_ncov_def;
-    using Base::m_Gcov_ori;
-    using Base::m_Gcon_ori;
-    using Base::m_Gcov_def;
-    using Base::m_Gcon_def;
-    using Base::m_Gcov_ori_L;
-    using Base::m_Gcov_def_L;
-    using Base::m_gcov_ori;
-    using Base::m_gcov_def;
-    using Base::m_gcon_ori;
-    using Base::m_gcon_def;
-    using Base::m_Acov_ori_mat;
-    using Base::m_Acon_ori_mat;
-    using Base::m_Acov_def_mat;
-    using Base::m_Acon_def_mat;
-    using Base::m_Bcov_ori_mat;
-    using Base::m_Bcov_def_mat;
-    using Base::m_acov_ori_mat;
-    using Base::m_acon_ori_mat;
-    using Base::m_acov_def_mat;
-    using Base::m_acon_def_mat;
-    using Base::m_ncov_ori_mat;
-    using Base::m_ncov_def_mat;
-
-    using Base::m_stretches;
-    using Base::m_stretchvec;
-
-    using Base::m_J0_sq;
-    using Base::m_J_sq;
-
+    // Geometric data
+    using Base::m_data;
 
     gsOptionList m_options;
 
@@ -1152,7 +1086,7 @@ private:
     }
 };
 
-#ifdef GISMO_BUILD_PYBIND11
+#ifdef GISMO_WITH_PYBIND11
 
   /**
    * @brief Initializes the Python wrapper for the class: gsMaterialMatrixLinear
@@ -1175,7 +1109,7 @@ private:
   void pybind11_init_gsMaterialMatrixOG3i(pybind11::module &m);
   void pybind11_init_gsMaterialMatrixOG3c(pybind11::module &m);
 
-#endif // GISMO_BUILD_PYBIND11
+#endif // GISMO_WITH_PYBIND11
 
 } // namespace
 

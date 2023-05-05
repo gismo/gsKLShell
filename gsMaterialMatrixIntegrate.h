@@ -154,9 +154,6 @@ protected:
     void setPatch(index_t p) {m_pIndex = p; }
 
 public:
-    /// Destructor
-    ~gsMaterialMatrixIntegrateSingle() { }
-
     /// Implementation of eval_into, see \ref gsFunction
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
