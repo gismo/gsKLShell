@@ -201,7 +201,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_stretch_into_impl(const gsMatrix<T>
         {
             c(2,2) += dc33;
 
-            GISMO_ENSURE(c(2,2)>= 0,"ERROR! c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
+            //GISMO_ENSURE(c(2,2)>= 0,"ERROR! c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
             cinv(2,2) = 1.0/c(2,2);
 
             m_J_sq = m_J0_sq * c(2,2) ;
@@ -212,6 +212,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_stretch_into_impl(const gsMatrix<T>
             dc33 = -2. * S33 / C3333;
             if (abs(dc33) < tol)
             {
+                GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
                 res = this->_evalStretch(c);
                 result.col(i) = res.first;
                 break;
@@ -297,7 +298,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_stretchDir_into_impl(const gsMatrix
         {
             c(2,2) += dc33;
 
-            GISMO_ENSURE(c(2,2)>= 0,"ERROR! c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
+            //GISMO_ENSURE(c(2,2)>= 0,"ERROR! c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
             cinv(2,2) = 1.0/c(2,2);
 
             m_J_sq = m_J0_sq * c(2,2) ;
@@ -308,6 +309,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_stretchDir_into_impl(const gsMatrix
             dc33 = -2. * S33 / C3333;
             if (abs(dc33) < tol)
             {
+	        GISMO_ENSURE(c(2,2)>= 0,"ERROR! c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
                 res = this->_evalStretch(c);
                 result.col(i) = res.second.reshape(9,1);
                 break;
@@ -1274,7 +1276,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
             {
                 c(2,2) += dc33;
 
-                GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
+                //GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
                 cinv(2,2) = 1.0/c(2,2);
 
                 m_J_sq = m_J0_sq * c(2,2) ;
@@ -1286,6 +1288,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
                 // if (abs(S33/S33_old) < tol)
                 if (abs(dc33) < tol)
                 {
+		    GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
                     gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
                     /*
                         C = C1111,  C1122,  C1112
@@ -1360,7 +1363,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_vecto
             {
                 c(2,2) += dc33;
 
-                GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
+                //GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
                 cinv(2,2) = 1.0/c(2,2);
 
                 m_J_sq = m_J0_sq * c(2,2) ;
@@ -1372,7 +1375,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_vecto
                 // if (abs(S33/S33_old) < tol)
                 if (abs(dc33) < tol)
                 {
-
+		    GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
                     result(0,j*u.cols()+k) = _Sij(0,0,c,cinv); // S11
                     result(1,j*u.cols()+k) = _Sij(1,1,c,cinv); // S22
                     result(2,j*u.cols()+k) = _Sij(0,1,c,cinv); // S12
@@ -1439,7 +1442,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_pstre
             {
                 c(2,2) += dc33;
 
-                GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
+                //GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
                 cinv(2,2) = 1.0/c(2,2);
 
                 m_J_sq = m_J0_sq * c(2,2) ;
@@ -1452,7 +1455,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_pstre
                 if (abs(dc33) < tol)
                 {
                     GISMO_ENSURE(imp==Implementation::Spectral, "Only available for stretch-based materials.");
-
+                    GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
                     result(0,j*u.cols()+k) = _Sii(0,c); // S11
                     result(1,j*u.cols()+k) = _Sii(1,c); // S22
 
