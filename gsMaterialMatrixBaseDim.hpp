@@ -33,7 +33,7 @@ namespace gismo
 template <short_t dim, class T >
 void gsMaterialMatrixBaseDim<dim,T>::density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_data.mine().m_map.flags = NEED_VALUE;
+    m_data.mine().m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
     m_data.mine().m_map.points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_data.mine().m_map);
 
@@ -50,7 +50,7 @@ void gsMaterialMatrixBaseDim<dim,T>::density_into(const index_t patch, const gsM
 template <short_t dim, class T >
 void gsMaterialMatrixBaseDim<dim,T>::thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
-    m_data.mine().m_map.flags = NEED_VALUE;
+    m_data.mine().m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
     m_data.mine().m_map.points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_data.mine().m_map);
     m_thickness->piece(patch).eval_into(m_data.mine().m_map.values[0], result);
@@ -107,7 +107,7 @@ void gsMaterialMatrixBaseDim<dim,T>::transform_into(const index_t patch, const g
 template <short_t dim, class T >
 void gsMaterialMatrixBaseDim<dim,T>::parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
-    m_data.mine().m_map.flags = NEED_VALUE;
+    m_data.mine().m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
     m_data.mine().m_map.points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_data.mine().m_map);
 
@@ -125,6 +125,7 @@ void gsMaterialMatrixBaseDim<dim,T>::parameters_into(const index_t patch, const 
 template <short_t dim, class T >
 void gsMaterialMatrixBaseDim<dim,T>::deformation_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
+    m_data.mine().m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
     m_data.mine().m_map.points = u;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_data.mine().m_map);
 
@@ -146,18 +147,20 @@ void gsMaterialMatrixBaseDim<dim,T>::deformation_into(const index_t patch, const
 template <short_t dim, class T >
 void gsMaterialMatrixBaseDim<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool basis) const
 {
-    gsMatrix<T> tmp;
-
     this->_computeMetricUndeformed(patch,u,basis);
-
     if (Base::m_defpatches->nPieces()!=0)
         this->_computeMetricDeformed(patch,u,basis);
+
+    m_data.mine().m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
+    m_data.mine().m_map.points = u;
+    static_cast<const gsFunction<T>&>(Base::m_defpatches->piece(patch)).computeMap(m_data.mine().m_map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
 
     m_thickness->piece(patch).eval_into(m_data.mine().m_map.values[0], m_data.mine().m_Tmat);
 
     m_data.mine().m_parmat.resize(m_pars.size(),m_data.mine().m_map.values[0].cols());
     m_data.mine().m_parmat.setZero();
 
+    gsMatrix<T> tmp;
     for (size_t v=0; v!=m_pars.size(); v++)
     {
         m_pars[v]->piece(patch).eval_into(m_data.mine().m_map.values[0], tmp);
@@ -170,7 +173,7 @@ void gsMaterialMatrixBaseDim<dim,T>::_computePoints(const index_t patch, const g
 template <short_t dim, class T>
 void gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed(const index_t patch, const gsMatrix<T> & u, bool basis) const
 {
-    m_data.mine().m_map_def.flags = m_data.mine().m_map.flags;
+    m_data.mine().m_map_def.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
     m_data.mine().m_map_def.points = u;
     static_cast<const gsFunction<T>&>(Base::m_defpatches->piece(patch)).computeMap(m_data.mine().m_map_def); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
 
