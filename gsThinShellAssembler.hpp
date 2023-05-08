@@ -2526,6 +2526,8 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::computePrincipalStretches(const
     // gsDebug<<"Warning: Principle Stretch computation of gsThinShellAssembler is depreciated...\n";
     gsMatrix<T> result(3,u.cols());
     result.setZero();
+    gsMatrix<T> zmat(1,1);
+    zmat<<z;
     this->_getOptions();
 
     m_assembler.cleanUp();
@@ -2535,7 +2537,7 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::computePrincipalStretches(const
     // geometryMap m_def   = m_assembler.getMap(*m_defpatches);
     // m_assembler.initSystem();
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::Stretch> m_mm(m_materialMatrices,&deformed);
+    gsMaterialMatrixEval<T,MaterialOutput::Stretch> m_mm(m_materialMatrices,&deformed,zmat);
     auto mm0 = m_assembler.getCoeff(m_mm);
 
     gsExprEvaluator<T> evaluator(m_assembler);

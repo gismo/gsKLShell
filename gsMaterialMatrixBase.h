@@ -278,6 +278,8 @@ public:
     }
     inline virtual gsMatrix<T>  eval3D_vector_C(const gsMatrix<T> & C, const index_t patch, const gsVector<T>& u, const T z, enum MaterialOutput out) const
     { GISMO_NO_IMPLEMENTATION; }
+    inline virtual gsMatrix<T>  eval3D_CauchyVector(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
+    { GISMO_NO_IMPLEMENTATION; }
     /**
      * @brief      Evaluates the principal stress on \a patch on in-plane points \a u with height \a z
      *
@@ -291,7 +293,8 @@ public:
      */
     inline virtual gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
     { GISMO_NO_IMPLEMENTATION; }
-
+    inline virtual gsMatrix<T> eval3D_CauchyPStress(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
+    { GISMO_NO_IMPLEMENTATION; }
 
     /**
      * @brief      Evaluates the principal strain on \a patch on in-plane points \a u with height \a z
@@ -327,14 +330,17 @@ public:
         return eval3D_stress(patch,u,zmat,out);
     }
 
-    /// See \ref gsMaterialMatrixBase for details
-    inline virtual gsMatrix<T> eval3D_cauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+    inline virtual gsMatrix<T> eval3D_detF(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
     { GISMO_NO_IMPLEMENTATION; }
-    inline virtual gsMatrix<T> eval3D_cauchyStress(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+
+    /// See \ref gsMaterialMatrixBase for details
+    inline virtual gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+    { GISMO_NO_IMPLEMENTATION; }
+    inline virtual gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
     {
         gsMatrix<T> zmat(1,1);
         zmat<<z;
-        return eval3D_cauchyStress(patch,u,zmat,out);
+        return eval3D_CauchyStress(patch,u,zmat,out);
     }
 
     /**
@@ -372,6 +378,10 @@ public:
     { GISMO_NO_IMPLEMENTATION; }
     virtual gsFunction<T> * getAlpha(const index_t & i)
     { GISMO_NO_IMPLEMENTATION; }
+    virtual void setThickness(const gsFunction<T> & thickness)
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsFunction<T> * getThickness()
+    { GISMO_NO_IMPLEMENTATION; }
     virtual void setDensity(const gsFunction<T> & Density)
     { GISMO_NO_IMPLEMENTATION; }
     virtual gsFunction<T> * getDensity()
@@ -398,10 +408,15 @@ public:
     inline virtual void info() const
     { GISMO_NO_IMPLEMENTATION; }
 
+    virtual void setUndeformed(const gsFunctionSet<T> * undeformed)
+    {
+        m_patches = undeformed;
+    }
     virtual void setDeformed(const gsFunctionSet<T> * deformed)
     {
         m_defpatches = deformed;
     }
+    const gsFunctionSet<T> & getUndeformed() { return *m_patches; }
     const gsFunctionSet<T> & getDeformed() { return *m_defpatches; }
 
     inline virtual gsMatrix<T> S(const gsMatrix<T> & strain) const
@@ -411,6 +426,7 @@ public:
     { GISMO_NO_IMPLEMENTATION; }
 
 protected:
+    const gsFunctionSet<T> * m_patches;
     const gsFunctionSet<T> * m_defpatches;
 };
 

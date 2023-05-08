@@ -482,6 +482,12 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, co
 }
 
 template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    return eval3D_CauchyStress(patch,u,z,out);
+}
+
+template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out) const
 {
     // gsInfo<<"TO DO: evaluate moments using thickness";
@@ -557,6 +563,40 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
     return result;
 
 }
+
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_CauchyPStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    gsMatrix<T> Smat = eval3D_CauchyStress(patch,u,z,out);
+
+    gsMatrix<T> result(2, u.cols() * z.rows());
+    result.setZero();
+    gsMatrix<T,3,3> S;
+    index_t colIdx;
+    std::pair<gsVector<T>,gsMatrix<T>> res;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        // Evaluate material properties on the quadrature point
+        for (index_t v=0; v!=m_parmat.rows(); v++)
+            m_parvals.at(v) = m_parmat(v,k);
+
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            colIdx = j * u.cols() + k;
+            S.setZero();
+            S(0,0) = Smat(0,colIdx);
+            S(1,1) = Smat(1,colIdx);
+            S(0,1) = S(1,0) = Smat(2,colIdx);
+            S(2,2) = 0;
+            res = this->_evalPStress(S);
+            result.col(j * u.cols() + k) = res.first;
+        }
+    }
+
+    return result;
+
+}
+
 
 template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
@@ -651,7 +691,24 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_stress(const index_t patch, co
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_cauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_detF(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    this->_computePoints(patch,u,true);
+    gsMatrix<T> result(1, u.cols() * z.rows());
+    result.setZero();
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
+            result(0,j * u.cols() + k) = math::sqrt(m_J0_sq*1.0);
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     this->_computePoints(patch,u,true);
     gsMatrix<T> Smat = eval3D_stress(patch,u,z,out);
@@ -659,13 +716,15 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_cauchyStress(const index_t pat
     gsMatrix<T> result(3, u.cols() * z.rows());
     result.setZero();
     index_t colIdx;
+    T detF;
     for (index_t k=0; k!=u.cols(); k++)
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             colIdx = j * u.cols() + k;
             this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
-            Smat.col(colIdx) /= math::sqrt(m_J_sq); // m_J_sq = m_J0_sq since C33=1
+            detF = math::sqrt(m_J0_sq*1.0);
+            Smat.col(colIdx) /= detF;
         }
     }
     return result;
@@ -861,14 +920,31 @@ template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const T z, enum MaterialOutput out) const
 {
     gsMatrix<T> strain;
-    if      (out == MaterialOutput::VectorN || out == MaterialOutput::PStrainN || out == MaterialOutput::PStressN || out == MaterialOutput::TensionField || out == MaterialOutput::StrainN) // To be used with multiplyZ_into
+    if      (   out == MaterialOutput::VectorN          ||
+                out == MaterialOutput::CauchyVectorN    ||
+                out == MaterialOutput::StrainN          ||
+                out == MaterialOutput::StressN          ||
+                out == MaterialOutput::CauchyStressN    ||
+                out == MaterialOutput::PStrainN         ||
+                out == MaterialOutput::PStressN         ||
+                out == MaterialOutput::PCauchyStressN   ||
+                out == MaterialOutput::TensionField     ||
+                out == MaterialOutput::StrainN              ) // To be used with multiplyZ_into
         strain = 0.5*(m_Acov_def - m_Acov_ori);
-    else if (out == MaterialOutput::VectorM || out == MaterialOutput::PStrainM || out == MaterialOutput::PStressM || out == MaterialOutput::TensionField || out == MaterialOutput::StrainM) // To be used with multiplyZ_into
+    else if (   out == MaterialOutput::VectorM          ||
+                out == MaterialOutput::CauchyVectorM    ||
+                out == MaterialOutput::StressM          ||
+                out == MaterialOutput::CauchyStressM    ||
+                out == MaterialOutput::StrainM          ||
+                out == MaterialOutput::PStrainM         ||
+                out == MaterialOutput::PStressM         ||
+                out == MaterialOutput::PCauchyStressM   ||
+                out == MaterialOutput::StrainM             )
         strain = (m_Bcov_ori - m_Bcov_def);
     else if (out == MaterialOutput::Generic || out == MaterialOutput::Strain) // To be used with multiplyLinZ_into or integrateZ_into
         strain = 0.5*(m_Acov_def - m_Acov_ori) + z*(m_Bcov_ori - m_Bcov_def);
     else
-        GISMO_ERROR("Output type is not VectorN, PStrainN, PStressN, VectorM, PStrainM. PStressM, TensionField or Generic!");
+        GISMO_ERROR("Output type MaterialOutput::" + std::to_string((short_t)(out)) + " not understood. See gsMaterialMatrixUtils.h");
 
     return strain;
 }

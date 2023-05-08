@@ -37,16 +37,20 @@ public:
 
     // enum {Linear=0}; // If true (1), this property entails that S = C *˙E
 
-    gsMaterialMatrixBaseDim() : m_patches(nullptr), m_thickness(nullptr), m_density(nullptr)
+    gsMaterialMatrixBaseDim() : m_thickness(nullptr), m_density(nullptr)
     {
+        this->setUndeformed(nullptr);
+        this->setDeformed(nullptr);
         membersSetZero();
     }
 
     gsMaterialMatrixBaseDim(const gsFunctionSet<T> & mp)
     :
-    m_patches(&mp), m_thickness(nullptr), m_density(nullptr)
+    m_thickness(nullptr), m_density(nullptr)
     {
         GISMO_ASSERT(mp.targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
+        this->setUndeformed(&mp);
+        this->setDeformed(nullptr);
         membersSetZero();
     }
 
@@ -55,12 +59,12 @@ public:
                                 const gsFunction<T> * thickness,
                                 const gsFunction<T> * Density)
     :
-    m_patches(mp),
     m_thickness(thickness),
     m_density(Density)
     {
         GISMO_ASSERT(mp->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
         membersSetZero();
+        this->setUndeformed(mp);
         this->setDeformed(mp_def);
     }
 
@@ -95,6 +99,16 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     virtual void deformation_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
+    /// Sets the thickness
+    virtual void setThickness(const gsFunction<T> & thickness)
+    {
+        m_thickness = const_cast<gsFunction<T> *>(&thickness);
+    }
+    /// Gets the Density
+    virtual gsFunction<T> * getThickness() {return const_cast<gsFunction<T> *>(m_thickness);}
+
+
+    /// Sets the density
     virtual void setDensity(const gsFunction<T> & Density)
     {
         m_density = const_cast<gsFunction<T> *>(&Density);
@@ -123,7 +137,6 @@ public:
         m_pars.clear();
         m_pars.resize(0);
     }
-
 
 public:
 
@@ -380,7 +393,7 @@ protected:
 
     mutable gsVector<T> m_thetas, m_gammas;
 
-    const gsFunctionSet<T> * m_patches;
+    using Base::m_patches;
     using Base::m_defpatches;
 
     std::vector<gsFunction<T>* > m_pars;

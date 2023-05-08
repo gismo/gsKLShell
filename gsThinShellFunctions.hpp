@@ -35,28 +35,42 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     // Initialize stystem
     // m_assembler.initSystem(false);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,m_defpatches);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_N0(m_materialMatrices,m_defpatches);
+    variable N0 = m_assembler.getCoeff(m_N0);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_N1(m_materialMatrices,m_defpatches);
+    variable N1 = m_assembler.getCoeff(m_N1);
+
+    gsMaterialMatrixIntegrate<T,MaterialOutput::CauchyVectorN> m_Nc0(m_materialMatrices,m_defpatches);
+    variable Nc0 = m_assembler.getCoeff(m_Nc0);
+    gsMaterialMatrixIntegrate<T,MaterialOutput::CauchyVectorM> m_Nc1(m_materialMatrices,m_defpatches);
+    variable Nc1 = m_assembler.getCoeff(m_Nc1);
+
+    gsMaterialMatrixEval<T,MaterialOutput::StressN> m_S0(m_materialMatrices,m_defpatches,z);
     variable S0 = m_assembler.getCoeff(m_S0);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMatrices,m_defpatches);
+    gsMaterialMatrixEval<T,MaterialOutput::StressM> m_S1(m_materialMatrices,m_defpatches,z);
     variable S1 = m_assembler.getCoeff(m_S1);
-    // gsMaterialMatrixIntegrate<T,MaterialOutput::PStressN> m_Sp0(m_materialMatrices,m_defpatches);
-    // variable Sp0 = m_assembler.getCoeff(m_Sp0);
-    // gsMaterialMatrixIntegrate<T,MaterialOutput::PStressM> m_Sp1(m_materialMatrices,m_defpatches);
-    // variable Sp1 = m_assembler.getCoeff(m_Sp1);
-    gsMaterialMatrixEval<T,MaterialOutput::PStressN> m_Sp0(m_materialMatrices,m_defpatches,z);
+
+    gsMaterialMatrixEval<T,MaterialOutput::CauchyStressN> m_Sc0(m_materialMatrices,m_defpatches,z);
+    variable Sc0 = m_assembler.getCoeff(m_Sc0);
+    gsMaterialMatrixEval<T,MaterialOutput::CauchyStressM> m_Sc1(m_materialMatrices,m_defpatches,z);
+    variable Sc1 = m_assembler.getCoeff(m_Sc1);
+
+    gsMaterialMatrixEval<T,MaterialOutput::PCauchyStressN> m_Sp0(m_materialMatrices,m_defpatches,z);
     variable Sp0 = m_assembler.getCoeff(m_Sp0);
-    gsMaterialMatrixEval<T,MaterialOutput::PStressM> m_Sp1(m_materialMatrices,m_defpatches,z);
+    gsMaterialMatrixEval<T,MaterialOutput::PCauchyStressM> m_Sp1(m_materialMatrices,m_defpatches,z);
     variable Sp1 = m_assembler.getCoeff(m_Sp1);
+
     gsMaterialMatrixEval<T,MaterialOutput::PStrainN> m_Ep0(m_materialMatrices,m_defpatches,z);
     variable Ep0 = m_assembler.getCoeff(m_Ep0);
     gsMaterialMatrixEval<T,MaterialOutput::PStrainM> m_Ep1(m_materialMatrices,m_defpatches,z);
     variable Ep1 = m_assembler.getCoeff(m_Ep1);
+
     gsMaterialMatrixEval<real_t,MaterialOutput::TensionField> m_TF(m_materialMatrices,m_defpatches,z);
     variable TF  = m_assembler.getCoeff(m_TF);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::Stretch> m_lambda(m_materialMatrices,m_defpatches);
+    gsMaterialMatrixEval<T,MaterialOutput::Stretch> m_lambda(m_materialMatrices,m_defpatches,z);
     variable lambda = m_assembler.getCoeff(m_lambda);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::StretchDir> m_lambdadir(m_materialMatrices,m_defpatches);
+    gsMaterialMatrixEval<T,MaterialOutput::StretchDir> m_lambdadir(m_materialMatrices,m_defpatches,z);
     variable lambdadir = m_assembler.getCoeff(m_lambdadir);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
@@ -69,8 +83,17 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) * That;
     auto E_f    = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) * That;
 
+    auto N_m    = N0.tr() * Ttilde;
+    auto N_f    = N1.tr() * Ttilde;
+
+    auto Nc_m   = Nc0.tr() * Ttilde_def;
+    auto Nc_f   = Nc1.tr() * Ttilde_def;
+
     auto S_m    = S0.tr() * Ttilde;
     auto S_f    = S1.tr() * Ttilde;
+
+    auto Sc_m   = Sc0.tr() * Ttilde_def;
+    auto Sc_f   = Sc1.tr() * Ttilde_def;
 
     gsExprEvaluator<T> ev(m_assembler);
     gsMatrix<T> tmp;
@@ -79,12 +102,42 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     {
         case stress_type::membrane :
             for (index_t k = 0; k != u.cols(); ++k)
-                result.col(k) = (ev.eval(S_m,u.col(k),m_patchID)).transpose();
+                result.col(k) = (ev.eval(Sc_m,u.col(k),m_patchID)).transpose();
             break;
 
         case stress_type::flexural :
             for (index_t k = 0; k != u.cols(); ++k)
+                result.col(k) = (ev.eval(Sc_f,u.col(k),m_patchID)).transpose();
+            break;
+
+        case stress_type::membrane_PK2 :
+            for (index_t k = 0; k != u.cols(); ++k)
+                result.col(k) = (ev.eval(S_m,u.col(k),m_patchID)).transpose();
+            break;
+
+        case stress_type::flexural_PK2 :
+            for (index_t k = 0; k != u.cols(); ++k)
                 result.col(k) = (ev.eval(S_f,u.col(k),m_patchID)).transpose();
+            break;
+
+        case stress_type::membrane_force :
+            for (index_t k = 0; k != u.cols(); ++k)
+                result.col(k) = (ev.eval(Nc_m,u.col(k),m_patchID)).transpose();
+            break;
+
+        case stress_type::flexural_moment :
+            for (index_t k = 0; k != u.cols(); ++k)
+                result.col(k) = (ev.eval(Nc_f,u.col(k),m_patchID)).transpose();
+            break;
+
+        case stress_type::membrane_force_PK2 :
+            for (index_t k = 0; k != u.cols(); ++k)
+                result.col(k) = (ev.eval(N_m,u.col(k),m_patchID)).transpose();
+            break;
+
+        case stress_type::flexural_moment_PK2 :
+            for (index_t k = 0; k != u.cols(); ++k)
+                result.col(k) = (ev.eval(N_f,u.col(k),m_patchID)).transpose();
             break;
 
         // TO BE IMPLEMENTED
@@ -96,7 +149,7 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
         case stress_type::von_mises_membrane :
             for (index_t k = 0; k != u.cols(); ++k)
             {
-                tmp = ev.eval(S_m,u.col(k));
+                tmp = ev.eval(Sc_m,u.col(k));
                 result(0,k) = sqrt( tmp(0,0)*tmp(0,0) + tmp(0,1)*tmp(0,1) - tmp(0,0)*tmp(0,1) + 3*tmp(0,2)*tmp(0,2) );
             }
             break;

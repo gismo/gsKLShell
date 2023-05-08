@@ -883,7 +883,7 @@ void gsMaterialMatrixBaseDim<dim,T>::_getMetric(index_t k, T z, const gsMatrix<T
     this->_getMetricUndeformed(k,z,basis);
 
     T ratio = m_Gcov_def.determinant() / m_Gcov_ori.determinant();
-    GISMO_ENSURE(ratio > 0, "Jacobian determinant is negative! det(Gcov_def) = "<<m_Gcov_def.determinant()<<"; det(Gcov_ori) = "<<m_Gcov_ori.determinant());
+    GISMO_ENSURE(ratio >= 0, "Jacobian determinant is negative! det(Gcov_def) = "<<m_Gcov_def.determinant()<<"; det(Gcov_ori) = "<<m_Gcov_ori.determinant());
     m_J0_sq = ratio;
 }
 
@@ -894,7 +894,7 @@ void gsMaterialMatrixBaseDim<dim,T>::_getMetric(index_t k, T z, bool basis) cons
     this->_getMetricUndeformed(k,z,basis);
 
     T ratio = m_Gcov_def.determinant() / m_Gcov_ori.determinant();
-    GISMO_ENSURE(ratio > 0, "Jacobian determinant is negative! det(Gcov_def) = "<<m_Gcov_def.determinant()<<"; det(Gcov_ori) = "<<m_Gcov_ori.determinant());
+    GISMO_ENSURE(ratio >= 0, "Jacobian determinant is negative! det(Gcov_def) = "<<m_Gcov_def.determinant()<<"; det(Gcov_ori) = "<<m_Gcov_ori.determinant());
     m_J0_sq = ratio;
 }
 
@@ -1245,7 +1245,7 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalPStrain(
     T max = eigSolver.eigenvalues().array().abs().maxCoeff();
     max = (max==0) ? 1 : max;
     for (index_t k=0; k!=3; k++)
-        zeroIdx = std::abs(eigSolver.eigenvalues()[k] ) / max < 1e-14 ? k : zeroIdx;
+        zeroIdx = std::abs(eigSolver.eigenvalues()[k] ) / max < tol ? k : zeroIdx;
 
     GISMO_ASSERT(zeroIdx!=-1,"No zero found?");
 

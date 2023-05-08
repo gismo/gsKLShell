@@ -133,7 +133,9 @@ private:
     /// Implementation of \ref targetDim for stress tensors
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorN ||
+                            _out==MaterialOutput::CauchyVectorN ||
                             _out==MaterialOutput::VectorM ||
+                            _out==MaterialOutput::CauchyVectorM ||
                             _out==MaterialOutput::Generic  , short_t>::type targetDim_impl() const { return 3; };
 
     /// Implementation of \ref targetDim for material tensors
@@ -146,7 +148,9 @@ private:
     /// Implementation of \ref targetDim for principal stress fields
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::PStressN ||
+                            _out==MaterialOutput::PCauchyStressN ||
                             _out==MaterialOutput::PStressM ||
+                            _out==MaterialOutput::PCauchyStressM ||
                             _out==MaterialOutput::PStrainN ||
                             _out==MaterialOutput::PStrainM   , short_t>::type targetDim_impl() const { return 2; };
 
@@ -181,7 +185,9 @@ private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Stress  ||
                             _out==MaterialOutput::StressN ||
-                            _out==MaterialOutput::StressM   , short_t>::type targetDim_impl() const { return 3; };
+                            _out==MaterialOutput::StressM ||
+                            _out==MaterialOutput::CauchyStressN ||
+                            _out==MaterialOutput::CauchyStressM   , short_t>::type targetDim_impl() const { return 3; };
 
     /// Implementation of \ref targetDim for the thickness
     template<enum MaterialOutput _out>
@@ -217,6 +223,12 @@ private:
                             _out==MaterialOutput::VectorM ||
                             _out==MaterialOutput::Generic , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
+    /// Specialisation of \ref eval_into for the membrane cauchy stress tensor N, M and generic cauchy stress
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::CauchyVectorN ||
+                            _out==MaterialOutput::CauchyVectorM , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+
     /// Specialisation of \ref eval_into for the moments of the material matrices
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::MatrixA ||
@@ -228,6 +240,11 @@ private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::PStressN ||
                             _out==MaterialOutput::PStressM  , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the membrane and flexural principle stresses
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::PCauchyStressN ||
+                            _out==MaterialOutput::PCauchyStressM  , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// Specialisation of \ref eval_into for the membrane and flexural principle stresses
     template<enum MaterialOutput _out>
@@ -264,11 +281,17 @@ private:
                             _out==MaterialOutput::StrainN ||
                             _out==MaterialOutput::StrainM   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
-    /// Specialisation of \ref eval_into for strain
+    /// Specialisation of \ref eval_into for stress
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Stress  ||
                             _out==MaterialOutput::StressN ||
                             _out==MaterialOutput::StressM   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for cauchy stress
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::CauchyStress  ||
+                            _out==MaterialOutput::CauchyStressN ||
+                            _out==MaterialOutput::CauchyStressM   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
 
     /// Specialisation of \ref eval_into for the thickness

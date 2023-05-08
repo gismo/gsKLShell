@@ -61,7 +61,8 @@ gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsM
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::VectorN, void>::type
+typename std::enable_if<_out==MaterialOutput::VectorN ||
+                        _out==MaterialOutput::CauchyVectorN, void>::type
 gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     if (m_materialMat->isVecIntegrated() == MatIntegration::NotIntegrated)
@@ -78,7 +79,8 @@ gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsM
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::VectorM, void>::type
+typename std::enable_if<_out==MaterialOutput::VectorM ||
+                        _out==MaterialOutput::CauchyVectorM, void>::type
 gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     if (m_materialMat->isVecIntegrated() == MatIntegration::NotIntegrated)
@@ -299,11 +301,22 @@ gsMaterialMatrixIntegrateSingle<T,out>::eval3D_impl(const gsMatrix<T>& u, const 
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::VectorN || _out==MaterialOutput::VectorM, gsMatrix<T>>::type
+typename std::enable_if<_out==MaterialOutput::VectorN ||
+                        _out==MaterialOutput::VectorM   , gsMatrix<T>>::type
 gsMaterialMatrixIntegrateSingle<T,out>::eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
 {
     return m_materialMat->eval3D_vector(m_pIndex,u,Z,_out);
 }
+
+template <class T, enum MaterialOutput out>
+template <enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::CauchyVectorN ||
+                        _out==MaterialOutput::CauchyVectorM, gsMatrix<T>>::type
+gsMaterialMatrixIntegrateSingle<T,out>::eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
+{
+    return m_materialMat->eval3D_CauchyVector(m_pIndex,u,Z,_out);
+}
+
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>

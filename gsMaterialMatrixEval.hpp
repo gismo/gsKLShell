@@ -61,11 +61,23 @@ gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::VectorN || _out==MaterialOutput::VectorM || _out==MaterialOutput::Generic, void>::type
+typename std::enable_if<_out==MaterialOutput::VectorN ||
+                        _out==MaterialOutput::VectorM ||
+                        _out==MaterialOutput::Generic, void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     result = m_materialMat->eval3D_vector(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
 }
+
+template <class T, enum MaterialOutput out>
+template <enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::CauchyVectorN ||
+                        _out==MaterialOutput::CauchyVectorM, void>::type
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    result = m_materialMat->eval3D_CauchyVector(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
+}
+
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
@@ -78,10 +90,20 @@ gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::PStressN || _out==MaterialOutput::PStressM, void>::type
+typename std::enable_if<_out==MaterialOutput::PStressN ||
+                        _out==MaterialOutput::PStressM      , void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     result = m_materialMat->eval3D_pstress(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
+}
+
+template <class T, enum MaterialOutput out>
+template <enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::PCauchyStressN ||
+                        _out==MaterialOutput::PCauchyStressM, void>::type
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    result = m_materialMat->eval3D_CauchyPStress(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
 }
 
 template <class T, enum MaterialOutput out>
@@ -157,7 +179,17 @@ typename std::enable_if<_out==MaterialOutput::Stress  ||
                         _out==MaterialOutput::StressM   , void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    result = m_materialMat->eval3D_cauchyStress(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
+    result = m_materialMat->eval3D_stress(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
+}
+
+template <class T, enum MaterialOutput out>
+template<enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::CauchyStress  ||
+                        _out==MaterialOutput::CauchyStressN ||
+                        _out==MaterialOutput::CauchyStressM   , void>::type
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    result = m_materialMat->eval3D_CauchyStress(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
 }
 
 

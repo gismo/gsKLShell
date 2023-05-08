@@ -59,8 +59,50 @@ public:
     :
     m_materialMat(materialmatrix)
     {
+        this->setUndeformed(&materialmatrix->getUndeformed());
+        this->setDeformed(&materialmatrix->getDeformed());
+        // this->setThickness(*materialmatrix->getThickness());
+        m_options.addReal("SlackMultiplier","Multiplies the original value of the matrix for the slack state",0);
+        m_options.addSwitch("Explicit","Explicit iterations; use tension field from a fixed deformed geometry that does not change when calling setDeformed",false);
         // if (!dynamic_cast<const gsMaterialMatrixLinear<dim,T> *>(m_materialMat))
             // GISMO_ERROR("Material matrix must be linear");
+    }
+
+    /**
+     * @brief      Constructor without deformed multipatch and density
+     *
+     * @param[in]  mp         Original geometry
+     * @param[in]  thickness  Thickness function
+     * @param[in]  pars       Vector with parameters (E, nu)
+     */
+    gsMaterialMatrixTFT(    const gsFunctionSet<T> & mp,
+                            const gsFunction<T> & thickness,
+                            gsMaterialMatrixBase<T> * materialmatrix)
+    :
+    Base(&mp,nullptr,&thickness,nullptr),
+    m_materialMat(materialmatrix)
+    {
+        m_options.addReal("SlackMultiplier","Multiplies the original value of the matrix for the slack state",0);
+        m_options.addSwitch("Explicit","Explicit iterations; use tension field from a fixed deformed geometry that does not change when calling setDeformed",false);
+    }
+
+    /**
+     * @brief      Constructor without deformed multipatch and density
+     *
+     * @param[in]  mp         Original geometry
+     * @param[in]  thickness  Thickness function
+     * @param[in]  pars       Vector with parameters (E, nu)
+     */
+    gsMaterialMatrixTFT(    const gsFunctionSet<T> & mp,
+                            const gsFunction<T> & thickness,
+                            const gsFunction<T> & density,
+                            gsMaterialMatrixBase<T> * materialmatrix)
+    :
+    Base(&mp,nullptr,&thickness,&density),
+    m_materialMat(materialmatrix)
+    {
+        m_options.addReal("SlackMultiplier","Multiplies the original value of the matrix for the slack state",0);
+        m_options.addSwitch("Explicit","Explicit iterations; use tension field from a fixed deformed geometry that does not change when calling setDeformed",false);
     }
 
     /// Destructor
@@ -86,11 +128,10 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     gsOptionList & options()
-    {return m_materialMat->options(); }
+    {return m_options; }
 
     /// See \ref gsMaterialMatrixBase for details
-    void setOptions(gsOptionList opt)
-    {m_materialMat->setOptions(opt); }
+    void setOptions(gsOptionList opt) {m_options.update(opt,gsOptionList::addIfUnknown); }
 
     /// See \ref gsMaterialMatrixBase for details
     void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
@@ -143,6 +184,9 @@ public:
     gsMatrix<T> eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
 
     /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
@@ -160,6 +204,12 @@ public:
         m_materialMat->setDeformed(m_defpatches);
     }
 
+    /// See \ref gsMaterialMatrixBase for details
+    void updateDeformed(const gsFunctionSet<T> * deformed)
+    {
+        m_defpatches0 = deformed;
+    }
+
 protected:
     template <bool _linear>
     typename std::enable_if< _linear, gsMatrix<T> >::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
@@ -167,25 +217,18 @@ protected:
     template <bool _linear>
     typename std::enable_if<!_linear, gsMatrix<T> >::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
-    template <bool _linear>
-    typename std::enable_if< _linear, gsMatrix<T> >::type _eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> _compute_TF(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
 
-    template <bool _linear>
-    typename std::enable_if<!_linear, gsMatrix<T> >::type _eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> _compute_E(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & E) const;
 
-    static gsMatrix<T> _compute_E(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & E);
+    gsMatrix<T> _compute_S(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S) const;
 
-    static gsMatrix<T> _compute_S(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S);
+    gsMatrix<T> _compute_C(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S) const;
 
-    static gsMatrix<T> _compute_C(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S);
-
-    static gsMatrix<T> _compute_C(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & dC);
-
-    // /// Computes theta
-    // gsMatrix<T> eval_theta(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> _compute_C(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & dC) const;
 
     /// Computes theta
-    static gsMatrix<T> eval_theta(const gsMatrix<T> & Cs, const gsMatrix<T> & Ns, const gsMatrix<T> & Es);
+    gsMatrix<T> eval_theta(const gsMatrix<T> & Cs, const gsMatrix<T> & Ns, const gsMatrix<T> & Es) const;
 
 
 public:
@@ -197,7 +240,12 @@ public:
 
 protected:
     mutable gsMaterialMatrixBase<T> * m_materialMat;
+    using Base::m_patches;
     using Base::m_defpatches;
+    const gsFunctionSet<T> * m_defpatches0;
+    gsOptionList m_options;
+    using Base::m_Tmat;
+    using Base::m_J0_sq;
 
 };
 

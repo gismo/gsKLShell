@@ -142,7 +142,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_vector(const index_t patch
 template <short_t dim, class T, bool linear >
 gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
 {
-    gsMatrix<T> TF = m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
+    gsMatrix<T> TF = this->_compute_TF(patch,u,z);
     gsMatrix<T> result = m_materialMat->eval3D_pstress(patch,u,z,out);
     index_t colIdx;
     gsTFTMat<T> tftData;
@@ -158,7 +158,8 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_pstress(const index_t patc
             else if (TF(0,colIdx) == -1) // slack
             {
                 // Set to zero
-                result.col(colIdx).setZero();
+                // result.col(colIdx).setZero();
+                result.col(colIdx) *= m_options.getReal("SlackMultiplier");
             }
             else
                 GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
@@ -170,7 +171,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_pstress(const index_t patc
 template <short_t dim, class T, bool linear >
 gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
 {
-    gsMatrix<T> TF = m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
+    gsMatrix<T> TF = this->_compute_TF(patch,u,z);
     gsMatrix<T> result = m_materialMat->eval3D_pstrain(patch,u,z,out);
     index_t colIdx;
     gsTFTMat<T> tftData;
@@ -186,7 +187,8 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_pstrain(const index_t patc
             else if (TF(0,colIdx) == -1) // slack
             {
                 // Set to zero
-                result.col(colIdx).setZero();
+                // result.col(colIdx).setZero();
+                result.col(colIdx) *= m_options.getReal("SlackMultiplier");
             }
             else
                 GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
@@ -199,7 +201,7 @@ template <short_t dim, class T, bool linear >
 gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     gsMatrix<T> result = m_materialMat->eval3D_strain(patch,u,z,out);
-    gsMatrix<T> TF = m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
+    gsMatrix<T> TF = this->_compute_TF(patch,u,z);
     index_t colIdx;
     T theta;
     gsTFTMat<T> tftData;
@@ -215,7 +217,8 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_strain(const index_t patch
             else if (TF(0,colIdx) == -1) // slack
             {
                 // Set to zero
-                result.col(colIdx).setZero();
+                // result.col(colIdx).setZero();
+                result.col(colIdx) *= m_options.getReal("SlackMultiplier");
             }
             else if (TF(0,colIdx) == 0) // wrinkled
             {
@@ -241,17 +244,96 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch
     // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    // WARNING: Check which values of out correspond to the output we want
-    return this->_eval3D_stress_impl<true>(patch,u,z);
-    // return this->_eval3D_stress_impl<linear>(patch,u,z);
+    gsMatrix<T> result = m_materialMat->eval3D_stress(patch,u,z,MaterialOutput::VectorN);
+    gsMatrix<T> TF = this->_compute_TF(patch,u,z);
+    index_t colIdx;
+    T theta;
+    gsTFTMat<T> tftData;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            colIdx = j*u.cols()+k;
+            if (TF(0,colIdx) == 1) // taut
+            {
+                // do nothing
+            }
+            else if (TF(0,colIdx) == -1) // slack
+            {
+                // Set to zero
+                // result.col(colIdx).setZero();
+                result.col(colIdx) *= m_options.getReal("SlackMultiplier");
+            }
+            else if (TF(0,colIdx) == 0) // wrinkled
+            {
+                gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
+                gsAsMatrix<T,Dynamic,Dynamic> N = result.reshapeCol(colIdx,3,1);
+                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),out);
+                gsMatrix<T> thetas = eval_theta(C,N,E);
+                theta = thetas(0,0);
+                result.col(colIdx) = this->_compute_S(theta,C.reshape(3,3),N);
+            }
+            else
+                GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    // Input: u in-plane points
+    //        z matrix with, per point, a column with z integration points
+    // Output: (n=u.cols(), m=z.rows())
+    //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+
+    gsMatrix<T> result = m_materialMat->eval3D_CauchyStress(patch,u,z,MaterialOutput::CauchyVectorN);
+    gsMatrix<T> TF = this->_compute_TF(patch,u,z);
+    index_t colIdx;
+    T theta;
+    gsTFTMat<T> tftData;
+
+    this->_computePoints(patch,u,true);
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            colIdx = j*u.cols()+k;
+            if (TF(0,colIdx) == 1) // taut
+            {
+                // do nothing
+            }
+            else if (TF(0,colIdx) == -1) // slack
+            {
+                // Set to zero
+                // result.col(colIdx).setZero();
+                result.col(colIdx) *= m_options.getReal("SlackMultiplier");
+            }
+            else if (TF(0,colIdx) == 0) // wrinkled
+            {
+                this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
+                gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
+                gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);;
+                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),MaterialOutput::StrainN);
+                gsMatrix<T> thetas = eval_theta(C,N,E);
+                theta = thetas(0,0);
+                gsMatrix<T> S = this->_compute_S(theta,C.reshape(3,3),N);
+                T detF = math::sqrt(m_J0_sq)*1.0;
+                result.col(colIdx) = S / math::sqrt(detF);
+            }
+            else
+                GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
+        }
+    }
+    return result;
 }
 
 template <short_t dim, class T, bool linear >
 gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
 {
-    return m_materialMat->eval3D_tensionfield(patch,u,z,out);
+    return this->_compute_TF(patch,u,z);
 }
-
 
 /// Provides an implementation of eval3D_matrix for \a gsMaterialMatrixLinear
 template <short_t dim, class T, bool linear >
@@ -260,7 +342,7 @@ typename std::enable_if<_linear, gsMatrix<T> >::type
 gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
 {
     gsMatrix<T> result = m_materialMat->eval3D_matrix(patch,u,z,MaterialOutput::MatrixA);
-    gsMatrix<T> TF = m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
+    gsMatrix<T> TF = this->_compute_TF(patch,u,z);
 
     index_t colIdx;
     T theta;
@@ -277,7 +359,8 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
             else if (TF(0,colIdx) == -1) // slack
             {
                 // Set to zero
-                result.col(colIdx).setZero();
+                // result.col(colIdx).setZero();
+                result.col(colIdx) *= m_options.getReal("SlackMultiplier");
             }
             else if (TF(0,colIdx) == 0) // wrinkled
             {
@@ -302,7 +385,7 @@ typename std::enable_if<!_linear, gsMatrix<T> >::type
 gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
 {
     gsMatrix<T> result = m_materialMat->eval3D_matrix(patch,u,z,out);
-    gsMatrix<T> TF = m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
+    gsMatrix<T> TF = this->_compute_TF(patch,u,z);
 
     index_t colIdx;
     T theta;
@@ -319,7 +402,8 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
             else if (TF(0,colIdx) == -1) // slack
             {
                 // Set to zero
-                result.col(colIdx).setZero();
+                // result.col(colIdx).setZero();
+                result.col(colIdx) *= m_options.getReal("SlackMultiplier");
             }
             else if (TF(0,colIdx) == 0) // wrinkled
             {
@@ -339,59 +423,8 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
     return result;
 }
 
-/// Provides an implementation of eval3D_matrix for \a gsMaterialMatrixLinear
 template <short_t dim, class T, bool linear >
-template <bool _linear>
-typename std::enable_if<_linear, gsMatrix<T> >::type
-gsMaterialMatrixTFT<dim,T,linear>::_eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
-{
-    gsMatrix<T> result = m_materialMat->eval3D_stress(patch,u,z,MaterialOutput::VectorN);
-    gsMatrix<T> TF = m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
-    index_t colIdx;
-    T theta;
-    gsTFTMat<T> tftData;
-    for (index_t k=0; k!=u.cols(); k++)
-    {
-        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
-        {
-            colIdx = j*u.cols()+k;
-            if (TF(0,colIdx) == 1) // taut
-            {
-                // do nothing
-            }
-            else if (TF(0,colIdx) == -1) // slack
-            {
-                // Set to zero
-                result.col(colIdx).setZero();
-            }
-            else if (TF(0,colIdx) == 0) // wrinkled
-            {
-                gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
-                gsAsMatrix<T,Dynamic,Dynamic> N = result.reshapeCol(colIdx,3,1);
-                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),out);
-                gsMatrix<T> thetas = eval_theta(C,N,E);
-                theta = thetas(0,0);
-                result.col(colIdx) = this->_compute_S(theta,C.reshape(3,3),N);
-            }
-            else
-                GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
-        }
-    }
-    return result;
-}
-
-template <short_t dim, class T, bool linear >
-template <bool _linear>
-typename std::enable_if< !_linear, gsMatrix<T> >::type
-gsMaterialMatrixTFT<dim,T,linear>::_eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
-{
-    gsDebugVar("Bye");
-    // gsDebugVar(MaterialMat::Linear);
-    GISMO_NO_IMPLEMENTATION;
-}
-
-template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs, const gsMatrix<T> & Ns, const gsMatrix<T> & Es)
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs, const gsMatrix<T> & Ns, const gsMatrix<T> & Es) const
 {
     GISMO_ASSERT(Cs.cols()==Ns.cols(),"Number of C matrices and N vectors is different");
     GISMO_ASSERT(Cs.cols()==Es.cols(),"Number of C matrices and E vectors is different");
@@ -440,20 +473,59 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
         T E22 = Es(1,k);
         T E12 = 0.5 * Es(2,k);
         T R_E = math::sqrt( math::pow((E11-E22)/2.,2) + E12*E12 );
-        T theta_0E = math::asin( (E22-E11) / (2*R_E) );
-        T theta_1E = math::asin( - math::sqrt(E12*E12 - E11*E22) / R_E );
-        T theta_2E = math::asin(   math::sqrt(E12*E12 - E11*E22) / R_E );
+        T sin_E0 = E12/R_E;
+        T cos_E0 = (E22-E11)/(2*R_E);
+        T sin_E1 = -math::sqrt(E12*E12-E11*E22)/R_E;
+        T cos_E1 = -(E11+E22)/(2*R_E);
+        T sin_E2 = math::sqrt(E12*E12-E11*E22)/R_E;
+        T cos_E2 = -(E11+E22)/(2*R_E);
+
+        T theta_0E = math::atan2(sin_E0,cos_E0);
+        T theta_1E = math::atan2(sin_E1,cos_E1);
+        T theta_2E = math::atan2(sin_E2,cos_E2);
 
         T pi = 4*math::atan(1);
         T N11 = Ns(0,k);
         T N22 = Ns(1,k);
         T N12 = Ns(2,k);
         T R_N = math::sqrt( math::pow((N11-N22)/2.,2) + N12*N12 );
-        T theta_0N = math::asin( (N22-N11) / (2*R_N) );
-        T theta_1N = math::asin( - math::sqrt(N12*N12 - N11*N22) / R_N );
-        T theta_2N = math::asin(   math::sqrt(N12*N12 - N11*N22) / R_N );
+        T sin_N0 = -N12/R_N;
+        T cos_N0 = (N11-N22)/(2*R_N);
+        T sin_sqrt = N12*N12-N11*N22;
+        T sin_N1 = sin_sqrt >= 0 ?  math::sqrt(sin_sqrt)/R_N : 0;
+        T cos_N1 = -(N11+N22)/(2*R_N);
+        T sin_N2 = sin_sqrt >= 0 ? -math::sqrt(sin_sqrt)/R_N : 0;
+        T cos_N2 = -(N11+N22)/(2*R_N);
+
+        T theta_0N = math::atan2(sin_N0,cos_N0);
+        T theta_1N = math::atan2(sin_N1,cos_N1);
+        T theta_2N = math::atan2(sin_N2,cos_E2);
+
         T theta_1 = std::fmod((theta_1N - theta_0N + theta_0E + pi),(2*pi));
         T theta_2 = std::fmod((theta_2N - theta_0N + theta_0E + pi),(2*pi));
+        if (math::isnan(theta_1) || math::isnan(theta_2))
+        {
+            gsDebugVar(sin_E0);
+            gsDebugVar(sin_E1);
+            gsDebugVar(sin_E2);
+
+            gsDebugVar(cos_E0);
+            gsDebugVar(cos_E1);
+            gsDebugVar(cos_E2);
+
+            gsDebugVar(sin_N0);
+            gsDebugVar(sin_N1);
+            gsDebugVar(sin_N2);
+
+            gsDebugVar(cos_N0);
+            gsDebugVar(cos_N1);
+            gsDebugVar(cos_N2);
+
+
+            gsDebugVar(theta_1N);
+            gsDebugVar(theta_0N);
+            gsDebugVar(theta_0E);
+        }
 
         T Q_E_min = theta_1E - theta_0E;
         T Q_E_max = theta_2E - theta_0E;
@@ -491,26 +563,41 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
                 max = math::min(Q_E_max,Q_S_max);
                 min /=2;
                 max /=2;
-                if (obj.eval(min)*obj.eval(max)>0)
-                    GISMO_ERROR("Root is not found??");
+                // if (obj.eval(min)*obj.eval(max)>0)
+                // {
+                //     Q_S_min = theta_1 - pi - theta_0E;
+                //     Q_S_max = pi - theta_0E;
+                //     gsDebugVar(obj.eval(math::max(Q_E_min,Q_S_min)/2));
+                //     gsDebugVar(obj.eval(math::min(Q_E_max,Q_S_max)/2));
+                //     gsDebugVar(obj.eval(math::max(Q_E_min,Q_S_min)/2)*obj.eval(math::min(Q_E_max,Q_S_max)/2));
+                //     Q_S_min = - pi - theta_0E;
+                //     Q_S_max = theta_2 - pi - theta_0E;
+                //     gsDebugVar(obj.eval(math::max(Q_E_min,Q_S_min)/2));
+                //     gsDebugVar(obj.eval(math::min(Q_E_max,Q_S_max)/2));
+                //     gsDebugVar(obj.eval(math::max(Q_E_min,Q_S_min)/2)*obj.eval(math::min(Q_E_max,Q_S_max)/2));
+
+                //     GISMO_ERROR("Root is not found??");
+                // }
             }
         }
         else
         {
-            gsDebugVar(theta_1);
-            gsDebugVar(theta_2);
-            min = -pi;
-            max = pi;
-            gsWarn<<"Interval not specified\n";
+            min = 0;
+            max = 0;
+            // gsWarn<<"Interval not specified\n";
             // GISMO_ERROR("Don't know what to do!");
         }
 
-        T f = obj.findRoot(min,max,theta,1e-12);
-        // GISMO_ASSERT(f<1e-12,"Something went wrong. f(theta)="<<f<<", tolerance = 1e-12");
-        if (f > 1e-4)
+        T f = obj.findRoot(min,max,theta,1e-18);
+        gsVector<T> zeros(1); zeros<<0;
+        gsVector<T> arg(1); arg<<theta;
+        if (math::abs(f) > 1e-4)
         {
-            gsWarn<<"Theta not found?? min = "<<min<<"; max = "<<max<<"; theta = "<<theta<<"; f(theta) = "<<f<<"\n";
-            // theta = 0.0;
+            obj.newtonRaphson(zeros,arg,true,1e-12,100,1);
+            theta = arg(0);
+            f = obj.eval(theta);
+            if (math::abs(f) > 1e-4)
+                gsWarn<<"Theta not found?? min = "<<min<<"; max = "<<max<<"; theta = "<<theta<<"; f(theta) = "<<f<<"\n";
         }
 
         n1 = math::cos(theta);
@@ -594,7 +681,22 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_E(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & E)
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_TF(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+{
+    if (m_options.getSwitch("Explicit"))
+    {
+        const gsFunctionSet<T> * tmp = &(m_materialMat->getDeformed());
+        m_materialMat->setDeformed(m_defpatches0);
+        gsMatrix<T> TF = m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
+        m_materialMat->setDeformed(tmp);
+        return TF;
+    }
+    else
+        return m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
+}
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_E(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & E) const
 {
     gsMatrix<T> result = E;
 
@@ -611,7 +713,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_E(const T theta, const g
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_S(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S)
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_S(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S) const
 {
     gsMatrix<T> result = S;
 
@@ -628,7 +730,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_S(const T theta, const g
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S)
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S) const
 {
     GISMO_ASSERT(C .rows()==3,"Number of rows of C must be 3, but is "<<C.rows());
     GISMO_ASSERT(C .cols()==3,"Number of cols of C must be 3, but is "<<C.cols());
@@ -675,7 +777,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & dC)
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & dC) const
 {
     GISMO_ASSERT(C .rows()==3,"Number of rows of C must be 3, but is "<<C.rows());
     GISMO_ASSERT(C .cols()==3,"Number of cols of C must be 3, but is "<<C.cols());
@@ -835,6 +937,8 @@ public:
     m_C(C),
     m_S(S)
     {
+        m_support.resize(1,2);
+        m_support<<-3.1415926535,3.1415926535;
     }
 
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
@@ -882,6 +986,11 @@ public:
         return 1;
     }
 
+    gsMatrix<T> support() const
+    {
+        return m_support;
+    }
+
     void deriv_into2(const gsMatrix<T>& u, gsMatrix<T>& result) const
     {
         result.resize(1,u.cols());
@@ -913,6 +1022,11 @@ public:
 
             result(0,k) = res;
         }
+    }
+
+    void setSupport(const gsMatrix<T> supp)
+    {
+        m_support = supp;
     }
 
     T findRoot(const T & a, const T & b, T & x, const T & t = 1e-12, const index_t & itmax = 1000)
@@ -1056,4 +1170,5 @@ public:
 private:
     const gsMatrix<T> m_C;
     const gsMatrix<T> m_S;
+    mutable gsMatrix<T> m_support;
 };
