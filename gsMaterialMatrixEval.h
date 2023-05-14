@@ -162,14 +162,12 @@ private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::StretchDir, short_t>::type targetDim_impl() const { return 9; };
 
-    /// Implementation of \ref targetDim for the transformation
-    template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::Transformation, short_t>::type targetDim_impl() const { return 9; };
-
     /// Implementation of \ref targetDim for transformations
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::CovTransform ||
-                            _out==MaterialOutput::ConTransform, short_t>::type targetDim_impl() const { return 9; };
+    typename std::enable_if<_out==MaterialOutput::Spec2CovTransform ||
+                            _out==MaterialOutput::Spec2ConTransform ||
+                            _out==MaterialOutput::Cov2CartTransform ||
+                            _out==MaterialOutput::Con2CartTransform, short_t>::type targetDim_impl() const { return 9; };
 
     /// Implementation of \ref targetDim for the tension field indicator
     template<enum MaterialOutput _out>
@@ -261,15 +259,19 @@ private:
 
     /// Specialisation of \ref eval_into for the covariant basis transformation
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::Transformation, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
-
-    /// Specialisation of \ref eval_into for the covariant basis transformation
-    template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::CovTransform, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    typename std::enable_if<_out==MaterialOutput::Spec2CovTransform, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// Specialisation of \ref eval_into for the contravariant basis transformation
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::ConTransform, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    typename std::enable_if<_out==MaterialOutput::Spec2ConTransform, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the covariant basis transformation
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Cov2CartTransform, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the contravariant basis transformation
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Con2CartTransform, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// Specialisation of \ref eval_into for tension field indicator
     template<enum MaterialOutput _out>

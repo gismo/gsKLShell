@@ -146,7 +146,27 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The result
      */    
-    inline virtual void  covtransform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+    inline virtual void  spec2cov_transform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+    { GISMO_NO_IMPLEMENTATION; }
+
+    /**
+     * @brief      todo
+     *
+     * @param[in]  patch   The patch to be evaluated on
+     * @param[in]  u       The in-plane shell coordinates to be eveluated on
+     * @param      result  The result
+     */    
+    inline virtual void  spec2con_transform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+    { GISMO_NO_IMPLEMENTATION; }
+
+    /**
+     * @brief      todo
+     *
+     * @param[in]  patch   The patch to be evaluated on
+     * @param[in]  u       The in-plane shell coordinates to be eveluated on
+     * @param      result  The result
+     */    
+    inline virtual void  cov2cart_transform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -156,7 +176,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The resut
      */
-    inline virtual void  contransform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+    inline virtual void  con2cart_transform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**

@@ -475,9 +475,10 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
         T R_E = math::sqrt( math::pow((E11-E22)/2.,2) + E12*E12 );
         T sin_E0 = E12/R_E;
         T cos_E0 = (E22-E11)/(2*R_E);
-        T sin_E1 = -math::sqrt(E12*E12-E11*E22)/R_E;
+        T sin_Esqrt = E12*E12-E11*E22;
+        T sin_E1 = sin_Esqrt >= 0 ? -math::sqrt(sin_Esqrt)/R_E : 0;
         T cos_E1 = -(E11+E22)/(2*R_E);
-        T sin_E2 = math::sqrt(E12*E12-E11*E22)/R_E;
+        T sin_E2 = sin_Esqrt >= 0 ?  math::sqrt(sin_Esqrt)/R_E : 0;
         T cos_E2 = -(E11+E22)/(2*R_E);
 
         T theta_0E = math::atan2(sin_E0,cos_E0);
@@ -491,10 +492,10 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
         T R_N = math::sqrt( math::pow((N11-N22)/2.,2) + N12*N12 );
         T sin_N0 = -N12/R_N;
         T cos_N0 = (N11-N22)/(2*R_N);
-        T sin_sqrt = N12*N12-N11*N22;
-        T sin_N1 = sin_sqrt >= 0 ?  math::sqrt(sin_sqrt)/R_N : 0;
+        T sin_Nsqrt = N12*N12-N11*N22;
+        T sin_N1 = sin_Nsqrt >= 0 ?  math::sqrt(sin_Nsqrt)/R_N : 0;
         T cos_N1 = -(N11+N22)/(2*R_N);
-        T sin_N2 = sin_sqrt >= 0 ? -math::sqrt(sin_sqrt)/R_N : 0;
+        T sin_N2 = sin_Nsqrt >= 0 ? -math::sqrt(sin_Nsqrt)/R_N : 0;
         T cos_N2 = -(N11+N22)/(2*R_N);
 
         T theta_0N = math::atan2(sin_N0,cos_N0);

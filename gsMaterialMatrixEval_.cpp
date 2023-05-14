@@ -26,9 +26,10 @@ namespace gismo
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PStrainM>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Stretch>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StretchDir>;
-  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Transformation>;
-  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::CovTransform>;
-  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::ConTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Spec2CovTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Spec2ConTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Cov2CartTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Con2CartTransform>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::TensionField>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Strain>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StrainN>;
@@ -61,9 +62,10 @@ namespace gismo
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::PStrainM>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Stretch>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::StretchDir>;
-  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Transformation>;
-  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::CovTransform>;
-  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::ConTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Spec2CovTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Spec2ConTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Cov2CartTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Con2CartTransform>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::TensionField>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Strain>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::StrainN>;

@@ -132,26 +132,34 @@ gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::Transformation, void>::type
+typename std::enable_if<_out==MaterialOutput::Spec2CovTransform, void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->transform_into(m_pIndex,u,result);
+    m_materialMat->spec2cov_transform_into(m_pIndex,u,result);
 }
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::CovTransform, void>::type
+typename std::enable_if<_out==MaterialOutput::Spec2ConTransform, void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->covtransform_into(m_pIndex,u,result);
+    m_materialMat->spec2con_transform_into(m_pIndex,u,result);
 }
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::ConTransform, void>::type
+typename std::enable_if<_out==MaterialOutput::Cov2CartTransform, void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->contransform_into(m_pIndex,u,result);
+    m_materialMat->cov2cart_transform_into(m_pIndex,u,result);
+}
+
+template <class T, enum MaterialOutput out>
+template <enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::Con2CartTransform, void>::type
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    m_materialMat->con2cart_transform_into(m_pIndex,u,result);
 }
 
 template <class T, enum MaterialOutput out>

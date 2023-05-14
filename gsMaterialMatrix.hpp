@@ -332,36 +332,6 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::thickness_into(const index_t pa
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
-{
-    result.resize(9, u.cols());
-    gsMatrix<T> tmp, conbasis,sbasis;
-    this->stretchDir_into(patch,u,tmp);
-    for (index_t i=0; i!= u.cols(); i++)
-    {
-        this->_getMetric(i,0.0,true); // on point i, with height 0.0
-        sbasis = tmp.reshapeCol(i,3,3);
-        conbasis = m_gcov_ori;
-        result.col(i) = this->_transformation(conbasis,sbasis).reshape(9,1);
-    }
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
-void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::contransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
-{
-    result.resize(9, u.cols());
-    gsMatrix<T> tmp, conbasis,sbasis;
-    this->stretchDir_into(patch,u,tmp);
-    for (index_t i=0; i!= u.cols(); i++)
-    {
-        this->_getMetric(i,0.0,true); // on point i, with height 0.0
-        sbasis = tmp.reshapeCol(i,3,3);
-        conbasis = m_gcon_ori;
-        result.col(i) = this->_transformation(conbasis,sbasis).reshape(9,1);
-    }
-}
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_matrix_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out) const
 {
     // Input: j index in-plane point
@@ -687,8 +657,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_pstrain(const ind
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             this->_getMetric(k, z(j, k) * m_Tmat(0, k)); // on point i, on height z(0,j)
-
-            E = 0.5 * (m_Gcov_def - m_Gcon_ori);
+            E = 0.5 * (m_Gcov_def - m_Gcov_ori);
             res = this->_evalPStrain(E);
             result.col(j * u.cols() + k) = res.first;
         }
@@ -725,9 +694,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_pstress(const ind
             result.col(j * u.cols() + k) = res.first;
         }
     }
-
     return result;
-
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
@@ -1185,13 +1152,15 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_tensionfield(cons
             // Emin = Ep[0], Emax = Ep[1], E33 = Ep[2]
             Sp = Spmat.col(j*u.cols() + k);
             Ep = Epmat.col(j*u.cols() + k);
-            if (Sp[0] >= 0) // taut
+            if (Sp[0] > 0 || math::almostEqual(Sp[0],0.0) ) // taut
                 result.col(j * u.cols() + k) << 1;
-            else if (Sp[1] < 0) // slack
-            // else if (Ep[1] < 0) // slack
+            // else if (Sp[1] < 0) // slack
+            else if (Ep[1] < 0) // slack
                 result.col(j * u.cols() + k) << -1;
             else // wrinkled
+            {
                 result.col(j * u.cols() + k) << 0;
+            }
         }
     }
     return result;
@@ -1713,6 +1682,10 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Sij_impl(const index_t i, const ind
                 m_Gcov_def(1,0)*m_Gcon_ori(1,0) +
                 m_Gcov_def(1,1)*m_Gcon_ori(1,1);
 
+    // Avoid almost-zero entries for undeformed configurations
+    if (m_J0_sq==1 && math::almostEqual(traceCt,2.0) && math::almostEqual(m_Gcon_ori(i,j),m_Gcon_def(i,j)))
+        return 0;
+
     T c2 = mu/(m_parvals.at(2)+1);
     T c1 = m_parvals.at(2)*c2;
 
@@ -1929,12 +1902,12 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_C33
                 C3333   = _Cijkl3D(2,2,2,2,c,cinv); //  or _Cijkl???
 
                 dc33 = -2. * S33 / C3333;
-                // if (abs(S33/S33_old) < tol)
-                if (abs(dc33) < tol)
+                if (math::lessthan(math::abs(dc33),tol))
                 {
                     result(0,j*u.cols()+k) = c(2,2);
+                    break;
                 }
-                GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, S33 = "<<S33<<" and tolerance = "<<tol<<"\n");
+                GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, S33 = "<<S33<<", dc33 = "<<dc33<<" and tolerance = "<<tol<<"\n");
             }
         }
     }

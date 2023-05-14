@@ -61,7 +61,7 @@ public:
     {
         this->setUndeformed(&materialmatrix->getUndeformed());
         this->setDeformed(&materialmatrix->getDeformed());
-        // this->setThickness(*materialmatrix->getThickness());
+        this->setThickness(*materialmatrix->getThickness());
         m_options.addReal("SlackMultiplier","Multiplies the original value of the matrix for the slack state",0);
         m_options.addSwitch("Explicit","Explicit iterations; use tension field from a fixed deformed geometry that does not change when calling setDeformed",false);
         // if (!dynamic_cast<const gsMaterialMatrixLinear<dim,T> *>(m_materialMat))
@@ -148,14 +148,6 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
     { m_materialMat->thickness_into( patch,u,result ); }
-
-    /// See \ref gsMaterialMatrixBase for details
-    void covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
-    { m_materialMat->covtransform_into( patch,u,result ); }
-
-    /// See \ref gsMaterialMatrixBase for details
-    void contransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
-    { m_materialMat->contransform_into( patch,u,result ); }
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;

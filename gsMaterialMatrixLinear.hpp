@@ -941,7 +941,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const T z, enum MaterialOutput out
                 out == MaterialOutput::PCauchyStressM   ||
                 out == MaterialOutput::StrainM             )
         strain = (m_Bcov_ori - m_Bcov_def);
-    else if (out == MaterialOutput::Generic || out == MaterialOutput::Strain) // To be used with multiplyLinZ_into or integrateZ_into
+    else if (out == MaterialOutput::Generic || out == MaterialOutput::Strain || out == MaterialOutput::Stress) // To be used with multiplyLinZ_into or integrateZ_into
         strain = 0.5*(m_Acov_def - m_Acov_ori) + z*(m_Bcov_ori - m_Bcov_def);
     else
         GISMO_ERROR("Output type MaterialOutput::" + std::to_string((short_t)(out)) + " not understood. See gsMaterialMatrixUtils.h");

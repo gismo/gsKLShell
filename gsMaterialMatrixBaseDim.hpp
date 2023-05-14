@@ -88,33 +88,25 @@ void gsMaterialMatrixBaseDim<dim,T>::stretchDir_into(const index_t patch, const 
     }
 }
 
-// Legacy
-// Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) convariant basis
-template <short_t dim, class T >
-void gsMaterialMatrixBaseDim<dim,T>::transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
-{
-    this->contransform_into(patch,u,result);
-}
-
 // Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) covariant basis
 template <short_t dim, class T>
-void gsMaterialMatrixBaseDim<dim,T>::covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+void gsMaterialMatrixBaseDim<dim,T>::spec2cov_transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
     result.resize(9, u.cols());
-    gsMatrix<T> tmp, conbasis,sbasis;
+    gsMatrix<T> tmp, covbasis,sbasis;
     this->stretchDir_into(patch,u,tmp);
     for (index_t i=0; i!= u.cols(); i++)
     {
         this->_getMetric(i,0.0,true); // on point i, with height 0.0
         sbasis = tmp.reshapeCol(i,3,3);
-        conbasis = m_gcov_ori;
-        result.col(i) = this->_transformation(conbasis,sbasis).reshape(9,1);
+        covbasis = m_gcov_ori;
+        result.col(i) = this->_transformation(covbasis,sbasis).reshape(9,1);
     }
 }
 
 // Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) convariant basis
 template <short_t dim, class T>
-void gsMaterialMatrixBaseDim<dim,T>::contransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+void gsMaterialMatrixBaseDim<dim,T>::spec2con_transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
     result.resize(9, u.cols());
     gsMatrix<T> tmp, conbasis,sbasis;
@@ -125,6 +117,36 @@ void gsMaterialMatrixBaseDim<dim,T>::contransform_into(const index_t patch, cons
         sbasis = tmp.reshapeCol(i,3,3);
         conbasis = m_gcon_ori;
         result.col(i) = this->_transformation(conbasis,sbasis).reshape(9,1);
+    }
+}
+
+// Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) covariant basis
+template <short_t dim, class T>
+void gsMaterialMatrixBaseDim<dim,T>::cov2cart_transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+{
+    result.resize(9, u.cols());
+    gsMatrix<T> tmp, covbasis,cartbasis(3,3);
+    cartbasis.setIdentity();
+    for (index_t i=0; i!= u.cols(); i++)
+    {
+        this->_getMetric(i,0.0,true); // on point i, with height 0.0
+        covbasis = m_gcov_ori;
+        result.col(i) = this->_transformation(cartbasis,covbasis).reshape(9,1);
+    }
+}
+
+// Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) convariant basis
+template <short_t dim, class T>
+void gsMaterialMatrixBaseDim<dim,T>::con2cart_transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
+{
+    result.resize(9, u.cols());
+    gsMatrix<T> tmp, conbasis,cartbasis(3,3);
+    cartbasis.setIdentity();
+    for (index_t i=0; i!= u.cols(); i++)
+    {
+        this->_getMetric(i,0.0,true); // on point i, with height 0.0
+        conbasis = m_gcon_ori;
+        result.col(i) = this->_transformation(cartbasis,conbasis).reshape(9,1);
     }
 }
 
@@ -1152,11 +1174,29 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalStretch(
         for (index_t l = 0; l != 2; l++)
             B += C(k,l) * gcon_ori.col(k) * gcon_ori.col(l).transpose();
 
-    eigSolver.compute(B);
+    // gsDebugVar();
+    // gsDebugVar((math::almostEqual(((B.block(0,0,2,2).diagonal()).array()-1).sum(),std::numeric_limits<T>::epsilon())));
 
-    stretchvec.leftCols(2) = eigSolver.eigenvectors().rightCols(2);
+    gsMatrix<T,3,3> eigVectors;
+    gsMatrix<T,3,1> eigValues;
+    if (math::abs(((B.block(0,0,2,2).diagonal()).array()-1).sum()) < 10*std::numeric_limits<T>::epsilon())
+    {
+        eigValues<<0,1,1; // eigenvalues when B = [1 0 0; 0 1 0; 0 0 0]
+        eigVectors<<0,0,1,
+                    0,1,0,
+                    1,0,0;
+    }
+    else
+    {
+        eigSolver.compute(B);
+        eigValues = eigSolver.eigenvalues();
+        eigVectors= eigSolver.eigenvectors();
+    }
+
+
+    stretchvec.leftCols(2) = eigVectors.rightCols(2);
     stretchvec.col(2) = gcon_ori.col(2); // replace with: stretchvec.col(0).template head<3>().cross(stretchvec.col(1).template head<3>())
-    stretches.block(0,0,2,1) = eigSolver.eigenvalues().block(1,0,2,1); // the eigenvalues are a 3x1 matrix, so we need to use matrix block-operations
+    stretches.block(0,0,2,1) = eigValues.block(1,0,2,1); // the eigenvalues are a 3x1 matrix, so we need to use matrix block-operations
 
     // m_stretches.at(2) = 1/m_J0_sq;
     stretches.at(2) = C(2,2);
@@ -1166,12 +1206,6 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalStretch(
 
     result.first = stretches;
     result.second = stretchvec;
-
-    // // DEBUGGING ONLY!
-    // gsMatrix<T> ones(3,1);
-    // ones.setOnes();
-    // gsDebugVar(m_stretchvec);
-    // gsDebugVar(result.first);
 
     return result;
 }

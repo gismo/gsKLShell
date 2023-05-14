@@ -331,7 +331,7 @@ for (std::vector<index_t>::iterator mat = materials.begin(); mat!=materials.end(
             if ( (std::abs(L-Lan)/Lan < tol) && (std::abs(S-San)/San < tol) )
                 gsInfo<<"Passed\n";
             else
-                gsInfo<<"Failed; L error = "<<std::abs(L-Lan)/Lan<<"\t S error = "<<std::abs(S-San)/San<<"\n";
+                gsInfo<<"Failed; L error = "<<std::abs(L-Lan)/Lan<<"\t S error = "<<std::abs(S-San)/San<<"\t Material = "<<*mat<<"\t Implementation = "<<*impl<<"\t Compressibility = "<<*comp<<"\n";
         }
     }
 }

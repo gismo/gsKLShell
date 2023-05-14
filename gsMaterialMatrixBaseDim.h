@@ -88,13 +88,16 @@ public:
     virtual void parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual void transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+    virtual void spec2cov_transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual void covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+    virtual void spec2con_transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual void contransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+    virtual void cov2cart_transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+
+    /// See \ref gsMaterialMatrixBase for details
+    virtual void con2cart_transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
     virtual void deformation_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
