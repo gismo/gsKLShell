@@ -185,7 +185,7 @@ int main (int argc, char** argv)
     gsVector<> num, relError;
     real_t error;
 
-    std::vector<bool> composite { true, false };
+    std::vector<bool> composite { false, true };
 
     for (std::vector<bool>::iterator comp = composite.begin(); comp!=composite.end(); comp++)
     {

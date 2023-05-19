@@ -128,9 +128,6 @@ void gsMaterialMatrixLinear<dim,T>::_initialize()
 {
     // Set default options
     this->_defaultOptions();
-
-    // set flags
-    m_data.mine().m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
 }
 
 template <short_t dim, class T >
@@ -305,7 +302,7 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalPStress(c
     // B.setZero();
     // for (index_t k = 0; k != 2; k++)
     //     for (index_t l = 0; l != 2; l++)
-    //         B += S(k,l) * m_data.mine().m_gcov_ori.col(k) * m_data.mine().m_gcov_ori.col(l).transpose();
+    //         B += S(k,l) * m_gcov_ori.col(k) * m_gcov_ori.col(l).transpose();
 
     // eigSolver.compute(B);
 
@@ -316,7 +313,7 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalPStress(c
     // GISMO_ASSERT(zeroIdx!=-1,"No zero found?");
 
     // index_t count = 0;
-    // pstressvec.col(2) = m_data.mine().m_gcon_ori.col(2);
+    // pstressvec.col(2) = m_gcon_ori.col(2);
     // pstresses(2,0) = S(2,2);
 
     // for (index_t k=0; k!=3; k++)

@@ -121,9 +121,6 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_initialize()
 {
     // Set default options
     this->_defaultOptions();
-
-    // set flags
-    m_data.mine().m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
@@ -649,14 +646,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_pst
     return result;
 }
 
-/*
-    Available class members:
-        - m_data.mine().m_parvals
-        - m_metric
-        - m_metric_def
-        - m_data.mine().m_J0
-        - m_data.mine().m_J
-*/
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 T gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Cijkl(const index_t i, const index_t j, const index_t k, const index_t l) const
 {
@@ -734,8 +723,8 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Cijkl_impl(const index_t i, const i
     gsMatrix<T> C(3,3);
     C.setZero();
     C.block(0,0,2,2) = m_data.mine().m_Gcov_def.block(0,0,2,2);
-    // C.block(0,0,2,2) = (m_data.mine().m_gcov_def.transpose()*m_data.mine().m_gcov_def).block(0,0,2,2);
-    // gsDebugVar(m_data.mine().m_gcov_def.transpose()*m_data.mine().m_gcov_def);
+    // C.block(0,0,2,2) = (m_gcov_def.transpose()*m_gcov_def).block(0,0,2,2);
+    // gsDebugVar(m_gcov_def.transpose()*m_gcov_def);
     C(2,2) = 1./m_data.mine().m_J0_sq;
 
     this->_computeStretch(C);
@@ -2168,7 +2157,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Cabcd_impl(const index_t a, const i
 //     }
 //     else if (m_material==3)
 //     {
-//         // return 2.0*m_data.mine().m_parvals.at(0)*m_data.mine().m_J0*m_G(i,j)*m_G(k,l) + m_G(i,k)*m_G(j,l) + m_G(i,l)*m_G(j,k);
+//         // return 2.0*m_data.mine().m_parvals.at(0)*m_data.mine().m_J0*m_data.mine().m_G(i,j)*m_data.mine().m_G(k,l) + m_data.mine().m_G(i,k)*m_data.mine().m_G(j,l) + m_data.mine().m_G(i,l)*m_data.mine().m_G(j,k);
 //     }
 //     else if (m_material==4)
 //     {
@@ -2198,7 +2187,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Cabcd_impl(const index_t a, const i
 //     }
 //     else if (m_material==3)
 //     {
-//         // return 2.0*m_data.mine().m_parvals.at(0)*m_data.mine().m_J0*m_G(i,j)*m_G(k,l) + m_G(i,k)*m_G(j,l) + m_G(i,l)*m_G(j,k);
+//         // return 2.0*m_data.mine().m_parvals.at(0)*m_data.mine().m_J0*m_data.mine().m_G(i,j)*m_data.mine().m_G(k,l) + m_data.mine().m_G(i,k)*m_data.mine().m_G(j,l) + m_data.mine().m_G(i,l)*m_data.mine().m_G(j,k);
 //     }
 //     else if (m_material==4)
 //     {
