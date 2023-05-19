@@ -85,7 +85,7 @@ public:
 protected:
     gsMaterialMatrixContainer<T> m_materialMatrices;
     const gsFunctionSet<T> * m_deformed;
-    std::vector<gsMaterialMatrixIntegrateSingle<T,out> *> m_pieces;
+    mutable std::vector<gsMaterialMatrixIntegrateSingle<T,out> *> m_pieces;
 };
 
 /**

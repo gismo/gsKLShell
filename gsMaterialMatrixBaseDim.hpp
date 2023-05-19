@@ -146,7 +146,10 @@ void gsMaterialMatrixBaseDim<dim,T>::deformation_into(const index_t patch, const
 template <short_t dim, class T >
 void gsMaterialMatrixBaseDim<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool basis) const
 {
+    gsMatrix<T> tmp;
+
     this->_computeMetricUndeformed(patch,u,basis);
+
     if (Base::m_defpatches->nPieces()!=0)
         this->_computeMetricDeformed(patch,u,basis);
 
@@ -160,7 +163,6 @@ void gsMaterialMatrixBaseDim<dim,T>::_computePoints(const index_t patch, const g
     m_data.mine().m_parmat.resize(m_pars.size(),map.values[0].cols());
     m_data.mine().m_parmat.setZero();
 
-    gsMatrix<T> tmp;
     for (size_t v=0; v!=m_pars.size(); v++)
     {
         m_pars[v]->piece(patch).eval_into(map.values[0], tmp);
