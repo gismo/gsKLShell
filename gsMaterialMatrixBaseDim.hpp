@@ -193,7 +193,7 @@ gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed_impl(const index_t patch,
     gsMatrix<T,2,2> tmp;
 
     m_data.mine().m_normal_def_mat = map.normals;
-    m_data.mine().m_normal_def_mat.colwise().normalized();
+    m_data.mine().m_normal_def_mat.colwise().normalize();
 
     m_data.mine().m_Acov_def_mat.resize(4,map.points.cols());    m_data.mine().m_Acov_def_mat.setZero();
     m_data.mine().m_Acon_def_mat.resize(4,map.points.cols());    m_data.mine().m_Acon_def_mat.setZero();
@@ -313,7 +313,7 @@ gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patc
     gsMatrix<T,2,2> tmp;
 
     m_data.mine().m_normal_ori_mat = map.normals;
-    m_data.mine().m_normal_ori_mat.colwise().normalized();
+    m_data.mine().m_normal_ori_mat.colwise().normalize();
 
     m_data.mine().m_Acov_ori_mat.resize(4,map.points.cols());    m_data.mine().m_Acov_ori_mat.setZero();
     m_data.mine().m_Acon_ori_mat.resize(4,map.points.cols());    m_data.mine().m_Acon_ori_mat.setZero();
@@ -470,7 +470,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T
     m_data.mine().m_acon_def = m_data.mine().m_acon_def_mat.reshapeCol(k,3,2);
     // g
     m_data.mine().m_gcov_def.leftCols(2) = m_data.mine().m_acov_def + z * m_data.mine().m_ncov_def;
-    m_data.mine().m_gcov_ori.col(2) = m_data.mine().m_normal_def_mat.reshapeCol(k,3,1);
+    m_data.mine().m_gcov_def.col(2) = m_data.mine().m_normal_def_mat.reshapeCol(k,3,1);
 
     for (index_t c = 0; c!=3; c++)
     {
@@ -564,10 +564,13 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const
         m_data.mine().m_ncov_ori = m_data.mine().m_ncov_ori_mat.reshapeCol(k,3,2);
 
     // Compute full metric
-    m_data.mine().m_Gcov_ori.setZero();
-    m_data.mine().m_Gcov_ori.block(0,0,2,2)= m_data.mine().m_Acov_ori - 2.0 * z * m_data.mine().m_Bcov_ori + z*z * m_data.mine().m_ncov_ori.transpose()*m_data.mine().m_ncov_ori;
-    m_data.mine().m_Gcov_ori(2,2) = 1.0;
-    m_data.mine().m_Gcon_ori = m_data.mine().m_Gcov_ori.inverse();
+    gsMatrix<T,3,3> Gcov_ori;
+    Gcov_ori.setZero();
+    Gcov_ori.block(0,0,2,2)= m_data.mine().m_Acov_ori - 2.0 * z * m_data.mine().m_Bcov_ori + z*z * m_data.mine().m_ncov_ori.transpose()*m_data.mine().m_ncov_ori;
+    Gcov_ori(2,2) = 1.0;
+    
+    m_data.mine().m_Gcov_ori = Gcov_ori;
+    m_data.mine().m_Gcon_ori = Gcov_ori.inverse();
 
     if (!basis) return;
     // Compute full basis
