@@ -85,7 +85,7 @@ public:
 protected:
     gsMaterialMatrixContainer<T> m_materialMatrices;
     const gsFunctionSet<T> * m_deformed;
-    std::vector<gsMaterialMatrixIntegrateSingle<T,out> *> m_pieces;
+    mutable std::vector<gsMaterialMatrixIntegrateSingle<T,out> *> m_pieces;
 };
 
 /**
@@ -151,7 +151,7 @@ private:
 
 protected:
     /// Sets the patch index
-    void setPatch(index_t p) {m_pIndex.mine() = p; }
+    void setPatch(index_t p) {m_pIndex = p; }
 
 public:
     /// Implementation of eval_into, see \ref gsFunction
@@ -354,7 +354,7 @@ private:
     { GISMO_NO_IMPLEMENTATION};
 
 protected:
-    util::gsThreaded<index_t> m_pIndex;
+    index_t m_pIndex;
     gsMaterialMatrixBase<T> * m_materialMat;
     gsMatrix<T> m_z;
 };

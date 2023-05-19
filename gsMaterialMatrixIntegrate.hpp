@@ -36,9 +36,9 @@ gsMaterialMatrixIntegrateSingle<T,out>::gsMaterialMatrixIntegrateSingle(index_t 
                                                                         const gsFunctionSet<T> * deformed
                                                                         )
 :
+m_pIndex(patch),
 m_materialMat(materialMatrix)
 {
-    m_pIndex.mine() = patch;
     m_materialMat->setDeformed(deformed);
     // m_materialMat = new gsMaterialMatrix(materialMatrix);
 }
@@ -47,7 +47,7 @@ template <class T, enum MaterialOutput out>
 void gsMaterialMatrixIntegrateSingle<T,out>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
 /// Non-parallel evaluation
-// #pragma omp critical (gsMaterialMatrixIntegrateSingle_eval_into)
+#pragma omp critical (gsMaterialMatrixIntegrateSingle_eval_into)
     this->eval_into_impl<out>(u,result);
 }
 
@@ -56,7 +56,7 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::Density, void>::type
 gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->density_into(m_pIndex.mine(),u,result);
+    m_materialMat->density_into(m_pIndex,u,result);
 }
 
 template <class T, enum MaterialOutput out>
@@ -133,7 +133,7 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::Stretch, void>::type
 gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->stretch_into(m_pIndex.mine(),u,result);
+    m_materialMat->stretch_into(m_pIndex,u,result);
 }
 
 template <class T, enum MaterialOutput out>
@@ -141,7 +141,7 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::StretchDir, void>::type
 gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->stretchDir_into(m_pIndex.mine(),u,result);
+    m_materialMat->stretchDir_into(m_pIndex,u,result);
 }
 
 template <class T, enum MaterialOutput out>
@@ -163,7 +163,7 @@ void gsMaterialMatrixIntegrateSingle<T,out>::integrateZ_into(const gsMatrix<T>& 
     // m_points3D.resize(1,numGauss);
 
     gsMatrix<T> Tmat;
-    m_materialMat->thickness_into(m_pIndex.mine(),u,Tmat);
+    m_materialMat->thickness_into(m_pIndex,u,Tmat);
     T Thalf;
     // pre-compute Z
     for (index_t k = 0; k != u.cols(); ++k) // for all points
@@ -207,7 +207,7 @@ void gsMaterialMatrixIntegrateSingle<T,out>::multiplyLinZ_into(const gsMatrix<T>
 
     gsMatrix<T> z(2,u.cols());
     gsMatrix<T> Tmat;
-    m_materialMat->thickness_into(m_pIndex.mine(),u,Tmat);
+    m_materialMat->thickness_into(m_pIndex,u,Tmat);
 
     T Thalf;
     // pre-compute Z
@@ -245,7 +245,7 @@ void gsMaterialMatrixIntegrateSingle<T,out>::multiplyZ_into(const gsMatrix<T>& u
     {
         T fac;
         gsMatrix<T> Tmat;
-        m_materialMat->thickness_into(m_pIndex.mine(),u,Tmat);
+        m_materialMat->thickness_into(m_pIndex,u,Tmat);
         T Thalf;
         gsMatrix<T> vals = this->eval(u);
         for (index_t k = 0; k != u.cols(); ++k) // for all points
@@ -278,7 +278,7 @@ typename std::enable_if<   _out==MaterialOutput::MatrixA || _out==MaterialOutput
                         || _out==MaterialOutput::MatrixC || _out==MaterialOutput::MatrixD, gsMatrix<T>>::type
 gsMaterialMatrixIntegrateSingle<T,out>::eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
 {
-    return m_materialMat->eval3D_matrix(m_pIndex.mine(),u,Z,_out);
+    return m_materialMat->eval3D_matrix(m_pIndex,u,Z,_out);
 }
 
 template <class T, enum MaterialOutput out>
@@ -286,7 +286,16 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::VectorN || _out==MaterialOutput::VectorM, gsMatrix<T>>::type
 gsMaterialMatrixIntegrateSingle<T,out>::eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
 {
-    return m_materialMat->eval3D_vector(m_pIndex.mine(),u,Z,_out);
+    try
+    {
+        return m_materialMat->eval3D_vector(m_pIndex,u,Z,_out);
+    }
+    catch(...)
+    {
+        gsDebugVar("Error!");
+        gsMatrix<T> zeros(this->targetDim(),u.cols()*Z.rows());
+        return zeros;
+    }
 }
 
 template <class T, enum MaterialOutput out>
@@ -294,7 +303,7 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::PStressN || _out==MaterialOutput::PStressM, gsMatrix<T>>::type
 gsMaterialMatrixIntegrateSingle<T,out>::eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
 {
-    return m_materialMat->eval3D_pstress(m_pIndex.mine(),u,Z,_out);
+    return m_materialMat->eval3D_pstress(m_pIndex,u,Z,_out);
 }
 
 } // end namespace
