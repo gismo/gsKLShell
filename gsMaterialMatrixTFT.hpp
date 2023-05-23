@@ -294,7 +294,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t
     T theta;
     gsTFTMat<T> tftData;
 
-    this->_computePoints(patch,u,true);
+    this->_computePoints(patch,u);
     for (index_t k=0; k!=u.cols(); k++)
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
@@ -312,7 +312,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t
             }
             else if (TF(0,colIdx) == 0) // wrinkled
             {
-                this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), true); // on point i, on height z(0,j)
+                this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
                 gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
                 gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);;
                 gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),MaterialOutput::StrainN);

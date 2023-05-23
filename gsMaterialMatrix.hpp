@@ -375,7 +375,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_dmatrix_num(const
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), false); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
             result.col(j*u.cols()+k) = dCijkl(patch,u.col(k),z(j,k));
         }
     }
@@ -506,7 +506,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_dmatrix_an(const 
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), false); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             gsAsMatrix<T,Dynamic,Dynamic> dCdC = result.reshapeCol(k,3,9);
             dCdC(0,0) = dCijkl_dCmn(0,0,0,0,  0,0); // C1111dC11
@@ -772,7 +772,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_str
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             C33 = C33s(0,j*u.cols()+k);
@@ -875,7 +874,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_det
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
             result(0,j*u.cols()+k) = math::sqrt(m_data.mine().m_J0_sq*C33s(0,j*u.cols()+k));
         }
@@ -1147,7 +1145,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Incompressible_m
         for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
             m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
 
-        this->_getMetric(0, z * m_data.mine().m_Tmat(0, 0), Cmat, false); // on point i, on height z(0,j)
+        this->_getMetric(0, z * m_data.mine().m_Tmat(0, 0), Cmat); // on point i, on height z(0,j)
 
         gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(k,3,3);
         /*
@@ -1186,21 +1184,20 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Incompressible_m
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-                // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
-                this->_getMetric(k,z(j,k) * m_data.mine().m_Tmat(0,k) ); // on point i, on height z(0,j)
+            this->_getMetric(k,z(j,k) * m_data.mine().m_Tmat(0,k) ); // on point i, on height z(0,j)
 
-                gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
-                /*
-                    C = C1111,  C1122,  C1112
-                        symm,   C2222,  C2212
-                        symm,   symm,   C1212
-                */
-                C(0,0)          = _Cijkl(0,0,0,0); // C1111
-                C(1,1)          = _Cijkl(1,1,1,1); // C2222
-                C(2,2)          = _Cijkl(0,1,0,1); // C1212
-                C(1,0) = C(0,1) = _Cijkl(0,0,1,1); // C1122
-                C(2,0) = C(0,2) = _Cijkl(0,0,0,1); // C1112
-                C(2,1) = C(1,2) = _Cijkl(1,1,0,1); // C2212
+            gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
+            /*
+                C = C1111,  C1122,  C1112
+                    symm,   C2222,  C2212
+                    symm,   symm,   C1212
+            */
+            C(0,0)          = _Cijkl(0,0,0,0); // C1111
+            C(1,1)          = _Cijkl(1,1,1,1); // C2222
+            C(2,2)          = _Cijkl(0,1,0,1); // C1212
+            C(1,0) = C(0,1) = _Cijkl(0,0,1,1); // C1122
+            C(2,0) = C(0,2) = _Cijkl(0,0,0,1); // C1112
+            C(2,1) = C(1,2) = _Cijkl(1,1,0,1); // C2212
         }
     }
 
@@ -1815,7 +1812,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_C33
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             // Define objects
@@ -1890,7 +1886,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_mat
         for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
             m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
 
-        this->_getMetric(0, z * m_data.mine().m_Tmat(0, 0), Cmat, false); // on point i, on height z(0,j)
+        this->_getMetric(0, z * m_data.mine().m_Tmat(0, 0), Cmat); // on point i, on height z(0,j)
 
         C33 = C33s(0,k);
 

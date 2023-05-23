@@ -105,15 +105,6 @@ void gsMaterialMatrixComposite<dim,T>::_initialize()
 }
 
 template <short_t dim, class T >
-void gsMaterialMatrixComposite<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool basis) const
-{
-    this->_computeMetricUndeformed(patch,u,basis);
-
-    if (Base::m_defpatches->nPieces()!=0)
-        this->_computeMetricDeformed(patch,u,basis);
-}
-
-template <short_t dim, class T >
 void gsMaterialMatrixComposite<dim,T>::density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     GISMO_ASSERT(m_Ts.size()==m_Rs.size(),"Size of vectors of thickness and densities is not equal: " << m_Ts.size()<<" & "<<m_Rs.size());
@@ -171,7 +162,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
     // Output: (n=u.cols(), m=z.cols())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    this->_computePoints(patch,u,true);
+    this->_computePoints(patch,u);
     // Initialize and result
     gsMatrix<T> result(9, u.cols());
     gsMatrix<T,3,3> Dmat, Cmat, Tmat;
@@ -205,7 +196,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
     for (index_t k = 0; k != u.cols(); ++k)
     {
         Cmat.setZero();
-        this->_getMetric(k,0.0,true); // on point i, with height 0.0
+        this->_getMetric(k,0.0); // on point i, with height 0.0
 
         // Compute total thickness (sum of entries)
         t_tot = 0;
@@ -267,7 +258,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_vector(const index_t patch,
     // Output: (n=u.cols(), m=z.cols())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    this->_computePoints(patch,u,true);
+    this->_computePoints(patch,u);
     gsMatrix<T> result(3, u.cols());
     enum MaterialOutput _out;
     if      (out==MaterialOutput::VectorN)
@@ -282,7 +273,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_vector(const index_t patch,
 
     for (index_t k = 0; k != u.cols(); ++k)
     {
-        this->_getMetric(k,0.0,true); // on point i, with height 0.0
+        this->_getMetric(k,0.0); // on point i, with height 0.0
 
         if      (out == MaterialOutput::VectorN) // To be used with multiplyZ_into
             Eij = 0.5*(m_data.mine().m_Acov_def - m_data.mine().m_Acov_ori);

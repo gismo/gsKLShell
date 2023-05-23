@@ -244,7 +244,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
     // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    this->_computePoints(patch,u,false);
+    this->_computePoints(patch,u);
 
     gsMatrix<T> result(9, u.cols() * z.rows());
     result.setZero();
@@ -257,8 +257,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-                // _getMetric(k, z(j, k), false); // on point i, on height z(0,j)
-                this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), false); // on point i, on height z(0,j)
+                this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
                 gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
                 /*
@@ -287,7 +286,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix_C(const gsMatrix<T> & C
     // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    this->_computePoints(patch,u,false);
+    this->_computePoints(patch,u);
 
     gsMatrix<T> result(9, 1);
     result.setZero();
@@ -297,7 +296,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix_C(const gsMatrix<T> & C
         m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,0);
 
     // Get metric
-    this->_getMetricUndeformed(0, z * m_data.mine().m_Tmat(0, 0), false); // on point i, on height z(0,j)
+    this->_getMetricUndeformed(0, z * m_data.mine().m_Tmat(0, 0)); // on point i, on height z(0,j)
     this->_getMetricDeformed(Cmat);
 
     gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(0,3,3);
@@ -320,7 +319,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_dmatrix(const index_t patch, c
 {
     // return gsMatrix<T>::Zero(27,u.cols()*z.rows());
 
-    this->_computePoints(patch,u,false);
+    this->_computePoints(patch,u);
 
     gsMatrix<T> result(27,u.cols()*z.rows());
     result.setZero();
@@ -335,7 +334,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_dmatrix(const index_t patch, c
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), false); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             Cfun<dim,T> Cfunc(this,patch,u.col(k),z(j,k));
             gsMatrix<T> tmpresult;
@@ -371,7 +370,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_dmatrix(const index_t patch, c
 //         return S;
 //     };
 
-//     this->_computePoints(patch,u,false);
+//     this->_computePoints(patch,u);
 
 //     gsMatrix<T> result(3, u.cols() * z.rows());
 //     result.setZero();
@@ -385,7 +384,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_dmatrix(const index_t patch, c
 
 //         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
 //         {
-//             this->_getMetric(k, z(j, k) * m_Tmat(0, k), false); // on point i, on height z(0,j)
+//             this->_getMetric(k, z(j, k) * m_Tmat(0, k)); // on point i, on height z(0,j)
 
 //             E = _E(z(j, k) * m_Tmat(0, k),out);
 
@@ -419,7 +418,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector_C(const gsMatrix<T> & C
     // Output: (n=u.cols(), m=z.cols())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    this->_computePoints(patch,u,false);
+    this->_computePoints(patch,u);
 
     gsMatrix<T> result(3, 1);
     result.setZero();
@@ -430,7 +429,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector_C(const gsMatrix<T> & C
         m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,0);
 
     // Get metric
-    this->_getMetricUndeformed(0, z * m_data.mine().m_Tmat(0, 0), false); // on point i, on height z(0,j)
+    this->_getMetricUndeformed(0, z * m_data.mine().m_Tmat(0, 0)); // on point i, on height z(0,j)
     this->_getMetricDeformed(Cmat);
 
     // GISMO_ASSERT(   out == MaterialOutput::VectorN ||
@@ -553,7 +552,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstrain(const index_t patch, c
 template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
-    this->_computePoints(patch,u,true);
+    this->_computePoints(patch,u);
 
     gsMatrix<T> result(3, u.cols() * z.rows());
     result.setZero();
@@ -562,8 +561,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_strain(const index_t patch, co
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // this->_getMetric(k, z(j, k), true); // on point i, on height z(0,j)
-            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), true); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             // E.setZero();
             E.block(0,0,2,2) = _E(0,out);
@@ -585,7 +583,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_stress(const index_t patch, co
     // Output: (n=u.cols(), m=z.cols())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    this->_computePoints(patch,u,true);
+    this->_computePoints(patch,u);
 
     gsMatrix<T> result(3, u.cols() * z.rows());
     result.setZero();
@@ -598,8 +596,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_stress(const index_t patch, co
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // this->_getMetric(k, z(j, k), true); // on point i, on height z(0,j)
-            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), true); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             // E.setZero();
             E.block(0,0,2,2) = _E(0,out);
@@ -616,14 +613,14 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_stress(const index_t patch, co
 template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_detF(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
-    this->_computePoints(patch,u,true);
+    this->_computePoints(patch,u);
     gsMatrix<T> result(1, u.cols() * z.rows());
     result.setZero();
     for (index_t k=0; k!=u.cols(); k++)
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), true); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
             result(0,j * u.cols() + k) = math::sqrt(m_data.mine().m_J0_sq*1.0);
         }
     }
@@ -633,7 +630,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_detF(const index_t patch, cons
 template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
-    this->_computePoints(patch,u,true);
+    this->_computePoints(patch,u);
     gsMatrix<T> Smat = eval3D_stress(patch,u,z,out);
 
     gsMatrix<T> result(3, u.cols() * z.rows());
@@ -645,7 +642,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_CauchyStress(const index_t pat
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             colIdx = j * u.cols() + k;
-            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), true); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
             detF = math::sqrt(m_data.mine().m_J0_sq*1.0);
             Smat.col(colIdx) /= detF;
         }
@@ -656,7 +653,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_CauchyStress(const index_t pat
 template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
-    this->_computePoints(patch,u,true);
+    this->_computePoints(patch,u);
 
     gsMatrix<T> result(1, u.cols() * z.rows());
     result.setZero();
@@ -672,8 +669,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_tensionfield(const index_t pat
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // this->_getMetric(k, z(j, k), true); // on point i, on height z(0,j)
-            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), true); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             E.setZero();
             E.block(0,0,2,2) = _E(0,out);
@@ -769,7 +765,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::C(const gsMatrix<T> &) const
 template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::S(const gsMatrix<T> & C, const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
-    this->_computePoints(patch,u,false);
+    this->_computePoints(patch,u);
 
     gsMatrix<T> tmpresult;
     Sfun<dim,T> Sfunc(this,patch,u.col(0),z(0,0));
@@ -786,7 +782,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::C(const gsMatrix<T> &  C, const index
     GISMO_ASSERT(C.cols()==1,"Expect C in voight notation, C = [C11, C22, C12]");
     gsWarn<<"This function needs to compute the material parameters! Therefore needs compute points\n";
 
-    this->_computePoints(patch,u,false);
+    this->_computePoints(patch,u);
 
     gsMatrix<T> tmpresult;
     Sfun<dim,T> Sfunc(this,patch,u.col(0),z(0,0));
