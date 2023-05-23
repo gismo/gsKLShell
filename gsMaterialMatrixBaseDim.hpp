@@ -189,8 +189,8 @@ gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed_impl(const index_t patch,
     dynamic_cast<const gsFunction<T>&>(m_defpatches->piece(patch)   ).computeMap(map);
 
     gsMatrix<T> deriv2;
-    gsMatrix<T,2,2> mixedB;
-    gsMatrix<T,2,2> tmp;
+    gsMatrix<T> mixedB;
+    gsMatrix<T> tmp;
 
     m_data.mine().m_normal_def_mat = map.normals;
     m_data.mine().m_normal_def_mat.colwise().normalize();
@@ -258,7 +258,7 @@ gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed_impl(const index_t patch,
     map.points = u;
     dynamic_cast<const gsFunction<T>&>(m_defpatches->piece(patch)   ).computeMap(map);
 
-    gsMatrix<T,2,2> tmp;
+    gsMatrix<T> tmp;
 
     m_data.mine().m_Acov_def_mat.resize(4,map.points.cols());    m_data.mine().m_Acov_def_mat.setZero();
     m_data.mine().m_Acon_def_mat.resize(4,map.points.cols());    m_data.mine().m_Acon_def_mat.setZero();
@@ -309,8 +309,8 @@ gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patc
     dynamic_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(map);
 
     gsMatrix<T> deriv2;
-    gsMatrix<T,2,2> mixedB;
-    gsMatrix<T,2,2> tmp;
+    gsMatrix<T> mixedB;
+    gsMatrix<T> tmp;
 
     m_data.mine().m_normal_ori_mat = map.normals;
     m_data.mine().m_normal_ori_mat.colwise().normalize();
@@ -378,7 +378,7 @@ gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patc
     map.points = u;
     dynamic_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(map);
 
-    gsMatrix<T,2,2> tmp;
+    gsMatrix<T> tmp;
 
     m_data.mine().m_Acov_ori_mat.resize(4,map.points.cols());    m_data.mine().m_Acov_ori_mat.setZero();
     m_data.mine().m_Acon_ori_mat.resize(4,map.points.cols());    m_data.mine().m_Acon_ori_mat.setZero();
@@ -439,45 +439,57 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T
     GISMO_ENSURE(m_data.mine().m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_Acon_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_Bcov_def_mat.cols()!=0,"Is the metric initialized?");
-    if (basis)
-    {
-        GISMO_ENSURE(m_data.mine().m_acov_def_mat.cols()!=0,"Is the basis initialized?");
-        GISMO_ENSURE(m_data.mine().m_acon_def_mat.cols()!=0,"Is the basis initialized?");
-        GISMO_ENSURE(m_data.mine().m_ncov_def_mat.cols()!=0,"Is the basis initialized?");
-        GISMO_ENSURE(m_data.mine().m_normal_def_mat.cols()!=0,"Is the basis initialized?");
-    }
+    GISMO_ENSURE(m_data.mine().m_ncov_def_mat.cols()!=0,"Is the basis initialized?");
 
-    // metrics
-    m_data.mine().m_Acov_def = m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2);
-    m_data.mine().m_Acon_def = m_data.mine().m_Acon_def_mat.reshapeCol(k,2,2);
-    m_data.mine().m_Bcov_def = m_data.mine().m_Bcov_def_mat.reshapeCol(k,2,2);
-    if (basis)
-        m_data.mine().m_ncov_def = m_data.mine().m_ncov_def_mat.reshapeCol(k,3,2);
+    gsMatrix<T> Acov_def, Acon_def, Bcov_def, ncov_def, Gcov_def(3,3), Gcon_def(3,3);
+
+    // Get metric information
+    Acov_def = m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2);
+    Acon_def = m_data.mine().m_Acon_def_mat.reshapeCol(k,2,2);
+    Bcov_def = m_data.mine().m_Bcov_def_mat.reshapeCol(k,2,2);
+    ncov_def = m_data.mine().m_ncov_def_mat.reshapeCol(k,3,2);
 
     // Compute full metric
-    gsMatrix<T,3,3> Gcov_def;
     Gcov_def.setZero();
-    Gcov_def.block(0,0,2,2)= m_data.mine().m_Acov_def - 2.0 * z * m_data.mine().m_Bcov_def + z*z * m_data.mine().m_ncov_def.transpose()*m_data.mine().m_ncov_def;
+    Gcov_def.block(0,0,2,2)= Acov_def - 2.0 * z * Bcov_def + z*z * ncov_def.transpose()*ncov_def;
     Gcov_def(2,2) = 1.0;
-    
+    Gcon_def = Gcov_def.inverse();
+
+    // Assign members
+    m_data.mine().m_Acov_def = Acov_def;
+    m_data.mine().m_Acon_def = Acon_def;
+    m_data.mine().m_Bcov_def = Bcov_def;
+    m_data.mine().m_ncov_def = ncov_def;
     m_data.mine().m_Gcov_def = Gcov_def;
-    m_data.mine().m_Gcon_def = Gcov_def.inverse();
+    m_data.mine().m_Gcon_def = Gcon_def;
 
     if (!basis) return;
-    // Compute full basis
-    // basis vectors
-    m_data.mine().m_acov_def = m_data.mine().m_acov_def_mat.reshapeCol(k,3,2);
-    m_data.mine().m_acon_def = m_data.mine().m_acon_def_mat.reshapeCol(k,3,2);
-    // g
-    m_data.mine().m_gcov_def.leftCols(2) = m_data.mine().m_acov_def + z * m_data.mine().m_ncov_def;
-    m_data.mine().m_gcov_def.col(2) = m_data.mine().m_normal_def_mat.reshapeCol(k,3,1);
 
+    GISMO_ENSURE(m_data.mine().m_acov_def_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_data.mine().m_acon_def_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_data.mine().m_normal_def_mat.cols()!=0,"Is the basis initialized?");
+
+    gsMatrix<T> acov_def, acon_def, normal(3,1), gcov_def(3,3), gcon_def(3,3);
+
+    // Get basis vectors
+    acov_def = m_data.mine().m_acov_def_mat.reshapeCol(k,3,2);
+    acon_def = m_data.mine().m_acon_def_mat.reshapeCol(k,3,2);
+    normal   = m_data.mine().m_normal_def_mat.reshapeCol(k,3,1);
+
+    // Compute g_cov
+    gcov_def.setZero();
+    gcov_def.leftCols(2) = acov_def + z * ncov_def;
+    gcov_def.col(2) = normal;
+
+    // Compute g_con
     for (index_t c = 0; c!=3; c++)
-    {
-        m_data.mine().m_gcon_def.col(c) = m_data.mine().m_Gcon_def(c,0) * m_data.mine().m_gcov_def.col(0)
-                            + m_data.mine().m_Gcon_def(c,1) * m_data.mine().m_gcov_def.col(1)
-                            + m_data.mine().m_Gcon_def(c,2) * m_data.mine().m_gcov_def.col(2);
-    }
+        gcon_def.col(c) = Gcon_def(c,0) * gcov_def.col(0) + Gcon_def(c,1) * gcov_def.col(1) + Gcon_def(c,2) * gcov_def.col(2);
+
+    // Assign members
+    m_data.mine().m_acov_def = acov_def;
+    m_data.mine().m_acon_def = acov_def;
+    m_data.mine().m_gcov_def = gcov_def;
+    m_data.mine().m_gcon_def = gcon_def;
 
     // // create a Linearised covariant tensor for SvK models
     // m_data.mine().m_Gcov_def_L = m_data.mine().m_Gcov_def;
@@ -489,42 +501,53 @@ template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
 gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T z, const bool basis) const
 {
-    GISMO_ENSURE(m_data.mine().m_Acov_def.cols()!=0,"Is the metric initialized?");
+    GISMO_ENSURE(m_data.mine().m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_Acon_def_mat.cols()!=0,"Is the metric initialized?");
 
-    if (basis)
-    {
-        GISMO_ENSURE(m_data.mine().m_acov_def_mat.cols()!=0,"Is the basis initialized?");
-        GISMO_ENSURE(m_data.mine().m_acon_def_mat.cols()!=0,"Is the basis initialized?");
-    }
+    gsMatrix<T> Acov_def, Acon_def, Gcov_def(3,3), Gcon_def(3,3);
 
-    // metrics
-    m_data.mine().m_Acov_def = m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2);
-    m_data.mine().m_Acon_def = m_data.mine().m_Acon_def_mat.reshapeCol(k,2,2);
+    // Get metric information
+    Acov_def = m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2);
+    Acon_def = m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2);
+    
     // Compute full metric
-    m_data.mine().m_Gcov_def.setZero();
-    m_data.mine().m_Gcov_def.block(0,0,2,2)= m_data.mine().m_Acov_def;
-    m_data.mine().m_Gcov_def(2,2) = 1.0;
-    m_data.mine().m_Gcon_def = m_data.mine().m_Gcov_def.inverse();
+    Gcov_def.setZero();
+    Gcov_def.block(0,0,2,2)= Acov_def;;
+    Gcov_def(2,2) = 1.0;
+    Gcon_def = Gcov_def.inverse();
+
+    // Assign members
+    m_data.mine().m_Acov_def = Acov_def;
+    m_data.mine().m_Acon_def = Acon_def;
+    m_data.mine().m_Gcov_def = Gcov_def;
+    m_data.mine().m_Gcon_def = Gcon_def;
 
     if (!basis) return;
-    // Compute full basis
-    // basis vectors
-    m_data.mine().m_acov_def = m_data.mine().m_acov_def_mat.reshapeCol(k,2,2);
-    m_data.mine().m_acon_def = m_data.mine().m_acon_def_mat.reshapeCol(k,2,2);
-    // g
-    gsMatrix<T,3,1> normal;
-    normal << 0,0,1;
-    m_data.mine().m_gcov_def.setZero();
-    m_data.mine().m_gcov_def.block(0,0,2,2) = m_data.mine().m_acov_def;
-    m_data.mine().m_gcov_def.col(2) = normal;
 
+    GISMO_ENSURE(m_data.mine().m_acov_def_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_data.mine().m_acon_def_mat.cols()!=0,"Is the basis initialized?");
+
+    gsMatrix<T> acov_def, acon_def, normal(3,1), gcov_def(3,3), gcon_def(3,3);
+
+    // Get basis vectors
+    acov_def = m_data.mine().m_acov_def_mat.reshapeCol(k,2,2);
+    acon_def = m_data.mine().m_acon_def_mat.reshapeCol(k,2,2);
+    normal << 0,0,1;
+
+    // Compute g_cov
+    gcov_def.setZero();
+    gcov_def.block(0,0,2,2) = acov_def;
+    gcov_def.col(2) = normal;
+
+    // Compute g_con
     for (index_t c = 0; c!=3; c++)
-    {
-        m_data.mine().m_gcon_def.col(c) = m_data.mine().m_Gcon_def(c,0) * m_data.mine().m_gcov_def.col(0)
-                            + m_data.mine().m_Gcon_def(c,1) * m_data.mine().m_gcov_def.col(1)
-                            + m_data.mine().m_Gcon_def(c,2) * m_data.mine().m_gcov_def.col(2);
-    }
+        gcon_def.col(c) = Gcon_def(c,0) * gcov_def.col(0) + Gcon_def(c,1) * gcov_def.col(1) + Gcon_def(c,2) * gcov_def.col(2);
+
+    // Assign members
+    m_data.mine().m_acov_def = acov_def;
+    m_data.mine().m_acon_def = acon_def;
+    m_data.mine().m_gcov_def = gcov_def;
+    m_data.mine().m_gcon_def = gcon_def;
 
     // // create a Linearised covariant tensor for SvK models
     // m_data.mine().m_Gcov_def_L = m_data.mine().m_Gcov_def;
@@ -547,45 +570,57 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const
     GISMO_ENSURE(m_data.mine().m_Acov_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_Acon_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_Bcov_ori_mat.cols()!=0,"Is the metric initialized?");
+    GISMO_ENSURE(m_data.mine().m_ncov_ori_mat.cols()!=0,"Is the basis initialized?");
 
-    if (basis)
-    {
-        GISMO_ENSURE(m_data.mine().m_acov_ori_mat.cols()!=0,"Is the basis initialized?");
-        GISMO_ENSURE(m_data.mine().m_acon_ori_mat.cols()!=0,"Is the basis initialized?");
-        GISMO_ENSURE(m_data.mine().m_ncov_ori_mat.cols()!=0,"Is the basis initialized?");
-        GISMO_ENSURE(m_data.mine().m_normal_ori_mat.cols()!=0,"Is the basis initialized?");
-    }
+    gsMatrix<T> Acov_ori, Acon_ori, Bcov_ori, ncov_ori, Gcov_ori(3,3), Gcon_ori(3,3);
 
-    // metrics
-    m_data.mine().m_Acov_ori = m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2);
-    m_data.mine().m_Acon_ori = m_data.mine().m_Acon_ori_mat.reshapeCol(k,2,2);
-    m_data.mine().m_Bcov_ori = m_data.mine().m_Bcov_ori_mat.reshapeCol(k,2,2);
-    if (basis)
-        m_data.mine().m_ncov_ori = m_data.mine().m_ncov_ori_mat.reshapeCol(k,3,2);
+    // Get metric information
+    Acov_ori = m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2);
+    Acon_ori = m_data.mine().m_Acon_ori_mat.reshapeCol(k,2,2);
+    Bcov_ori = m_data.mine().m_Bcov_ori_mat.reshapeCol(k,2,2);
+    ncov_ori = m_data.mine().m_ncov_ori_mat.reshapeCol(k,3,2);
 
     // Compute full metric
-    gsMatrix<T,3,3> Gcov_ori;
     Gcov_ori.setZero();
-    Gcov_ori.block(0,0,2,2)= m_data.mine().m_Acov_ori - 2.0 * z * m_data.mine().m_Bcov_ori + z*z * m_data.mine().m_ncov_ori.transpose()*m_data.mine().m_ncov_ori;
+    Gcov_ori.block(0,0,2,2)= Acov_ori - 2.0 * z * Bcov_ori + z*z * ncov_ori.transpose()*ncov_ori;
     Gcov_ori(2,2) = 1.0;
-    
+    Gcon_ori = Gcov_ori.inverse();
+
+    // Assign members
+    m_data.mine().m_Acov_ori = Acov_ori;
+    m_data.mine().m_Acon_ori = Acon_ori;
+    m_data.mine().m_Bcov_ori = Bcov_ori;
+    m_data.mine().m_ncov_ori = ncov_ori;
     m_data.mine().m_Gcov_ori = Gcov_ori;
-    m_data.mine().m_Gcon_ori = Gcov_ori.inverse();
+    m_data.mine().m_Gcon_ori = Gcon_ori;
 
     if (!basis) return;
-    // Compute full basis
-    // basis vectors
-    m_data.mine().m_acov_ori = m_data.mine().m_acov_ori_mat.reshapeCol(k,3,2);
-    m_data.mine().m_acon_ori = m_data.mine().m_acon_ori_mat.reshapeCol(k,3,2);
-    // g
-    m_data.mine().m_gcov_ori.block(0,0,3,2) = m_data.mine().m_acov_ori + z * m_data.mine().m_ncov_ori;
-    m_data.mine().m_gcov_ori.col(2) = m_data.mine().m_normal_ori_mat.reshapeCol(k,3,1);
+
+    GISMO_ENSURE(m_data.mine().m_acov_ori_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_data.mine().m_acon_ori_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_data.mine().m_normal_ori_mat.cols()!=0,"Is the basis initialized?");
+
+    gsMatrix<T> acov_ori, acon_ori, normal(3,1), gcov_ori(3,3), gcon_ori(3,3);
+
+    // Get basis vectors
+    acov_ori = m_data.mine().m_acov_ori_mat.reshapeCol(k,3,2);
+    acon_ori = m_data.mine().m_acon_ori_mat.reshapeCol(k,3,2);
+    normal   = m_data.mine().m_normal_ori_mat.reshapeCol(k,3,1);
+
+    // Compute g_cov
+    gcov_ori.setZero();
+    gcov_ori.leftCols(2) = acov_ori + z * ncov_ori;
+    gcov_ori.col(2) = normal;
+
+    // Compute g_con
     for (index_t c = 0; c!=3; c++)
-    {
-        m_data.mine().m_gcon_ori.col(c) = m_data.mine().m_Gcon_ori(c,0) * m_data.mine().m_gcov_ori.col(0)
-                            + m_data.mine().m_Gcon_ori(c,1) * m_data.mine().m_gcov_ori.col(1)
-                            + m_data.mine().m_Gcon_ori(c,2) * m_data.mine().m_gcov_ori.col(2);
-    }
+        gcon_ori.col(c) = Gcon_ori(c,0) * gcov_ori.col(0) + Gcon_ori(c,1) * gcov_ori.col(1) + Gcon_ori(c,2) * gcov_ori.col(2);
+
+    // Assign members
+    m_data.mine().m_acov_ori = acov_ori;
+    m_data.mine().m_acon_ori = acov_ori;
+    m_data.mine().m_gcov_ori = gcov_ori;
+    m_data.mine().m_gcon_ori = gcon_ori;
 
     // // create a Linearised covariant tensor for SvK models
     // m_data.mine().m_Gcov_ori_L = m_data.mine().m_Gcov_ori;
@@ -600,39 +635,50 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const
     GISMO_ENSURE(m_data.mine().m_Acov_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_Acon_ori_mat.cols()!=0,"Is the metric initialized?");
 
-    if (basis)
-    {
-        GISMO_ENSURE(m_data.mine().m_acov_ori_mat.cols()!=0,"Is the basis initialized?");
-        GISMO_ENSURE(m_data.mine().m_acon_ori_mat.cols()!=0,"Is the basis initialized?");
-    }
+    gsMatrix<T> Acov_ori, Acon_ori, Gcov_ori(3,3), Gcon_ori(3,3);
 
-    // metrics
-    m_data.mine().m_Acov_ori = m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2);
-    m_data.mine().m_Acon_ori = m_data.mine().m_Acon_ori_mat.reshapeCol(k,2,2);
+    // Get metric information
+    Acov_ori = m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2);
+    Acon_ori = m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2);
+    
     // Compute full metric
-    m_data.mine().m_Gcov_ori.setZero();
-    m_data.mine().m_Gcov_ori.block(0,0,2,2)= m_data.mine().m_Acov_ori;
-    m_data.mine().m_Gcov_ori(2,2) = 1.0;
-    m_data.mine().m_Gcon_ori = m_data.mine().m_Gcov_ori.inverse();
+    Gcov_ori.setZero();
+    Gcov_ori.block(0,0,2,2)= Acov_ori;;
+    Gcov_ori(2,2) = 1.0;
+    Gcon_ori = Gcov_ori.inverse();
+
+    // Assign members
+    m_data.mine().m_Acov_ori = Acov_ori;
+    m_data.mine().m_Acon_ori = Acon_ori;
+    m_data.mine().m_Gcov_ori = Gcov_ori;
+    m_data.mine().m_Gcon_ori = Gcon_ori;
 
     if (!basis) return;
-    // Compute full basis
-    // basis vectors
-    m_data.mine().m_acov_ori = m_data.mine().m_acov_ori_mat.reshapeCol(k,2,2);
-    m_data.mine().m_acon_ori = m_data.mine().m_acon_ori_mat.reshapeCol(k,2,2);
-    // g
-    gsMatrix<T,3,1> normal;
-    normal << 0,0,1;
-    m_data.mine().m_gcov_ori.setZero();
-    m_data.mine().m_gcov_ori.block(0,0,2,2) = m_data.mine().m_acov_ori;
-    m_data.mine().m_gcov_ori.col(2) = normal;
+    
+    GISMO_ENSURE(m_data.mine().m_acov_ori_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_data.mine().m_acon_ori_mat.cols()!=0,"Is the basis initialized?");
 
+    gsMatrix<T> acov_ori, acon_ori, normal(3,1), gcov_ori(3,3), gcon_ori(3,3);
+
+    // Get basis vectors
+    acov_ori = m_data.mine().m_acov_ori_mat.reshapeCol(k,2,2);
+    acon_ori = m_data.mine().m_acon_ori_mat.reshapeCol(k,2,2);
+    normal << 0,0,1;
+
+    // Compute g_cov
+    gcov_ori.setZero();
+    gcov_ori.block(0,0,2,2) = acov_ori;
+    gcov_ori.col(2) = normal;
+
+    // Compute g_con
     for (index_t c = 0; c!=3; c++)
-    {
-        m_data.mine().m_gcon_ori.col(c) = m_data.mine().m_Gcon_ori(c,0) * m_data.mine().m_gcov_ori.col(0)
-                            + m_data.mine().m_Gcon_ori(c,1) * m_data.mine().m_gcov_ori.col(1)
-                            + m_data.mine().m_Gcon_ori(c,2) * m_data.mine().m_gcov_ori.col(2);
-    }
+        gcon_ori.col(c) = Gcon_ori(c,0) * gcov_ori.col(0) + Gcon_ori(c,1) * gcov_ori.col(1) + Gcon_ori(c,2) * gcov_ori.col(2);
+
+    // Assign members
+    m_data.mine().m_acov_ori = acov_ori;
+    m_data.mine().m_acon_ori = acon_ori;
+    m_data.mine().m_gcov_ori = gcov_ori;
+    m_data.mine().m_gcon_ori = gcon_ori;
 
     // // create a Linearised covariant tensor for SvK models
     // m_data.mine().m_Gcov_ori_L = m_data.mine().m_Gcov_ori;
@@ -655,7 +701,7 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalStretch(
 
     GISMO_ENSURE(m_data.mine().m_gcon_ori.cols()!=0,"Is the basis initialized?");
 
-    gsMatrix<T,3,3> B;
+    gsMatrix<T> B(3,3);
     B.setZero();
     for (index_t k = 0; k != 2; k++)
         for (index_t l = 0; l != 2; l++)
