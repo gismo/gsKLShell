@@ -23,7 +23,7 @@ namespace gismo
   CLASS_TEMPLATE_INST gsThinShellAssembler<3,real_t,false>;
   CLASS_TEMPLATE_INST gsThinShellAssembler<3,real_t,true>;
 
-#ifdef GISMO_BUILD_PYBIND11
+#ifdef GISMO_WITH_PYBIND11
 
   namespace py = pybind11;
 
@@ -75,6 +75,8 @@ namespace gismo
           "Constructs the displacements as a gsMultiPatch")
     .def("constructDisplacement", static_cast<gsMultiPatch<real_t> (Class::*)(const gsMatrix<real_t> &                        ) const> (&Class::constructDisplacement),
           "Constructs the displacements as a gsMultiPatch")
+    .def("constructSolutionVector", &Class::constructSolutionVector, "Returns the solution vector based on a multipatch solution")
+
     .def("getArea"   , &Class::getArea   , "Returns the area of a geometry")
 
 
@@ -82,7 +84,9 @@ namespace gismo
     .def("setBasis"   , &Class::setBasis   , "Sets the basis")
     .def("setSpaceBasis"   , &Class::setSpaceBasis   , "Sets the basis for the space")
 
-    .def("setPointLoads"   , &Class::setPointLoads   , "Sets point loads")
+    .def("setPointLoads"      , &Class::setPointLoads       , "Sets point loads")
+    .def("updateBCs"          , &Class::updateBCs           , "update BCs")
+    .def("homogenizeDirichlet", &Class::homogenizeDirichlet , "Homogenize dirichlet BCs")
 
     .def("geometry"   , static_cast<const gsMultiPatch<real_t> & (Class::*)() const> (&Class::geometry), "Gets the geometry")
     .def("geometry"   , static_cast<      gsMultiPatch<real_t> & (Class::*)()      > (&Class::geometry), "Gets the geometry")

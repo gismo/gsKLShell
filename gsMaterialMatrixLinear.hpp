@@ -233,83 +233,6 @@ void gsMaterialMatrixLinear<dim,T>::_initialize()
 {
     // Set default options
     this->_defaultOptions();
-
-    // set flags
-    m_map_ori.mine().flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
-}
-
-template <short_t dim, class T>
-void gsMaterialMatrixLinear<dim,T>::density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-{
-    m_map_ori.mine().flags = NEED_VALUE;
-    m_map_ori.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map_ori);
-
-    result.resize(1, u.cols());
-    m_thickness->eval_into(m_map_ori.mine().values[0], m_Tmat);
-    m_density->eval_into(m_map_ori.mine().values[0], m_rhomat);
-    for (index_t i = 0; i != u.cols(); ++i) // points
-    {
-        result(0,i) = m_Tmat(0,i)*m_rhomat(0,i);
-    }
-
-}
-
-template <short_t dim, class T>
-void gsMaterialMatrixLinear<dim,T>::stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-{
-    m_map_ori.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map_ori);
-
-    this->_computePoints(patch,u,true);
-
-    result.resize(3, u.cols());
-    std::pair<gsVector<T>,gsMatrix<T>> res;
-    for (index_t i=0; i!= u.cols(); i++)
-    {
-        this->_getMetric(i,0.0,true); // on point i, with height 0.0
-
-        gsMatrix<T> C(3,3);
-        C.setZero();
-        C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
-        C(2,2) = 1./m_J0_sq;
-
-        res = this->_evalStretch(C,m_gcon_ori);
-        result.col(i) = res.first;
-    }
-}
-
-template <short_t dim, class T>
-void gsMaterialMatrixLinear<dim,T>::stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-{
-    m_map_ori.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map_ori);
-
-    this->_computePoints(patch,u,true);
-
-    result.resize(9, u.cols());
-    std::pair<gsVector<T>,gsMatrix<T>> res;
-    for (index_t i=0; i!= u.cols(); i++)
-    {
-        this->_getMetric(i,0.0,true); // on point i, with height 0.0
-
-        gsMatrix<T> C(3,3);
-        C.setZero();
-        C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
-        C(2,2) = 1./m_J0_sq;
-
-        res = this->_evalStretch(C,m_gcon_ori);
-        result.col(i) = res.second.reshape(9,1);
-    }
-}
-
-template <short_t dim, class T>
-void gsMaterialMatrixLinear<dim,T>::thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
-{
-    m_map_ori.mine().flags = NEED_VALUE;
-    m_map_ori.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map_ori);
-    m_thickness->piece(patch).eval_into(m_map_ori.mine().values[0], result);
 }
 
 template <short_t dim, class T>
@@ -329,13 +252,13 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
-        for (index_t v=0; v!=m_parmat.rows(); v++)
-            m_parvals.at(v) = m_parmat(v,k);
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
                 // _getMetric(k, z(j, k), false); // on point i, on height z(0,j)
-                this->_getMetric(k, z(j, k) * m_Tmat(0, k), false); // on point i, on height z(0,j)
+                this->getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), false); // on point i, on height z(0,j)
 
                 gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
                 /*
@@ -370,11 +293,11 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix_C(const gsMatrix<T> & C
     result.setZero();
 
     // Evaluate material properties on the quadrature point
-    for (index_t v=0; v!=m_parmat.rows(); v++)
-        m_parvals.at(v) = m_parmat(v,0);
+    for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+        m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,0);
 
     // Get metric
-    this->_getMetricUndeformed(0, z * m_Tmat(0, 0), false); // on point i, on height z(0,j)
+    this->_getMetricUndeformed(0, z * m_data.mine().m_Tmat(0, 0), false); // on point i, on height z(0,j)
     this->_getMetricDeformed(Cmat);
 
     gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(0,3,3);
@@ -412,7 +335,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_dmatrix(const index_t patch, c
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            this->_getMetric(k, z(j, k) * m_Tmat(0, k), false); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), false); // on point i, on height z(0,j)
 
             Cfun<dim,T> Cfunc(this,patch,u.col(k),z(j,k));
             gsMatrix<T> tmpresult;
@@ -503,11 +426,11 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector_C(const gsMatrix<T> & C
 
     gsMatrix<T> E;
     // Evaluate material properties on the quadrature point
-    for (index_t v=0; v!=m_parmat.rows(); v++)
-        m_parvals.at(v) = m_parmat(v,0);
+    for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+        m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,0);
 
     // Get metric
-    this->_getMetricUndeformed(0, z * m_Tmat(0, 0), false); // on point i, on height z(0,j)
+    this->_getMetricUndeformed(0, z * m_data.mine().m_Tmat(0, 0), false); // on point i, on height z(0,j)
     this->_getMetricDeformed(Cmat);
 
     // GISMO_ASSERT(   out == MaterialOutput::VectorN ||
@@ -518,12 +441,12 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector_C(const gsMatrix<T> & C
     //                 "MaterialOutput is wrong!");
     GISMO_ASSERT(z==0.0,"This only works for z=0");
 
-    m_Acov_def = m_Gcov_def.block(0,0,2,2);
-    m_Acon_def = m_Gcon_def.block(0,0,2,2);
-    m_Bcov_def.setZero();
-    m_Bcon_def.setZero();
+    m_data.mine().m_Acov_def = m_data.mine().m_Gcov_def.block(0,0,2,2);
+    m_data.mine().m_Acon_def = m_data.mine().m_Gcon_def.block(0,0,2,2);
+    m_data.mine().m_Bcov_def.setZero();
+    m_data.mine().m_Bcon_def.setZero();
 
-    E = _E(z * m_Tmat(0, 0),out);
+    E = _E(z * m_data.mine().m_Tmat(0, 0),out);
 
     result(0, 0) = _Sij(0, 0, E);
     result(1, 0) = _Sij(1, 1, E);
@@ -544,8 +467,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
-        for (index_t v=0; v!=m_parmat.rows(); v++)
-            m_parvals.at(v) = m_parmat(v,k);
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
@@ -577,8 +500,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_CauchyPStress(const index_t pa
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
-        for (index_t v=0; v!=m_parmat.rows(); v++)
-            m_parvals.at(v) = m_parmat(v,k);
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
@@ -640,7 +563,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_strain(const index_t patch, co
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             // this->_getMetric(k, z(j, k), true); // on point i, on height z(0,j)
-            this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), true); // on point i, on height z(0,j)
 
             // E.setZero();
             E.block(0,0,2,2) = _E(0,out);
@@ -670,13 +593,13 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_stress(const index_t patch, co
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
-        for (index_t v=0; v!=m_parmat.rows(); v++)
-            m_parvals.at(v) = m_parmat(v,k);
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             // this->_getMetric(k, z(j, k), true); // on point i, on height z(0,j)
-            this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), true); // on point i, on height z(0,j)
 
             // E.setZero();
             E.block(0,0,2,2) = _E(0,out);
@@ -700,8 +623,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_detF(const index_t patch, cons
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
-            result(0,j * u.cols() + k) = math::sqrt(m_J0_sq*1.0);
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), true); // on point i, on height z(0,j)
+            result(0,j * u.cols() + k) = math::sqrt(m_data.mine().m_J0_sq*1.0);
         }
     }
     return result;
@@ -722,8 +645,8 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_CauchyStress(const index_t pat
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             colIdx = j * u.cols() + k;
-            this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
-            detF = math::sqrt(m_J0_sq*1.0);
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), true); // on point i, on height z(0,j)
+            detF = math::sqrt(m_data.mine().m_J0_sq*1.0);
             Smat.col(colIdx) /= detF;
         }
     }
@@ -744,13 +667,13 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_tensionfield(const index_t pat
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
-        for (index_t v=0; v!=m_parmat.rows(); v++)
-            m_parvals.at(v) = m_parmat(v,k);
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             // this->_getMetric(k, z(j, k), true); // on point i, on height z(0,j)
-            this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), true); // on point i, on height z(0,j)
 
             E.setZero();
             E.block(0,0,2,2) = _E(0,out);
@@ -785,7 +708,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_tensionfield(const index_t pat
 
 /*
     Available class members:
-        - m_parvals
+        - m_data.mine().m_parvals
         - m_metric
         - m_metric_def
 */
@@ -800,12 +723,12 @@ T gsMaterialMatrixLinear<dim,T>::_Cijkl(const index_t i, const index_t j, const 
     // --------------------------
     T lambda, mu, Cconstant;
 
-    mu = m_parvals.at(0) / (2.*(1. + m_parvals.at(1)));
-    GISMO_ENSURE((1.-2.*m_parvals.at(1)) != 0, "Division by zero in construction of SvK material parameters! (1.-2.*nu) = "<<(1.-2.*m_parvals.at(1))<<"; m_parvals.at(1) = "<<m_parvals.at(1));
-    lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1))) ;
+    mu = m_data.mine().m_parvals.at(0) / (2.*(1. + m_data.mine().m_parvals.at(1)));
+    GISMO_ENSURE((1.-2.*m_data.mine().m_parvals.at(1)) != 0, "Division by zero in construction of SvK material parameters! (1.-2.*nu) = "<<(1.-2.*m_data.mine().m_parvals.at(1))<<"; m_data.mine().m_parvals.at(1) = "<<m_data.mine().m_parvals.at(1));
+    lambda = m_data.mine().m_parvals.at(0) * m_data.mine().m_parvals.at(1) / ( (1. + m_data.mine().m_parvals.at(1))*(1.-2.*m_data.mine().m_parvals.at(1))) ;
     Cconstant = 2*lambda*mu/(lambda+2*mu);
 
-    return Cconstant*m_Acon_ori(i,j)*m_Acon_ori(k,l) + mu*(m_Acon_ori(i,k)*m_Acon_ori(j,l) + m_Acon_ori(i,l)*m_Acon_ori(j,k));
+    return Cconstant*m_data.mine().m_Acon_ori(i,j)*m_data.mine().m_Acon_ori(k,l) + mu*(m_data.mine().m_Acon_ori(i,k)*m_data.mine().m_Acon_ori(j,l) + m_data.mine().m_Acon_ori(i,l)*m_data.mine().m_Acon_ori(j,k));
 }
 
 template <short_t dim, class T>

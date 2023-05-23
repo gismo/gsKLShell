@@ -47,7 +47,7 @@ template <class T, enum MaterialOutput out>
 void gsMaterialMatrixIntegrateSingle<T,out>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
 /// Non-parallel evaluation
-#pragma omp critical (gsMaterialMatrixIntegrateSingle_eval_into)
+// #pragma omp critical (gsMaterialMatrixIntegrateSingle_eval_into)
     this->eval_into_impl<out>(u,result);
 }
 
