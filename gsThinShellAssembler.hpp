@@ -102,7 +102,8 @@ gsThinShellAssembler<d, T, bending>& gsThinShellAssembler<d, T, bending>::operat
 
         // To do: make copy constructor for the gsExprAssembler
         m_assembler.setIntegrationElements(m_basis);
-        m_assembler.setOptions(m_options);
+        GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+        m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
     }
     return *this;
 }
@@ -131,7 +132,8 @@ gsThinShellAssembler<d, T, bending>& gsThinShellAssembler<d, T, bending>::operat
 
     // To do: make copy constructor for the gsExprAssembler
     m_assembler.setIntegrationElements(m_basis);
-    m_assembler.setOptions(m_options);
+    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
     return *this;
 }
 
@@ -145,18 +147,12 @@ void gsThinShellAssembler<d, T, bending>::_defaultOptions()
     m_options.addReal("IfcDirichlet","Penalty parameter weak dirichlet conditions on the interface",1e3);
     m_options.addReal("IfcClamped","Penalty parameter weak clamped conditions on the interface",1e3);
     m_options.addInt("IfcDefault","Default weak(!) interface coupling; C^k, k={-1,0,1}",1);
+    m_options.addString("Solver","Sparse linear solver", "CGDiagonal");
 
     // Assembler options
-    // m_options.addInt("DirichletStrategy","Method for enforcement of Dirichlet BCs [11..14]",11);
-    m_options.addInt("DirichletValues","Method for computation of Dirichlet DoF values [100..103]",101);
-    // m_options.addInt("InterfaceStrategy","Method of treatment of patch interfaces [0..3]",1);
-    m_options.addReal("bdA","Estimated nonzeros per column of the matrix: bdA*deg + bdB",2);
-    m_options.addInt("bdB","Estimated nonzeros per column of the matrix: bdA*deg + bdB",1);
-    m_options.addReal("bdO","Overhead of sparse mem. allocation: (1+bdO)(bdA*deg + bdB) [0..1]",0.333);
-    m_options.addReal("quA","Number of quadrature points: quA*deg + quB",1);
-    m_options.addInt("quB","Number of quadrature points: quA*deg + quB",1);
-    m_options.addInt("quRule","Quadrature rule [1:GaussLegendre,2:GaussLobatto]",1);
-    m_options.addString("Solver","Sparse linear solver", "CGDiagonal");
+    gsOptionList assemblerOptions = m_assembler.defaultOptions().wrapIntoGroup("ExprAssembler");
+    m_options.update(assemblerOptions,gsOptionList::addIfUnknown);
+
     m_continuity = -1;
 }
 
@@ -184,7 +180,7 @@ void gsThinShellAssembler<d, T, bending>::setOptions(gsOptionList & options)
     // Get old continuity
     index_t continuity = m_options.getInt("Continuity");
 
-    m_options.update(options,gsOptionList::addIfUnknown);
+    m_options.update(options,gsOptionList::ignoreIfUnknown);
 
     // If the continuity changed, we need to re-initialize the space.
     if (continuity != m_options.getInt("Continuity"))
@@ -198,7 +194,8 @@ void gsThinShellAssembler<d, T, bending>::_initialize()
 
     // Elements used for numerical integration
     m_assembler.setIntegrationElements(m_basis);
-    m_assembler.setOptions(m_options);
+    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
     
     GISMO_ASSERT(m_bcs.hasGeoMap(),"No geometry map was assigned to the boundary conditions. Use bc.setGeoMap to assign one!");
 
@@ -1380,7 +1377,8 @@ template <short_t d, class T, bool bending>
 ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMass(bool lumped)
 {
     m_assembler.cleanUp();
-    m_assembler.setOptions(m_options);
+    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
 
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
@@ -1417,7 +1415,8 @@ template <short_t d, class T, bool bending>
 ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleFoundation()
 {
     m_assembler.cleanUp();
-    m_assembler.setOptions(m_options);
+    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
 
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
@@ -1462,7 +1461,8 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     this->_getOptions();
 
     m_assembler.cleanUp();
-    m_assembler.setOptions(m_options);
+    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
 
     // Linear assembly: deformed and undeformed geometries are the same
     gsMultiPatch<T> & defpatches = m_patches;
@@ -1549,7 +1549,8 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     this->_getOptions();
 
     m_assembler.cleanUp();
-    m_assembler.setOptions(m_options);
+    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
 
     // Linear assembly: deformed and undeformed geometries are the same
     gsMultiPatch<T> & defpatches = m_patches;
@@ -1625,7 +1626,8 @@ typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> & deformed)
 {
     m_assembler.cleanUp();
-    m_assembler.setOptions(m_options);
+    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
 
     geometryMap m_ori   = m_assembler.getMap(m_patches);
     geometryMap m_def   = m_assembler.getMap(deformed);
@@ -1708,7 +1710,8 @@ typename std::enable_if<!(_d==3 && _bending), ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> & deformed)
 {
     m_assembler.cleanUp();
-    m_assembler.setOptions(m_options);
+    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
 
     geometryMap m_ori   = m_assembler.getMap(m_patches);
     geometryMap m_def   = m_assembler.getMap(deformed);
@@ -1779,7 +1782,8 @@ typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update)
 {
     m_assembler.cleanUp();
-    m_assembler.setOptions(m_options);
+    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
 
     geometryMap m_ori   = m_assembler.getMap(m_patches);
     geometryMap m_def   = m_assembler.getMap(deformed);
@@ -1907,7 +1911,8 @@ typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> & deformed)
 {
     m_assembler.cleanUp();
-    m_assembler.setOptions(m_options);
+    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
 
     geometryMap m_ori   = m_assembler.getMap(m_patches);
     geometryMap m_def   = m_assembler.getMap(deformed);
@@ -1971,7 +1976,8 @@ typename std::enable_if<!(_d==3 && _bending), ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> & deformed)
 {
     m_assembler.cleanUp();
-    m_assembler.setOptions(m_options);
+    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
 
     geometryMap m_ori   = m_assembler.getMap(m_patches);
     geometryMap m_def   = m_assembler.getMap(deformed);
@@ -2513,7 +2519,8 @@ template <short_t d, class T, bool bending>
 T gsThinShellAssembler<d, T, bending>::getArea(const gsFunctionSet<T> & geometry)
 {
     m_assembler.cleanUp();
-    m_assembler.setOptions(m_options);
+    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
 
     geometryMap G = m_assembler.getMap(geometry);
 
@@ -2526,7 +2533,8 @@ template <short_t d, class T, bool bending>
 T gsThinShellAssembler<d, T, bending>::getDisplacementNorm(const gsFunctionSet<T> & deformed)
 {
     m_assembler.cleanUp();
-    m_assembler.setOptions(m_options);
+    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
 
     geometryMap m_ori   = m_assembler.getMap(m_patches);
     geometryMap m_def   = m_assembler.getMap(deformed);
@@ -2544,7 +2552,8 @@ template <short_t d, class T, bool bending>
 T gsThinShellAssembler<d, T, bending>::getElasticEnergy(const gsFunctionSet<T> & deformed)
 {
     m_assembler.cleanUp();
-    m_assembler.setOptions(m_options);
+    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
 
     geometryMap m_ori   = m_assembler.getMap(m_patches);
     geometryMap m_def   = m_assembler.getMap(deformed);
@@ -2695,7 +2704,8 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::computePrincipalStretches(const
     this->_getOptions();
 
     m_assembler.cleanUp();
-    m_assembler.setOptions(m_options);
+    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
 
     // geometryMap m_ori   = m_assembler.getMap(m_patches);
     // geometryMap m_def   = m_assembler.getMap(*m_defpatches);
@@ -2748,7 +2758,8 @@ void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & f
     // // this->_getOptions();
 
     // m_assembler.cleanUp();
-    // m_assembler.setOptions(m_options);
+    // GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
+    // m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
 
     // geometryMap m_ori   = m_assembler.getMap(m_patches);
 

@@ -148,12 +148,6 @@ public:
 
     void _computePoints(const index_t patch, const gsMatrix<T> & u, bool basis = true) const;
 
-    /// Sets the Tension Field Theory parameter theta for the evaluation points to be used (note; can this be done better?)
-    void setTheta(gsVector<T> & thetas) { m_thetas = thetas; }
-
-    /// Sets the Tension Field Theory parameter gamma for the evaluation points to be used (note; can this be done better?)
-    void setGamma(gsVector<T> & gammas) { m_gammas = gammas; }
-
     /// Returns the covariant a tensor on the deformed geometry
     gsMatrix<T,2,2> _getAcov_def(index_t k, T z) const;
 
@@ -262,19 +256,19 @@ public:
 private:
     /// Implementation of \ref _computeMetricUndeformed for planar geometries
     template<short_t _dim>
-    typename std::enable_if<_dim==2, void>::type _computeMetricDeformed_impl(const index_t patch, bool basis) const;
+    typename std::enable_if<_dim==2, void>::type _computeMetricDeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const;
 
     /// Implementation of \ref _computeMetricUndeformed for surface geometries
     template<short_t _dim>
-    typename std::enable_if<_dim==3, void>::type _computeMetricDeformed_impl(const index_t patch, bool basis) const;
+    typename std::enable_if<_dim==3, void>::type _computeMetricDeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const;
 
     /// Implementation of \ref _getMetric for planar geometries
     template<short_t _dim>
-    typename std::enable_if<_dim==2, void>::type _computeMetricUndeformed_impl(const index_t patch, bool basis) const;
+    typename std::enable_if<_dim==2, void>::type _computeMetricUndeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const;
 
     /// Implementation of \ref _getMetric for surface geometries
     template<short_t _dim>
-    typename std::enable_if<_dim==3, void>::type _computeMetricUndeformed_impl(const index_t patch, bool basis) const;
+    typename std::enable_if<_dim==3, void>::type _computeMetricUndeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const;
 
     /// Implementation of \ref _getMetricDeformed for planar geometries
     template<short_t _dim>

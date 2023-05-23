@@ -236,8 +236,8 @@ protected:
     using Base::m_defpatches;
     const gsFunctionSet<T> * m_defpatches0;
     gsOptionList m_options;
-    using Base::m_Tmat;
-    using Base::m_J0_sq;
+
+    using Base::m_data;
 
 };
 

@@ -312,14 +312,14 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t
             }
             else if (TF(0,colIdx) == 0) // wrinkled
             {
-                this->_getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
+                this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), true); // on point i, on height z(0,j)
                 gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
                 gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);;
                 gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),MaterialOutput::StrainN);
                 gsMatrix<T> thetas = eval_theta(C,N,E);
                 theta = thetas(0,0);
                 gsMatrix<T> S = this->_compute_S(theta,C.reshape(3,3),N);
-                T detF = math::sqrt(m_J0_sq)*1.0;
+                T detF = math::sqrt(m_data.mine().m_J0_sq)*1.0;
                 result.col(colIdx) = S / math::sqrt(detF);
             }
             else

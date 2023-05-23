@@ -101,16 +101,10 @@ public:
     void setOptions(gsOptionList opt) {m_options.update(opt,gsOptionList::addIfUnknown); }
 
     /// See \ref gsMaterialMatrixBase for details
-    void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override;
-
-    /// See \ref gsMaterialMatrixBase for details
     void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
     void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override;
-
-    /// See \ref gsMaterialMatrixBase for details
-    void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;

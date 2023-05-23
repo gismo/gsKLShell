@@ -177,7 +177,7 @@ template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enu
 void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     this->_computePoints(patch,u);
-    _stretch_into_impl<comp>(u,result);
+    _stretch_into_impl<comp>(patch,u,result);
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
@@ -238,7 +238,7 @@ template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enu
 void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     this->_computePoints(patch,u);
-    _stretchDir_into_impl<comp>(u,result);
+    _stretchDir_into_impl<comp>(patch,u,result);
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
@@ -286,10 +286,10 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_stretchDir_into_impl(const index_t 
 
         // Compute c
         c.setZero();
-        c.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+        c.block(0,0,2,2) = m_data.mine().m_Gcov_def.block(0,0,2,2);
         c(2,2) = C33; // c33
 
-        res = this->_evalStretch(c,m_gcon_ori);
+        res = this->_evalStretch(c,m_data.mine().m_gcon_ori);
         result.col(i) = res.second.reshape(9,1);
     }
 }
@@ -375,7 +375,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_dmatrix_num(const
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            this->_getMetric(k, z(j, k) * m_Tmat(0, k), false); // on point i, on height z(0,j)
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), false); // on point i, on height z(0,j)
             result.col(j*u.cols()+k) = dCijkl(patch,u.col(k),z(j,k));
         }
     }
@@ -1575,7 +1575,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Cijkl3D_impl(const index_t i, const
 
 //         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
 //         {
-//             this->_getMetric(k, z(j,k) * m_Tmat(0,k), Cmat);
+//             this->_getMetric(k, z(j,k) * m_data.mine().m_Tmat(0,k), Cmat);
 
 //         }
 //     }
@@ -1896,10 +1896,10 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_mat
 
         // Compute c
         c.setZero();
-        c.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+        c.block(0,0,2,2) = m_data.mine().m_Gcov_def.block(0,0,2,2);
         c(2,2) = C33; // c33
         cinv.setZero();
-        cinv.block(0,0,2,2) = m_Gcon_def.block(0,0,2,2);
+        cinv.block(0,0,2,2) = m_data.mine().m_Gcon_def.block(0,0,2,2);
         cinv(2,2) = 1.0/C33;
 
         gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(k,3,3);
@@ -2687,7 +2687,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Cabcd_impl(const index_t a, const i
 //     {
 //         gsMatrix<T> C(3,3);
 //         C.setZero();
-//         C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
+//         C.block(0,0,2,2) = m_data.mine().m_Gcov_def.block(0,0,2,2);
 //         C(2,2) = math::pow(m_J0,-2.0);
 //         this->_computeStretch(C,m_data.mine().m_gcon_ori);
 

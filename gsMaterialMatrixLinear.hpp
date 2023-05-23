@@ -258,7 +258,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
                 // _getMetric(k, z(j, k), false); // on point i, on height z(0,j)
-                this->getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), false); // on point i, on height z(0,j)
+                this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k), false); // on point i, on height z(0,j)
 
                 gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
                 /*
@@ -340,9 +340,9 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_dmatrix(const index_t patch, c
             Cfun<dim,T> Cfunc(this,patch,u.col(k),z(j,k));
             gsMatrix<T> tmpresult;
 
-            Cvoight(0,0) = m_Gcov_def(0,0);
-            Cvoight(1,0) = m_Gcov_def(1,1);
-            Cvoight(2,0) = m_Gcov_def(0,1);
+            Cvoight(0,0) = m_data.mine().m_Gcov_def(0,0);
+            Cvoight(1,0) = m_data.mine().m_Gcov_def(1,1);
+            Cvoight(2,0) = m_data.mine().m_Gcov_def(0,1);
 
 
             Cfunc.deriv_into(Cvoight,tmpresult);
@@ -853,7 +853,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const T z, enum MaterialOutput out
                 out == MaterialOutput::PCauchyStressN   ||
                 out == MaterialOutput::TensionField     ||
                 out == MaterialOutput::StrainN              ) // To be used with multiplyZ_into
-        strain = 0.5*(m_Acov_def - m_Acov_ori);
+        strain = 0.5*(m_data.mine().m_Acov_def - m_data.mine().m_Acov_ori);
     else if (   out == MaterialOutput::VectorM          ||
                 out == MaterialOutput::CauchyVectorM    ||
                 out == MaterialOutput::StressM          ||
@@ -863,9 +863,9 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const T z, enum MaterialOutput out
                 out == MaterialOutput::PStressM         ||
                 out == MaterialOutput::PCauchyStressM   ||
                 out == MaterialOutput::StrainM             )
-        strain = (m_Bcov_ori - m_Bcov_def);
+        strain = (m_data.mine().m_Bcov_ori - m_data.mine().m_Bcov_def);
     else if (out == MaterialOutput::Generic || out == MaterialOutput::Strain || out == MaterialOutput::Stress) // To be used with multiplyLinZ_into or integrateZ_into
-        strain = 0.5*(m_Acov_def - m_Acov_ori) + z*(m_Bcov_ori - m_Bcov_def);
+        strain = 0.5*(m_data.mine().m_Acov_def - m_data.mine().m_Acov_ori) + z*(m_data.mine().m_Bcov_ori - m_data.mine().m_Bcov_def);
     else
         GISMO_ERROR("Output type MaterialOutput::" + std::to_string((short_t)(out)) + " not understood. See gsMaterialMatrixUtils.h");
 
@@ -877,11 +877,11 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const T z, enum MaterialOutput out
 // {
 //     gsMatrix<T> strain;
 //     if      (out == MaterialOutput::VectorN || out == MaterialOutput::PStrainN || out == MaterialOutput::PStressN || out == MaterialOutput::TensionField || out == MaterialOutput::StrainN) // To be used with multiplyZ_into
-//         strain = 0.5*(C - m_Acov_ori);
+//         strain = 0.5*(C - m_data.mine().m_Acov_ori);
 //     else if (out == MaterialOutput::VectorM || out == MaterialOutput::PStrainM || out == MaterialOutput::PStressM || out == MaterialOutput::TensionField || out == MaterialOutput::StrainM) // To be used with multiplyZ_into
-//         strain = (C - m_Bcov_def);
+//         strain = (C - m_data.mine().m_Bcov_def);
 //     else if (out == MaterialOutput::Generic || out == MaterialOutput::Strain) // To be used with multiplyLinZ_into or integrateZ_into
-//         strain = 0.5*(C - m_Gcov_ori);
+//         strain = 0.5*(C - m_data.mine().m_Gcov_ori);
 //     else
 //         GISMO_ERROR("Output type is not VectorN, PStrainN, PStressN, VectorM, PStrainM. PStressM, TensionField or Generic!");
 

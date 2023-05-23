@@ -117,7 +117,7 @@ void gsMaterialMatrixBaseDim<dim,T>::spec2con_transform_into(const index_t patch
     {
         this->_getMetric(i,0.0,true); // on point i, with height 0.0
         sbasis = tmp.reshapeCol(i,3,3);
-        conbasis = m_gcon_ori;
+        conbasis = m_data.mine().m_gcon_ori;
         result.col(i) = this->_transformation(conbasis,sbasis).reshape(9,1);
     }
 }
@@ -226,7 +226,7 @@ void gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed(const index_t patch,
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
-gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed_impl(const index_t patch, bool basis) const
+gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const
 {
     gsMapData<T> map;
     map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
@@ -296,7 +296,7 @@ gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed_impl(const index_t patch,
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed_impl(const index_t patch, bool basis) const
+gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const
 {
     gsMapData<T> map;
     map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
@@ -460,7 +460,7 @@ void gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed(const index_t patc
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
-gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patch, bool basis) const
+gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const
 {
     gsMapData<T> map;
     map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
@@ -530,7 +530,7 @@ gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patc
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patch, const bool basis) const
+gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patch, const gsMatrix<T> & u, const bool basis) const
 {
     gsMapData<T> map;
     map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
@@ -572,7 +572,6 @@ gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patc
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
-void gsMaterialMatrixBaseDim<dim,T>::_getMetric(const index_t k, const T z, const bool basis) const
 gsMatrix<T,2,2> gsMaterialMatrixBaseDim<dim,T>::_getAcov_def(index_t k, T z) const
 {
     GISMO_ENSURE(m_data.mine().m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
@@ -927,7 +926,7 @@ void gsMaterialMatrixBaseDim<dim,T>::_getMetric(index_t k, T z, const gsMatrix<T
     this->_getMetricUndeformed(k,z,basis);
 
     T ratio = m_data.mine().m_Gcov_def.determinant() / m_data.mine().m_Gcov_ori.determinant();
-    GISMO_ENSURE(ratio >= 0, "Jacobian determinant is negative! det(Gcov_def) = "<<m_Gcov_def.determinant()<<"; det(Gcov_ori) = "<<m_Gcov_ori.determinant());
+    GISMO_ENSURE(ratio >= 0, "Jacobian determinant is negative! det(Gcov_def) = "<<m_data.mine().m_Gcov_def.determinant()<<"; det(Gcov_ori) = "<<m_data.mine().m_Gcov_ori.determinant());
     m_data.mine().m_J0_sq = ratio;
 }
 
@@ -937,6 +936,7 @@ void gsMaterialMatrixBaseDim<dim,T>::_getMetric(index_t k, T z, bool basis) cons
     this->_getMetricDeformed(k,z,basis);
     this->_getMetricUndeformed(k,z,basis);
 
+    gsDebugVar(m_data.mine().m_Gcov_def);
     T ratio = m_data.mine().m_Gcov_def.determinant() / m_data.mine().m_Gcov_ori.determinant();
     GISMO_ENSURE(ratio >= 0, "Jacobian determinant is negative! det(Gcov_def) = "<<m_data.mine().m_Gcov_def.determinant()<<"; det(Gcov_ori) = "<<m_data.mine().m_Gcov_ori.determinant());
     m_data.mine().m_J0_sq = ratio;
