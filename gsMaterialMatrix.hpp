@@ -564,7 +564,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_mat
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-                // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
                 this->_getMetric(k,z(j,k) * m_data.mine().m_Tmat(0,k) ); // on point i, on height z(0,j)
 
                 gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
@@ -1224,7 +1223,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             // Define objects
@@ -1269,7 +1267,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
                 // if (abs(S33/S33_old) < tol)
                 if (abs(dc33) < tol)
                 {
-		    GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
+                    GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
                     gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
                     /*
                         C = C1111,  C1122,  C1112
@@ -1311,7 +1309,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_vecto
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             // Define objects
@@ -1389,7 +1386,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_pstre
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             // Define objects

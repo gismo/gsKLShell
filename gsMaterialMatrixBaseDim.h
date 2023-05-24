@@ -120,22 +120,22 @@ public:
 
 public:
 
-    void _computePoints(const index_t patch, const gsMatrix<T> & u, bool basis = true) const;
+    void _computePoints(const index_t patch, const gsMatrix<T> & u) const;
 
     /// Computes metric quantities on the deformed geometry
-    void _computeMetricDeformed(const index_t patch, const gsMatrix<T> & u, bool basis = true) const;
+    void _computeMetricDeformed(const index_t patch, const gsMatrix<T> & u) const;
 
     /// Computes metric quantities on the undeformed geometry
-    void _computeMetricUndeformed(const index_t patch, const gsMatrix<T> & u, bool basis = true) const;
+    void _computeMetricUndeformed(const index_t patch, const gsMatrix<T> & u) const;
 
     /// Gets metric quantities on the deformed and undeformed geometries
-    void _getMetric(const index_t k, const T z, const bool basis = true) const;
+    void _getMetric(const index_t k, const T z) const;
 
     /// Gets metric quantities on the deformed geometry
-    void _getMetricDeformed(const index_t k, const T z, const bool basis = true) const;
+    void _getMetricDeformed(const index_t k, const T z) const;
 
     /// Gets metric quantities on the undeformed geometry
-    void _getMetricUndeformed(const index_t k, const T z, const bool basis = true) const;
+    void _getMetricUndeformed(const index_t k, const T z) const;
 
     /// Computes the stretch given deformation tensor C, into a pair
     std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C ) const;
@@ -149,42 +149,42 @@ public:
 private:
     /// Implementation of \ref _computeMetricUndeformed for planar geometries
     template<short_t _dim>
-    typename std::enable_if<_dim==2, void>::type _computeMetricDeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const;
+    typename std::enable_if<_dim==2, void>::type _computeMetricDeformed_impl(const index_t patch, const gsMatrix<T> & u) const;
 
     /// Implementation of \ref _computeMetricUndeformed for surface geometries
     template<short_t _dim>
-    typename std::enable_if<_dim==3, void>::type _computeMetricDeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const;
+    typename std::enable_if<_dim==3, void>::type _computeMetricDeformed_impl(const index_t patch, const gsMatrix<T> & u) const;
 
     /// Implementation of \ref _getMetric for planar geometries
     template<short_t _dim>
-    typename std::enable_if<_dim==2, void>::type _computeMetricUndeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const;
+    typename std::enable_if<_dim==2, void>::type _computeMetricUndeformed_impl(const index_t patch, const gsMatrix<T> & u) const;
 
     /// Implementation of \ref _getMetric for surface geometries
     template<short_t _dim>
-    typename std::enable_if<_dim==3, void>::type _computeMetricUndeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const;
+    typename std::enable_if<_dim==3, void>::type _computeMetricUndeformed_impl(const index_t patch, const gsMatrix<T> & u) const;
 
     /// Implementation of \ref _getMetricDeformed for planar geometries
     template<short_t _dim>
-    typename std::enable_if<_dim==2, void>::type _getMetric_impl(const index_t k, const T z, const bool basis) const;
+    typename std::enable_if<_dim==2, void>::type _getMetric_impl(const index_t k, const T z) const;
 
     template<short_t _dim>
-    typename std::enable_if<_dim==3, void>::type _getMetric_impl(const index_t k, const T z, const bool basis) const;
-
-    /// Implementation of \ref _getMetricDeformed for surface geometries
-    template<short_t _dim>
-    typename std::enable_if<_dim==2, void>::type _getMetricDeformed_impl(const index_t k, const T z, const bool basis) const;
+    typename std::enable_if<_dim==3, void>::type _getMetric_impl(const index_t k, const T z) const;
 
     /// Implementation of \ref _getMetricDeformed for surface geometries
     template<short_t _dim>
-    typename std::enable_if<_dim==3, void>::type _getMetricDeformed_impl(const index_t k, const T z, const bool basis) const;
+    typename std::enable_if<_dim==2, void>::type _getMetricDeformed_impl(const index_t k, const T z) const;
+
+    /// Implementation of \ref _getMetricDeformed for surface geometries
+    template<short_t _dim>
+    typename std::enable_if<_dim==3, void>::type _getMetricDeformed_impl(const index_t k, const T z) const;
 
     /// Implementation of \ref _getMetricUndeformed for planar geometries
     template<short_t _dim>
-    typename std::enable_if<_dim==2, void>::type _getMetricUndeformed_impl(const index_t k, const T z, const bool basis) const;
+    typename std::enable_if<_dim==2, void>::type _getMetricUndeformed_impl(const index_t k, const T z) const;
 
     /// Implementation of \ref _getMetricUndeformed for surface geometries
     template<short_t _dim>
-    typename std::enable_if<_dim==3, void>::type _getMetricUndeformed_impl(const index_t k, const T z, const bool basis) const;
+    typename std::enable_if<_dim==3, void>::type _getMetricUndeformed_impl(const index_t k, const T z) const;
 
 protected:
 

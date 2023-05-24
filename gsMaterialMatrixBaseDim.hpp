@@ -67,7 +67,7 @@ void gsMaterialMatrixBaseDim<dim,T>::stretch_into(const index_t patch, const gsM
     deformation_into(patch,u,tmp);
     for (index_t i=0; i!= u.cols(); i++)
     {
-        _getMetric(i,0.0,true); // on point i, with height 0.0
+        _getMetric(i,0.0); // on point i, with height 0.0
         C = tmp.reshapeCol(i,3,3);
         res = this->_evalStretch(C);
         result.col(i) = res.second.reshape(3,1);
@@ -83,7 +83,7 @@ void gsMaterialMatrixBaseDim<dim,T>::stretchDir_into(const index_t patch, const 
     deformation_into(patch,u,tmp);
     for (index_t i=0; i!= u.cols(); i++)
     {
-        _getMetric(i,0.0,true); // on point i, with height 0.0
+        _getMetric(i,0.0); // on point i, with height 0.0
         C = tmp.reshapeCol(i,3,3);
         res = this->_evalStretch(C);
         result.col(i) = res.second.reshape(9,1);
@@ -99,7 +99,7 @@ void gsMaterialMatrixBaseDim<dim,T>::transform_into(const index_t patch, const g
     stretchDir_into(patch,u,tmp);
     for (index_t i=0; i!= u.cols(); i++)
     {
-        _getMetric(i,0.0,true); // on point i, with height 0.0
+        _getMetric(i,0.0); // on point i, with height 0.0
         sbasis = tmp.reshapeCol(i,3,3);
         conbasis = m_data.mine().m_gcon_ori;
         result.col(i) = _transformation(conbasis,sbasis).reshape(9,1);
@@ -128,13 +128,13 @@ void gsMaterialMatrixBaseDim<dim,T>::parameters_into(const index_t patch, const 
 template <short_t dim, class T >
 void gsMaterialMatrixBaseDim<dim,T>::deformation_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
 {
-    _computePoints(patch,u,true);
+    _computePoints(patch,u);
 
     result.resize(9, u.cols());
     std::pair<gsVector<T>,gsMatrix<T>> res;
     for (index_t i=0; i!= u.cols(); i++)
     {
-        _getMetric(i,0.0,true); // on point i, with height 0.0
+        _getMetric(i,0.0); // on point i, with height 0.0
 
         gsAsMatrix<T> C = result.reshapeCol(i,3,3);
         C.setZero();
@@ -144,14 +144,14 @@ void gsMaterialMatrixBaseDim<dim,T>::deformation_into(const index_t patch, const
 }
 
 template <short_t dim, class T >
-void gsMaterialMatrixBaseDim<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool basis) const
+void gsMaterialMatrixBaseDim<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u) const
 {
     gsMatrix<T> tmp;
 
-    this->_computeMetricUndeformed(patch,u,basis);
+    this->_computeMetricUndeformed(patch,u);
 
     if (Base::m_defpatches->nPieces()!=0)
-        this->_computeMetricDeformed(patch,u,basis);
+        this->_computeMetricDeformed(patch,u);
 
     gsMapData<T> map;
     map.flags = NEED_VALUE;
@@ -173,85 +173,78 @@ void gsMaterialMatrixBaseDim<dim,T>::_computePoints(const index_t patch, const g
 }
 
 template <short_t dim, class T>
-void gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed(const index_t patch, const gsMatrix<T> & u, bool basis) const
+void gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed(const index_t patch, const gsMatrix<T> & u) const
 {
-    _computeMetricDeformed_impl<dim>(patch,u,basis);
+    _computeMetricDeformed_impl<dim>(patch,u);
 }
 
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
-gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const
+gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed_impl(const index_t patch, const gsMatrix<T> & u) const
 {
     gsMapData<T> map;
     map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
     map.points = u;
     dynamic_cast<const gsFunction<T>&>(m_defpatches->piece(patch)   ).computeMap(map);
 
-    gsMatrix<T> deriv2;
-    gsMatrix<T> mixedB;
-    gsMatrix<T> tmp;
+    gsMatrix<T> deriv2(3,3), mixedB(2,2), acov(3,2), acon(3,2), ncov(3,2), Acov(2,2), Acon(2,2), Bcov(2,2);
+    gsMatrix<T> normals;
+    gsVector<T> normal;
 
-    m_data.mine().m_normal_def_mat = map.normals;
-    m_data.mine().m_normal_def_mat.colwise().normalize();
+    normals = map.normals;
+    normals.colwise().normalize();
+    m_data.mine().m_normal_def_mat = normals;
 
     m_data.mine().m_Acov_def_mat.resize(4,map.points.cols());    m_data.mine().m_Acov_def_mat.setZero();
     m_data.mine().m_Acon_def_mat.resize(4,map.points.cols());    m_data.mine().m_Acon_def_mat.setZero();
     m_data.mine().m_Bcov_def_mat.resize(4,map.points.cols());    m_data.mine().m_Bcov_def_mat.setZero();
 
     m_data.mine().m_acov_def_mat.resize(2*3,map.points.cols());    m_data.mine().m_acov_def_mat.setZero();
-    if (basis)
-    {
-        m_data.mine().m_acon_def_mat.resize(2*3,map.points.cols());    m_data.mine().m_acon_def_mat.setZero();
-        m_data.mine().m_ncov_def_mat.resize(2*3,map.points.cols());    m_data.mine().m_ncov_def_mat.setZero();
-    }
+    m_data.mine().m_acon_def_mat.resize(2*3,map.points.cols());    m_data.mine().m_acon_def_mat.setZero();
+    m_data.mine().m_ncov_def_mat.resize(2*3,map.points.cols());    m_data.mine().m_ncov_def_mat.setZero();
 
     for (index_t k=0; k!= map.points.cols(); k++)
     {
-        m_data.mine().m_acov_def_mat.reshapeCol(k,3,2)   = map.jacobian(k);
-        gsMatrix<T> acov = m_data.mine().m_acov_def_mat.reshapeCol(k,3,2);
+        acov = map.jacobian(k);
 
-        tmp = acov.transpose() * acov;
-        m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2) = tmp;
-        m_data.mine().m_Acon_def_mat.reshapeCol(k,2,2) = tmp.inverse();
-
-        gsAsMatrix<T,Dynamic,Dynamic> metricAcon = m_data.mine().m_Acon_def_mat.reshapeCol(k,2,2);
+        Acov = acov.transpose() * acov;
+        Acon = Acov.inverse();
 
         // Construct metric tensor b = [d11c*n, d12c*n ; d21c*n, d22c*n]
-        deriv2    = map.deriv2(k);
-        deriv2.resize(3,3);
-        gsVector<T> normal = m_data.mine().m_normal_def_mat.col(k);
+        deriv2 = map.deriv2(k).reshaped(3,3);
+        normal = normals.col(k);
 
-        tmp(0,0) = deriv2.row(0).dot(normal);
-        tmp(1,1) = deriv2.row(1).dot(normal);
-        tmp(0,1) = tmp(1,0) = deriv2.row(2).dot(normal);
-
-        m_data.mine().m_Bcov_def_mat.reshapeCol(k,2,2) = tmp;
-        gsAsMatrix<T,Dynamic,Dynamic> metricBcov = m_data.mine().m_Bcov_def_mat.reshapeCol(k,2,2);
+        Bcov(0,0) = deriv2.row(0).dot(normal);
+        Bcov(1,1) = deriv2.row(1).dot(normal);
+        Bcov(0,1) = Bcov(1,0) = deriv2.row(2).dot(normal);
 
         // Construct basis
-        if (basis)
-        {
-            gsAsMatrix<T,Dynamic,Dynamic> acon = m_data.mine().m_acon_def_mat.reshapeCol(k,3,2);
-            for (index_t i=0; i < 2; i++)
-                acon.col(i)     = metricAcon(i,0)*acov.col(0) + metricAcon(i,1)*acov.col(1);
+        for (index_t i=0; i < 2; i++)
+            acon.col(i)     = Acon(i,0)*acov.col(0) + Acon(i,1)*acov.col(1);
 
-            // Mixed tensor
-            for (index_t i=0; i < 2; i++)
-                for (index_t j=0; j < 2; j++)
-                    mixedB(i,j) = metricAcon(i,0)*metricBcov(0,j) + metricAcon(i,1)*metricBcov(1,j);
+        // Mixed tensor
+        for (index_t i=0; i < 2; i++)
+            for (index_t j=0; j < 2; j++)
+                mixedB(i,j) = Acon(i,0)*Bcov(0,j) + Acon(i,1)*Bcov(1,j);
 
-            gsAsMatrix<T,Dynamic,Dynamic> ncov = m_data.mine().m_ncov_def_mat.reshapeCol(k,3,2);
-            for (index_t i=0; i < 2; i++)
-                ncov.col(i)     = -mixedB(0,i)*acov.col(0) -mixedB(1,i)*acov.col(1);
-        }
+        for (index_t i=0; i < 2; i++)
+            ncov.col(i)     = -mixedB(0,i)*acov.col(0) -mixedB(1,i)*acov.col(1);
+
+        // Assign members
+        m_data.mine().m_acov_def_mat.reshapeCol(k,3,2) = acov;
+        m_data.mine().m_acon_def_mat.reshapeCol(k,3,2) = acon;
+        m_data.mine().m_ncov_def_mat.reshapeCol(k,3,2) = ncov;
+        m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2) = Acov;
+        m_data.mine().m_Acon_def_mat.reshapeCol(k,2,2) = Acon;
+        m_data.mine().m_Bcov_def_mat.reshapeCol(k,2,2) = Bcov;
     }
 }
 
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const
+gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed_impl(const index_t patch, const gsMatrix<T> & u) const
 {
     gsMapData<T> map;
     map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
@@ -259,119 +252,109 @@ gsMaterialMatrixBaseDim<dim,T>::_computeMetricDeformed_impl(const index_t patch,
     dynamic_cast<const gsFunction<T>&>(m_defpatches->piece(patch)   ).computeMap(map);
 
     gsMatrix<T> tmp;
+    gsMatrix<T> acov(2,2), acon(2,2), Acov(2,2), Acon(2,2);
 
     m_data.mine().m_Acov_def_mat.resize(4,map.points.cols());    m_data.mine().m_Acov_def_mat.setZero();
     m_data.mine().m_Acon_def_mat.resize(4,map.points.cols());    m_data.mine().m_Acon_def_mat.setZero();
 
     m_data.mine().m_acov_def_mat.resize(2*2,map.points.cols());    m_data.mine().m_acov_def_mat.setZero();
-    if (basis)
-    {
-        m_data.mine().m_acon_def_mat.resize(2*2,map.points.cols());    m_data.mine().m_acon_def_mat.setZero();
-    }
+    m_data.mine().m_acon_def_mat.resize(2*2,map.points.cols());    m_data.mine().m_acon_def_mat.setZero();
 
     for (index_t k=0; k!= map.points.cols(); k++)
     {
-        gsAsMatrix<T,Dynamic,Dynamic> acov = m_data.mine().m_acov_def_mat.reshapeCol(k,2,2);
         acov = map.jacobian(k);
 
-        tmp = acov.transpose() * acov;
-        m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2) = tmp;
-        m_data.mine().m_Acon_def_mat.reshapeCol(k,2,2) = tmp.inverse();
-
-        gsAsMatrix<T,Dynamic,Dynamic> metricAcon = m_data.mine().m_Acon_def_mat.reshapeCol(k,2,2);
+        Acov = acov.transpose() * acov;
+        Acon = Acov.inverse();
 
         // Construct basis
-        if (basis)
-        {
-            gsAsMatrix<T,Dynamic,Dynamic> acon = m_data.mine().m_acon_def_mat.reshapeCol(k,2,2);
-            for (index_t i=0; i < 2; i++)
-                acon.col(i)     = metricAcon(i,0)*acov.col(0) + metricAcon(i,1)*acov.col(1);
-        }
+        for (index_t i=0; i < 2; i++)
+            acon.col(i)     = Acon(i,0)*acov.col(0) + Acon(i,1)*acov.col(1);
+
+        // Assign members
+        m_data.mine().m_acov_def_mat.reshapeCol(k,2,2) = acov;
+        m_data.mine().m_acon_def_mat.reshapeCol(k,2,2) = acon;
+        m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2) = Acov;
+        m_data.mine().m_Acon_def_mat.reshapeCol(k,2,2) = Acon;
     }
 }
+
 
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
-void gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed(const index_t patch, const gsMatrix<T> & u, bool basis) const
+void gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed(const index_t patch, const gsMatrix<T> & u) const
 {
-    _computeMetricUndeformed_impl<dim>(patch,u,basis);
+    _computeMetricUndeformed_impl<dim>(patch,u);
 }
 
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
-gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const
+gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patch, const gsMatrix<T> & u) const
 {
     gsMapData<T> map;
     map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
     map.points = u;
     dynamic_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(map);
 
-    gsMatrix<T> deriv2;
-    gsMatrix<T> mixedB;
-    gsMatrix<T> tmp;
+    gsMatrix<T> deriv2(3,3), mixedB(2,2), acov(3,2), acon(3,2), ncov(3,2), Acov(2,2), Acon(2,2), Bcov(2,2);
+    gsMatrix<T> normals;
+    gsVector<T> normal;
 
-    m_data.mine().m_normal_ori_mat = map.normals;
-    m_data.mine().m_normal_ori_mat.colwise().normalize();
+    normals = map.normals;
+    normals.colwise().normalize();
+    m_data.mine().m_normal_ori_mat = normals;
 
     m_data.mine().m_Acov_ori_mat.resize(4,map.points.cols());    m_data.mine().m_Acov_ori_mat.setZero();
     m_data.mine().m_Acon_ori_mat.resize(4,map.points.cols());    m_data.mine().m_Acon_ori_mat.setZero();
     m_data.mine().m_Bcov_ori_mat.resize(4,map.points.cols());    m_data.mine().m_Bcov_ori_mat.setZero();
 
     m_data.mine().m_acov_ori_mat.resize(2*3,map.points.cols());    m_data.mine().m_acov_ori_mat.setZero();
-    if (basis)
-    {
-        m_data.mine().m_acon_ori_mat.resize(2*3,map.points.cols());    m_data.mine().m_acon_ori_mat.setZero();
-        m_data.mine().m_ncov_ori_mat.resize(2*3,map.points.cols());    m_data.mine().m_ncov_ori_mat.setZero();
-    }
+    m_data.mine().m_acon_ori_mat.resize(2*3,map.points.cols());    m_data.mine().m_acon_ori_mat.setZero();
+    m_data.mine().m_ncov_ori_mat.resize(2*3,map.points.cols());    m_data.mine().m_ncov_ori_mat.setZero();
 
     for (index_t k=0; k!= map.points.cols(); k++)
     {
-        m_data.mine().m_acov_ori_mat.reshapeCol(k,3,2)   = map.jacobian(k);
-        gsMatrix<T> acov = m_data.mine().m_acov_ori_mat.reshapeCol(k,3,2);
+        acov = map.jacobian(k);
 
-        tmp = acov.transpose() * acov;
-        m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2) = tmp;
-        m_data.mine().m_Acon_ori_mat.reshapeCol(k,2,2) = tmp.inverse();
-
-        gsAsMatrix<T,Dynamic,Dynamic> metricAcon = m_data.mine().m_Acon_ori_mat.reshapeCol(k,2,2);
+        Acov = acov.transpose() * acov;
+        Acon = Acov.inverse();
 
         // Construct metric tensor b = [d11c*n, d12c*n ; d21c*n, d22c*n]
-        deriv2    = map.deriv2(k);
-        deriv2.resize(3,3);
-        gsVector<T> normal = m_data.mine().m_normal_ori_mat.col(k);
+        deriv2 = map.deriv2(k).reshaped(3,3);
+        normal = normals.col(k);
 
-        tmp(0,0) = deriv2.row(0).dot(normal);
-        tmp(1,1) = deriv2.row(1).dot(normal);
-        tmp(0,1) = tmp(1,0) = deriv2.row(2).dot(normal);
-
-        m_data.mine().m_Bcov_ori_mat.reshapeCol(k,2,2) = tmp;
-        gsAsMatrix<T,Dynamic,Dynamic> metricBcov = m_data.mine().m_Bcov_ori_mat.reshapeCol(k,2,2);
+        Bcov(0,0) = deriv2.row(0).dot(normal);
+        Bcov(1,1) = deriv2.row(1).dot(normal);
+        Bcov(0,1) = Bcov(1,0) = deriv2.row(2).dot(normal);
 
         // Construct basis
-        if (basis)
-        {
-           gsAsMatrix<T,Dynamic,Dynamic> acon = m_data.mine().m_acon_ori_mat.reshapeCol(k,3,2);
-           for (index_t i=0; i < 2; i++)
-               acon.col(i)     = metricAcon(i,0)*acov.col(0) + metricAcon(i,1)*acov.col(1);
+        for (index_t i=0; i < 2; i++)
+            acon.col(i)     = Acon(i,0)*acov.col(0) + Acon(i,1)*acov.col(1);
 
-           // Mixed tensor
-           for (index_t i=0; i < 2; i++)
-               for (index_t j=0; j < 2; j++)
-                   mixedB(i,j) = metricAcon(i,0)*metricBcov(0,j) + metricAcon(i,1)*metricBcov(1,j);
+        // Mixed tensor
+        for (index_t i=0; i < 2; i++)
+            for (index_t j=0; j < 2; j++)
+                mixedB(i,j) = Acon(i,0)*Bcov(0,j) + Acon(i,1)*Bcov(1,j);
 
-           gsAsMatrix<T,Dynamic,Dynamic> ncov = m_data.mine().m_ncov_ori_mat.reshapeCol(k,3,2);
-           for (index_t i=0; i < 2; i++)
-               ncov.col(i)     = -mixedB(0,i)*acov.col(0) -mixedB(1,i)*acov.col(1);
-       }
+        for (index_t i=0; i < 2; i++)
+            ncov.col(i)     = -mixedB(0,i)*acov.col(0) -mixedB(1,i)*acov.col(1);
+
+        // Assign members
+        m_data.mine().m_acov_ori_mat.reshapeCol(k,3,2) = acov;
+        m_data.mine().m_acon_ori_mat.reshapeCol(k,3,2) = acon;
+        m_data.mine().m_ncov_ori_mat.reshapeCol(k,3,2) = ncov;
+        m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2) = Acov;
+        m_data.mine().m_Acon_ori_mat.reshapeCol(k,2,2) = Acon;
+        m_data.mine().m_Bcov_ori_mat.reshapeCol(k,2,2) = Bcov;
     }
 }
 
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patch, const gsMatrix<T> & u, bool basis) const
+gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patch, const gsMatrix<T> & u) const
 {
     gsMapData<T> map;
     map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
@@ -379,44 +362,40 @@ gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patc
     dynamic_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(map);
 
     gsMatrix<T> tmp;
+    gsMatrix<T> acov(2,2), acon(2,2), Acov(2,2), Acon(2,2);
 
     m_data.mine().m_Acov_ori_mat.resize(4,map.points.cols());    m_data.mine().m_Acov_ori_mat.setZero();
     m_data.mine().m_Acon_ori_mat.resize(4,map.points.cols());    m_data.mine().m_Acon_ori_mat.setZero();
 
     m_data.mine().m_acov_ori_mat.resize(2*2,map.points.cols());    m_data.mine().m_acov_ori_mat.setZero();
-    if (basis)
-    {
-        m_data.mine().m_acon_ori_mat.resize(2*2,map.points.cols());    m_data.mine().m_acon_ori_mat.setZero();
-    }
+    m_data.mine().m_acon_ori_mat.resize(2*2,map.points.cols());    m_data.mine().m_acon_ori_mat.setZero();
 
     for (index_t k=0; k!= map.points.cols(); k++)
     {
-        gsAsMatrix<T,Dynamic,Dynamic> acov = m_data.mine().m_acov_ori_mat.reshapeCol(k,2,2);
         acov = map.jacobian(k);
 
-        tmp = acov.transpose() * acov;
-        m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2) = tmp;
-        m_data.mine().m_Acon_ori_mat.reshapeCol(k,2,2) = tmp.inverse();
-        
-        gsAsMatrix<T,Dynamic,Dynamic> metricAcon = m_data.mine().m_Acon_ori_mat.reshapeCol(k,2,2);
+        Acov = acov.transpose() * acov;
+        Acon = Acov.inverse();
 
         // Construct basis
-        if (basis)
-        {
-            gsAsMatrix<T,Dynamic,Dynamic> acon = m_data.mine().m_acon_ori_mat.reshapeCol(k,2,2);
-            for (index_t i=0; i < 2; i++)
-                acon.col(i)     = metricAcon(i,0)*acov.col(0) + metricAcon(i,1)*acov.col(1);
-        }
+        for (index_t i=0; i < 2; i++)
+            acon.col(i)     = Acon(i,0)*acov.col(0) + Acon(i,1)*acov.col(1);
+
+        // Assign members
+        m_data.mine().m_acov_ori_mat.reshapeCol(k,2,2) = acov;
+        m_data.mine().m_acon_ori_mat.reshapeCol(k,2,2) = acon;
+        m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2) = Acov;
+        m_data.mine().m_Acon_ori_mat.reshapeCol(k,2,2) = Acon;
     }
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
-void gsMaterialMatrixBaseDim<dim,T>::_getMetric(const index_t k, const T z, const bool basis) const
+void gsMaterialMatrixBaseDim<dim,T>::_getMetric(const index_t k, const T z) const
 {
-    this->_getMetricDeformed(k,z,basis);
-    this->_getMetricUndeformed(k,z,basis);
+    this->_getMetricDeformed(k,z);
+    this->_getMetricUndeformed(k,z);
 
     T ratio = m_data.mine().m_Gcov_def.determinant() / m_data.mine().m_Gcov_ori.determinant();
     GISMO_ENSURE(ratio >= 0, "Jacobian determinant is negative! det(Gcov_def) = "<<m_data.mine().m_Gcov_def.determinant()<<"; det(Gcov_ori) = "<<m_data.mine().m_Gcov_ori.determinant());
@@ -426,23 +405,26 @@ void gsMaterialMatrixBaseDim<dim,T>::_getMetric(const index_t k, const T z, cons
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
-void gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed(const index_t k, const T z, const bool basis) const
+void gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed(const index_t k, const T z) const
 {
-    _getMetricDeformed_impl<dim>(k,z,basis);
+    _getMetricDeformed_impl<dim>(k,z);
 }
 
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
-gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T z, const bool basis) const
+gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T z) const
 {
     GISMO_ENSURE(m_data.mine().m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_Acon_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_Bcov_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_ncov_def_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_data.mine().m_acov_def_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_data.mine().m_acon_def_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_data.mine().m_normal_def_mat.cols()!=0,"Is the basis initialized?");
 
-    gsMatrix<T> Acov_def, Acon_def, Bcov_def, ncov_def, Gcov_def(3,3), Gcon_def(3,3);
-
+    gsMatrix<T> Acov_def, Acon_def, Bcov_def, ncov_def, Gcov_def(3,3), Gcon_def(3,3),
+                acov_def, acon_def, normal(3,1), gcov_def(3,3), gcon_def(3,3);
     // Get metric information
     Acov_def = m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2);
     Acon_def = m_data.mine().m_Acon_def_mat.reshapeCol(k,2,2);
@@ -462,14 +444,6 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T
     m_data.mine().m_ncov_def = ncov_def;
     m_data.mine().m_Gcov_def = Gcov_def;
     m_data.mine().m_Gcon_def = Gcon_def;
-
-    if (!basis) return;
-
-    GISMO_ENSURE(m_data.mine().m_acov_def_mat.cols()!=0,"Is the basis initialized?");
-    GISMO_ENSURE(m_data.mine().m_acon_def_mat.cols()!=0,"Is the basis initialized?");
-    GISMO_ENSURE(m_data.mine().m_normal_def_mat.cols()!=0,"Is the basis initialized?");
-
-    gsMatrix<T> acov_def, acon_def, normal(3,1), gcov_def(3,3), gcon_def(3,3);
 
     // Get basis vectors
     acov_def = m_data.mine().m_acov_def_mat.reshapeCol(k,3,2);
@@ -499,12 +473,15 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T z, const bool basis) const
+gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T z) const
 {
     GISMO_ENSURE(m_data.mine().m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_Acon_def_mat.cols()!=0,"Is the metric initialized?");
+    GISMO_ENSURE(m_data.mine().m_acov_def_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_data.mine().m_acon_def_mat.cols()!=0,"Is the basis initialized?");
 
-    gsMatrix<T> Acov_def, Acon_def, Gcov_def(3,3), Gcon_def(3,3);
+    gsMatrix<T> Acov_def, Acon_def, Gcov_def(3,3), Gcon_def(3,3),
+                acov_def, acon_def, normal(3,1), gcov_def(3,3), gcon_def(3,3);
 
     // Get metric information
     Acov_def = m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2);
@@ -521,13 +498,6 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T
     m_data.mine().m_Acon_def = Acon_def;
     m_data.mine().m_Gcov_def = Gcov_def;
     m_data.mine().m_Gcon_def = Gcon_def;
-
-    if (!basis) return;
-
-    GISMO_ENSURE(m_data.mine().m_acov_def_mat.cols()!=0,"Is the basis initialized?");
-    GISMO_ENSURE(m_data.mine().m_acon_def_mat.cols()!=0,"Is the basis initialized?");
-
-    gsMatrix<T> acov_def, acon_def, normal(3,1), gcov_def(3,3), gcon_def(3,3);
 
     // Get basis vectors
     acov_def = m_data.mine().m_acov_def_mat.reshapeCol(k,2,2);
@@ -557,22 +527,26 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
-void gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed(const index_t k, const T z, const bool basis) const
+void gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed(const index_t k, const T z) const
 {
-    _getMetricUndeformed_impl<dim>(k,z,basis);
+    _getMetricUndeformed_impl<dim>(k,z);
 }
 
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, void>::type
-gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const T z, const bool basis) const
+gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const T z) const
 {
     GISMO_ENSURE(m_data.mine().m_Acov_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_Acon_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_Bcov_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_ncov_ori_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_data.mine().m_acov_ori_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_data.mine().m_acon_ori_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_data.mine().m_normal_ori_mat.cols()!=0,"Is the basis initialized?");
 
-    gsMatrix<T> Acov_ori, Acon_ori, Bcov_ori, ncov_ori, Gcov_ori(3,3), Gcon_ori(3,3);
+    gsMatrix<T> Acov_ori, Acon_ori, Bcov_ori, ncov_ori, Gcov_ori(3,3), Gcon_ori(3,3),
+                acov_ori, acon_ori, normal(3,1), gcov_ori(3,3), gcon_ori(3,3);
 
     // Get metric information
     Acov_ori = m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2);
@@ -593,14 +567,6 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const
     m_data.mine().m_ncov_ori = ncov_ori;
     m_data.mine().m_Gcov_ori = Gcov_ori;
     m_data.mine().m_Gcon_ori = Gcon_ori;
-
-    if (!basis) return;
-
-    GISMO_ENSURE(m_data.mine().m_acov_ori_mat.cols()!=0,"Is the basis initialized?");
-    GISMO_ENSURE(m_data.mine().m_acon_ori_mat.cols()!=0,"Is the basis initialized?");
-    GISMO_ENSURE(m_data.mine().m_normal_ori_mat.cols()!=0,"Is the basis initialized?");
-
-    gsMatrix<T> acov_ori, acon_ori, normal(3,1), gcov_ori(3,3), gcon_ori(3,3);
 
     // Get basis vectors
     acov_ori = m_data.mine().m_acov_ori_mat.reshapeCol(k,3,2);
@@ -630,12 +596,15 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const T z, const bool basis) const
+gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const T z) const
 {
     GISMO_ENSURE(m_data.mine().m_Acov_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_Acon_ori_mat.cols()!=0,"Is the metric initialized?");
+    GISMO_ENSURE(m_data.mine().m_acov_ori_mat.cols()!=0,"Is the basis initialized?");
+    GISMO_ENSURE(m_data.mine().m_acon_ori_mat.cols()!=0,"Is the basis initialized?");
 
-    gsMatrix<T> Acov_ori, Acon_ori, Gcov_ori(3,3), Gcon_ori(3,3);
+    gsMatrix<T> Acov_ori, Acon_ori, Gcov_ori(3,3), Gcon_ori(3,3),
+                acov_ori, acon_ori, normal(3,1), gcov_ori(3,3), gcon_ori(3,3);
 
     // Get metric information
     Acov_ori = m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2);
@@ -652,13 +621,6 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const
     m_data.mine().m_Acon_ori = Acon_ori;
     m_data.mine().m_Gcov_ori = Gcov_ori;
     m_data.mine().m_Gcon_ori = Gcon_ori;
-
-    if (!basis) return;
-    
-    GISMO_ENSURE(m_data.mine().m_acov_ori_mat.cols()!=0,"Is the basis initialized?");
-    GISMO_ENSURE(m_data.mine().m_acon_ori_mat.cols()!=0,"Is the basis initialized?");
-
-    gsMatrix<T> acov_ori, acon_ori, normal(3,1), gcov_ori(3,3), gcon_ori(3,3);
 
     // Get basis vectors
     acov_ori = m_data.mine().m_acov_ori_mat.reshapeCol(k,2,2);
