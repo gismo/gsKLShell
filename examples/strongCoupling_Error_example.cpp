@@ -42,6 +42,7 @@ int main(int argc, char *argv[])
     bool info       = false;
     bool writeMatrix= false;
     bool nonlinear  = false;
+    bool project    = false;
     index_t numRefine  = 2;
     index_t numRefine0 = 1;
     index_t degree = 3;
@@ -78,6 +79,7 @@ int main(int argc, char *argv[])
     cmd.addSwitch("writeMat", "Write projection matrix",writeMatrix);
     cmd.addSwitch( "info", "Print information", info );
     cmd.addSwitch( "nl", "Print information", nonlinear );
+    cmd.addSwitch( "project", "Project the geometry on the initial basis (D-Patch and almost-C1)", project );
     cmd.addString("w", "write", "Write to csv", write);
 
     // to do:
@@ -278,19 +280,63 @@ int main(int argc, char *argv[])
         }
         else if (method==1)
         {
-            // geom = mp;
-            gsDPatch<2,real_t> dpatch(geom);
+            // Flatten the mesh
+            gsMultiPatch<> tmp;
+            for (size_t p=0; p!=geom.nPatches(); p++)
+            {
+                gsTHBSpline<2,real_t> * thbspline;
+                gsTHBSpline<2,real_t> * thbspline2;
+                gsTensorBSpline<2,real_t> * tbspline;
+                if ((thbspline = dynamic_cast<gsTHBSpline<2,real_t> *>(&geom.patch(p)) ))
+                {
+                    gsTensorBSpline<2,real_t> flat;
+                    thbspline->convertToBSpline(flat);
+                    tmp.addPatch(flat);
+                }
+                else if ((tbspline = dynamic_cast<gsTensorBSpline<2,real_t> *>(&geom.patch(p)) ))
+                {
+                    geom.patch(p).uniformRefine(1,degree-smoothness);
+                    tmp.addPatch(geom.patch(p));
+                }
+            }
+            tmp.computeTopology();
+            geom = tmp;
+            dbasis = gsMultiBasis<>(geom);
+
+            gsDPatch<2,real_t> dpatch(dbasis);
             dpatch.options().setInt("RefLevel",r);
             dpatch.options().setInt("Pi",0);
             dpatch.options().setSwitch("SharpCorners",false);
+            dpatch.options().setInt("KnotMultiplicity",degree-smoothness); // helps to keep degree and regularty for newly constructed level
             dpatch.compute();
             dpatch.matrix_into(global2local);
 
             global2local = global2local.transpose();
-            geom = dpatch.exportToPatches();
             dbasis = dpatch.localBasis();
             bb2.init(dbasis,global2local);
-            mp = geom;
+            if (project)
+            {
+                tmp.clear();
+                gsDofMapper mapper(dbasis);
+                mapper.finalize();
+                gsMatrix<> coefs, coefs_tmp;
+                gsL2Projection<real_t>::projectGeometry(dbasis,bb2,mp,coefs_tmp);
+                coefs_tmp.resize(coefs_tmp.rows()/mp.geoDim(),mp.geoDim());
+                bb2.getMapper().mapToSourceCoefs(coefs_tmp,coefs);
+
+                index_t offset = 0;
+                for (index_t p = 0; p != geom.nPatches(); p++)
+                {
+                    tmp.addPatch(give(*dbasis.basis(p).makeGeometry((coefs.block(offset,0,mapper.patchSize(p),mp.geoDim())))));
+                    offset += mapper.patchSize(p);
+                }
+                geom = tmp;
+            }
+            else 
+                geom = dpatch.exportToPatches(geom);
+
+            if (plot) gsWriteParaview(geom,"geom",1000,true,false);
+
         }
         else if (method==2) // Pascal
         {
@@ -323,9 +369,29 @@ int main(int argc, char *argv[])
             almostC1.matrix_into(global2local);
 
             global2local = global2local.transpose();
-            geom = almostC1.exportToPatches();
             dbasis = almostC1.localBasis();
             bb2.init(dbasis,global2local);
+
+            if (project)
+            {
+                gsDofMapper mapper(dbasis);
+                mapper.finalize();
+                gsMatrix<> coefs, coefs_tmp;
+                gsL2Projection<real_t>::projectGeometry(dbasis,bb2,mp,coefs_tmp);
+                coefs_tmp.resize(coefs_tmp.rows()/mp.geoDim(),mp.geoDim());
+                bb2.getMapper().mapToSourceCoefs(coefs_tmp,coefs);
+
+                index_t offset = 0;
+                for (index_t p = 0; p != geom.nPatches(); p++)
+                {
+                    geom.patch(p) = give(*dbasis.basis(p).makeGeometry((coefs.block(offset,0,mapper.patchSize(p),mp.geoDim()))));
+                    offset += mapper.patchSize(p);
+                }
+            }
+            else 
+                geom = almostC1.exportToPatches();
+
+            if (plot) gsWriteParaview(geom,"geom",1000,true,false);
         }
         else
             GISMO_ERROR("Option "<<method<<" for method does not exist");
