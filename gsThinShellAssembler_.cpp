@@ -23,7 +23,7 @@ namespace gismo
   CLASS_TEMPLATE_INST gsThinShellAssembler<3,real_t,false>;
   CLASS_TEMPLATE_INST gsThinShellAssembler<3,real_t,true>;
 
-#ifdef GISMO_BUILD_PYBIND11
+#ifdef GISMO_WITH_PYBIND11
 
   namespace py = pybind11;
 
@@ -36,30 +36,36 @@ namespace gismo
     .def("numDofs", &Class::numDofs, "Returns the number of degrees of freedom of the system")
     .def("setSpaceBasis", &Class::setSpaceBasis, "Sets the basis used for discretization (but not for quadrature)")
 
-    .def("assemble", static_cast<void (Class::*)()> (&Class::assemble),
+    .def("assemble", static_cast<ThinShellAssemblerStatus (Class::*)()> (&Class::assemble),
           "Assembles the linear system")
-    .def("assemble", static_cast<void (Class::*)(const gsFunctionSet<real_t> &, bool)> (&Class::assemble),
-          "Assembles the nonlinear system (matrix optional)")//,
-          // py::arg("Matrix") = false)
-    .def("assemble", static_cast<void (Class::*)(const gsMatrix<real_t> &     , bool)> (&Class::assemble),
-          "Assembles the nonlinear system (matrix optional)")//,
-          // py::arg("Matrix") = false)
+    .def("assemble", static_cast<ThinShellAssemblerStatus (Class::*)(const gsFunctionSet<real_t> &, const bool, const bool)> (&Class::assemble),
+          "Assembles the nonlinear system (matrix optional)",
+          py::arg("deformed"),
+          py::arg("matrix") = false,
+          py::arg("homogenize") = true)
+    .def("assemble", static_cast<ThinShellAssemblerStatus (Class::*)(const gsMatrix<real_t> &     , const bool, const bool)> (&Class::assemble),
+          "Assembles the nonlinear system (matrix optional)",
+          py::arg("solVector"),
+          py::arg("matrix") = false,
+          py::arg("homogenize") = true)
 
-    .def("assembleMatrix", static_cast<void (Class::*)(const gsFunctionSet<real_t> &)> (&Class::assembleMatrix),
+    .def("assembleMatrix", static_cast<ThinShellAssemblerStatus (Class::*)(const gsFunctionSet<real_t> &)> (&Class::assembleMatrix),
           "Assembles the nonlinear matrix")
-    .def("assembleMatrix", static_cast<void (Class::*)(const gsMatrix<real_t> &     )> (&Class::assembleMatrix),
+    .def("assembleMatrix", static_cast<ThinShellAssemblerStatus (Class::*)(const gsMatrix<real_t> &     )> (&Class::assembleMatrix),
           "Assembles the nonlinear matrix")
 
-    .def("assembleMatrix", static_cast<void (Class::*)(const gsFunctionSet<real_t> &, const gsFunctionSet<real_t> &, gsMatrix<real_t> & update)> (&Class::assembleMatrix),
+    .def("assembleMatrix", static_cast<ThinShellAssemblerStatus (Class::*)(const gsFunctionSet<real_t> &, const gsFunctionSet<real_t> &, gsMatrix<real_t> & update)> (&Class::assembleMatrix),
           "Assembles the nonlinear matrix using the Mixed Integration Point (MIP) method")
-    .def("assembleMatrix", static_cast<void (Class::*)(const gsMatrix<real_t>      &, const gsMatrix<real_t>      &                           )> (&Class::assembleMatrix),
+    .def("assembleMatrix", static_cast<ThinShellAssemblerStatus (Class::*)(const gsMatrix<real_t>      &, const gsMatrix<real_t>      &                           )> (&Class::assembleMatrix),
           "Assembles the nonlinear matrix using the Mixed Integration Point (MIP) method")
 
     .def("assembleVector", static_cast<ThinShellAssemblerStatus (Class::*)(const gsFunctionSet<real_t> &, const bool )> (&Class::assembleVector),
           "Assembles the nonlinear vector",
+          py::arg("deformed"),
           py::arg("homogenize") = true)
     .def("assembleVector", static_cast<ThinShellAssemblerStatus (Class::*)(const gsMatrix<real_t> &     , const bool)> (&Class::assembleVector),
           "Assembles the nonlinear vector",
+          py::arg("solVector"),
           py::arg("homogenize") = true)
     
     .def("assembleMass", &Class::assembleMass, "Assembles the mass matrix",
@@ -77,13 +83,18 @@ namespace gismo
           "Constructs the displacements as a gsMultiPatch")
     .def("constructDisplacement", static_cast<gsMultiPatch<real_t> (Class::*)(const gsMatrix<real_t> &                        ) const> (&Class::constructDisplacement),
           "Constructs the displacements as a gsMultiPatch")
+    .def("constructSolutionVector", &Class::constructSolutionVector, "Returns the solution vector based on a multipatch solution")
+
     .def("getArea"   , &Class::getArea   , "Returns the area of a geometry")
 
 
     .def("setGeometry"   , &Class::setGeometry   , "Sets the geometry")
     .def("setBasis"   , &Class::setBasis   , "Sets the basis")
     .def("setSpaceBasis"   , &Class::setSpaceBasis   , "Sets the basis for the space")
-    .def("setPointLoads"   , &Class::setPointLoads   , "Sets point loads")
+
+    .def("setPointLoads"      , &Class::setPointLoads       , "Sets point loads")
+    .def("updateBCs"          , &Class::updateBCs           , "update BCs")
+    .def("homogenizeDirichlet", &Class::homogenizeDirichlet , "Homogenize dirichlet BCs")
 
     .def("options"   , &Class::options   , "Access options")
     .def("addWeakC0"   , &Class::addWeakC0   , "Adds interfaces for weak C0 coupling")

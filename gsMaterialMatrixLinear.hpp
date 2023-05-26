@@ -128,9 +128,6 @@ void gsMaterialMatrixLinear<dim,T>::_initialize()
 {
     // Set default options
     this->_defaultOptions();
-
-    // set flags
-    m_map.mine().flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
 }
 
 template <short_t dim, class T >
@@ -142,20 +139,19 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
     // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    _computePoints(patch,u,false);
+    _computePoints(patch,u);
     gsMatrix<T> result(9, u.cols() * z.rows());
     result.setZero();
 
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
-        for (index_t v=0; v!=m_parmat.rows(); v++)
-            m_parvals.at(v) = m_parmat(v,k);
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-                // _getMetric(k, z(j, k), false); // on point i, on height z(0,j)
-                _getMetric(k, z(j, k) * m_Tmat(0, k), false); // on point i, on height z(0,j)
+                _getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
                 gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
                 /*
@@ -184,20 +180,19 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, co
     // Output: (n=u.cols(), m=z.cols())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    _computePoints(patch,u,false);
+    _computePoints(patch,u);
     gsMatrix<T> result(3, u.cols() * z.rows());
     result.setZero();
 
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
-        for (index_t v=0; v!=m_parmat.rows(); v++)
-            m_parvals.at(v) = m_parmat(v,k);
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // _getMetric(k, z(j, k), false); // on point i, on height z(0,j)
-            _getMetric(k, z(j, k) * m_Tmat(0, k), false); // on point i, on height z(0,j)
+            _getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             result(0, j * u.cols() + k) = _Sij(0, 0, z(j, k), out);
             result(1, j * u.cols() + k) = _Sij(1, 1, z(j, k), out);
@@ -217,22 +212,22 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_CauchyVector(const index_t pat
     // Output: (n=u.cols(), m=z.cols())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    _computePoints(patch,u,true);
+    _computePoints(patch,u);
     gsMatrix<T> result(3, u.cols() * z.rows());
     result.setZero();
 
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
-        for (index_t v=0; v!=m_parmat.rows(); v++)
-            m_parvals.at(v) = m_parmat(v,k);
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             // _getMetric(k, z(j, k), false); // on point i, on height z(0,j)
-            _getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
+            _getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
-            T detF = math::sqrt(m_J0_sq)*1.0;
+            T detF = math::sqrt(m_data.mine().m_J0_sq)*1.0;
             result(0, j * u.cols() + k) = 1 / detF * _Sij(0, 0, z(j, k), out);
             result(1, j * u.cols() + k) = 1 / detF * _Sij(1, 1, z(j, k), out);
             result(2, j * u.cols() + k) = 1 / detF * _Sij(0, 1, z(j, k), out);
@@ -245,7 +240,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_CauchyVector(const index_t pat
 template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
-    _computePoints(patch,u,true);
+    _computePoints(patch,u);
     gsMatrix<T> result(2, u.cols() * z.rows());
     result.setZero();
     gsMatrix<T,3,3> S;
@@ -253,13 +248,12 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
-        for (index_t v=0; v!=m_parmat.rows(); v++)
-            m_parvals.at(v) = m_parmat(v,k);
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // _getMetric(k, z(j, k), true); // on point i, on height z(0,j)
-            _getMetric(k, z(j, k) * m_Tmat(0, k), true); // on point i, on height z(0,j)
+            _getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             S.setZero();
             S(0, 0) = _Sij(0, 0, 0, out);
@@ -278,7 +272,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
 
 /*
     Available class members:
-        - m_parvals
+        - m_data.mine().m_parvals
         - m_metric
         - m_metric_def
 */
@@ -293,12 +287,12 @@ T gsMaterialMatrixLinear<dim,T>::_Cijkl(const index_t i, const index_t j, const 
     // --------------------------
     T lambda, mu, Cconstant;
 
-    mu = m_parvals.at(0) / (2.*(1. + m_parvals.at(1)));
-    GISMO_ENSURE((1.-2.*m_parvals.at(1)) != 0, "Division by zero in construction of SvK material parameters! (1.-2.*nu) = "<<(1.-2.*m_parvals.at(1))<<"; m_parvals.at(1) = "<<m_parvals.at(1));
-    lambda = m_parvals.at(0) * m_parvals.at(1) / ( (1. + m_parvals.at(1))*(1.-2.*m_parvals.at(1))) ;
+    mu = m_data.mine().m_parvals.at(0) / (2.*(1. + m_data.mine().m_parvals.at(1)));
+    GISMO_ENSURE((1.-2.*m_data.mine().m_parvals.at(1)) != 0, "Division by zero in construction of SvK material parameters! (1.-2.*nu) = "<<(1.-2.*m_data.mine().m_parvals.at(1))<<"; m_data.mine().m_parvals.at(1) = "<<m_data.mine().m_parvals.at(1));
+    lambda = m_data.mine().m_parvals.at(0) * m_data.mine().m_parvals.at(1) / ( (1. + m_data.mine().m_parvals.at(1))*(1.-2.*m_data.mine().m_parvals.at(1))) ;
     Cconstant = 2*lambda*mu/(lambda+2*mu);
 
-    return Cconstant*m_Acon_ori(i,j)*m_Acon_ori(k,l) + mu*(m_Acon_ori(i,k)*m_Acon_ori(j,l) + m_Acon_ori(i,l)*m_Acon_ori(j,k));
+    return Cconstant*m_data.mine().m_Acon_ori(i,j)*m_data.mine().m_Acon_ori(k,l) + mu*(m_data.mine().m_Acon_ori(i,k)*m_data.mine().m_Acon_ori(j,l) + m_data.mine().m_Acon_ori(i,l)*m_data.mine().m_Acon_ori(j,k));
 }
 
 template <short_t dim, class T >
@@ -307,11 +301,11 @@ T gsMaterialMatrixLinear<dim,T>::_Sij(const index_t i, const index_t j, const T 
     gsMatrix<T> strain;
     GISMO_ENSURE( ( (i < 2) && (j < 2) ) , "Index out of range. i="<<i<<", j="<<j);
     if      (out == MaterialOutput::VectorN || out == MaterialOutput::PStressN) // To be used with multiplyZ_into
-        strain = 0.5*(m_Acov_def - m_Acov_ori);
+        strain = 0.5*(m_data.mine().m_Acov_def - m_data.mine().m_Acov_ori);
     else if (out == MaterialOutput::VectorM || out == MaterialOutput::PStressM) // To be used with multiplyZ_into
-        strain = (m_Bcov_ori - m_Bcov_def);
+        strain = (m_data.mine().m_Bcov_ori - m_data.mine().m_Bcov_def);
     else if (out == MaterialOutput::Generic) // To be used with multiplyLinZ_into or integrateZ_into
-        strain = 0.5*(m_Acov_def - m_Acov_ori) + z*(m_Bcov_ori - m_Bcov_def);
+        strain = 0.5*(m_data.mine().m_Acov_def - m_data.mine().m_Acov_ori) + z*(m_data.mine().m_Bcov_ori - m_data.mine().m_Bcov_def);
     else
         GISMO_ERROR("Output type is not VectorN, PstressN, VectorM, PstressM or Generic!");
 
@@ -370,13 +364,5 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalPStress(c
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------
-
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::_computePStress(const gsMatrix<T> & C) const
-{
-    std::pair<gsVector<T>,gsMatrix<T>> result = _evalPStress(C);
-    m_pstress = result.first;
-    m_pstressvec = result.second;
-}
 
 } // end namespace

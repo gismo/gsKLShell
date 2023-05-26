@@ -49,11 +49,6 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     gsMaterialMatrixIntegrate<T,MaterialOutput::StretchDir> m_lambdadir(m_materialMatrices,m_patches,m_defpatches);
     variable lambdadir = ev.getVariable(m_lambdadir);
 
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixA> m_A(m_materialMatrices,m_patches,m_defpatches);
-    variable A = ev.getVariable(m_A);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::MatrixD> m_D(m_materialMatrices,m_patches,m_defpatches);
-    variable D = ev.getVariable(m_D);
-
     gsFunctionExpr<> mult12t("1","0","0","0","1","0","0","0","0.5",2);
     variable m_m12 = ev.getVariable(mult12t);
 

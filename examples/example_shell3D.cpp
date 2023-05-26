@@ -514,9 +514,11 @@ int main(int argc, char *argv[])
     typedef std::function<gsVector<real_t> (gsVector<real_t> const &) >         Residual_t;
     Jacobian_t Jacobian = [&time,&stopwatch,&assembler,&mp_def](gsVector<real_t> const &x)
     {
+      ThinShellAssemblerStatus status;
       stopwatch.restart();
       assembler->constructSolution(x,mp_def);
-      assembler->assembleMatrix(mp_def);
+      status = assembler->assembleMatrix(mp_def);
+      GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
       time += stopwatch.stop();
       gsSparseMatrix<real_t> m = assembler->matrix();
       return m;
@@ -524,17 +526,21 @@ int main(int argc, char *argv[])
     // Function for the Residual
     Residual_t Residual = [&time,&stopwatch,&assembler,&mp_def](gsVector<real_t> const &x)
     {
+      ThinShellAssemblerStatus status;
       stopwatch.restart();
       assembler->constructSolution(x,mp_def);
-      assembler->assembleVector(mp_def);
+      status = assembler->assembleVector(mp_def);
+      GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
       time += stopwatch.stop();
       return assembler->rhs();
     };
     //! [Define jacobian and residual]
 
+    ThinShellAssemblerStatus status;
     stopwatch.restart();
     stopwatch2.restart();
-    assembler->assemble();
+    status = assembler->assemble();
+    GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
     time += stopwatch.stop();
 
     //! [Assemble linear part]

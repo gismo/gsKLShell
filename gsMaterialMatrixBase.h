@@ -258,13 +258,13 @@ protected:
     const gsFunctionSet<T> * m_defpatches;
 };
 
-#ifdef GISMO_BUILD_PYBIND11
+#ifdef GISMO_WITH_PYBIND11
 
   /**
    * @brief Initializes the Python wrapper for the class: gsMaterialMatrixBase
    */
   void pybind11_init_gsMaterialMatrixBase(pybind11::module &m);
 
-#endif // GISMO_BUILD_PYBIND11
+#endif // GISMO_WITH_PYBIND11
 
 } // namespace

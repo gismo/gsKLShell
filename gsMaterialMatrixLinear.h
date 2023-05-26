@@ -236,10 +236,6 @@ protected:
 
     using Base::_getMetric;
 
-
-    /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
-    void _computePStress(const gsMatrix<T> & C ) const;
-
     /// Computes the stretch given deformation tensor C, into a pair
     std::pair<gsVector<T>,gsMatrix<T>> _evalPStress(const gsMatrix<T> & C ) const;
 
@@ -251,69 +247,14 @@ protected:
     using Base::m_pars;
     using Base::m_density;
 
-    mutable real_t m_lambda, m_mu, m_Cconstant;
-
-    using Base::m_parmat;
-    using Base::m_parvals;
-    using Base::m_Tmat;
-    using Base::m_rhomat;
-
-    mutable gsMatrix<T> m_pstress, m_pstressvec;
-
-    // Geometric data point
-    using Base::m_map;
-    using Base::m_map_def;
-
-    using Base::m_Acov_ori;
-    using Base::m_Acon_ori;
-    using Base::m_Acov_def;
-    using Base::m_Acon_def;
-    using Base::m_Bcov_ori;
-    using Base::m_Bcon_ori;
-    using Base::m_Bcov_def;
-    using Base::m_Bcon_def;
-    using Base::m_acov_ori;
-    using Base::m_acon_ori;
-    using Base::m_acov_def;
-    using Base::m_acon_def;
-    using Base::m_ncov_ori;
-    using Base::m_ncov_def;
-    using Base::m_Gcov_ori;
-    using Base::m_Gcon_ori;
-    using Base::m_Gcov_def;
-    using Base::m_Gcon_def;
-    using Base::m_Gcov_ori_L;
-    using Base::m_Gcov_def_L;
-    using Base::m_gcov_ori;
-    using Base::m_gcov_def;
-    using Base::m_gcon_ori;
-    using Base::m_gcon_def;
-    using Base::m_Acov_ori_mat;
-    using Base::m_Acon_ori_mat;
-    using Base::m_Acov_def_mat;
-    using Base::m_Acon_def_mat;
-    using Base::m_Bcov_ori_mat;
-    using Base::m_Bcov_def_mat;
-    using Base::m_acov_ori_mat;
-    using Base::m_acon_ori_mat;
-    using Base::m_acov_def_mat;
-    using Base::m_acon_def_mat;
-    using Base::m_ncov_ori_mat;
-    using Base::m_ncov_def_mat;
-
-    using Base::m_stretches;
-    using Base::m_stretchvec;
-
-    using Base::m_J0_sq;
-    using Base::m_J_sq;
-
-
+    // Geometric data
+    using Base::m_data;
 
     gsOptionList m_options;
 
 };
 
-#ifdef GISMO_BUILD_PYBIND11
+#ifdef GISMO_WITH_PYBIND11
 
   /**
    * @brief Initializes the Python wrapper for the class: gsMaterialMatrixLinear
@@ -321,7 +262,7 @@ protected:
   void pybind11_init_gsMaterialMatrixLinear2(pybind11::module &m);
   void pybind11_init_gsMaterialMatrixLinear3(pybind11::module &m);
 
-#endif // GISMO_BUILD_PYBIND11
+#endif // GISMO_WITH_PYBIND11
 
 } // namespace
 
