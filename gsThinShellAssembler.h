@@ -812,14 +812,14 @@ public:
      *
      * @param[in]  deformed  The deformed geometry
      */
-    virtual void assembleVector(const gsFunctionSet<T>   & deformed, bool homogenize) = 0;
+    virtual void assembleVector(const gsFunctionSet<T>   & deformed, bool homogenize = true) = 0;
 
     /**
      * @brief      Assembles the residual vector
      *
      * @param[in]  deformed  The solution vector
      */
-    virtual void assembleVector(const gsMatrix<T>       & solVector, bool homogenize) = 0;
+    virtual void assembleVector(const gsMatrix<T>       & solVector, bool homogenize = true) = 0;
 
     /**
      * @brief      Assembles the pressure contribution in the system matrix (linear)

@@ -532,11 +532,14 @@ private:
         res.resize(_u.cardinality(), cols()); // rows()*
         res.setZero();
         cJac = _G.data().jacobian(k);
+        cJac.colwise().normalize();
 
         onormal = _G.data().outNormal(k);
+        onormal.normalize();
         tmp = cJac.transpose() * onormal;
-        Scalar tol = 1e-8;
+        tmp.colwise().normalize(); //normalize the inner product for fair comparison
 
+        Scalar tol = 1e-8;
         /*
             We can check which column of the Jacobian corresponds to the outer normal vector or to the tangent.
             The tangent is a covariant vector and hence the column of the Jacobian should be equal to the tangent.
@@ -592,8 +595,13 @@ private:
         res.setZero();
 
         cJac = _G.data().jacobian(k);
+        cJac.colwise().normalize();
+
         onormal = _G.data().outNormal(k);
+        onormal.normalize();
         tmp = cJac.transpose() * onormal;
+        tmp.colwise().normalize(); //normalize the inner product for fair comparison
+
         Scalar tol = 1e-8;
 
         /*
@@ -828,9 +836,13 @@ public:
         eC.resize(1,3);
 
         cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
+        cJac.colwise().normalize();
 
         onormal = _G.data().outNormal(k);
+        onormal.normalize();
         tmp = cJac.transpose() * onormal;
+        tmp.colwise().normalize(); //normalize the inner product for fair comparison
+
         Scalar tol = 1e-8;
 
         /*

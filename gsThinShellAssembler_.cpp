@@ -55,11 +55,13 @@ namespace gismo
     .def("assembleMatrix", static_cast<void (Class::*)(const gsMatrix<real_t>      &, const gsMatrix<real_t>      &                           )> (&Class::assembleMatrix),
           "Assembles the nonlinear matrix using the Mixed Integration Point (MIP) method")
 
-    .def("assembleVector", static_cast<void (Class::*)(const gsFunctionSet<real_t> &)> (&Class::assembleVector),
-          "Assembles the nonlinear vector")
-    .def("assembleVector", static_cast<void (Class::*)(const gsMatrix<real_t> &     )> (&Class::assembleVector),
-          "Assembles the nonlinear vector")
-
+    .def("assembleVector", static_cast<ThinShellAssemblerStatus (Class::*)(const gsFunctionSet<real_t> &, const bool )> (&Class::assembleVector),
+          "Assembles the nonlinear vector",
+          py::arg("homogenize") = true)
+    .def("assembleVector", static_cast<ThinShellAssemblerStatus (Class::*)(const gsMatrix<real_t> &     , const bool)> (&Class::assembleVector),
+          "Assembles the nonlinear vector",
+          py::arg("homogenize") = true)
+    
     .def("assembleMass", &Class::assembleMass, "Assembles the mass matrix",
           py::arg("lumped") = false)
 
