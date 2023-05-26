@@ -121,19 +121,12 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_initialize()
 {
     // Set default options
     this->_defaultOptions();
-
-    // set flags
-    m_data.mine().m_map.flags = NEED_JACOBIAN | NEED_DERIV | NEED_NORMAL | NEED_VALUE | NEED_DERIV2;
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_data.mine().m_map.points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_data.mine().m_map);
-
     this->_computePoints(patch,u);
-
     _stretch_into_impl<comp>(u,result);
 }
 
@@ -226,11 +219,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_stretch_into_impl(const gsMatrix<T>
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_data.mine().m_map.points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_data.mine().m_map);
-
     this->_computePoints(patch,u);
-
     _stretchDir_into_impl<comp>(u,result);
 }
 
@@ -575,7 +564,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_mat
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-                // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
                 this->_getMetric(k,z(j,k) * m_data.mine().m_Tmat(0,k) ); // on point i, on height z(0,j)
 
                 gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
@@ -659,14 +647,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_pst
     return result;
 }
 
-/*
-    Available class members:
-        - m_data.mine().m_parvals
-        - m_metric
-        - m_metric_def
-        - m_data.mine().m_J0
-        - m_data.mine().m_J
-*/
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
 T gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Cijkl(const index_t i, const index_t j, const index_t k, const index_t l) const
 {
@@ -744,8 +724,8 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Cijkl_impl(const index_t i, const i
     gsMatrix<T> C(3,3);
     C.setZero();
     C.block(0,0,2,2) = m_data.mine().m_Gcov_def.block(0,0,2,2);
-    // C.block(0,0,2,2) = (m_data.mine().m_gcov_def.transpose()*m_data.mine().m_gcov_def).block(0,0,2,2);
-    // gsDebugVar(m_data.mine().m_gcov_def.transpose()*m_data.mine().m_gcov_def);
+    // C.block(0,0,2,2) = (m_gcov_def.transpose()*m_gcov_def).block(0,0,2,2);
+    // gsDebugVar(m_gcov_def.transpose()*m_gcov_def);
     C(2,2) = 1./m_data.mine().m_J0_sq;
 
     this->_computeStretch(C);
@@ -1243,7 +1223,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             // Define objects
@@ -1288,7 +1267,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
                 // if (abs(S33/S33_old) < tol)
                 if (abs(dc33) < tol)
                 {
-		    GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
+                    GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
                     gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
                     /*
                         C = C1111,  C1122,  C1112
@@ -1330,7 +1309,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_vecto
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             // Define objects
@@ -1375,7 +1353,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_vecto
                 // if (abs(S33/S33_old) < tol)
                 if (abs(dc33) < tol)
                 {
-		    GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
+		            GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
                     result(0,j*u.cols()+k) = _Sij(0,0,c,cinv); // S11
                     result(1,j*u.cols()+k) = _Sij(1,1,c,cinv); // S22
                     result(2,j*u.cols()+k) = _Sij(0,1,c,cinv); // S12
@@ -1408,7 +1386,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_pstre
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             // Define objects
@@ -2179,7 +2156,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Cabcd_impl(const index_t a, const i
 //     }
 //     else if (m_material==3)
 //     {
-//         // return 2.0*m_data.mine().m_parvals.at(0)*m_data.mine().m_J0*m_G(i,j)*m_G(k,l) + m_G(i,k)*m_G(j,l) + m_G(i,l)*m_G(j,k);
+//         // return 2.0*m_data.mine().m_parvals.at(0)*m_data.mine().m_J0*m_data.mine().m_G(i,j)*m_data.mine().m_G(k,l) + m_data.mine().m_G(i,k)*m_data.mine().m_G(j,l) + m_data.mine().m_G(i,l)*m_data.mine().m_G(j,k);
 //     }
 //     else if (m_material==4)
 //     {
@@ -2209,7 +2186,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Cabcd_impl(const index_t a, const i
 //     }
 //     else if (m_material==3)
 //     {
-//         // return 2.0*m_data.mine().m_parvals.at(0)*m_data.mine().m_J0*m_G(i,j)*m_G(k,l) + m_G(i,k)*m_G(j,l) + m_G(i,l)*m_G(j,k);
+//         // return 2.0*m_data.mine().m_parvals.at(0)*m_data.mine().m_J0*m_data.mine().m_G(i,j)*m_data.mine().m_G(k,l) + m_data.mine().m_G(i,k)*m_data.mine().m_G(j,l) + m_data.mine().m_G(i,l)*m_data.mine().m_G(j,k);
 //     }
 //     else if (m_material==4)
 //     {

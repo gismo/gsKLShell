@@ -47,7 +47,7 @@ template <class T, enum MaterialOutput out>
 void gsMaterialMatrixIntegrateSingle<T,out>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
 /// Non-parallel evaluation
-#pragma omp critical (gsMaterialMatrixIntegrateSingle_eval_into)
+// #pragma omp critical (gsMaterialMatrixIntegrateSingle_eval_into)
     this->eval_into_impl<out>(u,result);
 }
 
@@ -286,16 +286,7 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::VectorN || _out==MaterialOutput::VectorM, gsMatrix<T>>::type
 gsMaterialMatrixIntegrateSingle<T,out>::eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
 {
-    try
-    {
-        return m_materialMat->eval3D_vector(m_pIndex,u,Z,_out);
-    }
-    catch(...)
-    {
-        gsDebugVar("Error!");
-        gsMatrix<T> zeros(this->targetDim(),u.cols()*Z.rows());
-        return zeros;
-    }
+    return m_materialMat->eval3D_vector(m_pIndex,u,Z,_out);
 }
 
 template <class T, enum MaterialOutput out>

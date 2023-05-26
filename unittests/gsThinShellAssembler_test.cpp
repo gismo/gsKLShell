@@ -328,7 +328,8 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         Jacobian_t Jacobian = [&assembler,&mp_def](gsVector<real_t> const &x)
         {
           assembler->constructSolution(x,mp_def);
-          assembler->assembleMatrix(mp_def);
+          ThinShellAssemblerStatus status = assembler->assembleMatrix(mp_def);
+          GISMO_ASSERT(status==ThinShellAssemblerStatus::Success,"Assembly failed");
           gsSparseMatrix<real_t> m = assembler->matrix();
           return m;
         };
@@ -336,7 +337,8 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         Residual_t Residual = [&assembler,&mp_def](gsVector<real_t> const &x)
         {
           assembler->constructSolution(x,mp_def);
-          assembler->assembleVector(mp_def);
+          ThinShellAssemblerStatus status = assembler->assembleVector(mp_def);
+          GISMO_ASSERT(status==ThinShellAssemblerStatus::Success,"Assembly failed");
           return assembler->rhs();
         };
 
@@ -588,7 +590,8 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         Jacobian_t Jacobian = [&assembler,&mp_def](gsVector<real_t> const &x)
         {
           assembler->constructSolution(x,mp_def);
-          assembler->assembleMatrix(mp_def);
+          ThinShellAssemblerStatus status = assembler->assembleMatrix(mp_def);
+          GISMO_ASSERT(status==ThinShellAssemblerStatus::Success,"Assembly failed");
           gsSparseMatrix<real_t> m = assembler->matrix();
           return m;
         };
@@ -596,7 +599,8 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         Residual_t Residual = [&assembler,&mp_def](gsVector<real_t> const &x)
         {
           assembler->constructSolution(x,mp_def);
-          assembler->assembleVector(mp_def);
+          ThinShellAssemblerStatus status = assembler->assembleVector(mp_def);
+          GISMO_ASSERT(status==ThinShellAssemblerStatus::Success,"Assembly failed");
           return assembler->rhs();
         };
 

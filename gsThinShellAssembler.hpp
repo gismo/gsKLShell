@@ -1373,7 +1373,7 @@ void gsThinShellAssembler<d, T, bending>::_applyMass()
 }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleMass(bool lumped)
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMass(bool lumped)
 {
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1388,20 +1388,29 @@ void gsThinShellAssembler<d, T, bending>::assembleMass(bool lumped)
 
     space       m_space = m_assembler.trialSpace(0);
 
-    // assemble system
-    if (!lumped)
-        m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
-    else
-        m_assembler.assemble(mm0.val()*(m_space.rowSum())*meas(m_ori));
+    try
+    {
+        // assemble system
+        if (!lumped)
+            m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
+        else
+            m_assembler.assemble(mm0.val()*(m_space.rowSum())*meas(m_ori));  
+        m_mass = m_assembler.matrix();
 
-    m_mass = m_assembler.matrix();
-
-    this->_applyMass();
+        this->_applyMass();      
+        m_status = ThinShellAssemblerStatus::Success;
+    }
+    catch (...)
+    {
+        m_assembler.cleanUp();
+        m_status = ThinShellAssemblerStatus::AssemblyError;
+    }
+    return m_status;
 }
 
 // legacy
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleFoundation()
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleFoundation()
 {
     m_assembler.cleanUp();
     m_assembler.setOptions(m_options);
@@ -1415,13 +1424,23 @@ void gsThinShellAssembler<d, T, bending>::assembleFoundation()
 
     space       m_space = m_assembler.trialSpace(0);
 
-    m_assembler.assemble(m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori));
+    try
+    {
+        m_assembler.assemble(m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori));
+        m_status = ThinShellAssemblerStatus::Success;
+    }
+    catch (...)
+    {
+        m_assembler.cleanUp();
+        m_status = ThinShellAssemblerStatus::AssemblyError;
+    }
+    return m_status;
 }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assemble()
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assemble()
 {
-    assemble_impl<d, bending>();
+    return assemble_impl<d, bending>();
 }
 
 /**
@@ -1433,7 +1452,7 @@ void gsThinShellAssembler<d, T, bending>::assemble()
 */
 template<int d, typename T, bool bending>
 template<int _d, bool _bending>
-typename std::enable_if<_d==3 && _bending, void>::type
+typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assemble_impl()
 {
     this->_getOptions();
@@ -1473,44 +1492,54 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
 
-    if (m_foundInd)
+    try 
     {
-        this->_assembleFoundation<true>(*m_foundFun);
-        this->_assembleFoundation<false>(*m_foundFun);
+        if (m_foundInd)
+        {
+            this->_assembleFoundation<true>(*m_foundFun);
+            this->_assembleFoundation<false>(*m_foundFun);
+        }
+        if (m_pressInd)
+        {
+            this->_assemblePressure<true>(*m_pressFun);
+            this->_assemblePressure<false>(*m_pressFun);
+        }
+
+        m_assembler.assemble(
+            (
+                m_N_der * m_Em_der.tr()
+                +
+                m_M_der * m_Ef_der.tr()
+            ) * meas(m_ori)
+            ,
+            m_space * m_force * meas(m_ori)
+            );
+
+        this->_assembleWeakBCs<true>();
+        this->_assembleWeakBCs<false>();
+        this->_assembleWeakIfc<true>();
+        this->_assembleWeakIfc<false>();
+        this->_assembleNeumann();
+
+        // Assemble the loads
+        if ( m_pLoads.numLoads() != 0 )
+        {
+            m_rhs = m_assembler.rhs();
+            _applyLoads();
+        }
+        m_status = ThinShellAssemblerStatus::Success;
     }
-    if (m_pressInd)
+    catch (...)
     {
-        this->_assemblePressure<true>(*m_pressFun);
-        this->_assemblePressure<false>(*m_pressFun);
+        m_assembler.cleanUp();
+        m_status = ThinShellAssemblerStatus::AssemblyError;
     }
-
-    m_assembler.assemble(
-        (
-            m_N_der * m_Em_der.tr()
-            +
-            m_M_der * m_Ef_der.tr()
-        ) * meas(m_ori)
-        ,
-        m_space * m_force * meas(m_ori)
-        );
-
-    this->_assembleWeakBCs<true>();
-    this->_assembleWeakBCs<false>();
-    this->_assembleWeakIfc<true>();
-    this->_assembleWeakIfc<false>();
-    this->_assembleNeumann();
-
-    // Assemble the loads
-    if ( m_pLoads.numLoads() != 0 )
-    {
-        m_rhs = m_assembler.rhs();
-        _applyLoads();
-    }
+    return m_status;
 }
 
 template<int d, typename T, bool bending>
 template<int _d, bool _bending>
-typename std::enable_if<!(_d==3 && _bending), void>::type
+typename std::enable_if<!(_d==3 && _bending), ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assemble_impl()
 {
     this->_getOptions();
@@ -1536,48 +1565,59 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     auto m_Em_der   = flat( jacG.tr() * jac(m_space) ) ; //[checked]
     auto m_N_der    = m_Em_der * reshape(mmA,3,3);
 
-    if (m_foundInd)
+    try 
     {
-        this->_assembleFoundation<true>(*m_foundFun);
-        this->_assembleFoundation<false>(*m_foundFun);
+        if (m_foundInd)
+        {
+            this->_assembleFoundation<true>(*m_foundFun);
+            this->_assembleFoundation<false>(*m_foundFun);
+        }
+        if (m_pressInd)
+        {
+            this->_assemblePressure<true>(*m_pressFun);
+            this->_assemblePressure<false>(*m_pressFun);
+        }
+
+        m_assembler.assemble(
+            (
+                m_N_der * m_Em_der.tr()
+            ) * meas(m_ori)
+            ,
+            m_space * m_force * meas(m_ori)
+            );
+
+        this->_assembleWeakBCs<true>();
+        this->_assembleWeakBCs<false>();
+        this->_assembleWeakIfc<true>();
+        this->_assembleWeakIfc<false>();
+        this->_assembleNeumann();
+
+        // Assemble the loads
+        if ( m_pLoads.numLoads() != 0 )
+        {
+            m_rhs = m_assembler.rhs();
+            _applyLoads();
+        }
+
+        m_status = ThinShellAssemblerStatus::Success;
     }
-    if (m_pressInd)
+    catch (...)
     {
-        this->_assemblePressure<true>(*m_pressFun);
-        this->_assemblePressure<false>(*m_pressFun);
+        m_assembler.cleanUp();
+        m_status = ThinShellAssemblerStatus::AssemblyError;
     }
-
-    m_assembler.assemble(
-        (
-            m_N_der * m_Em_der.tr()
-        ) * meas(m_ori)
-        ,
-        m_space * m_force * meas(m_ori)
-        );
-
-    this->_assembleWeakBCs<true>();
-    this->_assembleWeakBCs<false>();
-    this->_assembleWeakIfc<true>();
-    this->_assembleWeakIfc<false>();
-    this->_assembleNeumann();
-
-    // Assemble the loads
-    if ( m_pLoads.numLoads() != 0 )
-    {
-        m_rhs = m_assembler.rhs();
-        _applyLoads();
-    }
+    return m_status;
 }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsFunctionSet<T> & deformed)
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsFunctionSet<T> & deformed)
 {
-    assembleMatrix_impl<d, bending>(deformed);
+    return assembleMatrix_impl<d, bending>(deformed);
 }
 
 template<int d, typename T, bool bending>
 template<int _d, bool _bending>
-typename std::enable_if<_d==3 && _bending, void>::type
+typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> & deformed)
 {
     m_assembler.cleanUp();
@@ -1627,29 +1667,40 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
 
-    if (m_foundInd) this->_assembleFoundation<true>(*m_foundFun,deformed);
-    if (m_pressInd) this->_assemblePressure<true>(*m_pressFun,deformed);
+    try
+    {
+        if (m_foundInd) this->_assembleFoundation<true>(*m_foundFun,deformed);
+        if (m_pressInd) this->_assemblePressure<true>(*m_pressFun,deformed);
 
-    // Assemble matrix
-    m_assembler.assemble(
-            (
-                m_N_der * m_Em_der.tr()
-                +
-                m_Em_der2
-                +
-                m_M_der * m_Ef_der.tr()
-                +
-                m_Ef_der2
-            ) * meas(m_ori)
-        );
+        // Assemble matrix
+        m_assembler.assemble(
+                (
+                    m_N_der * m_Em_der.tr()
+                    +
+                    m_Em_der2
+                    +
+                    m_M_der * m_Ef_der.tr()
+                    +
+                    m_Ef_der2
+                ) * meas(m_ori)
+            );
 
-    this->_assembleWeakBCs<true>(deformed);
-    this->_assembleWeakIfc<true>(deformed);
+        this->_assembleWeakBCs<true>(deformed);
+        this->_assembleWeakIfc<true>(deformed);
+        
+        m_status = ThinShellAssemblerStatus::Success;
+    }
+    catch (...)
+    {
+        m_assembler.cleanUp();
+        m_status = ThinShellAssemblerStatus::AssemblyError;
+    }
+    return m_status;
 }
 
 template<int d, typename T, bool bending>
 template<int _d, bool _bending>
-typename std::enable_if<!(_d==3 && _bending), void>::type
+typename std::enable_if<!(_d==3 && _bending), ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> & deformed)
 {
     m_assembler.cleanUp();
@@ -1678,39 +1729,49 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
 
     auto m_N_der    = m_Em_der * reshape(mmA,3,3);
 
-    if (m_foundInd) this->_assembleFoundation<true>(*m_foundFun,deformed);
-    if (m_pressInd) this->_assemblePressure<true>(*m_pressFun,deformed);
-
     // Assemble matrix
-    m_assembler.assemble(
-            (
-                m_N_der * m_Em_der.tr()
-                +
-                m_Em_der2
-            ) * meas(m_ori)
-        );
+    try
+    {
+        if (m_foundInd) this->_assembleFoundation<true>(*m_foundFun,deformed);
+        if (m_pressInd) this->_assemblePressure<true>(*m_pressFun,deformed);
 
-    this->_assembleWeakBCs<true>(deformed);
-    this->_assembleWeakIfc<true>(deformed);
+        m_assembler.assemble(
+                (
+                    m_N_der * m_Em_der.tr()
+                    +
+                    m_Em_der2
+                ) * meas(m_ori)
+            );
+        this->_assembleWeakBCs<true>(deformed);
+        this->_assembleWeakIfc<true>(deformed);
+
+        m_status = ThinShellAssemblerStatus::Success;
+    }
+    catch (...) // add specific cases?
+    {
+        m_assembler.cleanUp();
+        m_status = ThinShellAssemblerStatus::AssemblyError;
+    }
+    return m_status;
 }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsMatrix<T> & solVector)
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsMatrix<T> & solVector)
 {
     gsMultiPatch<T> def;
     constructSolution(solVector, def);
-    assembleMatrix(def);
+    return assembleMatrix(def);
 }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update)
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update)
 {
-    assembleMatrix_impl<d, bending>(deformed, previous, update);
+    return assembleMatrix_impl<d, bending>(deformed, previous, update);
 }
 
 template<int d, typename T, bool bending>
 template<int _d, bool _bending>
-typename std::enable_if<_d==3 && _bending, void>::type
+typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update)
 {
     m_assembler.cleanUp();
@@ -1778,35 +1839,46 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     auto m_N_der    = m_Em_der * reshape(mmA,3,3) + m_Ef_der * reshape(mmB,3,3);
     auto m_M_der    = m_Em_der * reshape(mmC,3,3) + m_Ef_der * reshape(mmD,3,3);
 
-    if (m_foundInd) this->_assembleFoundation<true>(*m_foundFun,deformed);
-    if (m_pressInd) this->_assemblePressure<true>(*m_pressFun,deformed);
+    try
+    {
+        if (m_foundInd) this->_assembleFoundation<true>(*m_foundFun,deformed);
+        if (m_pressInd) this->_assemblePressure<true>(*m_pressFun,deformed);
 
-    // Assemble matrix
-    m_assembler.assemble(
-            (
-                m_N_der * m_Em_der.tr()
-                +
-                m_Em_der2
-                +
-                m_M_der * m_Ef_der.tr()
-                +
-                m_Ef_der2
-            ) * meas(m_ori)
-        );
-    this->_assembleWeakBCs<true>(deformed);
-    this->_assembleWeakIfc<true>(deformed);
+        // Assemble matrix
+        m_assembler.assemble(
+                (
+                    m_N_der * m_Em_der.tr()
+                    +
+                    m_Em_der2
+                    +
+                    m_M_der * m_Ef_der.tr()
+                    +
+                    m_Ef_der2
+                ) * meas(m_ori)
+            );
+        this->_assembleWeakBCs<true>(deformed);
+        this->_assembleWeakIfc<true>(deformed);
+
+        m_status = ThinShellAssemblerStatus::Success;
+    }
+    catch (...)
+    {
+        m_assembler.cleanUp();
+        m_status = ThinShellAssemblerStatus::AssemblyError;
+    }
+    return m_status;
 }
 
 // template<int d, typename T, bool bending>
 // template<int _d, bool _bending>
-// typename std::enable_if<!(_d==3 && _bending), void>::type
+// typename std::enable_if<!(_d==3 && _bending), ThinShellAssemblerStatus>::type
 // gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsMultiPatch<T> & deformed, const gsMultiPatch<T> & previous, gsMatrix<T> & update)
 // {
 //     GISMO_NO_IMPLEMENTATION;
 // }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsMatrix<T> & solVector, const gsMatrix<T> & prevVector)
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsMatrix<T> & solVector, const gsMatrix<T> & prevVector)
 {
     // gsMultiPatch<T> deformed;
     // constructSolution(solVector, deformed);
@@ -1816,18 +1888,18 @@ void gsThinShellAssembler<d, T, bending>::assembleMatrix(const gsMatrix<T> & sol
     constructSolution(solVector, def);
     constructSolution(prevVector, it);
     gsMatrix<T> update = solVector - prevVector;
-    assembleMatrix(def,it,update);
+    return assembleMatrix(def,it,update);
 }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleVector(const gsFunctionSet<T> & deformed)
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleVector(const gsFunctionSet<T> & deformed)
 {
-  assembleVector_impl<d, bending>(deformed);
+    return assembleVector_impl<d, bending>(deformed);
 }
 
 template<int d, typename T, bool bending>
 template<int _d, bool _bending>
-typename std::enable_if<_d==3 && _bending, void>::type
+typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> & deformed)
 {
     m_assembler.cleanUp();
@@ -1850,7 +1922,6 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     space m_space       = m_assembler.trialSpace(0);
     auto m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
 
-
     this->homogenizeDirichlet();
 
     auto m_N        = S0.tr();
@@ -1859,29 +1930,40 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     auto m_M        = S1.tr(); // output is a column
     auto m_Ef_der   = -( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3); //[checked]
 
-    if (m_foundInd) this->_assembleFoundation<false>(*m_foundFun,deformed);
-    if (m_pressInd) this->_assemblePressure<false>(*m_pressFun,deformed);
-
-        // Assemble vector
-    m_assembler.assemble(m_space * m_force * meas(m_ori) -
-                            ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
-                        );
-
-    this->_assembleWeakBCs<false>(deformed);
-    this->_assembleWeakIfc<false>(deformed);
-    this->_assembleNeumann();
-
-    // Assemble the loads
-    if ( m_pLoads.numLoads() != 0 )
+    try
     {
-        m_rhs = m_assembler.rhs();
-        _applyLoads();
+        if (m_foundInd) this->_assembleFoundation<false>(*m_foundFun,deformed);
+        if (m_pressInd) this->_assemblePressure<false>(*m_pressFun,deformed);
+
+            // Assemble vector
+        m_assembler.assemble(m_space * m_force * meas(m_ori) -
+                                ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+                            );
+
+        this->_assembleWeakBCs<false>(deformed);
+        this->_assembleWeakIfc<false>(deformed);
+        this->_assembleNeumann();
+
+        // Assemble the loads
+        if ( m_pLoads.numLoads() != 0 )
+        {
+            m_rhs = m_assembler.rhs();
+            _applyLoads();
+        }
+
+        m_status = ThinShellAssemblerStatus::Success;
     }
+    catch (...)
+    {
+        m_assembler.cleanUp();
+        m_status = ThinShellAssemblerStatus::AssemblyError;
+    }
+    return m_status;
 }
 
 template<int d, typename T, bool bending>
 template<int _d, bool _bending>
-typename std::enable_if<!(_d==3 && _bending), void>::type
+typename std::enable_if<!(_d==3 && _bending), ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> & deformed)
 {
     m_assembler.cleanUp();
@@ -1904,48 +1986,95 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     auto m_N        = S0.tr();
     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ;
 
-    if (m_foundInd) this->_assembleFoundation<false>(*m_foundFun,deformed);
-    if (m_pressInd) this->_assemblePressure<false>(*m_pressFun,deformed);
-
-    // Assemble vector
-    m_assembler.assemble(m_space * m_force * meas(m_ori) -
-                ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
-                );
-
-    this->_assembleWeakBCs<false>(deformed);
-    this->_assembleWeakIfc<false>(deformed);
-    this->_assembleNeumann();
-
-    // Assemble the loads
-    if ( m_pLoads.numLoads() != 0 )
+    try
     {
-        m_rhs = m_assembler.rhs();
-        _applyLoads();
+        if (m_foundInd) this->_assembleFoundation<false>(*m_foundFun,deformed);
+        if (m_pressInd) this->_assemblePressure<false>(*m_pressFun,deformed);
+
+        // Assemble vector
+        m_assembler.assemble(m_space * m_force * meas(m_ori) -
+                    ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
+                    );
+
+        this->_assembleWeakBCs<false>(deformed);
+        this->_assembleWeakIfc<false>(deformed);
+        this->_assembleNeumann();
+
+        // Assemble the loads
+        if ( m_pLoads.numLoads() != 0 )
+        {
+            m_rhs = m_assembler.rhs();
+            _applyLoads();
+        }
+
+        m_status = ThinShellAssemblerStatus::Success;
     }
+    catch (...)
+    {
+        m_assembler.cleanUp();
+        m_status = ThinShellAssemblerStatus::AssemblyError;
+    }
+    return m_status;
 }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assemblePressureVector(const gsFunctionSet<T> & deformed)
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assemblePressureVector(const gsFunctionSet<T> & deformed)
 {
-    this->assemblePressureVector(*m_pressFun,deformed);
+    try
+    {
+        this->assemblePressureVector(*m_pressFun,deformed);
+        m_status = ThinShellAssemblerStatus::Success;
+    }
+    catch (...)
+    {
+        m_status = ThinShellAssemblerStatus::AssemblyError;
+    }
+    return m_status;
 }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assemblePressureVector(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed)
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assemblePressureVector(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed)
 {
-    this->_assemblePressure<false>(pressFun,deformed);
+    try
+    {
+        this->_assemblePressure<false>(pressFun,deformed);
+        m_status = ThinShellAssemblerStatus::Success;
+    }
+    catch (...)
+    {
+        m_status = ThinShellAssemblerStatus::AssemblyError;
+    }
+    return m_status;
 }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleFoundationVector(const gsFunctionSet<T> & deformed)
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleFoundationVector(const gsFunctionSet<T> & deformed)
 {
-    this->assembleFoundationVector(*m_foundFun,deformed);
+    try
+    {
+        this->assembleFoundationVector(*m_foundFun,deformed);
+        m_status = ThinShellAssemblerStatus::Success;
+    }
+    catch (...)
+    {
+        m_status = ThinShellAssemblerStatus::AssemblyError;
+    }
+    return m_status;
 }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleFoundationVector(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed)
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleFoundationVector(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed)
 {
-    this->_assembleFoundation<false>(foundFun,deformed);
+    try
+    {
+        this->_assembleFoundation<false>(foundFun,deformed);
+        m_status = ThinShellAssemblerStatus::Success;
+    }
+    catch (...)
+    {
+        m_status = ThinShellAssemblerStatus::AssemblyError;
+    }
+    return m_status;
 }
 
 template <short_t d, class T, bool bending>
@@ -1991,9 +2120,16 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsFunctionSet<T> &
     auto m_Ef_der   = -( deriv2(u,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(u,m_def) ) ) * reshape(m_m2,3,3); //[checked]
 
     // Assemble vector
-    assembler.assemble(
-                  - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
-                );
+    try
+    {
+        assembler.assemble(
+                      - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+                    );        
+    }
+    catch (...)
+    {
+        GISMO_ERROR("Assembly of the force vector failed.");
+    }
 
     gsMatrix<T> Fint = assembler.rhs();
     gsVector<T> result(d);
@@ -2054,11 +2190,17 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsFunctionSet<T> &
     auto m_N        = S0.tr();
     auto m_Em_der   = flat( jac(m_def).tr() * jac(u) ) ;
 
-    // Assemble vector
-    assembler.assemble(
-                  - ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
-                );
-
+    try 
+    {
+        // Assemble vector
+        assembler.assemble(
+                      - ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
+                    );
+    }
+    catch (...)
+    {
+        GISMO_ERROR("Assembly of the force vector failed.");
+    }
     gsMatrix<T> Fint = assembler.rhs();
     gsVector<T> result(d);
     const gsMultiBasis<T> & mbasis = *dynamic_cast<const gsMultiBasis<T>*>(&u.source());
@@ -2124,10 +2266,17 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsFunctionSe
     auto m_M        = S1.tr(); // output is a column
     auto m_Ef_der   = -( deriv2(u,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(u,m_def) ) ) * reshape(m_m2,3,3); //[checked]
 
-    // Assemble vector
-    assembler.assemble(
-                  - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
-                );
+    try 
+    {
+        // Assemble vector
+        assembler.assemble(
+                      - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+                    );
+    }
+    catch (...)
+    {
+        GISMO_ERROR("Assembly of the force vector failed.");
+    }
 
     gsMatrix<T> Fint = assembler.rhs();
     gsMatrix<T> result;
@@ -2218,10 +2367,17 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsFunctionSe
     auto m_N        = S0.tr();
     auto m_Em_der   = flat( jac(m_def).tr() * jac(u) ) ;
 
-    // Assemble vector
-    assembler.assemble(
-                  - ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
-                );
+    try
+    {
+        // Assemble vector
+        assembler.assemble(
+                      - ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
+                    );
+    }
+    catch (...)
+    {
+        GISMO_ERROR("Assembly of the force vector failed.");
+    }
 
     gsMatrix<T> Fint = assembler.rhs();
     gsMatrix<T> result;
@@ -2291,29 +2447,34 @@ gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsFunctionSe
 }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assembleVector(const gsMatrix<T> & solVector)
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleVector(const gsMatrix<T> & solVector)
 {
     gsMultiPatch<T> def;
     constructSolution(solVector, def);
-    assembleVector(def);
+    return assembleVector(def);
 }
 
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assemble(const gsFunctionSet<T> & deformed,
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assemble(const gsFunctionSet<T> & deformed,
                                                    bool Matrix)
 {
+    ThinShellAssemblerStatus status;
     if (Matrix)
-        assembleMatrix(deformed);
+    {
+        status = assembleMatrix(deformed);
+        if (status!=ThinShellAssemblerStatus::Success)
+            return status;
+    }
 
-    assembleVector(deformed);
+    return assembleVector(deformed);
 }
 template <short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::assemble(const gsMatrix<T> & solVector,
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assemble(const gsMatrix<T> & solVector,
                                                    bool Matrix)
 {
     gsMultiPatch<T> def;
     constructSolution(solVector, def);
-    assemble(def,Matrix);
+    return assemble(def,Matrix);
 }
 
 template <short_t d, class T, bool bending>
