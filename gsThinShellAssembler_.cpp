@@ -36,28 +36,28 @@ namespace gismo
     .def("numDofs", &Class::numDofs, "Returns the number of degrees of freedom of the system")
     .def("setSpaceBasis", &Class::setSpaceBasis, "Sets the basis used for discretization (but not for quadrature)")
 
-    .def("assemble", static_cast<void (Class::*)()> (&Class::assemble),
+    .def("assemble", static_cast<ThinShellAssemblerStatus (Class::*)()> (&Class::assemble),
           "Assembles the linear system")
-    .def("assemble", static_cast<void (Class::*)(const gsFunctionSet<real_t> &, bool)> (&Class::assemble),
+    .def("assemble", static_cast<ThinShellAssemblerStatus (Class::*)(const gsFunctionSet<real_t> &, bool)> (&Class::assemble),
           "Assembles the nonlinear system (matrix optional)")//,
           // py::arg("Matrix") = false)
-    .def("assemble", static_cast<void (Class::*)(const gsMatrix<real_t> &     , bool)> (&Class::assemble),
+    .def("assemble", static_cast<ThinShellAssemblerStatus (Class::*)(const gsMatrix<real_t> &     , bool)> (&Class::assemble),
           "Assembles the nonlinear system (matrix optional)")//,
           // py::arg("Matrix") = false)
 
-    .def("assembleMatrix", static_cast<void (Class::*)(const gsFunctionSet<real_t> &)> (&Class::assembleMatrix),
+    .def("assembleMatrix", static_cast<ThinShellAssemblerStatus (Class::*)(const gsFunctionSet<real_t> &)> (&Class::assembleMatrix),
           "Assembles the nonlinear matrix")
-    .def("assembleMatrix", static_cast<void (Class::*)(const gsMatrix<real_t> &     )> (&Class::assembleMatrix),
+    .def("assembleMatrix", static_cast<ThinShellAssemblerStatus (Class::*)(const gsMatrix<real_t> &     )> (&Class::assembleMatrix),
           "Assembles the nonlinear matrix")
 
-    .def("assembleMatrix", static_cast<void (Class::*)(const gsFunctionSet<real_t> &, const gsFunctionSet<real_t> &, gsMatrix<real_t> & update)> (&Class::assembleMatrix),
+    .def("assembleMatrix", static_cast<ThinShellAssemblerStatus (Class::*)(const gsFunctionSet<real_t> &, const gsFunctionSet<real_t> &, gsMatrix<real_t> & update)> (&Class::assembleMatrix),
           "Assembles the nonlinear matrix using the Mixed Integration Point (MIP) method")
-    .def("assembleMatrix", static_cast<void (Class::*)(const gsMatrix<real_t>      &, const gsMatrix<real_t>      &                           )> (&Class::assembleMatrix),
+    .def("assembleMatrix", static_cast<ThinShellAssemblerStatus (Class::*)(const gsMatrix<real_t>      &, const gsMatrix<real_t>      &                           )> (&Class::assembleMatrix),
           "Assembles the nonlinear matrix using the Mixed Integration Point (MIP) method")
 
-    .def("assembleVector", static_cast<void (Class::*)(const gsFunctionSet<real_t> &)> (&Class::assembleVector),
+    .def("assembleVector", static_cast<ThinShellAssemblerStatus (Class::*)(const gsFunctionSet<real_t> &)> (&Class::assembleVector),
           "Assembles the nonlinear vector")
-    .def("assembleVector", static_cast<void (Class::*)(const gsMatrix<real_t> &     )> (&Class::assembleVector),
+    .def("assembleVector", static_cast<ThinShellAssemblerStatus (Class::*)(const gsMatrix<real_t> &     )> (&Class::assembleVector),
           "Assembles the nonlinear vector")
 
     .def("assembleMass", &Class::assembleMass, "Assembles the mass matrix",

@@ -246,7 +246,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         gsBoundaryConditions<> bc;
         bc.setGeoMap(mp);
 
-        GISMO_ASSERT(mp.targetDim()==3,"Geometry must be surface (targetDim=3)!");
+        GISMO_ENSURE(mp.targetDim()==3,"Geometry must be surface (targetDim=3)!");
         bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 0 ); // unknown 2 - z
         bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1 ); // unknown 2 - z
 
@@ -329,7 +329,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         {
           assembler->constructSolution(x,mp_def);
           ThinShellAssemblerStatus status = assembler->assembleMatrix(mp_def);
-          GISMO_ASSERT(status==ThinShellAssemblerStatus::Success,"Assembly failed");
+          GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
           gsSparseMatrix<real_t> m = assembler->matrix();
           return m;
         };
@@ -338,7 +338,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         {
           assembler->constructSolution(x,mp_def);
           ThinShellAssemblerStatus status = assembler->assembleVector(mp_def);
-          GISMO_ASSERT(status==ThinShellAssemblerStatus::Success,"Assembly failed");
+          GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
           return assembler->rhs();
         };
 
@@ -521,7 +521,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         real_t lambda = 2.0;
         gsConstantFunction<> displx(lambda-1.0,2);
 
-        GISMO_ASSERT(mp.targetDim()==2,"Geometry must be planar (targetDim=2)!");
+        GISMO_ENSURE(mp.targetDim()==2,"Geometry must be planar (targetDim=2)!");
         bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 0 );
 
         bc.addCondition(boundary::east, condition_type::dirichlet, &displx, 0, false, 0 );
@@ -591,7 +591,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         {
           assembler->constructSolution(x,mp_def);
           ThinShellAssemblerStatus status = assembler->assembleMatrix(mp_def);
-          GISMO_ASSERT(status==ThinShellAssemblerStatus::Success,"Assembly failed");
+          GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
           gsSparseMatrix<real_t> m = assembler->matrix();
           return m;
         };
@@ -600,7 +600,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         {
           assembler->constructSolution(x,mp_def);
           ThinShellAssemblerStatus status = assembler->assembleVector(mp_def);
-          GISMO_ASSERT(status==ThinShellAssemblerStatus::Success,"Assembly failed");
+          GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
           return assembler->rhs();
         };
 
