@@ -38,29 +38,35 @@ class gsMaterialMatrixBaseDim : public gsMaterialMatrixBase<T>
 
 public:
 
-    gsMaterialMatrixBaseDim() : m_patches(nullptr), m_thickness(nullptr), m_density(nullptr)
+    gsMaterialMatrixBaseDim()
+    :
+    m_thickness(nullptr),
+    m_density(nullptr)
     {
         membersSetZero();
     }
 
-    gsMaterialMatrixBaseDim(const gsFunctionSet<T> & mp)
+    gsMaterialMatrixBaseDim(const gsFunctionSet<T> * mp)
     :
-    m_patches(&mp), m_thickness(nullptr), m_density(nullptr)
+    m_thickness(nullptr),
+    m_density(nullptr)
     {
-        GISMO_ASSERT(mp.targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
+        GISMO_ASSERT(mp->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
+        this->setUndeformed(mp);
         membersSetZero();
     }
 
-    gsMaterialMatrixBaseDim(    const gsFunctionSet<T> * mp,
-                                const gsFunctionSet<T> * mp_def,
-                                const gsFunction<T> * thickness,
-                                const gsFunction<T> * Density)
+    gsMaterialMatrixBaseDim(const gsFunctionSet<T> * mp,
+                            const gsFunctionSet<T> * mp_def,
+                            const gsFunction<T> * thickness,
+                            const gsFunction<T> * Density)
     :
-    m_patches(mp),
     m_thickness(thickness),
     m_density(Density)
     {
+        GISMO_ASSERT(mp->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
         membersSetZero();
+        this->setUndeformed(mp);
         this->setDeformed(mp_def);
     }
 
@@ -193,8 +199,7 @@ protected:
         m_data.mine().membersSetZero();
     }
 
-
-    const gsFunctionSet<T> * m_patches;
+    using Base::m_patches;
     using Base::m_defpatches;
 
     std::vector<gsFunction<T>* > m_pars;

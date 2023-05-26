@@ -9,7 +9,7 @@
   <!-- Poisson ratio -->
   <Function type="FunctionExpr" id="12" tag="Material" dim="3">0.3</Function>
   <!-- Density -->
-  <Function type="FunctionExpr" id="13" tag="Material" dim="3">0.0</Function>
+  <Function type="FunctionExpr" id="13" tag="Material" dim="3">1.0</Function>
 
   <!-- Mooney-Rivlin -->
     <!-- Ratio -->
@@ -84,6 +84,9 @@
 <!-- Point load forces -->
 <Matrix rows="3" cols="0" id="31" tag="Loads" >
 </Matrix>
+<!-- Point load patch indices -->
+<Matrix rows="1" cols="0" id="32" tag="Loads" >
+</Matrix>
 
 <!-- Manufactured solution -->
 <Function type="FunctionExpr" id="41" tag="Loads" dim="3">
@@ -91,6 +94,22 @@
   <c> 0 </c>
   <c> 1*sin(pi*x)*sin(pi*y)</c>
 </Function>
+
+<!-- Reference point coordinates -->
+<Matrix rows="2" cols="2" id="50" >
+  0.5 0.5
+  0.5 0.5
+</Matrix>
+<!-- Reference point patch indices (cols) -->
+<Matrix rows="1" cols="2" id="51" >
+  0   1
+</Matrix>
+
+<!-- Reference point coordinates -->
+<Matrix rows="3" cols="2" id="52" >
+  0.5 0.5 0.5
+  0.5 0.5 0.5
+</Matrix>
 
 <!-- Assembler options -->
 <OptionList id="90">

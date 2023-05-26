@@ -99,6 +99,13 @@ public:
 
     void info() const;
 
+    /// Sets the thickness
+    void setThickness(const gsFunction<T> & thickness)
+    {
+        m_thickness = const_cast<gsFunction<T> *>(&thickness);
+    }
+
+
 public:
     /// Shared pointer for gsMaterialMatrixComposite
     typedef memory::shared_ptr< gsMaterialMatrixComposite > Ptr;
@@ -112,8 +119,9 @@ protected:
     void _defaultOptions();
 
     gsMatrix<T> _transformationMatrix(const gsMatrix<T> & phi, const gsMatrix<T> & u) const;
-    gsMatrix<T> _cart2cov(const gsVector<T> a1, const gsVector<T> a2, const gsVector<T> e1, const gsVector<T> e2) const;
-    gsMatrix<T> _con2cart(const gsVector<T> ac1, const gsVector<T> ac2, const gsVector<T> e1, const gsVector<T> e2) const;
+    // NOTE: it could be that these matrices should be transposed!!
+    gsMatrix<T> _cart2cov(const gsVector<T> & a1, const gsVector<T> & a2, const gsVector<T> & e1, const gsVector<T> & e2) const;
+    gsMatrix<T> _con2cart(const gsVector<T> & ac1, const gsVector<T> & ac2, const gsVector<T> & e1, const gsVector<T> & e2) const;
 
 
 protected:

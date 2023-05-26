@@ -38,8 +38,7 @@ public:
     m_deformed(deformed),
     m_z(z)
     {
-        for (index_t p = 0; p!=deformed->nPieces(); ++p)
-            m_pieces.push_back(new gsMaterialMatrixEvalSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed,m_z));
+        this->_makePieces();
     }
 
     /// Constructor
@@ -54,14 +53,37 @@ public:
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
         {
             m_materialMatrices.add(materialMatrix);
-            m_pieces.push_back(new gsMaterialMatrixEvalSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed,m_z));
         }
+        this->_makePieces();
     }
 
-    /// Destructor
-    ~gsMaterialMatrixEval()
+    /// Constructor
+    gsMaterialMatrixEval(  const gsMaterialMatrixContainer<T> & materialMatrices,
+                            const gsFunctionSet<T> * undeformed,
+                            const gsFunctionSet<T> * deformed,
+                            const gsMatrix<T> z)
+    :
+    m_materialMatrices(materialMatrices),
+    m_deformed(deformed),
+    m_z(z)
     {
-        freeAll(m_pieces);
+        this->_makePieces(undeformed);
+    }
+
+    /// Constructor
+    gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * materialMatrix,
+                            const gsFunctionSet<T> * undeformed,
+                            const gsFunctionSet<T> * deformed,
+                            const gsMatrix<T> z)
+    :
+    m_materialMatrices(deformed->nPieces()),
+    m_deformed(deformed),
+    m_z(z)
+    {
+        for (index_t p = 0; p!=deformed->nPieces(); ++p)
+            m_materialMatrices.add(materialMatrix);
+
+        this->_makePieces(undeformed);
     }
 
     /// Domain dimension, always 2 for shells
@@ -85,6 +107,21 @@ public:
     /// Implementation of eval_into, see \ref gsFunction
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
     { GISMO_NO_IMPLEMENTATION; }
+
+protected:
+    void _makePieces()
+    {
+        m_pieces.resize(m_deformed->nPieces());
+        for (size_t p = 0; p!=m_pieces.size(); ++p)
+            m_pieces.at(p) = new gsMaterialMatrixEvalSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed,m_z);
+    }
+
+    void _makePieces(const gsFunctionSet<T> * undeformed)
+    {
+        m_pieces.resize(m_deformed->nPieces());
+        for (size_t p = 0; p!=m_pieces.size(); ++p)
+            m_pieces.at(p) = new gsMaterialMatrixEvalSingle<T,out>(p,m_materialMatrices.piece(p),undeformed,m_deformed,m_z);
+    }
 
 protected:
     gsMaterialMatrixContainer<T> m_materialMatrices;
@@ -112,6 +149,15 @@ public:
                                 const gsFunctionSet<T> * deformed,
                                 const gsMatrix<T> z);
 
+    /// Constructor
+    gsMaterialMatrixEvalSingle( index_t patch,
+                                gsMaterialMatrixBase<T> * materialMatrix,
+                                const gsFunctionSet<T> * undeformed,
+                                const gsFunctionSet<T> * deformed,
+                                const gsMatrix<T> z);
+
+    gsMaterialMatrixEvalSingle(){};
+
     /// Domain dimension, always 2 for shells
     short_t domainDim() const {return 2;}
 
@@ -133,7 +179,9 @@ private:
     /// Implementation of \ref targetDim for stress tensors
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorN ||
+                            _out==MaterialOutput::CauchyVectorN ||
                             _out==MaterialOutput::VectorM ||
+                            _out==MaterialOutput::CauchyVectorM ||
                             _out==MaterialOutput::Generic  , short_t>::type targetDim_impl() const { return 3; };
 
     /// Implementation of \ref targetDim for material tensors
@@ -189,7 +237,9 @@ private:
     /// Specialisation of \ref eval_into for the membrane stress tensor N, M and generic stress
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorN ||
+                            _out==MaterialOutput::CauchyVectorN ||
                             _out==MaterialOutput::VectorM ||
+                            _out==MaterialOutput::CauchyVectorM ||
                             _out==MaterialOutput::Generic , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// Specialisation of \ref eval_into for the moments of the material matrices

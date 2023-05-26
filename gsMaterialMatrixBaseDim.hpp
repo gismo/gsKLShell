@@ -397,8 +397,19 @@ void gsMaterialMatrixBaseDim<dim,T>::_getMetric(const index_t k, const T z) cons
     this->_getMetricDeformed(k,z);
     this->_getMetricUndeformed(k,z);
 
-    T ratio = m_data.mine().m_Gcov_def.determinant() / m_data.mine().m_Gcov_ori.determinant();
-    GISMO_ENSURE(ratio >= 0, "Jacobian determinant is negative! det(Gcov_def) = "<<m_data.mine().m_Gcov_def.determinant()<<"; det(Gcov_ori) = "<<m_data.mine().m_Gcov_ori.determinant());
+    T ratio;
+    T det_ori = m_data.mine().m_Gcov_ori.determinant();
+    T det_def = m_data.mine().m_Gcov_def.determinant();
+
+    if (det_ori==0 && det_def==0)
+    {
+        gsWarn<<"Jacobian determinant is undefined: J^2 = det(Gcov_def) / det(Gcov_ori) = "<<det_def<<"/"<<det_ori<<"! J^2 is set to 1";
+        ratio = 1;
+    }
+    else
+        ratio = det_def / det_ori;
+
+    GISMO_ENSURE(ratio >= 0, "Jacobian determinant is negative! det(Gcov_def) = "<<det_def<<"; det(Gcov_ori) = "<<det_ori);
     m_data.mine().m_J0_sq = ratio;
 }
 

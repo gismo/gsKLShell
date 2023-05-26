@@ -113,7 +113,16 @@ public:
     gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+
+    /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+
+    /// Sets the thickness
+    void setThickness(const gsFunction<T> & thickness);
+
+    /// Gets the thickness
+    gsFunction<T> * getThickness();
 
     /// Sets the YoungsModulus
     void setYoungsModulus(const gsFunction<T> & YoungsModulus);
@@ -217,6 +226,19 @@ private:
     typename std::enable_if<!_com, void>::type _stretchDir_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
 protected:
+
+
+    /**
+     * @brief      Evaluates the C33 (through thickness) component of the deformation tensor C for compressible materials
+     *
+     * @param[in]  patch  The patch index
+     * @param[in]  u      The in-plane coordinates to be evaluated on
+     * @param[in]  z      The through-thickness coordinate
+     *
+     * @return     C33 values (every column for a point u*z)
+     */
+    gsMatrix<T> _eval_Compressible_C33(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+
     /**
      * @brief      Evalluates the incompressible material matrix
      *
@@ -238,6 +260,9 @@ protected:
      * @return     The vectors (3x1 per column), stored per thickness per in-plane point [(u1,t1) (u2,t1),...,(u1,t2),(u2,t2)]
      */
     gsMatrix<T> _eval_Incompressible_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+
+    /// Equivalent to  \ref _eval_Incompressible_vector but for the Cauchy Vector
+    gsMatrix<T> _eval_Incompressible_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
     /**
      * @brief      Evalluates the incompressible principal stresses
@@ -271,6 +296,9 @@ protected:
      * @return     The vectors (3x1 per column), stored per thickness per in-plane point [(u1,t1) (u2,t1),...,(u1,t2),(u2,t2)]
      */
     gsMatrix<T> _eval_Compressible_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+
+    /// Equivalent to  \ref _eval_Compressible_vector but for the Cauchy Vector
+    gsMatrix<T> _eval_Compressible_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
     /**
      * @brief      Evalluates the compressible principal stresses
@@ -345,6 +373,10 @@ private:
     template<enum Material _mat, bool _com>
     typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_vector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
+    /// Same as \ref _eval3D_vector_impl for the Cauchy stress
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_CauchyVector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+
     /**
      * @brief      Implementation of the 3D (in-plane+thickness) evaluator of the stress vector, specialization for incompressible models
      *
@@ -360,6 +392,10 @@ private:
     template<enum Material _mat, bool _com>
     typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_vector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
+    /// Same as \ref _eval3D_vector_impl for the Cauchy stress
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_CauchyVector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+
     /**
      * @brief      Implementation of the 3D (in-plane+thickness) evaluator of the stress vector, specialization for compressible models
      *
@@ -374,6 +410,10 @@ private:
      */
     template<enum Material _mat, bool _com>
     typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_vector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+
+    /// Same as \ref _eval3D_vector_impl for the Cauchy stress
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_CauchyVector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
     /**
      * @brief      Implementation of the 3D (in-plane+thickness) evaluator of the stress vector, specialization for SvK material (incompressible)

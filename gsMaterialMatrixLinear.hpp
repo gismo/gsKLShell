@@ -203,6 +203,40 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_vector(const index_t patch, co
     return result;
 }
 
+template <short_t dim, class T >
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    // gsInfo<<"TO DO: evaluate moments using thickness";
+    // Input: u in-plane points
+    //        z matrix with, per point, a column with z integration points
+    // Output: (n=u.cols(), m=z.cols())
+    //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+
+    _computePoints(patch,u);
+    gsMatrix<T> result(3, u.cols() * z.rows());
+    result.setZero();
+
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        // Evaluate material properties on the quadrature point
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
+
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            // _getMetric(k, z(j, k), false); // on point i, on height z(0,j)
+            _getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
+
+            T detF = math::sqrt(m_data.mine().m_J0_sq)*1.0;
+            result(0, j * u.cols() + k) = 1 / detF * _Sij(0, 0, z(j, k), out);
+            result(1, j * u.cols() + k) = 1 / detF * _Sij(1, 1, z(j, k), out);
+            result(2, j * u.cols() + k) = 1 / detF * _Sij(0, 1, z(j, k), out);
+        }
+    }
+
+    return result;
+}
+
 template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {

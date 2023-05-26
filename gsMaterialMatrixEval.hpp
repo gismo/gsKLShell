@@ -44,6 +44,31 @@ m_z(z)
 }
 
 template <class T, enum MaterialOutput out>
+gsMaterialMatrixEvalSingle<T,out>::gsMaterialMatrixEvalSingle(    index_t patch,
+                                                        gsMaterialMatrixBase<T> * materialMatrix,
+                                                        const gsFunctionSet<T> * undeformed,
+                                                        const gsFunctionSet<T> * deformed,
+                                                        const gsMatrix<T> z
+                                                   )
+:
+m_pIndex(patch),
+m_materialMat(materialMatrix),
+m_z(z)
+{
+    m_materialMat->setUndeformed(deformed);
+    m_materialMat->setDeformed(deformed);
+
+    if (m_z.cols()==0 || m_z.rows()==0)
+    {
+        m_z.resize(1,1);
+        m_z.setZero();
+    }
+    GISMO_ASSERT(z.cols()==1,"Z coordinates should be provided row-wise in one column");
+
+    // m_materialMat = new gsMaterialMatrix(materialMatrix);
+}
+
+template <class T, enum MaterialOutput out>
 void gsMaterialMatrixEvalSingle<T,out>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
 /// Non-parallel evaluation
@@ -61,7 +86,11 @@ gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::VectorN || _out==MaterialOutput::VectorM || _out==MaterialOutput::Generic, void>::type
+typename std::enable_if<_out==MaterialOutput::VectorN ||
+                        _out==MaterialOutput::CauchyVectorN ||
+                        _out==MaterialOutput::VectorM ||
+                        _out==MaterialOutput::CauchyVectorM ||
+                         _out==MaterialOutput::Generic, void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     result = m_materialMat->eval3D_vector(m_pIndex,u,m_z.replicate(1,u.cols()),_out);

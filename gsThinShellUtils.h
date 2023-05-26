@@ -530,12 +530,16 @@ private:
 
         const index_t A = _u.cardinality()/_u.dim();
         res.resize(_u.cardinality(), cols()); // rows()*
+        res.setZero();
         cJac = _G.data().jacobian(k);
+        cJac.colwise().normalize();
 
         onormal = _G.data().outNormal(k);
+        onormal.normalize();
         tmp = cJac.transpose() * onormal;
-        Scalar tol = 1e-8;
+        tmp.colwise().normalize(); //normalize the inner product for fair comparison
 
+        Scalar tol = 1e-8;
         /*
             We can check which column of the Jacobian corresponds to the outer normal vector or to the tangent.
             The tangent is a covariant vector and hence the column of the Jacobian should be equal to the tangent.
@@ -588,10 +592,16 @@ private:
     {
         GISMO_ASSERT(1==_u.data().actives.cols(), "Single actives expected");
         res.resize(rows(), cols());
+        res.setZero();
 
         cJac = _G.data().jacobian(k);
+        cJac.colwise().normalize();
+
         onormal = _G.data().outNormal(k);
+        onormal.normalize();
         tmp = cJac.transpose() * onormal;
+        tmp.colwise().normalize(); //normalize the inner product for fair comparison
+
         Scalar tol = 1e-8;
 
         /*
@@ -599,8 +609,8 @@ private:
             The tangent is a covariant vector and hence the column of the Jacobian should be equal to the tangent.
             The normal is a contravariant vector and hence the corresponding column of the Jacobian times the outward normal should give 1. We use this property.
         */
-        index_t colIndex;
-        if ( (math::abs(tmp.at(0)) < tol) && (math::abs(tmp.at(1)) > 1-tol ) )         // then the normal is vector 2 and the tangent vector 1
+        index_t colIndex = -1;
+        if      ( (math::abs(tmp.at(0)) < tol) && (math::abs(tmp.at(1)) > 1-tol ) )         // then the normal is vector 2 and the tangent vector 1
             colIndex = 0;
         else if ( (math::abs(tmp.at(1)) < tol) && (math::abs(tmp.at(0)) > 1-tol ) )     // then the normal is vector 1 and the tangent vector 2
             colIndex = 1;
@@ -612,7 +622,17 @@ private:
         tangent = tan_expr.eval(k);
         // utangent = tangent.normalized();
 
-        Scalar sign = tangent.dot(cJac.col(colIndex));
+        index_t sign = 0;
+        if (colIndex!=-1)
+        {
+            Scalar dot = tangent.dot(cJac.col(colIndex));
+            sign = (Scalar(0) < dot) - (dot < Scalar(0));
+        }
+        else
+        {
+            gsWarn<<"No suitable tangent and outer normal vector found for point "<<_G.data().values[0].transpose()<<"\n";
+            return res;
+        }
 
         bGrads = _u.data().values[1].col(k);
         dtan = sign*bGrads.col(colIndex);
@@ -810,14 +830,19 @@ public:
         GISMO_ASSERT(_G.data().dim.second==3,"Domain dimension should be 3, is "<<_G.data().dim.second);
         GISMO_ASSERT(_C.cols()*_C.rows()==3, "Size of vector is incorrect");
         res.resize(_u.cardinality(), _u.cardinality());
+        res.setZero();
 
         eC = _C.eval(k);
         eC.resize(1,3);
 
         cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
+        cJac.colwise().normalize();
 
         onormal = _G.data().outNormal(k);
+        onormal.normalize();
         tmp = cJac.transpose() * onormal;
+        tmp.colwise().normalize(); //normalize the inner product for fair comparison
+
         Scalar tol = 1e-8;
 
         /*
@@ -850,8 +875,17 @@ public:
         tangent = tan_expr.eval(k);
         utangent = tangent.normalized();
 
-        Scalar sign = tangent.dot(cJac.col(colIndex));
-        sign = (Scalar(0) < sign) - (sign < Scalar(0));
+        index_t sign = 0;
+        if (colIndex!=-1)
+        {
+            Scalar dot = tangent.dot(cJac.col(colIndex));
+            sign = (Scalar(0) < dot) - (dot < Scalar(0));
+        }
+        else
+        {
+            gsWarn<<"No suitable tangent and outer normal vector found for point "<<_G.data().values[0].transpose()<<"\n";
+            return res;
+        }
 
         // // For the normal vector variation
         // normal  =  _G.data().normal(k);
@@ -1430,6 +1464,9 @@ public:
 };
 
 /// Expression for the transformation matrix FROM local covariant TO local cartesian bases, based on a geometry map
+/// Use of this expression:
+/// Let E be a tensor in local covariant coordinates. Then E' = cartcov(G) * E = E.tr() * cartcov(G).tr() is the tensor in local Cartesian basis
+///
 template<class T> class cartcovinv_expr ;
 
 template<class T>
@@ -1466,23 +1503,28 @@ public:
 
             conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
 
-            e1 = covBasis.col(0); e1.normalize();
-            e2 = conBasis.col(1); e2.normalize();
+            // e1 = covBasis.col(0); e1.normalize();
+            // e2 = conBasis.col(1); e2.normalize();
+
+            e1.resize(3);
+            e1 << 1,0,0;
+            e2.resize(3);
+            e2 << 0,1,0;
 
             a1 = covBasis.col(0);
             a2 = covBasis.col(1);
 
-            result(0,0) = (e1.dot(a1))*(a1.dot(e1));
-            result(0,1) = (e1.dot(a2))*(a2.dot(e2));
-            result(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));
+            result(0,0) = (e1.dot(a1))*(a1.dot(e1));    // 1111
+            result(0,1) = (e1.dot(a2))*(a2.dot(e1));    // 1122
+            result(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));  // 1112
             // Row 1
-            result(1,0) = (e2.dot(a1))*(a1.dot(e2));
-            result(1,1) = (e2.dot(a2))*(a2.dot(e2));
-            result(1,2) = 2*(e2.dot(a1))*(a2.dot(e2));
+            result(1,0) = (e2.dot(a1))*(a1.dot(e2));    // 2211
+            result(1,1) = (e2.dot(a2))*(a2.dot(e2));    // 2222
+            result(1,2) = 2*(e2.dot(a1))*(a2.dot(e2));  // 2212
             // Row 2
-            result(2,0) = (e1.dot(a1))*(a1.dot(e2));
-            result(2,1) = (e1.dot(a2))*(a2.dot(e2));
-            result(2,2) = (e1.dot(a1))*(a2.dot(e2)) + (e1.dot(a2))*(a1.dot(e2));
+            result(2,0) = (e1.dot(a1))*(a1.dot(e2));    // 1211
+            result(2,1) = (e1.dot(a2))*(a2.dot(e2));    // 1222
+            result(2,2) = (e1.dot(a1))*(a2.dot(e2)) + (e1.dot(a2))*(a1.dot(e2));    // 1212
 
             // return result.inverse(); // !!!!
             return result;
@@ -1497,9 +1539,14 @@ public:
             conMetric = covMetric.inverse();
             conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1);
 
-            e1 = covBasis.col(0); e1.normalize();
-            e2 = conBasis.col(1); e2.normalize();
+            // e1 = covBasis.col(0); e1.normalize();
+            // e2 = conBasis.col(1); e2.normalize();
             // e3 = normal;
+
+            e1.resize(3);
+            e1 << 1,0,0;
+            e2.resize(3);
+            e2 << 0,1,0;
 
             a1 = covBasis.col(0);
             a2 = covBasis.col(1);
@@ -1586,6 +1633,8 @@ public:
 };
 
 /// Expression for the transformation matrix FROM local contravariant TO local cartesian bases, based on a geometry map
+/// Use of this expression:
+/// Let S be a tensor in local covariant coordinates. Then S' = cartcon(G) * S = S.tr() * cartcon(G).tr() is the tensor in local Cartesian basis
 template<class T> class cartconinv_expr ;
 
 template<class T>
@@ -1612,11 +1661,9 @@ public:
             // Compute covariant bases in deformed and undeformed configuration
             normal = _G.data().normals.col(k);
             normal.normalize();
+
             covBasis.resize(3,3);
             conBasis.resize(3,3);
-            // Compute covariant bases in deformed and undeformed configuration
-            normal = _G.data().normals.col(k);
-            normal.normalize();
             covBasis.leftCols(2) = _G.data().jacobian(k);
             covBasis.col(2)      = normal;
             covMetric = covBasis.transpose() * covBasis;
@@ -1626,24 +1673,25 @@ public:
             conBasis.col(0) = conMetric(0,0)*covBasis.col(0)+conMetric(0,1)*covBasis.col(1)+conMetric(0,2)*covBasis.col(2);
             conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
 
-            e1 = covBasis.col(0); e1.normalize();
-            e2 = conBasis.col(1); e2.normalize();
-            // e3 = normal;
+            e1.resize(3);
+            e1 << 1,0,0;
+            e2.resize(3);
+            e2 << 0,1,0;
 
             ac1 = conBasis.col(0);
             ac2 = conBasis.col(1);
 
-            result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));
-            result(0,1) = (e1.dot(ac2))*(ac2.dot(e2));
-            result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));
+            result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));      // 1111
+            result(0,1) = (e1.dot(ac2))*(ac2.dot(e1));      // 1122
+            result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));    // 1112
             // Row 1
-            result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));
-            result(1,1) = (e2.dot(ac2))*(ac2.dot(e2));
-            result(1,2) = 2*(e2.dot(ac1))*(ac2.dot(e2));
+            result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));      // 2211
+            result(1,1) = (e2.dot(ac2))*(ac2.dot(e2));      // 2222
+            result(1,2) = 2*(e2.dot(ac1))*(ac2.dot(e2));    // 2212
             // Row 2
-            result(2,0) = (e1.dot(ac1))*(ac1.dot(e2));
-            result(2,1) = (e1.dot(ac2))*(ac2.dot(e2));
-            result(2,2) = (e1.dot(ac1))*(ac2.dot(e2)) + (e1.dot(ac2))*(ac1.dot(e2));
+            result(2,0) = (e1.dot(ac1))*(ac1.dot(e2));      // 1211
+            result(2,1) = (e1.dot(ac2))*(ac2.dot(e2));      // 1222
+            result(2,2) = (e1.dot(ac1))*(ac2.dot(e2)) + (e1.dot(ac2))*(ac1.dot(e2)); // 1212
 
             return result;
         }
@@ -1663,14 +1711,16 @@ public:
             conBasis.col(0) = conMetric(0,0)*covBasis.col(0)+conMetric(0,1)*covBasis.col(1);
             conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1);
 
-            e1 = covBasis.col(0); e1.normalize();
-            e2 = conBasis.col(1); e2.normalize();
+            e1.resize(2);
+            e1<<1,0;
+            e2.resize(2);
+            e2<<0,1;
 
             ac1 = conBasis.col(0);
             ac2 = conBasis.col(1);
 
             result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));
-            result(0,1) = (e1.dot(ac2))*(ac2.dot(e2));
+            result(0,1) = (e1.dot(ac2))*(ac2.dot(e1));
             result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));
             // Row 1
             result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));

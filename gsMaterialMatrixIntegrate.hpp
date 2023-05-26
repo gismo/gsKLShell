@@ -43,6 +43,22 @@ m_materialMat(materialMatrix)
     // m_materialMat = new gsMaterialMatrix(materialMatrix);
 }
 
+// Linear material models
+template <class T, enum MaterialOutput out>
+gsMaterialMatrixIntegrateSingle<T,out>::gsMaterialMatrixIntegrateSingle(index_t patch,
+                                                                        gsMaterialMatrixBase<T> * materialMatrix, //??
+                                                                        const gsFunctionSet<T> * undeformed,
+                                                                        const gsFunctionSet<T> * deformed
+                                                                        )
+:
+m_pIndex(patch),
+m_materialMat(materialMatrix)
+{
+    m_materialMat->setUndeformed(undeformed);
+    m_materialMat->setDeformed(deformed);
+    // m_materialMat = new gsMaterialMatrix(materialMatrix);
+}
+
 template <class T, enum MaterialOutput out>
 void gsMaterialMatrixIntegrateSingle<T,out>::eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
@@ -61,7 +77,8 @@ gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsM
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::VectorN, void>::type
+typename std::enable_if<_out==MaterialOutput::VectorN ||
+                        _out==MaterialOutput::CauchyVectorN, void>::type
 gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     if (m_materialMat->isVecIntegrated() == MatIntegration::NotIntegrated)
@@ -78,7 +95,8 @@ gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsM
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::VectorM, void>::type
+typename std::enable_if<_out==MaterialOutput::VectorM ||
+                        _out==MaterialOutput::CauchyVectorM, void>::type
 gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     if (m_materialMat->isVecIntegrated() == MatIntegration::NotIntegrated)
@@ -283,7 +301,10 @@ gsMaterialMatrixIntegrateSingle<T,out>::eval3D_impl(const gsMatrix<T>& u, const 
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::VectorN || _out==MaterialOutput::VectorM, gsMatrix<T>>::type
+typename std::enable_if<_out==MaterialOutput::VectorN ||
+                        _out==MaterialOutput::CauchyVectorN ||
+                        _out==MaterialOutput::VectorM ||
+                        _out==MaterialOutput::CauchyVectorM, gsMatrix<T>>::type
 gsMaterialMatrixIntegrateSingle<T,out>::eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
 {
     return m_materialMat->eval3D_vector(m_pIndex,u,Z,_out);

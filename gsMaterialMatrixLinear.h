@@ -129,7 +129,16 @@ public:
     gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+
+    /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+
+    /// Sets the thickness
+    void setThickness(const gsFunction<T> & thickness)
+    {
+        m_thickness = const_cast<gsFunction<T> *>(&thickness);;
+    }
 
     /// Sets the YoungsModulus
     void setYoungsModulus(const gsFunction<T> & YoungsModulus)
