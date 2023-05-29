@@ -390,7 +390,7 @@ private:
     /// Specialisation of \ref eval3D for vectors
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorN ||
-                            _out==MaterialOutput::VectorM   , gsMatrix<T>>::type eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const;
+                            _out==MaterialOutput::VectorM         , gsMatrix<T>>::type eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const;
 
     /// Specialisation of \ref eval3D for vectors
     template<enum MaterialOutput _out>

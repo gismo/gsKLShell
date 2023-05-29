@@ -262,7 +262,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_stretchDir_into_impl(const index_t 
     }
 }
 
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 template <bool _comp>
 typename std::enable_if<_comp, void>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_stretchDir_into_impl(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
@@ -552,8 +552,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_dmatrix_an(const 
     return result;
 }
 
-
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     // Input: j index in-plane point
@@ -563,7 +562,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_matrix(const inde
     return _eval3D_matrix_impl<mat,comp>(patch,u,z);
 }
 
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 template <enum Material _mat, bool _comp>
 typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
@@ -573,7 +572,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_matrix_impl(const index_t pa
     return result;
 }
 
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 template <enum Material _mat, bool _comp>
 typename std::enable_if<!_comp && !(_mat==Material::SvK), gsMatrix<T>>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
@@ -583,7 +582,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_matrix_impl(const index_t pa
     return result;
 }
 
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 template <enum Material _mat, bool _comp>
 typename std::enable_if<_comp && !(_mat==Material::SvK), gsMatrix<T>>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
@@ -593,7 +592,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_matrix_impl(const index_t pa
     return result;
 }
 
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     return this->eval3D_stress(patch,u,z,out);
@@ -724,7 +723,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_stress(const inde
     return this->_eval3D_stress_impl<mat,comp>(patch,u,z);
 }
 
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 template <enum Material _mat, bool _comp>
 typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
@@ -733,7 +732,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_stress_impl(const index_t pa
     return result;
 }
 
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 template <enum Material _mat, bool _comp>
 typename std::enable_if<!_comp && !(_mat==Material::SvK), gsMatrix<T>>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
@@ -742,7 +741,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_stress_impl(const index_t pa
     return result;
 }
 
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 template <enum Material _mat, bool _comp>
 typename std::enable_if<_comp && !(_mat==Material::SvK), gsMatrix<T>>::type
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
@@ -751,7 +750,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_stress_impl(const index_t pa
     return result;
 }
 
-template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
 {
     // Input: j index in-plane point

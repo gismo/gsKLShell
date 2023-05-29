@@ -171,7 +171,7 @@ public:
     {
         m_thickness = const_cast<gsFunction<T> *>(&thickness);;
     }
-
+    
     /// Sets the YoungsModulus
     void setYoungsModulus(const gsFunction<T> & YoungsModulus)
     {
