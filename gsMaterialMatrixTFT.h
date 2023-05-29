@@ -210,6 +210,7 @@ protected:
     typename std::enable_if<!_linear, gsMatrix<T> >::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     gsMatrix<T> _compute_TF(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
+    gsMatrix<T> _compute_TF(const index_t patch, const gsVector<T> & u, const T & z)           const;
 
     gsMatrix<T> _compute_E(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & E) const;
 

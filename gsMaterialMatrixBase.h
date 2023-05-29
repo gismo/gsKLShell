@@ -393,6 +393,12 @@ public:
      */
     inline virtual gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
     { GISMO_NO_IMPLEMENTATION; }
+    inline virtual gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    {
+        gsMatrix<T> zmat(1,1);
+        zmat<<z;
+        return eval3D_tensionfield(patch,u,zmat,out);
+    }
 
     virtual void setYoungsModulus(const gsFunction<T> & YoungsModulus)
     { GISMO_NO_IMPLEMENTATION; }

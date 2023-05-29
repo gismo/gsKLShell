@@ -224,7 +224,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_strain(const index_t patch
             {
                 gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
                 gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);
-                gsAsMatrix<T,Dynamic,Dynamic> E = result.reshapeCol(colIdx,3,1);
+                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),MaterialOutput::StrainN);
                 gsMatrix<T> thetas = eval_theta(C,N,E);
                 theta = thetas(0,0);
                 result.col(colIdx) = this->_compute_E(theta,C.reshape(3,3),N,E);
@@ -268,11 +268,8 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch
             {
                 gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
                 gsAsMatrix<T,Dynamic,Dynamic> N = result.reshapeCol(colIdx,3,1);
-                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),out);
+                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),MaterialOutput::StrainN);
 
-                gsDebugVar(E);
-                gsDebugVar(N);
-                
                 gsMatrix<T> thetas = eval_theta(C,N,E);
                 theta = thetas(0,0);
                 result.col(colIdx) = this->_compute_S(theta,C.reshape(3,3),N);
@@ -370,7 +367,7 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
             {
                 gsMatrix<T> C = result.col(k);
                 gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);
-                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),out);
+                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),MaterialOutput::StrainN);
                 gsMatrix<T> thetas = eval_theta(C,N,E);
 
                 theta = thetas(0,0);
@@ -413,7 +410,7 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
             {
                 gsMatrix<T> C = result.col(colIdx);
                 gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);
-                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),out);
+                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),MaterialOutput::StrainN);
                 gsMatrix<T> thetas = eval_theta(C,N,E);
 
                 gsMatrix<T> dC = m_materialMat->eval3D_dmatrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
@@ -712,6 +709,15 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_TF(const index_t patch, 
     else
         return m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
 }
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_TF(const index_t patch, const gsVector<T>& u, const T & z) const
+{
+    gsMatrix<T> zmat(1,1);
+    zmat<<z;
+    return _compute_TF(patch,u,zmat);
+}
+
 
 template <short_t dim, class T, bool linear >
 gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_E(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & E) const

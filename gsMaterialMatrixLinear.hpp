@@ -694,9 +694,6 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_tensionfield(const index_t pat
                 result.col(j * u.cols() + k) << -1;
             else // wrinkled
             {
-                gsDebugVar(E);
-                gsDebugVar(Ep);
-
                 result.col(j * u.cols() + k) << 0;
             }
         }
