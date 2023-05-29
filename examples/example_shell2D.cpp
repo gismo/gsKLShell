@@ -405,7 +405,7 @@ int main(int argc, char *argv[])
       stopwatch.restart();
       assembler->constructSolution(x,mp_def);
       status = assembler->assembleMatrix(mp_def);
-      GISMO_ASSERT(status==ThinShellAssemblerStatus::Success,"Assembly failed");
+      GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
       time += stopwatch.stop();
       gsSparseMatrix<real_t> m = assembler->matrix();
       return m;
@@ -417,15 +417,17 @@ int main(int argc, char *argv[])
       stopwatch.restart();
       assembler->constructSolution(x,mp_def);
       status = assembler->assembleVector(mp_def);
-      GISMO_ASSERT(status==ThinShellAssemblerStatus::Success,"Assembly failed");
+      GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
       time += stopwatch.stop();
       return assembler->rhs();
     };
     //! [Define jacobian and residual]
 
+    ThinShellAssemblerStatus status;
     stopwatch.restart();
     stopwatch2.restart();
-    assembler->assemble();
+    status = assembler->assemble();
+    GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
     time += stopwatch.stop();
     //! [Assemble linear part]
     gsSparseMatrix<> matrix = assembler->matrix();

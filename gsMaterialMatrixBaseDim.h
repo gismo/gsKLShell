@@ -40,7 +40,10 @@ public:
 
     // enum {Linear=0}; // If true (1), this property entails that S = C *˙E
 
-    gsMaterialMatrixBaseDim() : m_thickness(nullptr), m_density(nullptr)
+    gsMaterialMatrixBaseDim() 
+    : 
+    m_thickness(nullptr), 
+    m_density(nullptr)
     {
         this->setUndeformed(nullptr);
         this->setDeformed(nullptr);
@@ -57,10 +60,10 @@ public:
         membersSetZero();
     }
 
-    gsMaterialMatrixBaseDim(    const gsFunctionSet<T> * mp,
-                                const gsFunctionSet<T> * mp_def,
-                                const gsFunction<T> * thickness,
-                                const gsFunction<T> * Density)
+    gsMaterialMatrixBaseDim(const gsFunctionSet<T> * mp,
+                            const gsFunctionSet<T> * mp_def,
+                            const gsFunction<T> * thickness,
+                            const gsFunction<T> * Density)
     :
     m_thickness(thickness),
     m_density(Density)
@@ -112,7 +115,6 @@ public:
     }
     /// Gets the Density
     virtual gsFunction<T> * getThickness() {return const_cast<gsFunction<T> *>(m_thickness);}
-
 
     /// Sets the density
     virtual void setDensity(const gsFunction<T> & Density)
@@ -249,7 +251,7 @@ public:
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     gsMatrix<T> _transformation(const gsMatrix<T> & basis1, const gsMatrix<T> & basis2 ) const;
 
-    // void setDeformed(const gsFunctionSet<T> & deformed) {this->setDeformed(deformed);}
+    virtual void setDeformed(const gsFunctionSet<T> * deformed) {Base::setDeformed(deformed);}
 
     bool hasDeformed() const { return m_defpatches->nPieces()!=0; }
 
@@ -384,7 +386,6 @@ protected:
     {
         m_data.mine().membersSetZero();
     }
-
 
     using Base::m_patches;
     using Base::m_defpatches;

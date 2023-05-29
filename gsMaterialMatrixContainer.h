@@ -59,6 +59,11 @@ public:
         m_container.push_back(mat);
     }
 
+    gsMaterialMatrixContainer(const gsMaterialMatrixContainer & other)
+    {
+        m_container = other.m_container;
+    }
+
     gsMaterialMatrixContainer(Container & funcs)
     {
         m_container.swap(m_container); // funcs are consumed

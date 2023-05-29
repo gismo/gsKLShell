@@ -245,7 +245,6 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
     this->_computePoints(patch,u);
-
     gsMatrix<T> result(9, u.cols() * z.rows());
     result.setZero();
 
@@ -694,7 +693,12 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_tensionfield(const index_t pat
             else if (Ep[1] < 0) // slack
                 result.col(j * u.cols() + k) << -1;
             else // wrinkled
+            {
+                gsDebugVar(E);
+                gsDebugVar(Ep);
+
                 result.col(j * u.cols() + k) << 0;
+            }
         }
     }
 

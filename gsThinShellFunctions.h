@@ -35,6 +35,7 @@ struct stress_type
 {
     enum type
     {
+        displacement       = -1,
         von_mises          = 0,  /// compute only von Mises stress
         von_mises_membrane = 1,  /// compute only von Mises stress - membrane stresses
         von_mises_flexural = 2,  /// compute only von Mises stress - flexural stresses
@@ -80,23 +81,25 @@ public:
      * @param      mm         The material matrix
      * @param[in]  patch      The patch index
      * @param[in]  type       The stress type
-     * @param[in]  assembler  The shell assembler
      */
-    gsShellStressFunction(const gsMultiPatch<T> & geometry,
+    gsShellStressFunction(const gsFunctionSet<T> & geometry,
                            const gsFunctionSet<T> & deformed,
                            const gsMaterialMatrixContainer<T> & mm,
                            index_t patch,
-                           stress_type::type type,
-                           const gsExprAssembler<T> & assembler
-                           )
-        : m_patches(geometry),
+                           stress_type::type type)
+        : m_patches(&geometry),
           m_defpatches(&deformed),
           m_materialMatrices(mm),
           m_patchID(patch),
-          m_stress_type(type),
-          m_assembler(assembler)
+          m_stress_type(type)
     {
 
+    }
+
+    ~gsShellStressFunction()
+    {
+        // delete m_patches;
+        // delete m_defpatches;
     }
 
     virtual short_t domainDim() const
@@ -111,6 +114,10 @@ public:
             default:
                 return 0;
                 break;
+            case stress_type::displacement :
+                return 3;
+                break;
+
             case stress_type::membrane :
                 return 3;
                 break;
@@ -146,7 +153,7 @@ public:
             // TO BE IMPLEMENTED
             // -------------------------------------
             case stress_type::von_mises :
-                return 1;
+                return 2;
                 break;
 
             case stress_type::von_mises_membrane :
@@ -154,10 +161,6 @@ public:
                 break;
 
             case stress_type::von_mises_flexural :
-                return 1;
-                break;
-
-            case stress_type::total :
                 return 1;
                 break;
             // -------------------------------------
@@ -226,12 +229,11 @@ protected:
     typedef gsExprAssembler<>::space       space;
     typedef gsExprAssembler<>::solution    solution;
 
-    const gsMultiPatch<T> & m_patches;
+    const gsFunctionSet<T> * m_patches;
     const gsFunctionSet<T> * m_defpatches;
     const gsMaterialMatrixContainer<T> & m_materialMatrices;
     index_t m_patchID;
     stress_type::type m_stress_type;
-    mutable gsExprAssembler<> m_assembler;
 
 }; // class definition ends
 

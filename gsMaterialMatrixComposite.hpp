@@ -105,6 +105,15 @@ void gsMaterialMatrixComposite<dim,T>::_initialize()
 }
 
 template <short_t dim, class T >
+void gsMaterialMatrixComposite<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool basis) const
+{
+    this->_computeMetricUndeformed(patch,u);
+
+    if (Base::m_defpatches->nPieces()!=0)
+        this->_computeMetricDeformed(patch,u);
+}
+
+template <short_t dim, class T >
 void gsMaterialMatrixComposite<dim,T>::density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     GISMO_ASSERT(m_Ts.size()==m_Rs.size(),"Size of vectors of thickness and densities is not equal: " << m_Ts.size()<<" & "<<m_Rs.size());
@@ -318,7 +327,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_transformationMatrix(const gsMatr
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_cart2cov(const gsVector<T> a1, const gsVector<T> a2, const gsVector<T> e1, const gsVector<T> e2) const
+gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_cart2cov(const gsVector<T> & a1, const gsVector<T> & a2, const gsVector<T> & e1, const gsVector<T> & e2) const
 {
     gsMatrix<T,3,3> Tmat;
     Tmat.setZero();
@@ -340,7 +349,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_cart2cov(const gsVector<T> a1, co
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_con2cart(const gsVector<T> ac1, const gsVector<T> ac2, const gsVector<T> e1, const gsVector<T> e2) const
+gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_con2cart(const gsVector<T> & ac1, const gsVector<T> & ac2, const gsVector<T> & e1, const gsVector<T> & e2) const
 {
     gsMatrix<T,3,3> Tmat;
     Tmat.setZero();

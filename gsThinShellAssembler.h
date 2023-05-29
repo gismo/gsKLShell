@@ -195,25 +195,25 @@ public:
 
 private:
     /// Specialisation of assemble() for surfaces (3D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type assemble_impl();
 
     /// Specialisation of assemble() for planar geometries (2D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), ThinShellAssemblerStatus>::type assemble_impl();
 
 public:
     /// See \ref gsThinShellAssemblerBase for details
-    ThinShellAssemblerStatus assembleMass(bool lumped = false);
+    ThinShellAssemblerStatus assembleMass(const bool lumped = false);
 
     /// See \ref gsThinShellAssemblerBase for details
     ThinShellAssemblerStatus assembleFoundation();
 
     /// See \ref gsThinShellAssemblerBase for details
-    ThinShellAssemblerStatus assemble(const gsFunctionSet<T> & deformed,     bool Matrix = true);
+    ThinShellAssemblerStatus assemble(const gsFunctionSet<T> & deformed, const bool matrix = true, const bool homogenize = true);
 
     /// See \ref gsThinShellAssemblerBase for details
-    ThinShellAssemblerStatus assemble(const gsMatrix<T>     & solVector,    bool Matrix = true);
+    ThinShellAssemblerStatus assemble(const gsMatrix<T>     & solVector, const bool matrix = true, const bool homogenize = true);
 
     /// See \ref gsThinShellAssemblerBase for details
     ThinShellAssemblerStatus assembleMatrix(const gsFunctionSet<T>   & deformed  );
@@ -227,40 +227,61 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     ThinShellAssemblerStatus assembleMatrix(const gsMatrix<T> & solVector, const gsMatrix<T> & prevVector);
 
+    /// See \ref gsThinShellAssemblerBase for details
+    ThinShellAssemblerStatus assemblePressureMatrix(const gsFunction<T>   & pressFun  );
+
+    /// See \ref gsThinShellAssemblerBase for details
+    ThinShellAssemblerStatus assemblePressureMatrix(const T pressure);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    ThinShellAssemblerStatus assemblePressureMatrix(const gsFunction<T>   & pressFun, const gsFunctionSet<T> & deformed);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    ThinShellAssemblerStatus assemblePressureMatrix(const T pressure, const gsFunctionSet<T> & deformed);
+
 private:
     /// Implementation of assembleMatrix for surfaces (3D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
     assembleMatrix_impl(const gsFunctionSet<T>   & deformed  );
 
     /// Implementation of assembleMatrix for planar geometries (2D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), ThinShellAssemblerStatus>::type
     assembleMatrix_impl(const gsFunctionSet<T>   & deformed  );
 
     /// Implementation of assembleMatrix for surfaces (3D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
     assembleMatrix_impl(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update);
 
     /// Implementation of assembleMatrix for planar geometries (2D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), ThinShellAssemblerStatus>::type
     assembleMatrix_impl(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update)
     { GISMO_NO_IMPLEMENTATION; }
 
 public:
     /// See \ref gsThinShellAssemblerBase for details
-    ThinShellAssemblerStatus assembleVector(const gsFunctionSet<T>   & deformed  );
+    ThinShellAssemblerStatus assembleVector(const gsFunctionSet<T>   & deformed, const bool homogenize = true);
 
     /// See \ref gsThinShellAssemblerBase for details
-    ThinShellAssemblerStatus assembleVector(const gsMatrix<T>       & solVector );
+    ThinShellAssemblerStatus assembleVector(const gsMatrix<T>       & solVector, const bool homogenize = true);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    ThinShellAssemblerStatus assemblePressureVector(const gsFunction<T>   & pressFun  );
+
+    /// See \ref gsThinShellAssemblerBase for details
+    ThinShellAssemblerStatus assemblePressureVector(const T pressure);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    ThinShellAssemblerStatus assemblePressureVector(const gsFunction<T>   & pressFun, const gsFunctionSet<T> & deformed);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    ThinShellAssemblerStatus assemblePressureVector(const T pressure, const gsFunctionSet<T> & deformed);
 
     /// See \ref gsThinShellAssemblerBase for details
     ThinShellAssemblerStatus assemblePressureVector(const gsFunctionSet<T> & deformed);
-
-    /// See \ref gsThinShellAssemblerBase for details
-    ThinShellAssemblerStatus assemblePressureVector(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed);
 
     /// See \ref gsThinShellAssemblerBase for details
     ThinShellAssemblerStatus assembleFoundationVector(const gsFunctionSet<T> & deformed);
@@ -270,14 +291,14 @@ public:
 
 private:
     /// Implementation of assembleVector for surfaces (3D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
-    assembleVector_impl(const gsFunctionSet<T>   & deformed  );
+    assembleVector_impl(const gsFunctionSet<T>   & deformed, const bool homogenize);
 
     /// Implementation of assembleVector for planar geometries (2D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), ThinShellAssemblerStatus>::type
-    assembleVector_impl(const gsFunctionSet<T>   & deformed  );
+    assembleVector_impl(const gsFunctionSet<T>   & deformed, const bool homogenize);
 
 public:
     /// See \ref gsThinShellAssemblerBase for details
@@ -288,22 +309,22 @@ public:
 
 private:
     /// Implementation of the boundary force vector for surfaces (3D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
     boundaryForceVector_impl(const gsFunctionSet<T>   & deformed , patchSide& ps, index_t com );
 
     /// Implementation of the boundary force vector for planar geometries (2D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
     boundaryForceVector_impl(const gsFunctionSet<T>   & deformed , patchSide& ps, index_t com );
 
     /// Implementation of the boundary force vector for surfaces (3D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
     boundaryForce_impl(const gsFunctionSet<T>   & deformed , patchSide& ps);
 
     /// Implementation of the boundary force vector for planar geometries (2D)
-    template<int _d, bool _bending>
+    template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
     boundaryForce_impl(const gsFunctionSet<T>   & deformed , patchSide& ps);
 
@@ -404,9 +425,15 @@ public:
 
     //--------------------- SPECIALS ----------------------------------//
     /// See \ref gsThinShellAssemblerBase for details
-    void constructStress(const gsFunctionSet<T> & deformed,
-                               gsPiecewiseFunction<T> & result,
-                               stress_type::type type);
+    void constructStress(   const gsFunctionSet<T> & deformed,
+                            gsPiecewiseFunction<T> & result,
+                            stress_type::type type);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    void constructStress(   const gsFunctionSet<T> & original,
+                            const gsFunctionSet<T> & deformed,
+                            gsPiecewiseFunction<T> & result,
+                            stress_type::type type);
 
     /// See \ref gsThinShellAssemblerBase for details
     gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsFunctionSet<T> & deformed, const T z=0);
@@ -420,9 +447,36 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     gsMatrix<T> projectL2(const gsFunction<T> &fun);
 
+    /// See \ref gsThinShellAssemblerBase for details
     void plotSolution(std::string string, const gsMatrix<T> & solVector);
 
+    /// See \ref gsThinShellAssemblerBase for details
     gsDofMapper getMapper() { return m_mapper; };
+
+    /// See \ref gsThinShellAssemblerBase for details
+    T interfaceErrorC0(const gsFunctionSet<T> & deformed)
+    { return interfaceErrorC0(deformed,m_patches.interfaces()); }
+    T interfaceErrorC0(const gsFunctionSet<T> & deformed, const ifContainer & iFaces);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    T interfaceErrorG1(const gsFunctionSet<T> & deformed)
+    { return interfaceErrorG1(deformed,m_patches.interfaces()); }
+    T interfaceErrorG1(const gsFunctionSet<T> & deformed, const ifContainer & iFaces);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    T interfaceErrorNormal(const gsFunctionSet<T> & deformed)
+    { return interfaceErrorNormal(deformed,m_patches.interfaces()); }
+    T interfaceErrorNormal(const gsFunctionSet<T> & deformed, const ifContainer & iFaces);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    T interfaceErrorGaussCurvature(const gsFunctionSet<T> & deformed)
+    { return interfaceErrorGaussCurvature(deformed,m_patches.interfaces()); }
+    T interfaceErrorGaussCurvature(const gsFunctionSet<T> & deformed, const ifContainer & iFaces);
+
+    /// See \ref gsThinShellAssemblerBase for details
+    T interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed)
+    { return interfaceErrorMeanCurvature(deformed,m_patches.interfaces()); }
+    T interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed, const ifContainer & iFaces);
 
 protected:
     /// Initializes the method
@@ -461,27 +515,27 @@ protected:
     bool _isInPlane(const boundaryInterface & ifc, const T tol = 1e-2);
 
 private:
-    template<int _d>
+    template<short_t _d>
     typename std::enable_if<_d==3, void>::type
     _assembleNeumann_impl();
 
-    template<int _d>
+    template<short_t _d>
     typename std::enable_if<!(_d==3), void>::type
     _assembleNeumann_impl();
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
     _assemblePressure_impl(const gsFunction<T> & pressFun);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<_d==3 && !matrix, void>::type
     _assemblePressure_impl(const gsFunction<T> & pressFun);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<!(_d==3), void>::type
     _assemblePressure_impl(const gsFunction<T> & pressFun);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
     _assemblePressure_impl(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed);
 
@@ -493,91 +547,91 @@ private:
     typename std::enable_if<!(_d==3), void>::type
     _assemblePressure_impl(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
     _assembleFoundation_impl(const gsFunction<T> & foundFun);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<_d==3 && !matrix, void>::type
     _assembleFoundation_impl(const gsFunction<T> & foundFun);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<!(_d==3), void>::type
     _assembleFoundation_impl(const gsFunction<T> & foundFun);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
     _assembleFoundation_impl(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<_d==3 && !matrix, void>::type
     _assembleFoundation_impl(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<!(_d==3), void>::type
     _assembleFoundation_impl(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
     _assembleWeakBCs_impl();
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<_d==3 && !matrix, void>::type
     _assembleWeakBCs_impl();
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<!(_d==3) && matrix, void>::type
     _assembleWeakBCs_impl();
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<!(_d==3) && !matrix, void>::type
     _assembleWeakBCs_impl();
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
     _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<_d==3 && !matrix, void>::type
     _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<!(_d==3) && matrix, void>::type
     _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<!(_d==3) && !matrix, void>::type
     _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
     _assembleWeakIfc_impl();
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<_d==3 && !matrix, void>::type
     _assembleWeakIfc_impl();
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<!(_d==3) && matrix, void>::type
     _assembleWeakIfc_impl();
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<!(_d==3) && !matrix, void>::type
     _assembleWeakIfc_impl();
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<_d==3 && matrix, void>::type
     _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<_d==3 && !matrix, void>::type
     _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<!(_d==3) && matrix, void>::type
     _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool matrix>
     typename std::enable_if<!(_d==3) && !matrix, void>::type
     _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
 
@@ -587,7 +641,6 @@ protected:
     typedef gsExprAssembler<>::solution    solution;
     typedef gsExprAssembler<>::element     element;
 
-    std::vector<gsDofMapper>  m_dofMappers;
     gsDofMapper m_mapper;
 
     gsExprAssembler<> m_assembler;
@@ -605,7 +658,6 @@ protected:
     gsSparseMatrix<T> m_mass;
 
     const gsFunction<T> * m_forceFun;
-    const gsFunction<T> * m_thickFun;
     const gsFunction<T> * m_foundFun;
     const gsFunction<T> * m_pressFun;
 
@@ -655,9 +707,14 @@ class gsThinShellAssemblerBase
 {
 public:
     /// Default deconstructor
-    gsThinShellAssemblerBase() {};
+    typedef gsBoxTopology::ifContainer ifContainer;
+
+public:
 
     /// Default deconstructor
+    gsThinShellAssemblerBase() {};
+
+    /// Default empty constructor
     virtual ~gsThinShellAssemblerBase() {};
 
     /// Returns the options of the assembler
@@ -728,7 +785,7 @@ public:
     virtual void setSpaceBasis(const gsFunctionSet<T> & spaceBasis) = 0;
 
     /// Assembles the mass matrix (including density and thickness!); if lumped=true, a lumped mass matrix will be constructed,
-    virtual ThinShellAssemblerStatus assembleMass(bool lumped = false) = 0;
+    virtual ThinShellAssemblerStatus assembleMass(const bool lumped = false) = 0;
 
     /// Assembles the elastic foundation matrix
     virtual ThinShellAssemblerStatus assembleFoundation() = 0;
@@ -741,7 +798,7 @@ public:
      * @param[in]  deformed  The deformed multipatch
      * @param[in]  Matrix    True if the matrix should be assembled
      */
-    virtual ThinShellAssemblerStatus assemble(const gsFunctionSet<T> & deformed,     bool Matrix = true) = 0;
+    virtual ThinShellAssemblerStatus assemble(const gsFunctionSet<T> & deformed, const bool matrix = true, const bool homogenize = true) = 0;
 
     /**
      * @brief      Assembles the tangential stiffness matrix and the residual for an iteration of Newton's method
@@ -751,7 +808,7 @@ public:
      * @param[in]  deformed  The solution vector
      * @param[in]  Matrix    True if the matrix should be assembled
      */
-    virtual ThinShellAssemblerStatus assemble(const gsMatrix<T>     & solVector,    bool Matrix = true) = 0;
+    virtual ThinShellAssemblerStatus assemble(const gsMatrix<T>     & solVector, const bool matrix = true, const bool homogenize = true) = 0;
 
     /**
      * @brief      Assembles the tangential stiffness matrix (nonlinear)
@@ -801,44 +858,74 @@ public:
      *
      * @param[in]  deformed  The deformed geometry
      */
-    virtual ThinShellAssemblerStatus assembleVector(const gsFunctionSet<T>   & deformed  ) = 0;
+    virtual ThinShellAssemblerStatus assembleVector(const gsFunctionSet<T>   & deformed, const bool homogenize = true) = 0;
 
     /**
      * @brief      Assembles the residual vector
      *
      * @param[in]  deformed  The solution vector
      */
-    virtual ThinShellAssemblerStatus assembleVector(const gsMatrix<T>       & solVector ) = 0;
+    virtual ThinShellAssemblerStatus assembleVector(const gsMatrix<T>       & solVector, const bool homogenize = true) = 0;
 
     /**
-     * @brief      Assembles the follower pressure part of the residual vector
-     *
-     * @param[in]  deformed  The deformed geometry
-     */
-    virtual ThinShellAssemblerStatus assemblePressureVector(const gsFunctionSet<T> & deformed) = 0;
-
-    /**
-     * @brief      Assembles the follower pressure part of the residual vector
+     * @brief      Assembles the pressure contribution in the system matrix (linear)
      *
      * @param[in]  pressFun  The pressure function
-     * @param[in]  deformed  The deformed geometry
      */
-    virtual ThinShellAssemblerStatus assemblePressureVector(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed) = 0;
+    virtual ThinShellAssemblerStatus assemblePressureMatrix(const gsFunction<T>   & pressFun  ) = 0;
 
     /**
-     * @brief      Assembles the elastic foundation part of the residual vector
+     * @brief      Assembles the pressure contribution in the system matrix (linear)
      *
-     * @param[in]  deformed  The deformed geometry
+     * @param[in]  pressure  The pressure value
      */
-    virtual ThinShellAssemblerStatus assembleFoundationVector(const gsFunctionSet<T> & deformed) = 0;
+    virtual ThinShellAssemblerStatus assemblePressureMatrix(const T pressure) = 0;
 
     /**
-     * @brief      Assembles the elastic foundation part of the residual vector
+     * @brief      Assembles the pressure contribution in the system matrix (non-linear)
      *
-     * @param[in]  foundFun  The foundation function
-     * @param[in]  deformed  The deformed geometry
+     * @param[in]  pressFun  The pressure function
+     * @param[in]  deformed  The deformed shape
      */
-    virtual ThinShellAssemblerStatus assembleFoundationVector(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed) = 0;
+    virtual ThinShellAssemblerStatus assemblePressureMatrix(const gsFunction<T>   & pressFun, const gsFunctionSet<T> & deformed) = 0;
+
+    /**
+     * @brief      Assembles the pressure contribution in the system matrix (non-linear)
+     *
+     * @param[in]  pressure  The pressure value
+     * @param[in]  deformed  The deformed shape
+     */
+    virtual ThinShellAssemblerStatus assemblePressureMatrix(const T pressure, const gsFunctionSet<T> & deformed) = 0;
+
+    /**
+     * @brief      Assembles the pressure contribution in the system vector (linear)
+     *
+     * @param[in]  pressFun  The pressure function
+     */
+    virtual ThinShellAssemblerStatus assemblePressureVector(const gsFunction<T>   & pressFun  ) = 0;
+
+    /**
+     * @brief      Assembles the pressure contribution in the system vector (linear)
+     *
+     * @param[in]  pressure  The pressure value
+     */
+    virtual ThinShellAssemblerStatus assemblePressureVector(const T pressure) = 0;
+
+    /**
+     * @brief      Assembles the pressure contribution in the system vector (non-linear)
+     *
+     * @param[in]  pressFun  The pressure value
+     * @param[in]  deformed  The deformed shape
+     */
+    virtual ThinShellAssemblerStatus assemblePressureVector(const gsFunction<T>   & pressFun, const gsFunctionSet<T> & deformed) = 0;
+
+    /**
+     * @brief      Assembles the pressure contribution in the system vector (non-linear)
+     *
+     * @param[in]  pressure  The pressure value
+     * @param[in]  deformed  The deformed shape
+     */
+    virtual ThinShellAssemblerStatus assemblePressureVector(const T pressure, const gsFunctionSet<T> & deformed) = 0;
 
     /**
      * @brief      Computes the force on a boundary
@@ -851,7 +938,7 @@ public:
      *
      * @return     The loads on the control points. The sum is the total load on the boundary
      */
-    virtual gsMatrix<T> boundaryForceVector(const gsFunctionSet<T>   & deformed , patchSide& ps, int com ) = 0;
+    virtual gsMatrix<T> boundaryForceVector(const gsFunctionSet<T>   & deformed , patchSide& ps, index_t com ) = 0;
 
     virtual gsMatrix<T> boundaryForce(const gsFunctionSet<T>   & deformed , patchSide& ps) = 0;
 
@@ -926,8 +1013,28 @@ public:
     /// Compute the principal stretches in \a points given a \a deformed geometry. Optionally, the stretches can be computed on through-thickness coordinate \a z
     virtual gsMatrix<T> computePrincipalStretches(const gsMatrix<T> & points, const gsFunctionSet<T> & deformed, const T z=0) = 0;
 
-    // Pascal
+    /// Returns the gsDofMapper
     virtual   gsDofMapper getMapper() = 0;
+
+    /// Returns the C1 error over the interface
+    virtual T interfaceErrorC0(const gsFunctionSet<T> & deformed) = 0;
+    virtual T interfaceErrorC0(const gsFunctionSet<T> & deformed, const ifContainer & iFaces) = 0;
+
+    /// Returns the G1 error over the interface
+    virtual T interfaceErrorG1(const gsFunctionSet<T> & deformed) = 0;
+    virtual T interfaceErrorG1(const gsFunctionSet<T> & deformed, const ifContainer & iFaces) = 0;
+
+    /// Returns the normal vector error over the interface
+    virtual T interfaceErrorNormal(const gsFunctionSet<T> & deformed) = 0;
+    virtual T interfaceErrorNormal(const gsFunctionSet<T> & deformed, const ifContainer & iFaces) = 0;
+
+    /// Returns the Gaussian curvature error over the interface
+    virtual T interfaceErrorGaussCurvature(const gsFunctionSet<T> & deformed) = 0;
+    virtual T interfaceErrorGaussCurvature(const gsFunctionSet<T> & deformed, const ifContainer & iFaces) = 0;
+
+    /// Returns the mean curvature error over the interface
+    virtual T interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed) = 0;
+    virtual T interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed, const ifContainer & iFaces) = 0;
 
     /// Projects function \a fun on the basis and geometry stored in the class and returns the coefficients in \a result
     virtual void projectL2_into(const gsFunction<T> &fun, gsMatrix<T> & result) = 0;

@@ -166,7 +166,13 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
-/// Sets the YoungsModulus
+    /// Sets the thickness
+    void setThickness(const gsFunction<T> & thickness)
+    {
+        m_thickness = const_cast<gsFunction<T> *>(&thickness);;
+    }
+
+    /// Sets the YoungsModulus
     void setYoungsModulus(const gsFunction<T> & YoungsModulus)
     {
         if ((index_t)m_pars.size() < 1)
@@ -283,8 +289,6 @@ protected:
 
 protected:
     // constructor
-    using Base::m_patches;
-    using Base::m_defpatches;
     using Base::m_thickness;
     using Base::m_pars;
     using Base::m_density;

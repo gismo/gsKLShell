@@ -269,6 +269,10 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch
                 gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
                 gsAsMatrix<T,Dynamic,Dynamic> N = result.reshapeCol(colIdx,3,1);
                 gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),out);
+
+                gsDebugVar(E);
+                gsDebugVar(N);
+                
                 gsMatrix<T> thetas = eval_theta(C,N,E);
                 theta = thetas(0,0);
                 result.col(colIdx) = this->_compute_S(theta,C.reshape(3,3),N);
@@ -473,6 +477,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
         T E22 = Es(1,k);
         T E12 = 0.5 * Es(2,k);
         T R_E = math::sqrt( math::pow((E11-E22)/2.,2) + E12*E12 );
+        if (R_E==0) R_E = 1;
         T sin_E0 = E12/R_E;
         T cos_E0 = (E22-E11)/(2*R_E);
         T sin_Esqrt = E12*E12-E11*E22;
@@ -490,6 +495,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
         T N22 = Ns(1,k);
         T N12 = Ns(2,k);
         T R_N = math::sqrt( math::pow((N11-N22)/2.,2) + N12*N12 );
+        if (R_N==0) R_N = 1;
         T sin_N0 = -N12/R_N;
         T cos_N0 = (N11-N22)/(2*R_N);
         T sin_Nsqrt = N12*N12-N11*N22;
@@ -504,8 +510,15 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
 
         T theta_1 = std::fmod((theta_1N - theta_0N + theta_0E + pi),(2*pi));
         T theta_2 = std::fmod((theta_2N - theta_0N + theta_0E + pi),(2*pi));
-        if (math::isnan(theta_1) || math::isnan(theta_2))
+        if (math::isnan(theta_1) || math::isnan(theta_2) || R_N==1 || R_E == 1)
         {
+            gsDebugVar(Es.col(k));
+
+
+            gsDebugVar(R_E);
+
+            gsDebugVar(sin_Esqrt);
+
             gsDebugVar(sin_E0);
             gsDebugVar(sin_E1);
             gsDebugVar(sin_E2);
@@ -513,6 +526,10 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
             gsDebugVar(cos_E0);
             gsDebugVar(cos_E1);
             gsDebugVar(cos_E2);
+
+            gsDebugVar(R_N);
+
+            gsDebugVar(sin_Nsqrt);
 
             gsDebugVar(sin_N0);
             gsDebugVar(sin_N1);

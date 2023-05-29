@@ -36,8 +36,7 @@ public:
     m_materialMatrices(materialMatrices),
     m_deformed(deformed)
     {
-        for (index_t p = 0; p!=m_materialMatrices.size(); p++)
-            m_pieces.push_back(new gsMaterialMatrixIntegrateSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed));
+        this->_makePieces(deformed);
     }
 
     /// Constructor
@@ -48,9 +47,33 @@ public:
     m_deformed(deformed)
     {
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
+            m_materialMatrices.add(materialMatrix);
+        this->_makePieces(deformed);
+    }
+
+    /// Constructor
+    gsMaterialMatrixIntegrate(  const gsMaterialMatrixContainer<T> & materialMatrices,
+                            const gsFunctionSet<T> * undeformed,
+                            const gsFunctionSet<T> * deformed)
+    :
+    m_materialMatrices(materialMatrices),
+    m_deformed(deformed)
+    {
+        this->_makePieces(undeformed,deformed);
+    }
+
+    /// Constructor
+    gsMaterialMatrixIntegrate(  gsMaterialMatrixBase<T> * materialMatrix,
+                            const gsFunctionSet<T> * undeformed,
+                            const gsFunctionSet<T> * deformed)
+    :
+    m_materialMatrices(deformed->nPieces()),
+    m_deformed(deformed)
+    {
+        for (index_t p = 0; p!=deformed->nPieces(); ++p)
         {
             m_materialMatrices.add(materialMatrix);
-            m_pieces.push_back(new gsMaterialMatrixIntegrateSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed));
+            this->_makePieces(undeformed,deformed);
         }
     }
 
@@ -83,6 +106,21 @@ public:
     { GISMO_NO_IMPLEMENTATION; }
 
 protected:
+    void _makePieces(const gsFunctionSet<T> * deformed)
+    {
+        m_pieces.resize(deformed->nPieces());
+        for (size_t p = 0; p!=m_pieces.size(); ++p)
+            m_pieces.at(p) = new gsMaterialMatrixIntegrateSingle<T,out>(p,m_materialMatrices.piece(p),deformed);
+    }
+
+    void _makePieces(const gsFunctionSet<T> * undeformed, const gsFunctionSet<T> * deformed)
+    {
+        m_pieces.resize(m_deformed->nPieces());
+        for (size_t p = 0; p!=m_pieces.size(); ++p)
+            m_pieces.at(p) = new gsMaterialMatrixIntegrateSingle<T,out>(p,m_materialMatrices.piece(p),undeformed,deformed);
+    }
+
+protected:
     gsMaterialMatrixContainer<T> m_materialMatrices;
     const gsFunctionSet<T> * m_deformed;
     mutable std::vector<gsMaterialMatrixIntegrateSingle<T,out> *> m_pieces;
@@ -105,6 +143,14 @@ public:
     gsMaterialMatrixIntegrateSingle(  index_t patch,
                                 gsMaterialMatrixBase<T> * materialMatrix,
                                 const gsFunctionSet<T> * deformed);
+
+    /// Constructor
+    gsMaterialMatrixIntegrateSingle(  index_t patch,
+                                gsMaterialMatrixBase<T> * materialMatrix,
+                                const gsFunctionSet<T> * undeformed,
+                                const gsFunctionSet<T> * deformed);
+
+    gsMaterialMatrixIntegrateSingle(){};
 
     /// Domain dimension, always 2 for shells
     short_t domainDim() const {return 2;}

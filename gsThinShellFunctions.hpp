@@ -16,7 +16,6 @@
 #pragma once
 
 #include <gsAssembler/gsExprEvaluator.h>
-#include <gsAssembler/gsExprAssembler.h>
 
 namespace gismo
 {
@@ -27,79 +26,85 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     gsMatrix<T> z(1,1);
     z.setZero();
 
-    m_assembler.cleanUp();
+    gsExprEvaluator<T> ev;
 
-    geometryMap m_ori   = m_assembler.getMap(m_patches);
-    geometryMap m_def   = m_assembler.getMap(*m_defpatches);
+    geometryMap m_ori   = ev.getMap(*m_patches);
+    geometryMap m_def   = ev.getMap(*m_defpatches);
 
     // Initialize stystem
     // m_assembler.initSystem(false);
 
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_N0(m_materialMatrices,m_defpatches);
-    variable N0 = m_assembler.getCoeff(m_N0);
+    variable N0 = ev.getVariable(m_N0);
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_N1(m_materialMatrices,m_defpatches);
-    variable N1 = m_assembler.getCoeff(m_N1);
+    variable N1 = ev.getVariable(m_N1);
 
     gsMaterialMatrixIntegrate<T,MaterialOutput::CauchyVectorN> m_Nc0(m_materialMatrices,m_defpatches);
-    variable Nc0 = m_assembler.getCoeff(m_Nc0);
+    variable Nc0 = ev.getVariable(m_Nc0);
     gsMaterialMatrixIntegrate<T,MaterialOutput::CauchyVectorM> m_Nc1(m_materialMatrices,m_defpatches);
-    variable Nc1 = m_assembler.getCoeff(m_Nc1);
+    variable Nc1 = ev.getVariable(m_Nc1);
 
     gsMaterialMatrixEval<T,MaterialOutput::StressN> m_S0(m_materialMatrices,m_defpatches,z);
-    variable S0 = m_assembler.getCoeff(m_S0);
+    variable S0 = ev.getVariable(m_S0);
     gsMaterialMatrixEval<T,MaterialOutput::StressM> m_S1(m_materialMatrices,m_defpatches,z);
-    variable S1 = m_assembler.getCoeff(m_S1);
+    variable S1 = ev.getVariable(m_S1);
 
     gsMaterialMatrixEval<T,MaterialOutput::CauchyStressN> m_Sc0(m_materialMatrices,m_defpatches,z);
-    variable Sc0 = m_assembler.getCoeff(m_Sc0);
+    variable Sc0 = ev.getVariable(m_Sc0);
     gsMaterialMatrixEval<T,MaterialOutput::CauchyStressM> m_Sc1(m_materialMatrices,m_defpatches,z);
-    variable Sc1 = m_assembler.getCoeff(m_Sc1);
+    variable Sc1 = ev.getVariable(m_Sc1);
 
     gsMaterialMatrixEval<T,MaterialOutput::PCauchyStressN> m_Sp0(m_materialMatrices,m_defpatches,z);
-    variable Sp0 = m_assembler.getCoeff(m_Sp0);
+    variable Sp0 = ev.getVariable(m_Sp0);
     gsMaterialMatrixEval<T,MaterialOutput::PCauchyStressM> m_Sp1(m_materialMatrices,m_defpatches,z);
-    variable Sp1 = m_assembler.getCoeff(m_Sp1);
+    variable Sp1 = ev.getVariable(m_Sp1);
 
     gsMaterialMatrixEval<T,MaterialOutput::PStrainN> m_Ep0(m_materialMatrices,m_defpatches,z);
-    variable Ep0 = m_assembler.getCoeff(m_Ep0);
+    variable Ep0 = ev.getVariable(m_Ep0);
     gsMaterialMatrixEval<T,MaterialOutput::PStrainM> m_Ep1(m_materialMatrices,m_defpatches,z);
-    variable Ep1 = m_assembler.getCoeff(m_Ep1);
+    variable Ep1 = ev.getVariable(m_Ep1);
 
     gsMaterialMatrixEval<real_t,MaterialOutput::TensionField> m_TF(m_materialMatrices,m_defpatches,z);
-    variable TF  = m_assembler.getCoeff(m_TF);
+    variable TF  = ev.getVariable(m_TF);
 
     gsMaterialMatrixEval<T,MaterialOutput::Stretch> m_lambda(m_materialMatrices,m_defpatches,z);
-    variable lambda = m_assembler.getCoeff(m_lambda);
+    variable lambda = ev.getVariable(m_lambda);
     gsMaterialMatrixEval<T,MaterialOutput::StretchDir> m_lambdadir(m_materialMatrices,m_defpatches,z);
-    variable lambdadir = m_assembler.getCoeff(m_lambdadir);
+    variable lambdadir = ev.getVariable(m_lambdadir);
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
-    variable m_m2 = m_assembler.getCoeff(mult2t);
+    variable m_m2 = ev.getVariable(mult2t);
+    gsFunctionExpr<> mult12t("1","0","0","0","1","0","0","0","0.5",2);
+    variable m_m12 = ev.getVariable(mult12t);
 
     auto That   = cartcon(m_ori);
     auto Ttilde = cartcov(m_ori);
     auto Ttilde_def = cartcov(m_def);
     // auto Tmat   = cartcov(m_def);
-    auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) * That;
-    auto E_f    = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m2,3,3) * That;
+    auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) * reshape(m_m12,3,3) * That.tr();
+    auto E_f    = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m12,3,3) * That.tr();
 
-    auto N_m    = N0.tr() * Ttilde;
-    auto N_f    = N1.tr() * Ttilde;
+    auto N_m    = N0.tr() * Ttilde.tr();
+    auto N_f    = N1.tr() * Ttilde.tr();
 
-    auto Nc_m   = Nc0.tr() * Ttilde_def;
-    auto Nc_f   = Nc1.tr() * Ttilde_def;
+    auto Nc_m   = Nc0.tr() * Ttilde_def.tr();
+    auto Nc_f   = Nc1.tr() * Ttilde_def.tr();
 
-    auto S_m    = S0.tr() * Ttilde;
-    auto S_f    = S1.tr() * Ttilde;
+    auto S_m    = S0.tr() * Ttilde.tr();
+    auto S_f    = S1.tr() * Ttilde.tr();
 
-    auto Sc_m   = Sc0.tr() * Ttilde_def;
-    auto Sc_f   = Sc1.tr() * Ttilde_def;
+    auto Sc_m   = Sc0.tr() * Ttilde_def.tr();
+    auto Sc_f   = Sc1.tr() * Ttilde_def.tr();
 
-    gsExprEvaluator<T> ev(m_assembler);
     gsMatrix<T> tmp;
 
     switch (m_stress_type)
     {
+        case stress_type::displacement :
+            for (index_t k = 0; k != u.cols(); ++k)
+                result.col(k) = ev.eval(m_def,u.col(k),m_patchID);
+            break;
+
         case stress_type::membrane :
             for (index_t k = 0; k != u.cols(); ++k)
                 result.col(k) = (ev.eval(Sc_m,u.col(k),m_patchID)).transpose();
@@ -140,26 +145,34 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
                 result.col(k) = (ev.eval(N_f,u.col(k),m_patchID)).transpose();
             break;
 
-        // TO BE IMPLEMENTED
         // -------------------------------------
         case stress_type::von_mises :
-            GISMO_ERROR("stress_type::von_mises is not implemented");
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                gsMatrix<> S;
+                gsMatrix<> Sm = (ev.eval(S_m,u.col(k),m_patchID)).transpose();
+                gsMatrix<> Sf = (ev.eval(S_f,u.col(k),m_patchID)).transpose();
+                S = Sm + Sf;
+                result(0,k) = math::sqrt(S(0,0)*S(0,0)+S(1,0)*S(1,0)-S(0,0)*S(1,0)+3*S(2,0)*S(2,0)); // ASSUMES PLANE STRESS
+                S = Sm - Sf;
+                result(1,k) = math::sqrt(S(0,0)*S(0,0)+S(1,0)*S(1,0)-S(0,0)*S(1,0)+3*S(2,0)*S(2,0)); // ASSUMES PLANE STRESS
+            }
             break;
 
         case stress_type::von_mises_membrane :
             for (index_t k = 0; k != u.cols(); ++k)
             {
-                tmp = ev.eval(Sc_m,u.col(k));
-                result(0,k) = sqrt( tmp(0,0)*tmp(0,0) + tmp(0,1)*tmp(0,1) - tmp(0,0)*tmp(0,1) + 3*tmp(0,2)*tmp(0,2) );
+                gsMatrix<> S = (ev.eval(S_m,u.col(k),m_patchID)).transpose();
+                result(0,k) = math::sqrt(S(0,0)*S(0,0)+S(1,0)*S(1,0)-S(0,0)*S(1,0)+3*S(2,0)*S(2,0)); // ASSUMES PLANE STRESS
             }
             break;
 
         case stress_type::von_mises_flexural :
-            GISMO_ERROR("stress_type::von_mises_flexural is not implemented");
-            break;
-
-        case stress_type::total :
-            GISMO_ERROR("stress_type::total is not implemented");
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                gsMatrix<> S = (ev.eval(S_f,u.col(k),m_patchID)).transpose();
+                result(0,k) = math::sqrt(S(0,0)*S(0,0)+S(1,0)*S(1,0)-S(0,0)*S(1,0)+3*S(2,0)*S(2,0)); // ASSUMES PLANE STRESS
+            }
             break;
         // -------------------------------------
 

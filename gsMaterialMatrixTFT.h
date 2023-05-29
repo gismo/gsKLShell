@@ -190,9 +190,9 @@ public:
     { m_materialMat->info(); }
 
     /// See \ref gsMaterialMatrixBase for details
-    void setDeformed(const gsFunctionSet<T> * deformed)
+    void setDeformed(const gsFunctionSet<T> * deformed) override
     {
-        m_defpatches = deformed;
+        Base::setDeformed(deformed);
         m_materialMat->setDeformed(m_defpatches);
     }
 
