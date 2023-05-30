@@ -1430,6 +1430,12 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMass(const
     {
         // assemble system
         if (!lumped)
+            m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
+        else
+            m_assembler.assemble(mm0.val()*(m_space.rowSum())*meas(m_ori));  
+
+/*        // assemble system
+        if (!lumped)
         {
             m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
             m_mass = m_assembler.matrix();
@@ -1444,7 +1450,7 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMass(const
         m_mass = m_assembler.matrix();
 
         this->_applyMass();      
-        m_status = ThinShellAssemblerStatus::Success;
+        m_status = ThinShellAssemblerStatus::Success;*/
     }
     catch (...)
     {
