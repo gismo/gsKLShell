@@ -524,7 +524,7 @@ int main(int argc, char *argv[])
         if (plot)
         {
             std::string fileName = "indicator" + util::to_string(r);
-            numError = DWR->computeError(dualL,dualH,fileName,5000,false,false);
+            numError = DWR->computeError(dualL,dualH,false,fileName,5000,false,false);
             fileName = "indicator" + util::to_string(r) + "0";
             indicator.addTimestep(fileName,r,".vts");
         }
@@ -575,7 +575,7 @@ int main(int argc, char *argv[])
             // gsDebugVar(approxs[r]);
             // gsDebugVar(exacts[r]);
             // gsDebugVar(numGoal[r]);
-            elErrors = DWR->computeErrorElements(dualL, dualH);
+            elErrors = DWR->computeErrorElements(dualL, dualH,true);
             real_t error = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
             gsDebugVar(error);
             // gsDebugVar(*std::min_element(elErrors.begin(),elErrors.end()));
