@@ -436,6 +436,7 @@ int main(int argc, char *argv[])
         modalL.options().setInt("sortRule",4);
         modalL.options().setSwitch("verbose",true);
         modalL.options().setInt("ncvFac",2);
+	modalL.options().setReal("tolerance",1e-30);
 
 #ifdef GISMO_WITH_SPECTRA
         index_t numL = std::min(DWR->matrixL().cols()-1,10);

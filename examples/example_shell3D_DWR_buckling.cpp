@@ -237,10 +237,9 @@ int main(int argc, char *argv[])
             }
         }
         std::sort(gammas_an.begin(),gammas_an.end());
-        
-        // example_shell3D_buckling, r8e5
-        gammas_num = std::vector<real_t>{1.80755663446,4.51889148269,4.51889148439,7.23022636039,9.03778294497,9.03778294805,11.7491178272,11.7491178292,15.364231004,15.3642310062};
 
+        // example_shell3D_buckling, r7e8
+        gammas_num = std::vector<real_t>{1.8075565891994295801,4.5188914729971290931,4.5188914729971958067,7.2302263567951903468,9.0377829459938644361,9.0377829459938917719,11.749117829791974691,11.749117829791997193,15.364231008189425483,15.364231008189449788};
         lambda_an  = gammas_an[modeIdx] / (Load);
 
         lambda_num = gammas_num[modeIdx] / (Load);
@@ -428,7 +427,7 @@ int main(int argc, char *argv[])
         Kdiff = K_NL - K_L;
         gsSpectraGenSymShiftSolver<gsSparseMatrix<real_t>,Spectra::GEigsMode::ShiftInvert> eigsolverL(K_L,Kdiff,num,2*num,0.0);
         eigsolverL.init();
-        eigsolverL.compute(Spectra::SortRule::LargestMagn,1000,1e-6,Spectra::SortRule::SmallestMagn);
+        eigsolverL.compute(Spectra::SortRule::LargestMagn,1000,1e-30,Spectra::SortRule::SmallestMagn);
 
         if (eigsolverL.info()==Spectra::CompInfo::Successful)         { gsDebug<<"Spectra converged in "<<eigsolverL.num_iterations()<<" iterations and with "<<eigsolverL.num_operations()<<"operations. \n"; }
         else if (eigsolverL.info()==Spectra::CompInfo::NumericalIssue){ GISMO_ERROR("Spectra did not converge! Error code: NumericalIssue"); }
@@ -495,7 +494,7 @@ int main(int argc, char *argv[])
         Kdiff = K_NL - K_L;
         gsSpectraGenSymShiftSolver<gsSparseMatrix<real_t>,Spectra::GEigsMode::ShiftInvert> eigsolverH(K_L,Kdiff,num,2*num,0.0);
         eigsolverH.init();
-        eigsolverH.compute(Spectra::SortRule::LargestMagn,1000,1e-6,Spectra::SortRule::SmallestMagn);
+        eigsolverH.compute(Spectra::SortRule::LargestMagn,1000,1e-30,Spectra::SortRule::SmallestMagn);
 
         if (eigsolverH.info()==Spectra::CompInfo::Successful)         { gsDebug<<"Spectra converged in "<<eigsolverH.num_iterations()<<" iterations and with "<<eigsolverH.num_operations()<<"operations. \n"; }
         else if (eigsolverH.info()==Spectra::CompInfo::NumericalIssue){ GISMO_ERROR("Spectra did not converge! Error code: NumericalIssue"); }
@@ -628,7 +627,7 @@ int main(int argc, char *argv[])
         file_out<<"Ref,Approx,Exact_an,Exact_num,Efficiency_num,Efficiency_an,NumGoal,EstGoal,exGoal_an,exGoal_num,DoFs\n";
         for(index_t r=0; r!=numRefine+1; r++)
         {
-            file_out<<r<<","<<approxs[r]<<","<<exacts_an[r]<<","<<exacts_num[r]<<","<<efficiencies_an[r]<<","<<efficiencies_num[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<exGoal_an[r]<<","<<exGoal_num[r]<<","<<DoFs[r]<<"\n";
+            file_out<<std::setprecision(20)<<r<<","<<approxs[r]<<","<<exacts_an[r]<<","<<exacts_num[r]<<","<<efficiencies_an[r]<<","<<efficiencies_num[r]<<","<<numGoal[r]<<","<<estGoal[r]<<","<<exGoal_an[r]<<","<<exGoal_num[r]<<","<<DoFs[r]<<"\n";
         }
 
         file_out.close();
