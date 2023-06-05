@@ -186,7 +186,7 @@ int main(int argc, char *argv[])
     gsConstantFunction<> neuDataYm(neuYm,3);
     if (testCase==0)
     {
-        Load = 1e0;
+        Load = 1e-10;
         // gsVector<> point(2);
         // gsVector<> load (3);
         // point<< 1.0, 0.5 ; load << Load, 0.0, 0.0 ;
