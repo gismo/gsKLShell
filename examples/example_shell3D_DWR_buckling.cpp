@@ -52,6 +52,8 @@ int main(int argc, char *argv[])
 
     int testCase = 0;
 
+    real_t Load = 1e0;
+
     int adaptivity = 0;
 
     std::string mesherOptionsFile("options/shell_mesher_options.xml");
@@ -68,6 +70,8 @@ int main(int argc, char *argv[])
                testCase);
 
     cmd.addInt("A", "adaptivity", "Adaptivity scheme: 0) uniform refinement, 1) adaptive refinement, 2) adaptive refinement and coarsening", adaptivity);
+
+    cmd.addReal("L","load", "Load", Load);
 
     cmd.addReal("a","adim", "dimension a", aDim);
     cmd.addReal("b","bdim", "dimension b", bDim);
@@ -173,7 +177,6 @@ int main(int argc, char *argv[])
 
     real_t D = E_modulus * math::pow(thickness, 3) / (12 * (1 - math::pow(PoissonRatio, 2)));
     std::vector<real_t> gammas_an, gammas_num;
-    real_t Load = 0;
     real_t lambda_an = 0;
     real_t lambda_num = 0;
     gsVector<> neuXp(3);
@@ -186,7 +189,7 @@ int main(int argc, char *argv[])
     gsConstantFunction<> neuDataYm(neuYm,3);
     if (testCase==0)
     {
-        Load = 1e-10;
+        // Load = 1e-10;
         // gsVector<> point(2);
         // gsVector<> load (3);
         // point<< 1.0, 0.5 ; load << Load, 0.0, 0.0 ;
@@ -619,7 +622,7 @@ int main(int argc, char *argv[])
     if (write)
     {
         std::string filename;
-        filename = "example_shell3D_DWR_buckling_r" + std::to_string(numRefine) + "_e" + std::to_string(numElevate) + "_I" + std::to_string(modeIdx);
+        filename = "example_shell3D_DWR_buckling_r" + std::to_string(numRefine) + "_e" + std::to_string(numElevate) + "_I" + std::to_string(modeIdx)  + "_logL" + std::to_string(math::log10(Load));
         filename = filename + ".csv";
         std::ofstream file_out;
         file_out.open (filename);
