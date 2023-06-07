@@ -31,6 +31,8 @@ namespace gismo
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Cov2CartTransform>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Con2CartTransform>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::TensionField>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Theta>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Gamma>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Strain>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StrainN>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StrainM>;
@@ -67,6 +69,8 @@ namespace gismo
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Cov2CartTransform>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Con2CartTransform>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::TensionField>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Theta>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Gamma>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Strain>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::StrainN>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::StrainM>;

@@ -1543,10 +1543,10 @@ public:
             // e2 = conBasis.col(1); e2.normalize();
             // e3 = normal;
 
-            e1.resize(3);
-            e1 << 1,0,0;
-            e2.resize(3);
-            e2 << 0,1,0;
+            e1.resize(2);
+            e1 << 1,0;
+            e2.resize(2);
+            e2 << 0,1;
 
             a1 = covBasis.col(0);
             a2 = covBasis.col(1);

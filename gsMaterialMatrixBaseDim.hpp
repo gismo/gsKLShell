@@ -824,7 +824,7 @@ void gsMaterialMatrixBaseDim<dim,T>::_getMetric(const index_t k, const T z) cons
     else
         ratio = det_def / det_ori;
 
-    GISMO_ENSURE(ratio >= 0, "Jacobian determinant is negative! det(Gcov_def) = "<<det_def<<"; det(Gcov_ori) = "<<det_ori);
+    GISMO_ENSURE(ratio >= 0, "Jacobian determinant is negative! det(Gcov_def) = "<<det_def<<"; det(Gcov_ori) = "<<det_ori<<"\nGcov_def = "<<m_data.mine().m_Gcov_def<<"\n"<<"Acov_def = "<<m_data.mine().m_Acov_def<<"\nBcov_def = "<<m_data.mine().m_Bcov_def);
     m_data.mine().m_J0_sq = ratio;
 }
 

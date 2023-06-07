@@ -219,6 +219,11 @@ private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::TensionField, short_t>::type targetDim_impl() const { return 1; };
 
+    /// Implementation of \ref targetDim for principal stress directions
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Theta || 
+                            _out==MaterialOutput::Gamma   , short_t>::type targetDim_impl() const { return 1; };
+
     /// Specialisation of \ref targetDim for strain
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Strain  ||
@@ -321,6 +326,14 @@ private:
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::TensionField, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
+    /// Specialisation of \ref eval_into for theta
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Theta, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for theta
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Gamma, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
     /// Specialisation of \ref eval_into for strain
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Strain  ||
@@ -351,7 +364,6 @@ private:
     /// Specialisation of \ref eval_into for the deformation gradient
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Deformation, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
-
 
 protected:
     index_t m_pIndex;

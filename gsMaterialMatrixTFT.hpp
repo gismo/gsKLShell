@@ -21,101 +21,13 @@
 
 using namespace gismo;
 
-template <typename T> class objective;
-
 template <typename T>
-class gsTFTMat
+T mod(const T x, const T y)
 {
-public:
+    return x - math::floor(x/y)*y;
+}
 
-    gsTFTMat()
-    { }
-
-
-    gsTFTMat(const gsMatrix<T> & C, const gsMatrix<T> & e)
-    :
-    m_C(C),
-    m_e(e)
-    { }
-
-    void compute(T t)
-    {
-        this->compute(t,m_C,m_e);
-    }
-
-    void compute(T t, const gsMatrix<T> & C, const gsMatrix<T> & e )
-    {
-        theta = t;
-        T n1 = math::cos(theta);
-        T n2 = math::sin(theta);
-        T m1 = -math::sin(theta);
-        T m2 = math::cos(theta);
-        gsVector<T,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-        gsVector<T,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-        gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
-
-        gsMatrix<T,1,1> denum = n1_vec.transpose() * C * n1_vec;
-
-        C_I = C - 1 / (  n1_vec.transpose() * C * n1_vec ) * C * ( n1_vec * n1_vec.transpose() ) * C;
-
-        T tmp = ( n2_vec.transpose() * C * n1_vec ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
-
-        gamma = - ( n1_vec.transpose() * C * e ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
-
-        // gsDebugVar((n1_vec.transpose() * C * n1_vec).value() + gamma * (n1_vec.transpose() * C * n1_vec).value());
-        // gsDebugVar((n2_vec.transpose() * C * n1_vec).value() + gamma * (n2_vec.transpose() * C * n1_vec).value());
-
-        gsMatrix<T> I(3,3); I.setIdentity();
-
-        dgammadE = - ( n1_vec.transpose() * C * I ) / ( n1_vec.transpose() * C * n1_vec ).value();
-        dgammadE.transposeInPlace();
-
-        dgammadT = - 2 * gamma * tmp;
-
-        dfdE = ( n2_vec.transpose() - tmp * n1_vec.transpose() ) * C * I;
-        dfdE.transposeInPlace();
-
-        dfdT = (n4_vec.transpose() * C * ( e + gamma * n1_vec )).value() +
-                2 * gamma * ( n2_vec.transpose() * C * n2_vec - math::pow(( n1_vec.transpose() * C * n2_vec ).value(),2) / (n1_vec.transpose() * C * n1_vec).value() );
-
-        dTdE = - dfdE / dfdT;
-
-        gsMatrix<T,1,1> tmp2 = (n1_vec.transpose() * C * n2_vec);
-
-        T df =  (n4_vec.transpose() * C * (e + gamma * n1_vec)).value()
-                + 2 * gamma * ( (n2_vec.transpose() * C * n2_vec).value()
-                - math::pow(tmp2(0,0),2) / (n1_vec.transpose() * C * n1_vec)
-                )
-                                ;
-
-        GISMO_ASSERT(tmp2.rows()==1 && tmp2.cols()==1,"Must be scalar");
-
-        gsMatrix<T,3,1> b = n2_vec - tmp * n1_vec;
-
-        gsMatrix<T> C_I2 = C + C * (n1_vec * dgammadE.transpose());
-
-        C_II = C_I + 2 * gamma / df * (C * b * b.transpose() * C);
-        Ew = gamma * n1_vec;
-        E  = e + Ew;
-        Sp = C * (e + Ew);
-
-        dEw = n1_vec.transpose() * dgammadE
-                + dgammadT * n1_vec.transpose() * dTdE
-                + 2 * gamma * n2_vec.transpose() * dTdE;
-    }
-
-public:
-    mutable gsMatrix<T> C_I, C_II;
-    mutable T gamma, theta;
-    mutable gsMatrix<T> Ew, E, Sp, dEw;
-    mutable gsMatrix<T> dgammadE, dfdE, dTdE;
-    mutable T dgammadT, dfdT;
-
-private:
-    const gsMatrix<T> m_C;
-    const gsVector<T> m_e;
-};
-
+template <typename T> class objective;
 
 namespace gismo
 {
@@ -145,7 +57,6 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_pstress(const index_t patc
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
     gsMatrix<T> result = m_materialMat->eval3D_pstress(patch,u,z,out);
     index_t colIdx;
-    gsTFTMat<T> tftData;
     for (index_t k=0; k!=u.cols(); k++)
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
@@ -174,7 +85,6 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_pstrain(const index_t patc
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
     gsMatrix<T> result = m_materialMat->eval3D_pstrain(patch,u,z,out);
     index_t colIdx;
-    gsTFTMat<T> tftData;
     for (index_t k=0; k!=u.cols(); k++)
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
@@ -204,7 +114,6 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_strain(const index_t patch
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
     index_t colIdx;
     T theta;
-    gsTFTMat<T> tftData;
     for (index_t k=0; k!=u.cols(); k++)
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
@@ -248,7 +157,6 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
     index_t colIdx;
     T theta;
-    gsTFTMat<T> tftData;
     for (index_t k=0; k!=u.cols(); k++)
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
@@ -293,7 +201,6 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
     index_t colIdx;
     T theta;
-    gsTFTMat<T> tftData;
 
     this->_computePoints(patch,u);
     for (index_t k=0; k!=u.cols(); k++)
@@ -336,6 +243,72 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_tensionfield(const index_t
     return this->_compute_TF(patch,u,z);
 }
 
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_theta(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+{
+    gsMatrix<T> result(1,u.cols());
+    result.setZero();
+    gsMatrix<T> TF = this->_compute_TF(patch,u,z);
+    index_t colIdx;
+    T theta;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            colIdx = j*u.cols()+k;
+            if (TF(0,colIdx) == 1 || TF(0,colIdx) == -1) // taut
+            {
+                // do nothing
+            }
+            else if (TF(0,colIdx) == 0) // wrinkled
+            {
+                gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
+                gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);;
+                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),MaterialOutput::StrainN);
+
+                gsMatrix<T> thetas = eval_theta(C,N,E);
+                result(0,colIdx) = thetas(0,0);
+            }
+            else
+                GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_gamma(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+{
+    gsMatrix<T> result(1,u.cols());
+    result.setZero();
+    gsMatrix<T> TF = this->_compute_TF(patch,u,z);
+    index_t colIdx;
+    T theta;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            colIdx = j*u.cols()+k;
+            if (TF(0,colIdx) == 1 || TF(0,colIdx) == -1) // taut
+            {
+                // do nothing
+            }
+            else if (TF(0,colIdx) == 0) // wrinkled
+            {
+                gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
+                gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);;
+                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),MaterialOutput::StrainN);
+
+                gsMatrix<T> thetas = eval_theta(C,N,E);
+                result(0,colIdx) = _compute_gamma(thetas(0,0),C.reshape(3,3),N.reshape(3,1),E.reshape(3,1));
+            }
+            else
+                GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
+        }
+    }
+    return result;
+}
+
 /// Provides an implementation of eval3D_matrix for \a gsMaterialMatrixLinear
 template <short_t dim, class T, bool linear >
 template <bool _linear>
@@ -347,7 +320,6 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
 
     index_t colIdx;
     T theta;
-    gsTFTMat<T> tftData;
     for (index_t k=0; k!=u.cols(); k++)
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
@@ -390,7 +362,6 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
 
     index_t colIdx;
     T theta;
-    gsTFTMat<T> tftData;
     for (index_t k=0; k!=u.cols(); k++)
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
@@ -430,13 +401,12 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
     GISMO_ASSERT(Cs.cols()==Ns.cols(),"Number of C matrices and N vectors is different");
     GISMO_ASSERT(Cs.cols()==Es.cols(),"Number of C matrices and E vectors is different");
     gsMatrix<T> result(1,Cs.cols());
-    gsVector<T> value(1),init(1);
-    gsVector<T,3> n1_vec, n2_vec;
+    gsVector<T,3> n1_vec, n2_vec, n4_vec;
     T n1, n2, m1, m2;
 
     index_t iter;
 
-    T theta;
+    T theta = 0;
     T gamma;
 
     struct
@@ -454,244 +424,320 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
     {
         return (a-b).norm() < comp_tol;
     };
-    // TODO: make option for the number of start points
-    gsVector<T> x = gsVector<T>::LinSpaced(10,-0.5 * M_PI,0.5 * M_PI);
 
     for (index_t k = 0; k!=Cs.cols(); k++)
     {
-        init.setZero();
-        value.setZero();
-
         gsMatrix<T> C = Cs.col(k);
                     C.resize(3,3);
         gsMatrix<T> N = Ns.col(k);
                     N.resize(3,1);
+        gsMatrix<T> E = Es.col(k);
+                    E.resize(3,1);
 
+        gsVector<T> theta_interval = _theta_interval(C, N, E);
         objective<T> obj(C,N);
 
-        // See Lu et al., Finite Element Analysis of Membrane Wrinkling, 2001, International Journal for numerical methods in engineering
-        T E11 = Es(0,k);
-        T E22 = Es(1,k);
-        T E12 = 0.5 * Es(2,k);
-        T R_E = math::sqrt( math::pow((E11-E22)/2.,2) + E12*E12 );
-        if (R_E==0) R_E = 1;
-        T sin_E0 = E12/R_E;
-        T cos_E0 = (E22-E11)/(2*R_E);
-        T sin_Esqrt = E12*E12-E11*E22;
-        T sin_E1 = sin_Esqrt >= 0 ? -math::sqrt(sin_Esqrt)/R_E : 0;
-        T cos_E1 = -(E11+E22)/(2*R_E);
-        T sin_E2 = sin_Esqrt >= 0 ?  math::sqrt(sin_Esqrt)/R_E : 0;
-        T cos_E2 = -(E11+E22)/(2*R_E);
-
-        T theta_0E = math::atan2(sin_E0,cos_E0);
-        T theta_1E = math::atan2(sin_E1,cos_E1);
-        T theta_2E = math::atan2(sin_E2,cos_E2);
-
-        T pi = 4*math::atan(1);
-        T N11 = Ns(0,k);
-        T N22 = Ns(1,k);
-        T N12 = Ns(2,k);
-        T R_N = math::sqrt( math::pow((N11-N22)/2.,2) + N12*N12 );
-        if (R_N==0) R_N = 1;
-        T sin_N0 = -N12/R_N;
-        T cos_N0 = (N11-N22)/(2*R_N);
-        T sin_Nsqrt = N12*N12-N11*N22;
-        T sin_N1 = sin_Nsqrt >= 0 ?  math::sqrt(sin_Nsqrt)/R_N : 0;
-        T cos_N1 = -(N11+N22)/(2*R_N);
-        T sin_N2 = sin_Nsqrt >= 0 ? -math::sqrt(sin_Nsqrt)/R_N : 0;
-        T cos_N2 = -(N11+N22)/(2*R_N);
-
-        T theta_0N = math::atan2(sin_N0,cos_N0);
-        T theta_1N = math::atan2(sin_N1,cos_N1);
-        T theta_2N = math::atan2(sin_N2,cos_E2);
-
-        T theta_1 = std::fmod((theta_1N - theta_0N + theta_0E + pi),(2*pi));
-        T theta_2 = std::fmod((theta_2N - theta_0N + theta_0E + pi),(2*pi));
-        if (math::isnan(theta_1) || math::isnan(theta_2) || R_N==1 || R_E == 1)
-        {
-            gsDebugVar(Es.col(k));
-
-
-            gsDebugVar(R_E);
-
-            gsDebugVar(sin_Esqrt);
-
-            gsDebugVar(sin_E0);
-            gsDebugVar(sin_E1);
-            gsDebugVar(sin_E2);
-
-            gsDebugVar(cos_E0);
-            gsDebugVar(cos_E1);
-            gsDebugVar(cos_E2);
-
-            gsDebugVar(R_N);
-
-            gsDebugVar(sin_Nsqrt);
-
-            gsDebugVar(sin_N0);
-            gsDebugVar(sin_N1);
-            gsDebugVar(sin_N2);
-
-            gsDebugVar(cos_N0);
-            gsDebugVar(cos_N1);
-            gsDebugVar(cos_N2);
-
-
-            gsDebugVar(theta_1N);
-            gsDebugVar(theta_0N);
-            gsDebugVar(theta_0E);
-        }
-
-        T Q_E_min = theta_1E - theta_0E;
-        T Q_E_max = theta_2E - theta_0E;
-        T Q_S_min, Q_S_max;
-
-        T min, max;
-        if (theta_1 < theta_2)
-        {
-            Q_S_min = theta_1 - pi - theta_0E;
-            Q_S_max = theta_2 - pi - theta_0E;
-
-            // set difference:
-            min = math::max(Q_E_min,Q_S_min);
-            max = math::min(Q_E_max,Q_S_max);
-            min /=2;
-            max /=2;
-        }
-        else if (theta_1 > theta_2)
-        {
-            // try first interval
-            Q_S_min = theta_1 - pi - theta_0E;
-            Q_S_max = pi - theta_0E;
-            // set difference:
-            min = math::max(Q_E_min,Q_S_min);
-            max = math::min(Q_E_max,Q_S_max);
-            min /=2;
-            max /=2;
-            if (obj.eval(min)*obj.eval(max)>0)
-            {
-                // second interval
-                Q_S_min = - pi - theta_0E;
-                Q_S_max = theta_2 - pi - theta_0E;
-                // set difference:
-                min = math::max(Q_E_min,Q_S_min);
-                max = math::min(Q_E_max,Q_S_max);
-                min /=2;
-                max /=2;
-                // if (obj.eval(min)*obj.eval(max)>0)
-                // {
-                //     Q_S_min = theta_1 - pi - theta_0E;
-                //     Q_S_max = pi - theta_0E;
-                //     gsDebugVar(obj.eval(math::max(Q_E_min,Q_S_min)/2));
-                //     gsDebugVar(obj.eval(math::min(Q_E_max,Q_S_max)/2));
-                //     gsDebugVar(obj.eval(math::max(Q_E_min,Q_S_min)/2)*obj.eval(math::min(Q_E_max,Q_S_max)/2));
-                //     Q_S_min = - pi - theta_0E;
-                //     Q_S_max = theta_2 - pi - theta_0E;
-                //     gsDebugVar(obj.eval(math::max(Q_E_min,Q_S_min)/2));
-                //     gsDebugVar(obj.eval(math::min(Q_E_max,Q_S_max)/2));
-                //     gsDebugVar(obj.eval(math::max(Q_E_min,Q_S_min)/2)*obj.eval(math::min(Q_E_max,Q_S_max)/2));
-
-                //     GISMO_ERROR("Root is not found??");
-                // }
-            }
-        }
-        else
-        {
-            min = 0;
-            max = 0;
-            // gsWarn<<"Interval not specified\n";
-            // GISMO_ERROR("Don't know what to do!");
-        }
-
-        T f = obj.findRoot(min,max,theta,1e-18);
         gsVector<T> zeros(1); zeros<<0;
-        gsVector<T> arg(1); arg<<theta;
-        if (math::abs(f) > 1e-4)
+        gsVector<T> arg(1); //arg<<theta;
+        T f;
+        T pi = 4*math::atan(1);
+        bool converged = false;
+        if (theta_interval(0)!=0 && theta_interval(1)!=0)
         {
-            obj.newtonRaphson(zeros,arg,true,1e-12,100,1);
-            theta = arg(0);
-            f = obj.eval(theta);
-            if (math::abs(f) > 1e-4)
-                gsWarn<<"Theta not found?? min = "<<min<<"; max = "<<max<<"; theta = "<<theta<<"; f(theta) = "<<f<<"\n";
-        }
-
-        n1 = math::cos(theta);
-        n2 = math::sin(theta);
-        m1 = -math::sin(theta);
-        m2 = math::cos(theta);
-
-        n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-        n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-        gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
-
-
-        gamma = - ( n1_vec.transpose() * N ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
-
-        // GISMO_ASSERT((n1_vec.transpose() * N).value() < 0,"Stress criterion must be smaller than 0, but n1_vec.transpose() * N = "<<n1_vec.transpose() * N);
-        // GISMO_ASSERT((n4_vec.transpose() * Es.col(k)).value() > 0,"Strain criterion must be larger than 0, but n4_vec.transpose() * N = "<<n4_vec.transpose() * Es.col(k));
-        // GISMO_ASSERT(gamma>=0,"Gamma must be >=0, but gamma = "<<gamma);
-        result(0,k) = theta;
-
-/*
-// #pragma omp parallel
-// {
-// #       ifdef _OPENMP
-//         const int tid = omp_get_thread_num();
-//         const int nt  = omp_get_num_threads();
-// #       endif
-
-        // Start iteration over elements of patchInd
-// #       ifdef _OPENMP
-//         for (index_t t=tid; t<x.size(); t+= nt)
-// #       else
-//         for (index_t t=0; t<x.size(); t++)
-// #       endif
-        std::vector<gsVector<T>> results; results.reserve(x.size());
-        for (index_t t=0; t!=x.size(); t++)
-        {
-            init.at(0) = x.at(t);
-
-            objective<T> obj(C,N);
-            iter = obj.newtonRaphson(value,init,false,1e-12,1000);
-            GISMO_ASSERT(iter!=-1,"Newton iterations did not converge");
-
-            theta = init.at(0);
-            n1 = math::cos(theta);
-            n2 = math::sin(theta);
-            m1 = -math::sin(theta);
-            m2 = math::cos(theta);
-
-            n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-            n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-
-            gamma = - ( n1_vec.transpose() * N ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
-
-            gsVector<> res(2);
-            res.at(0) = std::fmod(theta,M_PI);
-            res.at(1) = gamma;
-
-            if (res(1) >= 0)
+            arg<<theta_interval(0);
+            converged = obj.findRootBrent(f,theta_interval(0),theta_interval(1),theta,1e-18);
+            if (!converged)
             {
-                // if (res(1) ==0)
-                //     // gsWarn<<"Gamma is zero\n";
-                //
-                results.push_back(res);
+                converged = obj.findRootBisection(f,theta_interval(0),theta_interval(1),theta,1e-6);
+                if (!converged)
+                {
+                    obj.newtonRaphson(zeros,arg,false,1e-12,100,1);
+                    theta = arg(0);
+                    f = obj.eval(theta);
+                }
             }
         }
-// }
 
-        std::sort(results.begin(), results.end(),lexcomp);
+        if (!_check_theta_full(theta,C,N,E) || (theta_interval(0)==0 && theta_interval(1)==0))
+        {
+            // Take the whole interval and evaluate 50 points
+            gsVector<T> theta_vec = gsVector<T>::LinSpaced(51,0,M_PI);
+            gsVector<T> f_vec(theta_vec.size());
+            // Compute f for each point
+            T t;
+            for (index_t i=0; i!=theta_vec.size(); i++)
+            {
+                t = theta_vec(i);
+                f_vec(i) = obj.eval(t);
+            }
+            // For each interval, store the intervals where the sign of f changes
+            std::vector<std::pair<T,T>> intervals; intervals.reserve(theta_vec.size());
+            for (index_t i=0; i!=f_vec.size()-1; i++)
+                if (f_vec(i)*f_vec(i+1) < 0)
+                    intervals.push_back(std::make_pair(theta_vec(i),theta_vec(i+1)));
 
-        auto last = std::unique(results.begin(), results.end(),comp);
-        results.erase(last, results.end());
+            // Compute all intervals
+            std::vector<T> thetas(intervals.size());
+            for (index_t i = 0; i!=intervals.size(); i++)
+            {
+                arg<<intervals[i].first;
+                converged = obj.findRootBrent(f,intervals[i].first,intervals[i].second,theta,1e-18);
+                if (!converged)
+                {
+                    converged = obj.findRootBisection(f,intervals[i].first,intervals[i].second,theta,1e-6);
+                    if (!converged)
+                    {
+                        obj.newtonRaphson(zeros,arg,false,1e-12,100,1);
+                        theta = arg(0);
+                        f = obj.eval(theta);
+                    }
+                }
+                thetas[i] = theta;
+            }
 
-        GISMO_ASSERT(results.size()>=1,"No suitable theta found");
+            if ((f_vec(0)*f_vec(f_vec.size()-1) <= 0))
+                thetas.push_back(0.0);
 
-        theta = results.at(0)(0);
+            std::vector<bool> full_check(thetas.size());
+            for (index_t i = 0; i!=thetas.size(); i++)
+                full_check[i] = _check_theta_full(thetas[i],C,N,E);
+
+            index_t full_check_sum = std::accumulate(full_check.begin(),full_check.end(),0);
+            if (full_check_sum!=0)
+            {
+                std::vector<bool>::iterator res = std::find_if(full_check.begin(), full_check.end(), [](bool i) { return i;});
+                index_t i = std::distance(full_check.begin(),res);
+                theta = thetas[i];
+            }
+            else
+            {
+                gsWarn<<"Everything failed??\n";
+                gsVector<T> x = gsVector<T>::LinSpaced(1000,-M_PI,M_PI);
+                for (index_t XX=0; XX!=x.size(); XX++)
+                {
+                    T t = x(XX);
+                    f = obj.eval(t);
+
+                    n1 = math::cos(t);
+                    n2 = math::sin(t);
+                    m1 = -math::sin(t);
+                    m2 = math::cos(t);
+
+                    n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+                    n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
+                    gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
+
+                    gamma = - ( n1_vec.transpose() * N ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
+
+                    gsInfo<<x(XX)<<","<<f<<","<<gamma<<","<<(n1_vec.transpose() * N).value()<<","<<(n4_vec.transpose() * Es.col(k)).value()<<"\n";
+                }
+            }
+        }
         result(0,k) = theta;
-
-    */
     }
+    return result;
+}
+
+template <short_t dim, class T, bool linear >
+T gsMaterialMatrixTFT<dim,T,linear>::_compute_gamma(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const
+{
+    T n1 = math::cos(theta);
+    T n2 = math::sin(theta);
+    T m1 = -math::sin(theta);
+    T m2 = math::cos(theta);
+    gsVector<T,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+    gsVector<T,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
+    gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
+    
+    return - ( n1_vec.transpose() * N ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
+}
+
+template <short_t dim, class T, bool linear >
+bool gsMaterialMatrixTFT<dim,T,linear>::_check_theta_full(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const
+{
+    T n1 = math::cos(theta);
+    T n2 = math::sin(theta);
+    T m1 = -math::sin(theta);
+    T m2 = math::cos(theta);
+    gsVector<T,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+    gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
+    
+    bool check = true;
+    check &= ((n1_vec.transpose() * N).value() < 0); // Li et al eq. 63 / eq. 55
+    check &= ((n4_vec.transpose() * E).value() > 0); // Li et al eq. 58
+    return check;
+}
+
+template <short_t dim, class T, bool linear >
+bool gsMaterialMatrixTFT<dim,T,linear>::_check_theta_gamma(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const
+{
+    T n1 = math::cos(theta);
+    T n2 = math::sin(theta);
+    gsVector<T,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+    return ((n1_vec.transpose() * N).value() < 0); // Li et al eq. 63 / eq. 55
+}
+
+template <short_t dim, class T, bool linear >
+gsVector<T> gsMaterialMatrixTFT<dim,T,linear>::_theta_interval(const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const
+{
+    GISMO_ASSERT(C.rows()==C.cols(),"C must be a 3x3 square matrix");
+    GISMO_ASSERT(C.rows()==3,"C must be a 3x3 square matrix");
+    GISMO_ASSERT(N.rows()==3,"N must be a 3x1 vector");
+    GISMO_ASSERT(E.rows()==3,"E must be a 3x1 vector");
+    gsVector<T> result(2);
+ 
+    objective<T> obj(C,N);
+
+    // See Lu et al., Finite Element Analysis of Membrane Wrinkling, 2001, International Journal for numerical methods in engineering
+    T E11 = E(0);
+    T E22 = E(1);
+    T E12 = 0.5 * E(2);
+    T R_E = math::sqrt( math::pow((E11-E22)/2.,2) + E12*E12 );
+    if (R_E==0) {R_E = 1; gsDebugVar("??");};
+    T sin_E0 = E12/R_E;
+    T cos_E0 = (E22-E11)/(2*R_E);
+    std::complex<T> sin_Esqrt = E12*E12-E11*E22;
+    std::complex<T> sin_E1_C = -math::sqrt(sin_Esqrt)/R_E; 
+    T sin_E1 = sin_E1_C.real();
+    T cos_E1 = -(E11+E22)/(2*R_E);
+    std::complex<T> sin_E2_C = math::sqrt(sin_Esqrt)/R_E; 
+    T sin_E2 = sin_E2_C.real();
+    T cos_E2 = -(E11+E22)/(2*R_E);
+
+    T theta_0E = math::atan2(sin_E0,cos_E0);
+    T theta_1E = math::atan2(sin_E1,cos_E1);
+    T theta_2E = math::atan2(sin_E2,cos_E2);
+
+    T pi = 4*math::atan(1);
+    T N11 = N(0);
+    T N22 = N(1);
+    T N12 = N(2);
+    T R_N = math::sqrt( math::pow((N11-N22)/2.,2) + N12*N12 );
+    if (R_N==0) R_N = 1;
+    T sin_N0 = -N12/R_N;
+    T cos_N0 = (N11-N22)/(R_N);
+    std::complex<T> sin_Nsqrt = N12*N12-N11*N22;
+    // if (sin_Nsqrt < 0) gsDebugVar("Oops");
+    std::complex<T> sin_N1_C = math::sqrt(sin_Nsqrt)/R_N; 
+    T sin_N1 = sin_N1_C.real();
+    T cos_N1 = -(N11+N22)/(2*R_N);
+    std::complex<T> sin_N2_C = -math::sqrt(sin_Nsqrt)/R_N; 
+    T sin_N2 = sin_N2_C.real();
+    T cos_N2 = -(N11+N22)/(2*R_N);
+
+    T theta_0N = math::atan2(sin_N0,cos_N0);
+    T theta_1N = math::atan2(sin_N1,cos_N1);
+    T theta_2N = math::atan2(sin_N2,cos_N2);
+
+    T theta_1 = mod((theta_1N - theta_0N + theta_0E + pi),(2*pi));
+    T theta_2 = mod((theta_2N - theta_0N + theta_0E + pi),(2*pi));
+    if (math::isnan(theta_1) || math::isnan(theta_2) || R_N==1 || R_E == 1)
+    {
+        gsDebugVar(E);
+        gsDebugVar(C);
+        gsDebugVar(N);
+
+
+        gsDebugVar(R_E);
+
+        gsDebugVar(sin_Esqrt);
+
+        gsDebugVar(sin_E0);
+        gsDebugVar(sin_E1);
+        gsDebugVar(sin_E2);
+
+        gsDebugVar(cos_E0);
+        gsDebugVar(cos_E1);
+        gsDebugVar(cos_E2);
+
+        gsDebugVar(R_N);
+
+        gsDebugVar(sin_Nsqrt);
+
+        gsDebugVar(sin_N0);
+        gsDebugVar(sin_N1);
+        gsDebugVar(sin_N2);
+
+        gsDebugVar(cos_N0);
+        gsDebugVar(cos_N1);
+        gsDebugVar(cos_N2);
+
+
+        gsDebugVar(theta_1N);
+        gsDebugVar(theta_0N);
+        gsDebugVar(theta_0E);
+    }
+
+    T Q_E_min = theta_1E - theta_0E;
+    T Q_E_max = theta_2E - theta_0E;
+    T Q_S_min, Q_S_max;
+
+    // OPEN QUESTIONS TFT
+    // - THETA IS OUTSIDE OF THE INTERVAL (ALSO FOR DAOBO). IS THIS WRONG?
+    // - FOR LINEAR MATERIAL VIA GSMATERIALMATRIX.HPP, C*E!=N (!!!)
+
+
+    T min, max;
+    if (theta_1 < theta_2)
+    {
+        Q_S_min = theta_1 - pi - theta_0E;
+        Q_S_max = theta_2 - pi - theta_0E;
+
+        // set difference:
+        min = math::max(Q_E_min,Q_S_min);
+        max = math::min(Q_E_max,Q_S_max);
+        min /=2;
+        max /=2;
+        // gsDebugVar("One interval");
+    }
+    else if (theta_1 > theta_2)
+    {
+        // try first interval
+        Q_S_min = theta_1 - pi - theta_0E;
+        Q_S_max = pi - theta_0E;
+
+        // set difference:
+        min = math::max(Q_E_min,Q_S_min);
+        max = math::min(Q_E_max,Q_S_max);
+        min /=2;
+        max /=2;
+        if (obj.eval(min)*obj.eval(max)>0)
+        {
+            // second interval
+            Q_S_min = - pi - theta_0E;
+            Q_S_max = theta_2 - pi - theta_0E;
+            // set difference:
+            min = math::max(Q_E_min,Q_S_min);
+            max = math::min(Q_E_max,Q_S_max);
+            min /=2;
+            max /=2;
+        //     // if (obj.eval(min)*obj.eval(max)>0)
+        //     // {
+        //     //     Q_S_min = theta_1 - pi - theta_0E;
+        //     //     Q_S_max = pi - theta_0E;
+        //     //     gsDebugVar(obj.eval(math::max(Q_E_min,Q_S_min)/2));
+        //     //     gsDebugVar(obj.eval(math::min(Q_E_max,Q_S_max)/2));
+        //     //     gsDebugVar(obj.eval(math::max(Q_E_min,Q_S_min)/2)*obj.eval(math::min(Q_E_max,Q_S_max)/2));
+        //     //     Q_S_min = - pi - theta_0E;
+        //     //     Q_S_max = theta_2 - pi - theta_0E;
+        //     //     gsDebugVar(obj.eval(math::max(Q_E_min,Q_S_min)/2));
+        //     //     gsDebugVar(obj.eval(math::min(Q_E_max,Q_S_max)/2));
+        //     //     gsDebugVar(obj.eval(math::max(Q_E_min,Q_S_min)/2)*obj.eval(math::min(Q_E_max,Q_S_max)/2));
+
+        //     //     GISMO_ERROR("Root is not found??");
+        //     // }
+        }
+        // gsDebugVar("Two intervals");
+    }
+    else
+    {
+        min = 0;
+        max = 0;
+        // gsWarn<<"Interval not specified\n";
+        // GISMO_ERROR("Don't know what to do!");
+    }
+    result(0) = min;
+    result(1) = max;
     return result;
 }
 
@@ -791,7 +837,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
 
     // dF/dT
     T dfdT = (n4_vec.transpose() * ( S + C * gamma * n1_vec )).value() +
-            2 * gamma * ( n2_vec.transpose() * C * n2_vec - math::pow(( n1_vec.transpose() * C * n2_vec ).value(),2) / (n1_vec.transpose() * C * n1_vec).value() );
+            2 * gamma * ( n2_vec.transpose() * C * n2_vec - math::pow(( n1_vec.transpose() * C * n2_vec ).value(),2) / ( n1_vec.transpose() * C * n1_vec ).value() );
 
     // dT/dE
     gsMatrix<T> dTdE = - dfdE / dfdT;
@@ -962,7 +1008,7 @@ public:
     m_S(S)
     {
         m_support.resize(1,2);
-        m_support<<-3.1415926535,3.1415926535;
+        m_support<<0,2*3.1415926535;
     }
 
     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
@@ -1053,7 +1099,55 @@ public:
         m_support = supp;
     }
 
-    T findRoot(const T & a, const T & b, T & x, const T & t = 1e-12, const index_t & itmax = 1000)
+    /**
+     * @brief      Finds a root bisection.
+     *
+     * @param      f      The function value
+     * @param[in]  A      Left end of the interval
+     * @param[in]  B      Right end of the interval
+     * @param      x      Final x coordinate of root
+     * @param[in]  t      Tolerance
+     * @param[in]  itmax  Maximum iterations
+     *
+     * @return     True when converged
+     */
+    bool findRootBisection(T & f, const T & A, const T & B, T & x, const T & t = 1e-12, const index_t & itmax = 1000)
+    {
+        T a = A;
+        T b = B;
+        T c = (b-a)/2;
+        index_t it = 0;
+        while (math::abs(b-a) > t && it++ < itmax)
+        {
+            if (this->eval(c)==0.0)
+                break;
+            else if (this->eval(c)*this->eval(a) < 0)
+                b = c;
+            else
+                a = c;
+        }
+        x = c;
+        if (math::abs(b-a) < t)
+            return true;
+        else
+            return false;
+    }
+
+    /**
+     * @brief      Finds a root using Brent's method.
+     *
+     * @param      f      The function value
+     * @param[in]  A      Left end of the interval
+     * @param[in]  B      Right end of the interval
+     * @param      x      Final x coordinate of root
+     * @param[in]  t      Tolerance
+     * @param[in]  itmax  Maximum iterations
+     *
+     * @return     True when converged
+     *
+     * @return     { description_of_the_return_value }
+     */
+    bool findRootBrent(T & f, const T & a, const T & b, T & x, const T & t = 1e-12, const index_t & itmax = 1000)
     {
         /*
          * Implementation of Brent's method for finding the root \a c of a scalar equation \a *this within the interval [a,b]
@@ -1085,6 +1179,11 @@ public:
         fa = this->eval( sa );
         fb = this->eval( sb );
 
+        if (fa*fb >=0)
+            return false;
+        else if (fa > fb)
+            std::swap(fa,fb);
+
         c = sa;
         fc = fa;
         e = sb - sa;
@@ -1110,7 +1209,8 @@ public:
             if ( std::fabs ( m ) <= tol || fb == 0.0 )
             {
                 x = sb;
-                return std::fabs ( m );
+                f = std::fabs ( m );
+                return true;
                 // break;
             }
 
@@ -1188,7 +1288,7 @@ public:
 
 
         GISMO_ERROR("Brent's method did not find a root");
-        return std::numeric_limits<T>::max();
+        return false;
     }
 
 private:

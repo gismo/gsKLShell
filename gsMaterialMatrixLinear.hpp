@@ -630,10 +630,7 @@ template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     this->_computePoints(patch,u);
-    gsMatrix<T> Smat = eval3D_stress(patch,u,z,out);
-
-    gsMatrix<T> result(3, u.cols() * z.rows());
-    result.setZero();
+    gsMatrix<T> result = eval3D_stress(patch,u,z,out);
     index_t colIdx;
     T detF;
     for (index_t k=0; k!=u.cols(); k++)
@@ -643,7 +640,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_CauchyStress(const index_t pat
             colIdx = j * u.cols() + k;
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
             detF = math::sqrt(m_data.mine().m_J0_sq*1.0);
-            Smat.col(colIdx) /= detF;
+            result.col(colIdx) /= detF;
         }
     }
     return result;
@@ -862,7 +859,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const T z, enum MaterialOutput out
                 out == MaterialOutput::StrainM             )
         strain = (m_data.mine().m_Bcov_ori - m_data.mine().m_Bcov_def);
     else if (out == MaterialOutput::Generic || out == MaterialOutput::Strain || out == MaterialOutput::Stress) // To be used with multiplyLinZ_into or integrateZ_into
-        strain = 0.5*(m_data.mine().m_Acov_def - m_data.mine().m_Acov_ori) + z*(m_data.mine().m_Bcov_ori - m_data.mine().m_Bcov_def);
+        strain = 0.5*(m_data.mine().m_Gcov_def.block(0,0,2,2) - m_data.mine().m_Gcov_ori.block(0,0,2,2));
     else
         GISMO_ERROR("Output type MaterialOutput::" + std::to_string((short_t)(out)) + " not understood. See gsMaterialMatrixUtils.h");
 

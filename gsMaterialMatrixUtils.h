@@ -116,6 +116,8 @@ enum class MaterialOutput : short_t
     Stretch = 12,       // ONLY ON MID-PLANE
     StretchDir = 13,    // ONLY ON MID-PLANE
     TensionField = 14,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
+    Theta = 141,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
+    Gamma = 142,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
     Spec2CovTransform = 15,  // Transformation matrix from spectral to covariant basis
     Spec2ConTransform = 16,  // Transformation matrix from spectral to contravariant basis
     Cov2CartTransform = 17,  // Transformation matrix from covariant basis to cartesian basis
