@@ -179,6 +179,10 @@ public:
     gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
 
     /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_CauchyPStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override
+    {return m_materialMat->eval3D_CauchyPStress(patch,u,z,out);}
+
+    /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details

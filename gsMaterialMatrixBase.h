@@ -43,8 +43,8 @@ public:
 
     gsMaterialMatrixBase()
     :
-    m_defpatches(nullptr),
-    m_patches(nullptr)
+    m_patches(nullptr),
+    m_defpatches(nullptr)
     {}
     
     GISMO_UPTR_FUNCTION_NO_IMPLEMENTATION(gsMaterialMatrixBase, clone)
@@ -347,7 +347,16 @@ public:
     inline virtual gsMatrix<T> eval3D_pstrain(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
     { GISMO_NO_IMPLEMENTATION; }
 
-    /// See \ref gsMaterialMatrixBase for details
+    /**
+     * @brief      { function_description }
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      { parameter_description }
+     * @param[in]  z      { parameter_description }
+     * @param[in]  out    The out
+     *
+     * @return     { description_of_the_return_value }
+     */
     inline virtual gsMatrix<T> eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
     { GISMO_NO_IMPLEMENTATION; }
     inline virtual gsMatrix<T> eval3D_strain(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
@@ -357,7 +366,16 @@ public:
         return eval3D_strain(patch,u,zmat,out);
     }
 
-    /// See \ref gsMaterialMatrixBase for details
+    /**
+     * @brief      { function_description }
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      { parameter_description }
+     * @param[in]  z      { parameter_description }
+     * @param[in]  out    The out
+     *
+     * @return     { description_of_the_return_value }
+     */
     inline virtual gsMatrix<T> eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
     { GISMO_NO_IMPLEMENTATION; }
     inline virtual gsMatrix<T> eval3D_stress(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
@@ -367,10 +385,29 @@ public:
         return eval3D_stress(patch,u,zmat,out);
     }
 
+    /**
+     * @brief      { function_description }
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      { parameter_description }
+     * @param[in]  z      { parameter_description }
+     * @param[in]  out    The out
+     *
+     * @return     { description_of_the_return_value }
+     */
     inline virtual gsMatrix<T> eval3D_detF(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
     { GISMO_NO_IMPLEMENTATION; }
 
-    /// See \ref gsMaterialMatrixBase for details
+    /**
+     * @brief      { function_description }
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      { parameter_description }
+     * @param[in]  z      { parameter_description }
+     * @param[in]  out    The out
+     *
+     * @return     { description_of_the_return_value }
+     */
     inline virtual gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
     { GISMO_NO_IMPLEMENTATION; }
     inline virtual gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const

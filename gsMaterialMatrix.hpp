@@ -365,7 +365,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_dmatrix_num(const
 
     gsMatrix<T> result(27,u.cols()*z.rows());
     result.setZero();
-
+    index_t colIdx;
     for (index_t k=0; k!=u.cols(); k++)
     {
 
@@ -375,8 +375,9 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_dmatrix_num(const
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
+            colIdx = j*u.cols()+k;
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
-            result.col(j*u.cols()+k) = dCijkl(patch,u.col(k),z(j,k));
+            result.col(colIdx) = dCijkl(patch,u.col(k),z(j,k));
         }
     }
 
@@ -762,7 +763,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_str
     gsMatrix<T> C33s = _eval3D_Compressible_C33(patch,u,z);
     T C33;
     gsMatrix<T,3,3> c, cinv;
-
+    index_t colIdx;
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
@@ -771,21 +772,28 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_str
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
+            colIdx = j*u.cols()+k;
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
-            C33 = C33s(0,j*u.cols()+k);
+            // Avoid almost-zero entries for undeformed configurations
+            if (gsAllCloseRelativeToMax(m_data.mine().m_Gcon_ori,m_data.mine().m_Gcon_def,1e-12))
+                result.col(colIdx).setZero();
+            else
+            {
+                C33 = C33s(0,colIdx);
 
-            // Compute c
-            c.setZero();
-            c.block(0,0,2,2) = m_data.mine().m_Gcov_def.block(0,0,2,2);
-            c(2,2) = C33; // c33
-            cinv.setZero();
-            cinv.block(0,0,2,2) = m_data.mine().m_Gcon_def.block(0,0,2,2);
-            cinv(2,2) = 1.0/C33;
+                // Compute c
+                c.setZero();
+                c.block(0,0,2,2) = m_data.mine().m_Gcov_def.block(0,0,2,2);
+                c(2,2) = C33; // c33
+                cinv.setZero();
+                cinv.block(0,0,2,2) = m_data.mine().m_Gcon_def.block(0,0,2,2);
+                cinv(2,2) = 1.0/C33;
 
-            result(0,j*u.cols()+k) = _Sij(0,0,c,cinv); // S11
-            result(1,j*u.cols()+k) = _Sij(1,1,c,cinv); // S22
-            result(2,j*u.cols()+k) = _Sij(0,1,c,cinv); // S12
+                result(0,colIdx) = _Sij(0,0,c,cinv); // S11
+                result(1,colIdx) = _Sij(1,1,c,cinv); // S22
+                result(2,colIdx) = _Sij(0,1,c,cinv); // S12
+            }
         }
     }
     return result;
@@ -801,7 +809,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Incompressible_s
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
     gsMatrix<T> result(3, u.cols() * z.rows());
     result.setZero();
-
+    index_t colIdx;
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
@@ -810,11 +818,18 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Incompressible_s
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
+            colIdx = j * u.cols() + k;
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
-            result(0, j * u.cols() + k) = _Sij(0, 0);
-            result(1, j * u.cols() + k) = _Sij(1, 1);
-            result(2, j * u.cols() + k) = _Sij(0, 1);
+            // Avoid almost-zero entries for undeformed configurations
+            if (gsAllCloseRelativeToMax(m_data.mine().m_Gcon_ori,m_data.mine().m_Gcon_def,1e-12))
+                result.col(colIdx).setZero();
+            else
+            {
+                result(0, colIdx) = _Sij(0, 0);
+                result(1, colIdx) = _Sij(1, 1);
+                result(2, colIdx) = _Sij(0, 1);
+            }
         }
     }
     return result;
@@ -864,7 +879,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_det
     gsMatrix<T> result(1, u.cols() * z.rows());
     result.setZero();
     gsMatrix<T> C33s = _eval3D_Compressible_C33(patch,u,z);
-
+    index_t colIdx;
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
@@ -873,8 +888,9 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_det
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
+            colIdx = j*u.cols()+k;
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
-            result(0,j*u.cols()+k) = math::sqrt(m_data.mine().m_J0_sq*C33s(0,j*u.cols()+k));
+            result(0,colIdx) = math::sqrt(m_data.mine().m_J0_sq*C33s(0,colIdx));
         }
     }
     return result;
@@ -944,7 +960,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_Cau
         {
             colIdx = j * u.cols() + k;
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
-            C33 = C33s(0,j*u.cols()+k);
+            C33 = C33s(0,colIdx);
             detF = math::sqrt(m_data.mine().m_J0_sq*C33);
             Smat.col(colIdx) /= detF;
         }
@@ -1172,6 +1188,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Incompressible_m
 
     gsMatrix<T> result(9, u.cols() * z.rows());
     result.setZero();
+    index_t colIdx;
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
@@ -1180,9 +1197,10 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Incompressible_m
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
+            colIdx = j*u.cols()+k;
             this->_getMetric(k,z(j,k) * m_data.mine().m_Tmat(0,k) ); // on point i, on height z(0,j)
 
-            gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
+            gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(colIdx,3,3);
             /*
                 C = C1111,  C1122,  C1112
                     symm,   C2222,  C2212
@@ -1630,10 +1648,6 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Sij_impl(const index_t i, const ind
                 m_data.mine().m_Gcov_def(1,0)*m_data.mine().m_Gcon_ori(1,0) +
                 m_data.mine().m_Gcov_def(1,1)*m_data.mine().m_Gcon_ori(1,1);
 
-    // Avoid almost-zero entries for undeformed configurations
-    if (m_data.mine().m_J0_sq==1 && math::almostEqual(traceCt,2.0) && math::almostEqual(m_data.mine().m_Gcon_ori(i,j),m_data.mine().m_Gcon_def(i,j)))
-        return 0;
-
     T c2 = mu/(m_data.mine().m_parvals.at(2)+1);
     T c1 = m_data.mine().m_parvals.at(2)*c2;
 
@@ -1798,7 +1812,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_C33
     this->_computePoints(patch,u);
     gsMatrix<T> result(1, u.cols() * z.rows());
     result.setZero();
-
+    index_t colIdx;
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
@@ -1807,6 +1821,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_C33
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
+            colIdx = j*u.cols()+k;
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
             // Define objects
@@ -1850,7 +1865,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_C33
                 dc33 = -2. * S33 / C3333;
                 if (math::lessthan(math::abs(dc33),tol))
                 {
-                    result(0,j*u.cols()+k) = c(2,2);
+                    result(0,colIdx) = c(2,2);
                     break;
                 }
                 GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, S33 = "<<S33<<", dc33 = "<<dc33<<" and tolerance = "<<tol<<"\n");
@@ -1922,7 +1937,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_mat
     gsMatrix<T> C33s = _eval3D_Compressible_C33(patch,u,z);
     T C33;
     gsMatrix<T,3,3> c, cinv;
-
+    index_t colIdx;
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
@@ -1931,9 +1946,10 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_mat
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
+            colIdx = j*u.cols()+k;
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
-            C33 = C33s(0,j*u.cols()+k);
+            C33 = C33s(0,colIdx);
 
             // Compute c
             c.setZero();
@@ -1943,7 +1959,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_mat
             cinv.block(0,0,2,2) = m_data.mine().m_Gcon_def.block(0,0,2,2);
             cinv(2,2) = 1.0/C33;
 
-            gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
+            gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(colIdx,3,3);
             /*
                 C = C1111,  C1122,  C1112
                     symm,   C2222,  C2212

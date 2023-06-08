@@ -197,7 +197,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t
     // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    gsMatrix<T> result = m_materialMat->eval3D_CauchyStress(patch,u,z,MaterialOutput::CauchyVectorN);
+    gsMatrix<T> result = m_materialMat->eval3D_CauchyStress(patch,u,z,MaterialOutput::CauchyStressN);
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
     index_t colIdx;
     T theta;
@@ -237,6 +237,57 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t
     return result;
 }
 
+// template <short_t dim, class T, bool linear >
+// gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyPStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+// {
+//     // Input: u in-plane points
+//     //        z matrix with, per point, a column with z integration points
+//     // Output: (n=u.cols(), m=z.rows())
+//     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+
+//     gsMatrix<T> result = m_materialMat->eval3D_CauchyPStress(patch,u,z,MaterialOutput::PCauchyStressN);
+//     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
+//     index_t colIdx;
+//     T theta;
+//     std::pair<gsVector<T>,gsMatrix<T>> res;
+
+//     this->_computePoints(patch,u);
+//     for (index_t k=0; k!=u.cols(); k++)
+//     {
+//         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+//         {
+//             colIdx = j*u.cols()+k;
+//             if (TF(0,colIdx) == 1) // taut
+//             {
+//                 // do nothing
+//             }
+//             else if (TF(0,colIdx) == -1) // slack
+//             {
+//                 // Set to zero
+//                 // result.col(colIdx).setZero();
+//                 result.col(colIdx) *= m_options.getReal("SlackMultiplier");
+//             }
+//             else if (TF(0,colIdx) == 0) // wrinkled
+//             {
+//                 this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
+//                 gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
+//                 gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);;
+//                 gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),MaterialOutput::StrainN);
+//                 gsMatrix<T> thetas = eval_theta(C,N,E);
+//                 theta = thetas(0,0);
+//                 gsMatrix<T> S = this->_compute_S(theta,C.reshape(3,3),N);
+//                 res = this->_evalPStress(S);
+
+//                 T detF = math::sqrt(m_data.mine().m_J0_sq)*1.0;
+//                 result.col(colIdx) = res.first / math::sqrt(detF);
+//             }
+//             else
+//                 GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
+//         }
+//     }
+//     return result;
+// }
+
 template <short_t dim, class T, bool linear >
 gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
 {
@@ -250,7 +301,6 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_theta(const index_t patch,
     result.setZero();
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
     index_t colIdx;
-    T theta;
     for (index_t k=0; k!=u.cols(); k++)
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
@@ -283,7 +333,6 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_gamma(const index_t patch,
     result.setZero();
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
     index_t colIdx;
-    T theta;
     for (index_t k=0; k!=u.cols(); k++)
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
@@ -404,26 +453,8 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
     gsVector<T,3> n1_vec, n2_vec, n4_vec;
     T n1, n2, m1, m2;
 
-    index_t iter;
-
     T theta = 0;
     T gamma;
-
-    struct
-    {
-        bool operator()(const gsVector<T> & a, const gsVector<T> & b) const
-        {
-            GISMO_ASSERT(a.size()==b.size(),"Sizes must agree!");
-            return std::lexicographical_compare(  a.begin(), a.end(),b.begin(), b.end());
-        };
-    }
-    lexcomp;
-
-    T comp_tol = 1e-5;
-    auto comp = [&comp_tol](const gsVector<T> & a, const gsVector<T> & b)
-    {
-        return (a-b).norm() < comp_tol;
-    };
 
     for (index_t k = 0; k!=Cs.cols(); k++)
     {
@@ -440,7 +471,6 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
         gsVector<T> zeros(1); zeros<<0;
         gsVector<T> arg(1); //arg<<theta;
         T f;
-        T pi = 4*math::atan(1);
         bool converged = false;
         if (theta_interval(0)!=0 && theta_interval(1)!=0)
         {
@@ -478,7 +508,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
 
             // Compute all intervals
             std::vector<T> thetas(intervals.size());
-            for (index_t i = 0; i!=intervals.size(); i++)
+            for (size_t i = 0; i!=intervals.size(); i++)
             {
                 arg<<intervals[i].first;
                 converged = obj.findRootBrent(f,intervals[i].first,intervals[i].second,theta,1e-18);
@@ -491,7 +521,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
                         theta = arg(0);
                         f = obj.eval(theta);
                     }
-                }
+            }
                 thetas[i] = theta;
             }
 
@@ -499,7 +529,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
                 thetas.push_back(0.0);
 
             std::vector<bool> full_check(thetas.size());
-            for (index_t i = 0; i!=thetas.size(); i++)
+            for (size_t i = 0; i!=thetas.size(); i++)
                 full_check[i] = _check_theta_full(thetas[i],C,N,E);
 
             index_t full_check_sum = std::accumulate(full_check.begin(),full_check.end(),0);
