@@ -448,6 +448,7 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::dCijkl_impl(const index_t patch, con
     dCdC(0,8) = dCijkl_dCmn(0,1,0,1,  0,0); // C1212dC11
     dCdC(1,8) = dCijkl_dCmn(0,1,0,1,  1,1); // C1212dC22
     dCdC(2,8) = dCijkl_dCmn(0,1,0,1,  0,1); // C1212dC12
+    dCdC.row(2) *= 2;
     return dCdC.reshape(27,1);
 }
 
@@ -1920,7 +1921,6 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_mat
         C(1,0) = C(0,1) = _Cijkl(0,0,1,1,c,cinv); // C1122
         C(2,0) = C(0,2) = _Cijkl(0,0,0,1,c,cinv); // C1112
         C(2,1) = C(1,2) = _Cijkl(1,1,0,1,c,cinv); // C2212
-
     }
     return result;
 }

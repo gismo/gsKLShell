@@ -919,7 +919,8 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
 
     // dF/dE
     // gsMatrix<T> dfdE = ( n2_vec.transpose() - tmp * n1_vec.transpose() ) * C * I;
-    gsMatrix<T> dfdE = n2_vec.transpose() * C * I + dgammadE.transpose() * (n2_vec.transpose() * C * n1_vec).value();
+    // CHECK THIS
+    gsMatrix<T> dfdE = n2_vec.transpose() * C * I + dgammadE.transpose() * (n2_vec.transpose() * C * n1_vec).value() + gamma * ( n2_vec.transpose() * dCN1 * I);
     dfdE.transposeInPlace();
 
     // dF/dT
