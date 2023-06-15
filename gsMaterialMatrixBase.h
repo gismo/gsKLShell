@@ -83,15 +83,21 @@ public:
      *
      * @return     \ref gsOptionList
      */
-    inline virtual gsOptionList & options()
+    inline virtual void defaultOptions()
     { GISMO_NO_IMPLEMENTATION; }
+
+    /**
+     * @brief      Returns the options
+     *
+     * @return     \ref gsOptionList
+     */
+    inline virtual gsOptionList & options() { return m_options; }
     /**
      * @brief      Sets the options
      *
      * @param[in]  opt   @ref gsOptionList
      */
-    inline virtual void setOptions(gsOptionList opt)
-    { GISMO_NO_IMPLEMENTATION; }
+    inline virtual void setOptions(gsOptionList opt) {m_options.update(opt,gsOptionList::addIfUnknown); }
 
     /**
      * @brief      Evaluates the density multiplied by the thickness of the shell (scalar)
@@ -523,6 +529,7 @@ public:
 protected:
     const gsFunctionSet<T> * m_patches;
     const gsFunctionSet<T> * m_defpatches;
+    gsOptionList m_options;
 };
 
 #ifdef GISMO_WITH_PYBIND11

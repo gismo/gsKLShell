@@ -163,9 +163,6 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_detF (const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
-    /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
-
     /// Sets the thickness
     void setThickness(const gsFunction<T> & thickness)
     {

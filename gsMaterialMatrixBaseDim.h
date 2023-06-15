@@ -47,6 +47,7 @@ public:
     {
         this->setUndeformed(nullptr);
         this->setDeformed(nullptr);
+        this->defaultOptions();
         membersSetZero();
     }
 
@@ -57,6 +58,7 @@ public:
         GISMO_ASSERT(mp.targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
         this->setUndeformed(&mp);
         this->setDeformed(nullptr);
+        this->defaultOptions();
         membersSetZero();
     }
 
@@ -69,15 +71,19 @@ public:
     m_density(Density)
     {
         GISMO_ASSERT(mp->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
-        membersSetZero();
         this->setUndeformed(mp);
         this->setDeformed(mp_def);
+        this->defaultOptions();
+        membersSetZero();
     }
 
     /// Destructor
     virtual ~gsMaterialMatrixBaseDim() {}
 
 public:
+    /// See \ref gsMaterialMatrixBase for details
+    virtual void defaultOptions() override;
+
     /// See \ref gsMaterialMatrixBase for details
     virtual void    density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
@@ -107,6 +113,9 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     virtual void deformation_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+
+    /// See \ref gsMaterialMatrixBase for details
+    virtual gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const;
 
     /// Sets the thickness
     virtual void setThickness(const gsFunction<T> & thickness)
@@ -256,6 +265,22 @@ public:
     bool hasDeformed() const { return m_defpatches->nPieces()!=0; }
 
 private:
+
+    template <short_t _type>
+    typename std::enable_if<_type==0, index_t>::type _tensionField(const gsVector<T> &, const gsVector<T> & Ep) const;
+
+    template <short_t _type>
+    typename std::enable_if<_type==1, index_t>::type _tensionField(const gsVector<T> &, const gsVector<T> & Ep) const;
+
+    template <short_t _type>
+    typename std::enable_if<_type==2, index_t>::type _tensionField(const gsVector<T> &, const gsVector<T> & Ep) const;
+
+    template <short_t _type>
+    typename std::enable_if<_type!=0 &&
+                            _type!=1 &&
+                            _type!=2, index_t>::type _tensionField(const gsVector<T> &, const gsVector<T> & Ep) const
+    {GISMO_NO_IMPLEMENTATION;}
+
     /// Implementation of \ref _computeMetricUndeformed for planar geometries
     template<short_t _dim>
     typename std::enable_if<_dim==2, void>::type _computeMetricDeformed_impl(const index_t patch, const gsMatrix<T> & u) const;
@@ -389,6 +414,8 @@ protected:
 
     using Base::m_patches;
     using Base::m_defpatches;
+
+    using Base::m_options;
 
     std::vector<gsFunction<T>* > m_pars;
     const gsFunction<T> * m_thickness;

@@ -32,6 +32,12 @@ namespace gismo
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T >
+void gsMaterialMatrixBaseDim<dim,T>::defaultOptions()
+{
+    m_options.addInt("TensionField","Tension field definition - 0: Strain-based, 1: Stress-based, 2: Mixed",2);
+}
+
+template <short_t dim, class T >
 void gsMaterialMatrixBaseDim<dim,T>::density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
     gsMapData<T> map;
@@ -187,6 +193,99 @@ void gsMaterialMatrixBaseDim<dim,T>::deformation_into(const index_t patch, const
         C.block(0,0,2,2) = m_data.mine().m_Gcov_def.block(0,0,2,2);
         C(2,2) = 1./m_data.mine().m_J0_sq;
     }
+}
+
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    gsMatrix<T> Spmat = this->eval3D_pstress(patch,u,z,MaterialOutput::Generic);
+    gsMatrix<T> Epmat = this->eval3D_pstrain(patch,u,z,MaterialOutput::Generic);
+    gsVector<T> Sp, Ep;
+    gsMatrix<T> result(1, u.cols() * z.rows());
+    index_t colIdx;
+    if      (m_options.getInt("TensionField")==0)
+    {
+        for (index_t k=0; k!=u.cols(); k++)
+        {
+            for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+            {
+                colIdx = j*u.cols() + k;
+                Sp = Spmat.col(colIdx);
+                Ep = Epmat.col(colIdx);
+                result.col(colIdx)<<_tensionField<0>(Sp,Ep);
+            }
+        }
+    }
+    else if (m_options.getInt("TensionField")==1)
+    {
+        for (index_t k=0; k!=u.cols(); k++)
+        {
+            for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+            {
+                colIdx = j*u.cols() + k;
+                Sp = Spmat.col(colIdx);
+                Ep = Epmat.col(colIdx);
+                result.col(colIdx)<<_tensionField<1>(Sp,Ep);
+            }
+        }
+    }
+    else if (m_options.getInt("TensionField")==2)
+    {
+        for (index_t k=0; k!=u.cols(); k++)
+        {
+            for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+            {
+                colIdx = j*u.cols() + k;
+                Sp = Spmat.col(colIdx);
+                Ep = Epmat.col(colIdx);
+                result.col(colIdx)<<_tensionField<2>(Sp,Ep);
+            }
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T>
+template <short_t _type>
+typename std::enable_if<_type==0, index_t>::type
+gsMaterialMatrixBaseDim<dim,T>::_tensionField(const gsVector<T> &   , const gsVector<T> & Ep) const
+{
+    if (Ep[0] > 0 || math::almostEqual(Ep[0],0.0) ) // taut
+        return 1;
+    else if (Ep[1] < 0) // slack
+        return -1;
+    else // wrinkled
+        return 0;
+}
+
+template <short_t dim, class T>
+template <short_t _type>
+typename std::enable_if<_type==1, index_t>::type
+gsMaterialMatrixBaseDim<dim,T>::_tensionField(const gsVector<T> & Sp, const gsVector<T> &   ) const
+{
+    if (Sp[0] > 0 || math::almostEqual(Sp[0],0.0) ) // taut
+        return 1;
+    else if (Sp[1] < 0) // slack
+        return -1;
+    else // wrinkled
+        return 0;
+}
+
+template <short_t dim, class T>
+template <short_t _type>
+typename std::enable_if<_type==2, index_t>::type
+gsMaterialMatrixBaseDim<dim,T>::_tensionField(const gsVector<T> & Sp, const gsVector<T> & Ep) const
+{
+    // See Nakashino 2020
+    // Smin = Sp[0], Smax = Sp[1], S33 = Sp[2]
+    // Emin = Ep[0], Emax = Ep[1], E33 = Ep[2]
+
+    if (Sp[0] > 0 || math::almostEqual(Sp[0],0.0) ) // taut
+        return 1;
+    else if (Ep[1] < 0) // slack
+        return -1;
+    else // wrinkled
+        return 0;
 }
 
 template <short_t dim, class T >

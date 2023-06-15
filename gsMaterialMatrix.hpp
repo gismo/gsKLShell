@@ -161,8 +161,9 @@ void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::info() const
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
-void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_defaultOptions()
+void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::defaultOptions()
 {
+    Base::defaultOptions();
     m_options.addInt("NumGauss","Number of Gaussian points through thickness",4);
 }
 
@@ -170,7 +171,7 @@ template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enu
 void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_initialize()
 {
     // Set default options
-    this->_defaultOptions();
+    this->defaultOptions();
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
@@ -790,6 +791,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_str
                 cinv.setZero();
                 cinv.block(0,0,2,2) = m_data.mine().m_Gcon_def.block(0,0,2,2);
                 cinv(2,2) = 1.0/C33;
+                m_data.mine().m_J_sq = m_data.mine().m_J0_sq * C33;
 
                 result(0,colIdx) = _Sij(0,0,c,cinv); // S11
                 result(1,colIdx) = _Sij(1,1,c,cinv); // S22
@@ -1111,35 +1113,6 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getAlpha_impl(const index_t & i)
     GISMO_NO_IMPLEMENTATION;
 }
 
-template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
-{
-    gsMatrix<T> Spmat = eval3D_pstress(patch,u,z);
-    gsMatrix<T> Epmat = eval3D_pstrain(patch,u,z);
-    gsVector<T> Sp, Ep;
-    gsMatrix<T> result(1, u.cols() * z.rows());
-    for (index_t k=0; k!=u.cols(); k++)
-    {
-        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
-        {
-            // See Nakashino 2020
-            // Smin = Sp[0], Smax = Sp[1], S33 = Sp[2]
-            // Emin = Ep[0], Emax = Ep[1], E33 = Ep[2]
-            Sp = Spmat.col(j*u.cols() + k);
-            Ep = Epmat.col(j*u.cols() + k);
-            if (Sp[0] > 0 || math::almostEqual(Sp[0],0.0) ) // taut
-                result.col(j * u.cols() + k) << 1;
-            // else if (Sp[1] < 0) // slack
-            else if (Ep[1] < 0) // slack
-                result.col(j * u.cols() + k) << -1;
-            else // wrinkled
-            {
-                result.col(j * u.cols() + k) << 0;
-            }
-        }
-    }
-    return result;
-}
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Incompressible_matrix_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const
@@ -1908,6 +1881,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_mat
         cinv.setZero();
         cinv.block(0,0,2,2) = m_data.mine().m_Gcon_def.block(0,0,2,2);
         cinv(2,2) = 1.0/C33;
+        m_data.mine().m_J_sq = m_data.mine().m_J0_sq * C33;
 
         gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(k,3,3);
         /*
@@ -1958,6 +1932,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_mat
             cinv.setZero();
             cinv.block(0,0,2,2) = m_data.mine().m_Gcon_def.block(0,0,2,2);
             cinv(2,2) = 1.0/C33;
+            m_data.mine().m_J_sq = m_data.mine().m_J0_sq * C33;
 
             gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(colIdx,3,3);
             /*

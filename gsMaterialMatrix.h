@@ -94,6 +94,8 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     inline enum MatIntegration isVecIntegrated() const {return MatIntegration::NotIntegrated; }
 
+    void defaultOptions() override;
+
     /// See \ref gsMaterialMatrixBase for details
     gsOptionList & options() {return m_options;}
 
@@ -148,9 +150,6 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
 
-    /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
-
     /// Sets the YoungsModulus
     void setYoungsModulus(const gsFunction<T> & YoungsModulus);
 
@@ -197,11 +196,6 @@ protected:
      *
      */
     void _initialize();
-
-    /**
-     * @brief      Sets default options
-     */
-    void _defaultOptions();
 
 private:
     /**
@@ -1172,7 +1166,7 @@ protected:
     // Geometric data
     using Base::m_data;
 
-    gsOptionList m_options;
+    using Base::m_options;
 
 private:
     static int delta(const int a, const int b)
