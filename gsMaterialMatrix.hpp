@@ -594,6 +594,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_mat
     this->_computePoints(patch,u);
     gsMatrix<T> result(9, u.cols() * z.rows());
     result.setZero();
+    index_t colIndex;
 
     for (index_t k=0; k!=u.cols(); k++)
     {
@@ -605,7 +606,8 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Incompressible_mat
         {
                 this->_getMetric(k,z(j,k) * m_data.mine().m_Tmat(0,k) ); // on point i, on height z(0,j)
 
-                gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
+                colIndex = j*u.cols()+k;
+                gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(colIndex,3,3);
                 /*
                     C = C1111,  C1122,  C1112
                         symm,   C2222,  C2212
@@ -1263,7 +1265,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
     gsMatrix<T> C33s = _eval_Compressible_C33(patch,u,z);
     T C33;
     gsMatrix<T,3,3> c, cinv;
-
+    index_t colIndex;
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
@@ -1274,8 +1276,8 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
         {
                         // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
-
-            C33 = C33s(0,j*u.cols()+k);
+            colIndex = j*u.cols()+k;
+            C33 = C33s(0,colIndex);
 
             // Compute c
             c.setZero();
@@ -1283,8 +1285,10 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_matri
             c(2,2) = C33; // c33
             cinv.setZero();
             cinv.block(0,0,2,2) = m_data.mine().m_Gcon_def.block(0,0,2,2);
+            cinv(2,2) = 1.0/C33;
+            m_data.mine().m_J_sq = m_data.mine().m_J0_sq * C33;
 
-            gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(j*u.cols()+k,3,3);
+            gsAsMatrix<T, Dynamic, Dynamic> C = result.reshapeCol(colIndex,3,3);
             /*
                 C = C1111,  C1122,  C1112
                     symm,   C2222,  C2212
@@ -1311,6 +1315,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_C33(c
     this->_computePoints(patch,u);
     gsMatrix<T> result(1, u.cols() * z.rows());
     result.setZero();
+    index_t colIndex;
 
     for (index_t k=0; k!=u.cols(); k++)
     {
@@ -1322,6 +1327,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_C33(c
         {
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
+            colIndex = j*u.cols()+k;
             // Define objects
             gsMatrix<T,3,3> c, cinv;
             T S33, C3333, dc33;
@@ -1364,9 +1370,10 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_C33(c
                 // if (abs(S33/S33_old) < tol)
                 if (abs(dc33) < tol)
                 {
-                    result(0,j*u.cols()+k) = c(2,2);
+                    result(0,colIndex) = c(2,2);
+                    break;
                 }
-                GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, S33 = "<<S33<<" and tolerance = "<<tol<<"\n");
+                GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, S33 = "<<S33<<", dC33 = "<<dc33<<" and tolerance = "<<tol<<"\n");
             }
         }
     }
@@ -1386,6 +1393,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_vecto
     gsMatrix<T> C33s = _eval_Compressible_C33(patch,u,z);
     T C33;
     gsMatrix<T,3,3> c, cinv;
+    index_t colIndex;
 
     for (index_t k=0; k!=u.cols(); k++)
     {
@@ -1396,8 +1404,9 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_vecto
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
+            colIndex = j*u.cols()+k;
 
-            C33 = C33s(0,j*u.cols()+k);
+            C33 = C33s(0,colIndex);
 
             // Compute c
             c.setZero();
@@ -1406,10 +1415,11 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_vecto
             cinv.setZero();
             cinv.block(0,0,2,2) = m_data.mine().m_Gcon_def.block(0,0,2,2);
             cinv(2,2) = 1.0/C33;
+            m_data.mine().m_J_sq = m_data.mine().m_J0_sq * C33;
 
-            result(0,j*u.cols()+k) = _Sij(0,0,c,cinv); // S11
-            result(1,j*u.cols()+k) = _Sij(1,1,c,cinv); // S22
-            result(2,j*u.cols()+k) = _Sij(0,1,c,cinv); // S12
+            result(0,colIndex) = _Sij(0,0,c,cinv); // S11
+            result(1,colIndex) = _Sij(1,1,c,cinv); // S22
+            result(2,colIndex) = _Sij(0,1,c,cinv); // S12
         }
     }
     return result;
@@ -1428,6 +1438,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_Cauch
     gsMatrix<T> C33s = _eval_Compressible_C33(patch,u,z);
     T C33;
     gsMatrix<T,3,3> c, cinv;
+    index_t colIndex;
 
     for (index_t k=0; k!=u.cols(); k++)
     {
@@ -1440,7 +1451,8 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_Cauch
             // this->computeMetric(i,z.at(j),true,true); // on point i, on height z(0,j)
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
-            C33 = C33s(0,j*u.cols()+k);
+            colIndex = j*u.cols()+k;
+            C33 = C33s(0,colIndex);
 
             // Compute c
             c.setZero();
@@ -1449,11 +1461,12 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_Cauch
             cinv.setZero();
             cinv.block(0,0,2,2) = m_data.mine().m_Gcon_def.block(0,0,2,2);
             cinv(2,2) = 1.0/C33;
-            T detF = math::sqrt(m_data.mine().m_J0_sq*C33);
+            m_data.mine().m_J_sq = m_data.mine().m_J0_sq * C33;
+            T detF = math::sqrt(m_data.mine().m_J_sq);
 
-            result(0,j*u.cols()+k) = 1 / detF * _Sij(0,0,c,cinv); // S11
-            result(1,j*u.cols()+k) = 1 / detF * _Sij(1,1,c,cinv); // S22
-            result(2,j*u.cols()+k) = 1 / detF * _Sij(0,1,c,cinv); // S12
+            result(0,colIndex) = 1 / detF * _Sij(0,0,c,cinv); // S11
+            result(1,colIndex) = 1 / detF * _Sij(1,1,c,cinv); // S22
+            result(2,colIndex) = 1 / detF * _Sij(0,1,c,cinv); // S12
         }
     }
     return result;
@@ -1474,6 +1487,7 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_pstre
     gsMatrix<T> C33s = _eval_Compressible_C33(patch,u,z);
     T C33;
     gsMatrix<T,3,3> c, cinv;
+    index_t colIndex;
 
     for (index_t k=0; k!=u.cols(); k++)
     {
@@ -1484,8 +1498,8 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_pstre
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
-
-            C33 = C33s(0,j*u.cols()+k);
+            colIndex = j*u.cols()+k;
+            C33 = C33s(0,colIndex);
 
             // Compute c
             c.setZero();
@@ -1493,9 +1507,11 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval_Compressible_pstre
             c(2,2) = C33; // c33
             cinv.setZero();
             cinv.block(0,0,2,2) = m_data.mine().m_Gcon_def.block(0,0,2,2);
+            cinv(2,2) = 1./C33;
+            m_data.mine().m_J_sq = m_data.mine().m_J0_sq * C33;
 
-            result(0,j*u.cols()+k) = _Sii(0,c); // S11
-            result(1,j*u.cols()+k) = _Sii(1,c); // S22
+            result(0,colIndex) = _Sii(0,c); // S11
+            result(1,colIndex) = _Sii(1,c); // S22
         }
     }
     return result;
