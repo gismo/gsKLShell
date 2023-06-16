@@ -313,31 +313,26 @@ private:
 
 public:
     /// See \ref gsThinShellAssemblerBase for details
-    gsMatrix<T> boundaryForceVector(const gsFunctionSet<T>   & deformed , patchSide& ps, index_t com );
-
-    gsMatrix<T> boundaryForce(const gsFunctionSet<T>   & deformed , patchSide& ps);
+    gsMatrix<T> boundaryForce(const gsFunctionSet<T> & deformed, const std::vector<patchSide> & patchSides) const;
+    /// See \ref gsThinShellAssemblerBase for details
+    gsMatrix<T> boundaryForce(const gsFunctionSet<T> & deformed, const patchSide & ps) const
+    {
+        std::vector<patchSide> patchSides(1);
+        patchSides[0] = ps;
+        return boundaryForce(deformed,patchSides);
+    }
 
 
 private:
     /// Implementation of the boundary force vector for surfaces (3D)
     template<short_t _d, bool _bending>
     typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
-    boundaryForceVector_impl(const gsFunctionSet<T>   & deformed , patchSide& ps, index_t com );
+    boundaryForce_impl(const gsFunctionSet<T> & deformed, const std::vector<patchSide> & patchSides) const;
 
     /// Implementation of the boundary force vector for planar geometries (2D)
     template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
-    boundaryForceVector_impl(const gsFunctionSet<T>   & deformed , patchSide& ps, index_t com );
-
-    /// Implementation of the boundary force vector for surfaces (3D)
-    template<short_t _d, bool _bending>
-    typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
-    boundaryForce_impl(const gsFunctionSet<T>   & deformed , patchSide& ps);
-
-    /// Implementation of the boundary force vector for planar geometries (2D)
-    template<short_t _d, bool _bending>
-    typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
-    boundaryForce_impl(const gsFunctionSet<T>   & deformed , patchSide& ps);
+    boundaryForce_impl(const gsFunctionSet<T> & deformed, const std::vector<patchSide> & patchSides) const;
 
 public:
 
@@ -896,19 +891,18 @@ public:
     virtual ThinShellAssemblerStatus assemblePressureVector(const T pressure, const gsFunctionSet<T> & deformed) = 0;
 
     /**
-     * @brief      Computes the force on a boundary
+     * @brief      Computes the force on a set of boundaries
      *
-     * This function is typically used when you want to know the load on aboundary on which a displacement is applied
+     *             This function is typically used when you want to know the
+     *             load on a boundary on which a displacement is applied
      *
-     * @param[in]  deformed  The deformed geometry
-     * @param      ps        The patch side
-     * @param[in]  com       The component
+     * @param[in]  deformed    The deformed geometry
+     * @param      patchSides  patch sides
      *
-     * @return     The loads on the control points. The sum is the total load on the boundary
+     * @return     The sim of the loads on the control points. 
      */
-    virtual gsMatrix<T> boundaryForceVector(const gsFunctionSet<T>   & deformed , patchSide& ps, index_t com ) = 0;
-
-    virtual gsMatrix<T> boundaryForce(const gsFunctionSet<T>   & deformed , patchSide& ps) = 0;
+    virtual gsMatrix<T> boundaryForce(const gsFunctionSet<T>   & deformed , const std::vector<patchSide>& patchSides) const = 0;
+    virtual gsMatrix<T> boundaryForce(const gsFunctionSet<T>   & deformed , const patchSide & ps) const = 0;
 
     /// Returns the undeformed geometry
     virtual const gsMultiPatch<T> & geometry()    const = 0;

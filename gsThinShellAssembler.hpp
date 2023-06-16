@@ -30,6 +30,8 @@
 
 #include <gsMSplines/gsWeightMapper.h>
 
+#include <unordered_set>
+
 namespace gismo
 {
 
@@ -2234,15 +2236,15 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleFoundation
 }
 
 template <short_t d, class T, bool bending>
-gsMatrix<T> gsThinShellAssembler<d, T, bending>::boundaryForce(const gsFunctionSet<T> & deformed, patchSide& ps)
+gsMatrix<T> gsThinShellAssembler<d, T, bending>::boundaryForce(const gsFunctionSet<T> & deformed,  const std::vector<patchSide> & patchSides) const 
 {
-    return boundaryForce_impl<d, bending>(deformed,ps);
+    return boundaryForce_impl<d, bending>(deformed,patchSides);
 }
 
 template<short_t d, typename T, bool bending>
 template<short_t _d, bool _bending>
 typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
-gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsFunctionSet<T> & deformed, patchSide& ps)
+gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsFunctionSet<T> & deformed, const std::vector<patchSide> & patchSides) const 
 {
     gsExprAssembler<T> assembler;
     assembler.setIntegrationElements(m_basis);
@@ -2251,76 +2253,72 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsFunctionSet<T> &
     gsBoundaryConditions<T> bc;
     u.setup(bc, dirichlet::l2Projection, m_continuity);
 
-    assembler.initSystem();
-
-    geometryMap m_ori   = assembler.getMap(m_patches);
-    geometryMap m_def   = assembler.getMap(deformed);
-
-    // Initialize vector
-    // m_assembler.initVector(1);
-
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&m_patches,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMatrices,&m_patches,&deformed);
-    auto S0  = assembler.getCoeff(m_S0);
-    auto S1  = assembler.getCoeff(m_S1);
-
-    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
-    auto m_m2 = assembler.getCoeff(mult2t);
-
-    // this->homogenizeDirichlet();
-
-    auto m_N        = S0.tr();
-    auto m_Em_der   = flat( jac(m_def).tr() * jac(u) ) ;
-
-    auto m_M        = S1.tr(); // output is a column
-    auto m_Ef_der   = -( deriv2(u,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(u,m_def) ) ) * reshape(m_m2,3,3); //[checked]
-
-    // Assemble vector
-    try
-    {
-        assembler.assemble(
-                      - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
-                    );        
-    }
-    catch (...)
-    {
-        GISMO_ERROR("Assembly of the force vector failed.");
-    }
-
-    gsMatrix<T> Fint = assembler.rhs();
-    gsVector<T> result(d);
-    gsMatrix<index_t> boundary;
-
-    gsBoundaryConditions<real_t>::bcContainer container;
-    m_bcs.getConditionFromSide(ps,container);
-
+    gsVector<T> F(d); 
+    F.setZero();
     if (const gsMultiBasis<T> * mbasis = dynamic_cast<const gsMultiBasis<T>*>(&u.source()))
     {
-        for ( index_t com = 0; com!=d; com++)
+        // Collect indices of the functions on the selected boundaries
+        std::vector<std::unordered_set<index_t>> indices(d);
+        gsMatrix<index_t> boundary;
+        for (std::vector<patchSide>::const_iterator bdr = patchSides.begin(); bdr != patchSides.end(); bdr++)
         {
-            const gsBasis<T> & basis = mbasis->at(ps.patch);
-            boundary = basis.boundary(ps.side());
-
-            T offset = u.mapper().offset(ps.patch);
-            T size = u.mapper().size(com);
-            for (index_t l=0; l!= boundary.size(); ++l)
-            {
-                index_t ii = offset + size*com + boundary.at(l);
-                result.at(com) += Fint.at(ii);
-            }
+            boundary = mbasis->basis(bdr->patch).boundary(bdr->side());
+            for (index_t k=0; k!=boundary.rows(); k++)
+                for (index_t c=0; c!=d; c++)
+                    indices[c].insert(u.mapper().index(boundary.at(k),bdr->patch,c));
         }
 
-        return result;
+        assembler.initSystem();
+
+        geometryMap m_ori   = assembler.getMap(m_patches);
+        geometryMap m_def   = assembler.getMap(deformed);
+
+        // Initialize vector
+        // m_assembler.initVector(1);
+
+        gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&m_patches,&deformed);
+        gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMatrices,&m_patches,&deformed);
+        auto S0  = assembler.getCoeff(m_S0);
+        auto S1  = assembler.getCoeff(m_S1);
+
+        gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
+        auto m_m2 = assembler.getCoeff(mult2t);
+
+        // this->homogenizeDirichlet();
+
+        auto m_N        = S0.tr();
+        auto m_Em_der   = flat( jac(m_def).tr() * jac(u) ) ;
+
+        auto m_M        = S1.tr(); // output is a column
+        auto m_Ef_der   = -( deriv2(u,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(u,m_def) ) ) * reshape(m_m2,3,3); //[checked]
+
+        // Assemble vector (slow?)
+        try
+        {
+            assembler.assemble(
+                          - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+                        );        
+        }
+        catch (...)
+        {
+            GISMO_ERROR("Assembly of the force vector failed.");
+        }
+
+        // Grab and sum control point forces on boundary indices
+        for (index_t c = 0; c != d; c++)
+            for (std::unordered_set<index_t>::const_iterator it = indices[c].begin(); it!=indices[c].end(); it++)
+                F[c] += assembler.rhs().at(*it);
     }
     else
         GISMO_ERROR("The basis is not a gsMultiBasis!");
-
+    
+    return F;
 }
 
 template<short_t d, typename T, bool bending>
 template<short_t _d, bool _bending>
 typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
-gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsFunctionSet<T> & deformed, patchSide& ps)
+gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsFunctionSet<T> & deformed, const std::vector<patchSide> & patchSides) const
 {
     gsExprAssembler<T> assembler;
     assembler.setIntegrationElements(m_basis);
@@ -2329,270 +2327,58 @@ gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsFunctionSet<T> &
     gsBoundaryConditions<T> bc;
     u.setup(bc, dirichlet::l2Projection, m_continuity);
 
-    assembler.initSystem();
-
-    geometryMap m_ori   = assembler.getMap(m_patches);
-    geometryMap m_def   = assembler.getMap(deformed);
-
-    // Initialize vector
-    // m_assembler.initVector(1);
-
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&m_patches,&deformed);
-    auto S0  = assembler.getCoeff(m_S0);
-
-
-    // this->homogenizeDirichlet();
-
-    auto m_N        = S0.tr();
-    auto m_Em_der   = flat( jac(m_def).tr() * jac(u) ) ;
-
-    try 
+    gsVector<T> F(d); 
+    F.setZero();
+    if (const gsMultiBasis<T> * mbasis = dynamic_cast<const gsMultiBasis<T>*>(&u.source()))
     {
-        // Assemble vector
-        assembler.assemble(
-                      - ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
-                    );
-    }
-    catch (...)
-    {
-        GISMO_ERROR("Assembly of the force vector failed.");
-    }
-    gsMatrix<T> Fint = assembler.rhs();
-    gsVector<T> result(d);
-    const gsMultiBasis<T> & mbasis = *dynamic_cast<const gsMultiBasis<T>*>(&u.source());
-    gsMatrix<index_t> boundary;
-
-
-    for ( index_t com = 0; com!=d; com++)
-    {
-        const gsBasis<T> & basis = mbasis[ps.patch];
-        boundary = basis.boundary(ps.side());
-
-        T offset = u.mapper().offset(ps.patch);
-        T size = u.mapper().size(com);
-        for (index_t l=0; l!= boundary.size(); ++l)
+        // Collect indices of the functions on the selected boundaries
+        std::vector<std::unordered_set<index_t>> indices(d);
+        gsMatrix<index_t> boundary;
+        for (std::vector<patchSide>::const_iterator bdr = patchSides.begin(); bdr != patchSides.end(); bdr++)
         {
-            index_t ii = offset + size*com + boundary.at(l);
-            result.at(com) += Fint.at(ii);
+            boundary = mbasis->basis(bdr->patch).boundary(bdr->side());
+            for (index_t k=0; k!=boundary.rows(); k++)
+                for (index_t c=0; c!=d; c++)
+                    indices[c].insert(u.mapper().index(boundary.at(k),bdr->patch,c));
         }
-    }
 
-    return result;
-}
+        assembler.initSystem();
 
-template <short_t d, class T, bool bending>
-gsMatrix<T> gsThinShellAssembler<d, T, bending>::boundaryForceVector(const gsFunctionSet<T> & deformed, patchSide& ps, index_t com)
-{
-    return boundaryForceVector_impl<d, bending>(deformed,ps,com);
-}
+        geometryMap m_ori   = assembler.getMap(m_patches);
+        geometryMap m_def   = assembler.getMap(deformed);
 
-template<short_t d, typename T, bool bending>
-template<short_t _d, bool _bending>
-typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
-gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsFunctionSet<T> & deformed, patchSide& ps, index_t com)
-{
-    gsExprAssembler<T> assembler;
-    assembler.setIntegrationElements(m_basis);
-    space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
+        // Initialize vector
+        // m_assembler.initVector(1);
 
-    gsBoundaryConditions<T> bc;
-    u.setup(bc, dirichlet::l2Projection, m_continuity);
+        gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&m_patches,&deformed);
+        auto S0  = assembler.getCoeff(m_S0);
 
-    assembler.initSystem();
+        // this->homogenizeDirichlet();
 
-    geometryMap m_ori   = assembler.getMap(m_patches);
-    geometryMap m_def   = assembler.getMap(deformed);
+        auto m_N        = S0.tr();
+        auto m_Em_der   = flat( jac(m_def).tr() * jac(u) ) ;
 
-    // Initialize vector
-    // m_assembler.initVector(1);
-
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&m_patches,&deformed);
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMatrices,&m_patches,&deformed);
-    auto S0  = assembler.getCoeff(m_S0);
-    auto S1  = assembler.getCoeff(m_S1);
-
-    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
-    auto m_m2 = assembler.getCoeff(mult2t);
-
-    // this->homogenizeDirichlet();
-
-    auto m_N        = S0.tr();
-    auto m_Em_der   = flat( jac(m_def).tr() * jac(u) ) ;
-
-    auto m_M        = S1.tr(); // output is a column
-    auto m_Ef_der   = -( deriv2(u,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(u,m_def) ) ) * reshape(m_m2,3,3); //[checked]
-
-    try 
-    {
-        // Assemble vector
-        assembler.assemble(
-                      - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
-                    );
-    }
-    catch (...)
-    {
-        GISMO_ERROR("Assembly of the force vector failed.");
-    }
-
-    gsMatrix<T> Fint = assembler.rhs();
-    gsMatrix<T> result;
-    const gsMultiBasis<T> & mbasis =
-        *dynamic_cast<const gsMultiBasis<T>*>(&u.source());
-    gsMatrix<index_t> boundary;
-
-    typedef gsBoundaryConditions<T> bcList;
-
-    gsBoundaryConditions<real_t>::bcContainer container;
-    m_bcs.getConditionFromSide(ps,container);
-
-    // If the boundary is not a dirichlet boundary, then there are forces applied????
-    for ( typename bcList::const_iterator it =  container.begin();
-          it != container.end() ; ++it )
-    {
-        if( it->unknown()!=u.id() ) continue;
-        if( (it->unkComponent()!=com) && (it->unkComponent()!=-1) ) continue;
-
-        const int k = it->patch();
-        const gsBasis<T> & basis = mbasis[k];
-
-        // Get dofs on this boundary
-        boundary = basis.boundary(it->side());
-        result.resize(boundary.size(),1);
-
-        T offset = u.mapper().offset(k);
-        T size = u.mapper().size(com);
-        for (index_t l=0; l!= boundary.size(); ++l)
+        // Assemble vector (slow?)
+        try
         {
-            index_t ii = offset + size*com + boundary.at(l);
-            result.at(l) = Fint.at(ii);
+            assembler.assemble(
+                          - ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
+                        );        
         }
-    }
-
-    // gsInfo<<"Neumann forces\n";
-    // for ( typename bcList::const_iterator it =  m_bcs.begin("Neumann");
-    //       it != m_bcs.end("Neumann") ; ++it )
-    // {
-    //     if( it->unknown()!=u.id() ) continue;
-    //     //
-    //     for (index_t r = 0; r!=u.dim(); ++r)
-    //     {
-    //         const int k = it->patch();
-    //         const gsBasis<T> & basis = mbasis[k];
-
-    //         // Get dofs on this boundary
-    //         boundary = basis.boundary(it->side());
-
-    //         T offset = u.mapper().offset(0);
-    //         T size = u.mapper().size(r);
-
-    //         for (index_t l=0; l!= boundary.size(); ++l)
-    //         {
-    //             index_t ii = offset + size*r + boundary.at(l);
-    //             gsInfo<<result.at(ii)<<"\n";
-    //         }
-    //     }
-    // }
-    return result;
-}
-
-template<short_t d, typename T, bool bending>
-template<short_t _d, bool _bending>
-typename std::enable_if<!(_d==3 && _bending), gsMatrix<T> >::type
-gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsFunctionSet<T> & deformed, patchSide& ps, index_t com)
-{
-    gsExprAssembler<T> assembler;
-    assembler.setIntegrationElements(m_basis);
-    space u = assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
-
-    gsBoundaryConditions<T> bc;
-    u.setup(bc, dirichlet::l2Projection, m_continuity);
-
-    assembler.initSystem();
-
-    geometryMap m_ori   = assembler.getMap(m_patches);
-    geometryMap m_def   = assembler.getMap(deformed);
-
-    // Initialize vector
-    // m_assembler.initVector(1);
-
-    gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&m_patches,&deformed);
-    auto S0  = assembler.getCoeff(m_S0);
-
-    // this->homogenizeDirichlet();
-
-    auto m_N        = S0.tr();
-    auto m_Em_der   = flat( jac(m_def).tr() * jac(u) ) ;
-
-    try
-    {
-        // Assemble vector
-        assembler.assemble(
-                      - ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
-                    );
-    }
-    catch (...)
-    {
-        GISMO_ERROR("Assembly of the force vector failed.");
-    }
-
-    gsMatrix<T> Fint = assembler.rhs();
-    gsMatrix<T> result;
-    const gsMultiBasis<T> & mbasis = *dynamic_cast<const gsMultiBasis<T>*>(&u.source());
-    gsMatrix<index_t> boundary;
-
-    typedef gsBoundaryConditions<T> bcList;
-
-    gsBoundaryConditions<real_t>::bcContainer container;
-    m_bcs.getConditionFromSide(ps,container);
-
-    for ( typename bcList::const_iterator it =  container.begin();
-          it != container.end() ; ++it )
-    {
-        if( it->unknown()!=u.id() ) continue;
-
-        if( (it->unkComponent()!=com) && (it->unkComponent()!=-1) ) continue;
-
-        const int k = it->patch();
-        const gsBasis<T> & basis = mbasis[k];
-
-        // Get dofs on this boundary
-        boundary = basis.boundary(it->side());
-        result.resize(boundary.size(),1);
-
-        T offset = u.mapper().offset(k);
-        T size = u.mapper().size(com);
-        for (index_t l=0; l!= boundary.size(); ++l)
+        catch (...)
         {
-            index_t ii = offset + size*com + boundary.at(l);
-            result.at(l) = Fint.at(ii);
+            GISMO_ERROR("Assembly of the force vector failed.");
         }
+
+        // Grab and sum control point forces on boundary indices
+        for (index_t c = 0; c != d; c++)
+            for (std::unordered_set<index_t>::const_iterator it = indices[c].begin(); it!=indices[c].end(); it++)
+                F[c] += assembler.rhs().at(*it);
     }
-
-    // gsInfo<<"Neumann forces\n";
-    // for ( typename bcList::const_iterator it =  m_bcs.begin("Neumann");
-    //       it != m_bcs.end("Neumann") ; ++it )
-    // {
-    //     if( it->unknown()!=u.id() ) continue;
-    //     //
-    //     for (index_t r = 0; r!=u.dim(); ++r)
-    //     {
-    //         const int k = it->patch();
-    //         const gsBasis<T> & basis = mbasis[k];
-
-    //         // Get dofs on this boundary
-    //         boundary = basis.boundary(it->side());
-
-    //         T offset = u.mapper().offset(0);
-    //         T size = u.mapper().size(r);
-
-    //         for (index_t l=0; l!= boundary.size(); ++l)
-    //         {
-    //             index_t ii = offset + size*r + boundary.at(l);
-    //             gsInfo<<result.at(ii)<<"\n";
-    //         }
-    //     }
-    // }
-    return result;
+    else
+        GISMO_ERROR("The basis is not a gsMultiBasis!");
+    
+    return F;
 }
 
 template <short_t d, class T, bool bending>
