@@ -386,7 +386,7 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
             }
             else if (TF(0,colIdx) == 0) // wrinkled
             {
-                gsMatrix<T> C = result.col(k);
+                gsMatrix<T> C = result.col(colIdx);
                 gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);
                 gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),MaterialOutput::StrainN);
                 gsMatrix<T> thetas = eval_theta(C,N,E);
@@ -542,25 +542,29 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
             else
             {
                 gsWarn<<"Everything failed??\n";
-                gsVector<T> x = gsVector<T>::LinSpaced(1000,-M_PI,M_PI);
-                for (index_t XX=0; XX!=x.size(); XX++)
-                {
-                    T t = x(XX);
-                    f = obj.eval(t);
+                // gsDebugVar(E);
+                // gsDebugVar(N);
+                // gsDebugVar(C);
+                // gsVector<T> x = gsVector<T>::LinSpaced(1000,-M_PI,M_PI);
+                // for (index_t XX=0; XX!=x.size(); XX++)
+                // {
+                //     T t = x(XX);
+                //     f = obj.eval(t);
 
-                    n1 = math::cos(t);
-                    n2 = math::sin(t);
-                    m1 = -math::sin(t);
-                    m2 = math::cos(t);
+                //     n1 = math::cos(t);
+                //     n2 = math::sin(t);
+                //     m1 = -math::sin(t);
+                //     m2 = math::cos(t);
 
-                    n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-                    n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-                    gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
+                //     n1_vec<<n1*n1, n2*n2, 2*n1*n2;
+                //     n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
+                //     gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
 
-                    gamma = - ( n1_vec.transpose() * N ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
+                //     gamma = - ( n1_vec.transpose() * N ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
 
-                    gsInfo<<x(XX)<<","<<f<<","<<gamma<<","<<(n1_vec.transpose() * N).value()<<","<<(n4_vec.transpose() * Es.col(k)).value()<<"\n";
-                }
+                //     gsInfo<<x(XX)<<","<<f<<","<<gamma<<","<<(n1_vec.transpose() * N).value()<<","<<(n4_vec.transpose() * Es.col(k)).value()<<"\n";
+                // }
+                theta = 0;
             }
         }
         result(0,k) = theta;
@@ -701,11 +705,6 @@ gsVector<T> gsMaterialMatrixTFT<dim,T,linear>::_theta_interval(const gsMatrix<T>
     T Q_E_min = theta_1E - theta_0E;
     T Q_E_max = theta_2E - theta_0E;
     T Q_S_min, Q_S_max;
-
-    // OPEN QUESTIONS TFT
-    // - THETA IS OUTSIDE OF THE INTERVAL (ALSO FOR DAOBO). IS THIS WRONG?
-    // - FOR LINEAR MATERIAL VIA GSMATERIALMATRIX.HPP, C*E!=N (!!!)
-
 
     T min, max;
     if (theta_1 < theta_2)
@@ -853,7 +852,6 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
     // dGamma/dE
     gsMatrix<T> I(3,3); I.setIdentity();
     gsMatrix<T> dgammadE = - ( n1_vec.transpose() * C * I) / ( n1_vec.transpose() * C * n1_vec ).value();
-
     dgammadE.transposeInPlace();
 
     // dGamma/dT
@@ -862,7 +860,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
 
     // dF/dE
     // gsMatrix<T> dfdE = ( n2_vec.transpose() - tmp * n1_vec.transpose() ) * C * I;
-    gsMatrix<T> dfdE = n2_vec.transpose() * C * I + dgammadE.transpose() * (n2_vec.transpose() * C * n1_vec).value();
+    gsMatrix<T> dfdE = n2_vec.transpose() * C * I - dgammadE.transpose() * (n2_vec.transpose() * C * n1_vec).value();
     dfdE.transposeInPlace();
 
     // dF/dT
@@ -908,9 +906,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
 
     // dGamma/dE
     gsMatrix<T> I(3,3); I.setIdentity();
-    gsMatrix<T> dgammadE = - ( n1_vec.transpose() * C * I) / ( n1_vec.transpose() * C * n1_vec ).value()
-                           + ( n1_vec.transpose() * S ).value() * ( n1_vec.transpose() * dCN1 * I) / (std::pow( (n1_vec.transpose() * C * n1_vec).value(),2));
-
+    gsMatrix<T> dgammadE = - ( n1_vec.transpose() * C * I + gamma * ( n1_vec.transpose() * 2 * dCN1 * I) ) / ( n1_vec.transpose() * C * n1_vec ).value();
     dgammadE.transposeInPlace();
 
     // dGamma/dT
@@ -920,7 +916,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
     // dF/dE
     // gsMatrix<T> dfdE = ( n2_vec.transpose() - tmp * n1_vec.transpose() ) * C * I;
     // CHECK THIS
-    gsMatrix<T> dfdE = n2_vec.transpose() * C * I + dgammadE.transpose() * (n2_vec.transpose() * C * n1_vec).value() + gamma * ( n2_vec.transpose() * dCN1 * I);
+    gsMatrix<T> dfdE = n2_vec.transpose() * C * I - dgammadE.transpose() * (n2_vec.transpose() * C * n1_vec).value() - gamma * ( n2_vec.transpose() * 2 * dCN1 * I);
     dfdE.transposeInPlace();
 
     // dF/dT

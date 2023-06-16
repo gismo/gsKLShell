@@ -120,10 +120,7 @@ public:
     inline enum MatIntegration isVecIntegrated() const override {return MatIntegration::Constant; }
 
     /// See \ref gsMaterialMatrixBase for details
-    gsOptionList & options() {return m_options;}
-
-    /// See \ref gsMaterialMatrixBase for details
-    void setOptions(gsOptionList opt) {m_options.update(opt,gsOptionList::addIfUnknown); }
+    void defaultOptions();
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_matrix (const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
@@ -237,11 +234,6 @@ protected:
      */
     void _initialize();
 
-    /**
-     * @brief      Sets default options
-     */
-    void _defaultOptions();
-
 protected:
     /**
      * @brief      Computes the linear material matrix entry with indices \a i \a j \a k \a l
@@ -293,7 +285,7 @@ protected:
     // Geometric data
     using Base::m_data;
 
-    gsOptionList m_options;
+    using Base::m_options;
 
 };
 

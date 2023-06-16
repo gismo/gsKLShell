@@ -94,13 +94,8 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     inline enum MatIntegration isVecIntegrated() const {return MatIntegration::NotIntegrated; }
 
+    /// See \ref gsMaterialMatrixBase for details
     void defaultOptions() override;
-
-    /// See \ref gsMaterialMatrixBase for details
-    gsOptionList & options() {return m_options;}
-
-    /// See \ref gsMaterialMatrixBase for details
-    void setOptions(gsOptionList opt) {m_options.update(opt,gsOptionList::addIfUnknown); }
 
     /// See \ref gsMaterialMatrixBase for details
     void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override;

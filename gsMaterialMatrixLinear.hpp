@@ -223,8 +223,9 @@ void gsMaterialMatrixLinear<dim,T>::info() const
 }
 
 template <short_t dim, class T>
-void gsMaterialMatrixLinear<dim,T>::_defaultOptions()
+void gsMaterialMatrixLinear<dim,T>::defaultOptions()
 {
+    Base::defaultOptions();
     m_options.addInt("NumGauss","Number of Gaussian points through thickness",4);
 }
 
@@ -232,7 +233,7 @@ template <short_t dim, class T>
 void gsMaterialMatrixLinear<dim,T>::_initialize()
 {
     // Set default options
-    this->_defaultOptions();
+    this->defaultOptions();
 }
 
 template <short_t dim, class T>
@@ -714,7 +715,6 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::S(const gsMatrix<T> & C, const index_
     gsMatrix<T> tmpresult;
     Sfun<dim,T> Sfunc(this,patch,u.col(0),z(0,0));
     Sfunc.eval_into(C,tmpresult);
-    gsDebugVar(tmpresult.array());
 
     gsMatrix<T> result;
     return result;
@@ -734,14 +734,11 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::C(const gsMatrix<T> &  C, const index
     // Because the derivative of S is taken w.r.t. the vector C = C11, C22, C12, since E = 0.5 ( C - G), and since voight notation is used, we need to multiply the last column of the derivative with 0.5 to revover the correct matrix. This is because the last column is dS_ij / dE_12 = 2C_1112; 2C_2212; 2C_1212.
     gsAsMatrix<T> Cmat = tmpresult.reshapeCol(0,3,3);
     Cmat.col(2) *= 0.5;
-    gsDebugVar(tmpresult.array()*2);
 
     Cfun<dim,T> Cfunc(this,patch,u.col(0),z(0,0));
     Cfunc.eval_into(C,tmpresult);
-    gsDebugVar(tmpresult.array());
 
     Cfunc.deriv_into(C,tmpresult);
-    gsDebugVar(tmpresult.array());
 
     gsMatrix<T> result(3,3);
     result(0,0)                 = _Cijkl(0,0,0,0); // C1111
