@@ -369,19 +369,19 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::eval3D_dmatrix_num(const
     index_t colIdx;
     for (index_t k=0; k!=u.cols(); k++)
     {
-
-        // // Evaluate material properties on the quadrature point
-        // for (index_t v=0; v!=m_parmat.rows(); v++)
-        //     m_parvals.at(v) = m_parmat(v,k);
+        // Evaluate material properties on the quadrature point
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
 
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             colIdx = j*u.cols()+k;
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
             result.col(colIdx) = dCijkl(patch,u.col(k),z(j,k));
+            // gsAsMatrix<T,Dynamic,Dynamic> dCdC = result.reshapeCol(k,3,9);
+            // dCdC.row(2) *= 2;
         }
     }
-
     return result;
 }
 

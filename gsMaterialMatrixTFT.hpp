@@ -870,7 +870,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
     // dT/dE
     gsMatrix<T> dTdE = - dfdE / dfdT;
 
-    result += C * ( n1_vec * dgammadE.transpose() + dgammadT * n1_vec * dTdE.transpose() - 2*gamma * n2_vec * dTdE.transpose() );
+    result += C * ( n1_vec * dgammadE.transpose() + dgammadT * n1_vec * dTdE.transpose() + 2*gamma * n2_vec * dTdE.transpose() );
     return result;
 }
 
@@ -900,13 +900,14 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
     {
         dCN1.col(d) = dC.reshapeCol(d,3,3) * n1_vec;
     }
+    dCN1 *= 2;
 
     // Gamma
     T gamma = - ( n1_vec.transpose() * S ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
 
     // dGamma/dE
     gsMatrix<T> I(3,3); I.setIdentity();
-    gsMatrix<T> dgammadE = - ( n1_vec.transpose() * C * I + gamma * ( n1_vec.transpose() * 2 * dCN1 * I) ) / ( n1_vec.transpose() * C * n1_vec ).value();
+    gsMatrix<T> dgammadE = - ( n1_vec.transpose() * C * I + gamma * ( n1_vec.transpose() * dCN1 * I) ) / ( n1_vec.transpose() * C * n1_vec ).value();
     dgammadE.transposeInPlace();
 
     // dGamma/dT
@@ -916,7 +917,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
     // dF/dE
     // gsMatrix<T> dfdE = ( n2_vec.transpose() - tmp * n1_vec.transpose() ) * C * I;
     // CHECK THIS
-    gsMatrix<T> dfdE = n2_vec.transpose() * C * I - dgammadE.transpose() * (n2_vec.transpose() * C * n1_vec).value() - gamma * ( n2_vec.transpose() * 2 * dCN1 * I);
+    gsMatrix<T> dfdE = n2_vec.transpose() * C * I - dgammadE.transpose() * (n2_vec.transpose() * C * n1_vec).value() - gamma * ( n2_vec.transpose() * dCN1 * I);
     dfdE.transposeInPlace();
 
     // dF/dT
@@ -926,7 +927,8 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
     // dT/dE
     gsMatrix<T> dTdE = - dfdE / dfdT;
 
-    result += C * ( n1_vec * dgammadE.transpose() + dgammadT * n1_vec * dTdE.transpose() - 2*gamma * n2_vec * dTdE.transpose() );
+    result += C * ( n1_vec * dgammadE.transpose() + dgammadT * n1_vec * dTdE.transpose() + 2*gamma * n2_vec * dTdE.transpose() );
+    result += gamma * dCN1;
     return result;
 }
 
