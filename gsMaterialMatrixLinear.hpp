@@ -327,7 +327,7 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixLinear<dim,T>::_evalPStress(c
     pstresses.resize(2,1);    pstresses.setZero();
     pstressvec.resize(3,3);   pstressvec.setZero();
 
-    // Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
+    // gsEigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
 
     // gsMatrix<T> B(3,3);
     // B.setZero();

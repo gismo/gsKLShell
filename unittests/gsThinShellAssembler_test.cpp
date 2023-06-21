@@ -878,7 +878,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         assembler->assembleMass();
         gsSparseMatrix<> M =  assembler->matrix();
 
-        Eigen::GeneralizedSelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
+        gsEigen::GeneralizedSelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
         eigSolver.compute(K,M);
         gsMatrix<> values  = eigSolver.eigenvalues();
         gsMatrix<> vectors = eigSolver.eigenvectors();

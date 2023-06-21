@@ -669,7 +669,7 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalStretch(
     stretches.resize(3,1);    stretches.setZero();
     stretchvec.resize(3,3);   stretchvec.setZero();
 
-    Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
+    gsEigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
 
 
     GISMO_ENSURE(m_data.mine().m_gcon_ori.cols()!=0,"Is the basis initialized?");

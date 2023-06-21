@@ -49,7 +49,9 @@ public:
 
     mutable gsMatrix<Scalar> uGrads, vGrads, cJac, cDer2, evEf, result;
     mutable gsVector<Scalar> m_u, m_v, normal, m_uv, m_u_der, n_der, n_der2, tmp; // memomry leaks when gsVector<T,3>, i.e. fixed dimension
+#   define Eigen gsEigen
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+#   undef Eigen
 
     // helper function
     static inline gsVector<Scalar,3> vecFun(index_t pos, Scalar val)
@@ -179,7 +181,9 @@ public:
     /// Unique pointer for gsMaterialMatrixD
     typedef memory::unique_ptr< gsMaterialMatrixD > uPtr;
 
+#   define Eigen gsEigen
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+#   undef Eigen
 
     gsMaterialMatrixD() { }
 
@@ -1487,7 +1491,7 @@ int main(int argc, char *argv[])
             // gsDebugVar(A.matrix().toDense());
             updateVector = solver.solve(A.rhs()); // this is the UPDATE
 
-            // gsDebugVar((A.matrix().toDense() - result).lpNorm<Eigen::Infinity>());
+            // gsDebugVar((A.matrix().toDense() - result).lpNorm<gsEigen::Infinity>());
 
 
             // gsDebugVar(A.rhs().transpose());
