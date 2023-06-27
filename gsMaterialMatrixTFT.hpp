@@ -308,7 +308,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_theta(const index_t patch,
             colIdx = j*u.cols()+k;
             if (TF(0,colIdx) == 1 || TF(0,colIdx) == -1) // taut
             {
-                // do nothing
+                result(0,colIdx) = NAN;
             }
             else if (TF(0,colIdx) == 0) // wrinkled
             {
@@ -340,7 +340,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_gamma(const index_t patch,
             colIdx = j*u.cols()+k;
             if (TF(0,colIdx) == 1 || TF(0,colIdx) == -1) // taut
             {
-                // do nothing
+                result(0,colIdx) = NAN;
             }
             else if (TF(0,colIdx) == 0) // wrinkled
             {
@@ -434,6 +434,7 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
                 gsMatrix<T> thetas = eval_theta(C,N,E);
 
                 gsMatrix<T> dC = m_materialMat->eval3D_dmatrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
+                dC *= 2;
                 theta = thetas(0,0);
                 result.col(colIdx) = this->_compute_C(theta,C.reshape(3,3),N.reshape(3,1),dC.reshape(9,3)).reshape(9,1);
             }
@@ -916,8 +917,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
 
     // dF/dE
     // gsMatrix<T> dfdE = ( n2_vec.transpose() - tmp * n1_vec.transpose() ) * C * I;
-    // CHECK THIS
-    gsMatrix<T> dfdE = n2_vec.transpose() * C * I - dgammadE.transpose() * (n2_vec.transpose() * C * n1_vec).value() - gamma * ( n2_vec.transpose() * dCN1 * I);
+    gsMatrix<T> dfdE = n2_vec.transpose() * C * I + dgammadE.transpose() * (n2_vec.transpose() * C * n1_vec).value() + gamma * ( n2_vec.transpose() * dCN1 * I);
     dfdE.transposeInPlace();
 
     // dF/dT
@@ -927,8 +927,11 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
     // dT/dE
     gsMatrix<T> dTdE = - dfdE / dfdT;
 
-    result += C * ( n1_vec * dgammadE.transpose() + dgammadT * n1_vec * dTdE.transpose() + 2*gamma * n2_vec * dTdE.transpose() );
+    // d(gamma*n1)dE
+    gsMatrix<T> dgamman1dE = ( dgammadE * n1_vec.transpose() + dgammadT * dTdE * n1_vec.transpose() + 2*gamma * dTdE * n2_vec.transpose() ).transpose();
+    result += C * dgamman1dE;
     result += gamma * dCN1;
+    result.transposeInPlace();
     return result;
 }
 

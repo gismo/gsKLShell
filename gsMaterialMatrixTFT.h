@@ -125,14 +125,6 @@ public:
     // eval_impl(const U & u, const index_t k)
     // { return m_materialMat; }
 
-
-    /// See \ref gsMaterialMatrixBase for details
-    gsOptionList & options()
-    {return m_options; }
-
-    /// See \ref gsMaterialMatrixBase for details
-    void setOptions(gsOptionList opt) {m_options.update(opt,gsOptionList::addIfUnknown); }
-
     /// See \ref gsMaterialMatrixBase for details
     void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
     { m_materialMat->density_into( patch,u,result ); }
@@ -212,6 +204,10 @@ public:
         m_defpatches0 = deformed;
     }
 
+    /// Computes theta
+    gsMatrix<T> eval_theta(const gsMatrix<T> & Cs, const gsMatrix<T> & Ns, const gsMatrix<T> & Es) const;
+
+
 protected:
     template <bool _linear>
     typename std::enable_if< _linear, gsMatrix<T> >::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
@@ -230,8 +226,6 @@ protected:
 
     gsMatrix<T> _compute_C(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & dC) const;
 
-    /// Computes theta
-    gsMatrix<T> eval_theta(const gsMatrix<T> & Cs, const gsMatrix<T> & Ns, const gsMatrix<T> & Es) const;
 
     T _compute_gamma(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const;
     gsVector<T> _theta_interval(const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const;
@@ -251,7 +245,7 @@ protected:
     using Base::m_patches;
     using Base::m_defpatches;
     const gsFunctionSet<T> * m_defpatches0;
-    gsOptionList m_options;
+    using Base::m_options;
 
     using Base::m_data;
 
