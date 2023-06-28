@@ -511,6 +511,10 @@ public:
     inline virtual void info() const
     { GISMO_NO_IMPLEMENTATION; }
 
+    /// Prints the object as a string.
+    virtual std::ostream &print(std::ostream &os) const
+    { GISMO_NO_IMPLEMENTATION; }
+
     inline virtual gsMatrix<T> S(const gsMatrix<T> & strain) const
     { GISMO_NO_IMPLEMENTATION; }
 
@@ -531,6 +535,11 @@ protected:
     const gsFunctionSet<T> * m_defpatches;
     gsOptionList m_options;
 };
+
+template<class T>
+std::ostream& operator<<(std::ostream& os, const gsMaterialMatrixBase<T>& mm) 
+{ return mm.print(os); }
+
 
 #ifdef GISMO_WITH_PYBIND11
 

@@ -105,7 +105,7 @@ public:
     gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const
     { GISMO_NO_IMPLEMENTATION; }
 
-    void info() const;
+    std::ostream &print(std::ostream &os) const override;
 
     /// Sets the thickness
     void setThickness(const gsFunction<T> & thickness)

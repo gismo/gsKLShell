@@ -69,18 +69,18 @@ void gsMaterialMatrixComposite<dim,T>::_defaultOptions()
 }
 
 template <short_t dim, class T >
-void gsMaterialMatrixComposite<dim,T>::info() const
+std::ostream & gsMaterialMatrixComposite<dim,T>::print(std::ostream &os) const
 {
-    gsInfo  <<"---------------------------------------------------------------------\n"
-            <<"---------------------Hyperelastic Material Info----------------------\n"
-            <<"---------------------------------------------------------------------\n\n";
+    os  <<"---------------------------------------------------------------------\n"
+        <<"----------------------Composite Material Info------------------------\n"
+        <<"---------------------------------------------------------------------\n\n";
 
-    gsInfo  <<"Material model: \t";
-    gsInfo<<" Composite Saint-Venant Kirchhoff";
-    gsInfo<<"\n";
+    os  <<"Material model: \t";
+    os  <<"Saint-Venant Kirchhoff";
+    os  <<"\n";
 
-    gsInfo  <<"---------------------------------------------------------------------\n\n";
-
+    os  <<"---------------------------------------------------------------------\n\n";
+    return os;
 }
 
 template <short_t dim, class T >

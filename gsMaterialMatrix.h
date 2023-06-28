@@ -174,7 +174,7 @@ public:
     gsFunction<T> * getAlpha(const index_t & i) {return _getAlpha_impl<mat>(i);}
 
     /// See \ref gsMaterialMatrixBase for details
-    void info() const override;
+    std::ostream &print(std::ostream &os) const override;
 
 public:
     /// Shared pointer for gsMaterialMatrix
@@ -282,6 +282,7 @@ protected:
      * @return     C33 values (every column for a point u*z)
      */
     gsMatrix<T> _eval3D_Compressible_C33(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    gsMatrix<T> _eval3D_Compressible_C33(const gsMatrix<T> & Cmat, const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
     /**
      * @brief      Evaluates the jacobian determinant for compressible materials

@@ -208,18 +208,18 @@ gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear( const gsMaterialMatrixLin
 }
 
 template <short_t dim, class T>
-void gsMaterialMatrixLinear<dim,T>::info() const
+std::ostream & gsMaterialMatrixLinear<dim,T>::print(std::ostream &os) const
 {
-    gsInfo  <<"---------------------------------------------------------------------\n"
-            <<"---------------------Hyperelastic Material Info----------------------\n"
-            <<"---------------------------------------------------------------------\n\n";
+    os  <<"---------------------------------------------------------------------\n"
+        <<"---------------------Hyperelastic Material Info----------------------\n"
+        <<"---------------------------------------------------------------------\n\n";
 
-    gsInfo  <<"Material model: \t";
-    gsInfo<<"Saint-Venant Kirchhoff";
-    gsInfo<<"\n";
+    os  <<"Material model: \t";
+    os  <<"Saint-Venant Kirchhoff";
+    os  <<"\n";
 
-    gsInfo  <<"---------------------------------------------------------------------\n\n";
-
+    os  <<"---------------------------------------------------------------------\n\n";
+    return os;
 }
 
 template <short_t dim, class T>

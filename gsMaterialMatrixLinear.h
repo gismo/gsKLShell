@@ -203,7 +203,7 @@ public:
     }
 
     /// See \ref gsMaterialMatrixBase for details
-    void info() const override;
+    std::ostream &print(std::ostream &os) const override;
 
     gsMatrix<T> S(const gsMatrix<T> & strain) const;
 

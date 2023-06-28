@@ -452,10 +452,8 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
     GISMO_ASSERT(Cs.cols()==Es.cols(),"Number of C matrices and E vectors is different");
     gsMatrix<T> result(1,Cs.cols());
     gsVector<T,3> n1_vec, n2_vec, n4_vec;
-    T n1, n2, m1, m2;
 
     T theta = 0;
-    T gamma;
 
     for (index_t k = 0; k!=Cs.cols(); k++)
     {
@@ -901,7 +899,6 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
     {
         dCN1.col(d) = dC.reshapeCol(d,3,3) * n1_vec;
     }
-    dCN1 *= 2;
 
     // Gamma
     T gamma = - ( n1_vec.transpose() * S ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
