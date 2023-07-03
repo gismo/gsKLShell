@@ -17,8 +17,6 @@
 
 #include <gsCore/gsFunction.h>
 #include <gsKLShell/gsMaterialMatrixContainer.h>
-#include <gsKLShell/gsMaterialMatrixUtils.h>
-#include <gsIO/gsOptionList.h>
 
 namespace gismo
 {

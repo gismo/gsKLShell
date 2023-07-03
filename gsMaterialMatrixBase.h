@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <gsCore/gsFunction.h>
+#include <gsCore/gsFunctionSet.h>
 #include <gsKLShell/gsMaterialMatrixUtils.h>
 
 namespace gismo
