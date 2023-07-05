@@ -19,11 +19,11 @@
 
 */
 
-
-
 #pragma once
 
 #include <gsKLShell/gsMaterialMatrix.h>
+#include <gsKLShell/gsMaterialMatrixXml.hpp>
+#include <gsCore/gsFunction.h>
 
 using namespace gismo;
 
@@ -86,10 +86,10 @@ namespace gismo
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
                                         const gsFunctionSet<T> & mp,
-                                        const gsFunction<T> & thickness
+                                        const gsFunctionSet<T> & thickness
                                         )
                                         :
-                                        Base(&mp,nullptr,&thickness,nullptr)
+                                        Base(&mp,&thickness,nullptr)
 {
     _initialize();
 }
@@ -97,29 +97,55 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
                                         const gsFunctionSet<T> & mp,
-                                        const gsFunction<T> & thickness,
-                                        const std::vector<gsFunction<T>*> &pars
+                                        const gsFunctionSet<T> & thickness,
+                                        const std::vector<gsFunctionSet<T> *> &pars
                                         )
                                         :
-                                        Base(&mp,nullptr,&thickness,nullptr)
-{
-    GISMO_ASSERT(pars.size()>=2,"Two or more material parameters should be assigned!");
-    m_pars = pars;
-    _initialize();
-}
+                                        gsMaterialMatrix(&mp,&thickness,pars,nullptr)
+{}
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
                                     const gsFunctionSet<T> & mp,
-                                    const gsFunction<T> & thickness,
-                                    const std::vector<gsFunction<T>*> &pars,
-                                    const gsFunction<T> & Density
+                                    const gsFunctionSet<T> & thickness,
+                                    const std::vector<gsFunctionSet<T> *> &pars,
+                                    const gsFunctionSet<T> & Density
                                     )
                                     :
-                                    Base(&mp,nullptr,&thickness,&Density)
+                                    gsMaterialMatrix(&mp,&thickness,pars,&Density)
+{}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
+                                    const gsFunctionSet<T> & thickness,
+                                    const std::vector<gsFunctionSet<T> *> &pars
+                                    )
+                                    :
+                                    gsMaterialMatrix(nullptr,&thickness,pars,nullptr)
+{}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
+                                    const gsFunctionSet<T> & thickness,
+                                    const std::vector<gsFunctionSet<T> *> &pars,
+                                    const gsFunctionSet<T> & Density
+                                    )
+                                    :
+                                    gsMaterialMatrix(nullptr,&thickness,pars,&Density)
+{}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::gsMaterialMatrix(
+                                    const gsFunctionSet<T> * mp,
+                                    const gsFunctionSet<T> * thickness,
+                                    const std::vector<gsFunctionSet<T> *> &pars,
+                                    const gsFunctionSet<T> * Density
+                                    )
+                                    :
+                                    Base(mp,thickness,Density)
 {
     GISMO_ASSERT(pars.size()>=2,"Two or more material parameters should be assigned!");
-    m_pars = pars;
+    this->setParameters(pars);
     _initialize();
 }
 
@@ -1049,101 +1075,57 @@ gsMatrix<T> gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_eval3D_Incompressible_C
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
-void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::setYoungsModulus(const gsFunction<T> & YoungsModulus)
+void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::setYoungsModulus(const gsFunctionSet<T> & YoungsModulus)
 {
-    if ((index_t)m_pars.size() < 1)
-        m_pars.resize(1);
-    m_pars[0] = const_cast<gsFunction<T> *>(&YoungsModulus);
+    Base::setParameter(0,YoungsModulus);
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsFunction<T> * gsMaterialMatrix<dim,T,matId,comp,mat,imp>::getYoungsModulus()
+const typename gsMaterialMatrix<dim,T,matId,comp,mat,imp>::function_ptr gsMaterialMatrix<dim,T,matId,comp,mat,imp>::getYoungsModulus() const
 {
-    GISMO_ASSERT((index_t)m_pars.size()>=1,"Something went wrong: Size of parameter container should be >= 1, but is "<<m_pars.size());
-    return m_pars[0];
+    return Base::getParameter(0);
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
-void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::setPoissonsRatio(const gsFunction<T> & PoissonsRatio)
+void gsMaterialMatrix<dim,T,matId,comp,mat,imp>::setPoissonsRatio(const gsFunctionSet<T> & PoissonsRatio)
 {
-    if ((index_t)m_pars.size() < 2)
-        m_pars.resize(2);
-    m_pars[1] = const_cast<gsFunction<T> *>(&PoissonsRatio);
+    Base::setParameter(1,PoissonsRatio);
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
-gsFunction<T> * gsMaterialMatrix<dim,T,matId,comp,mat,imp>::getPoissonsRatio()
+const typename gsMaterialMatrix<dim,T,matId,comp,mat,imp>::function_ptr gsMaterialMatrix<dim,T,matId,comp,mat,imp>::getPoissonsRatio() const
 {
-    GISMO_ASSERT((index_t)m_pars.size()>=2,"Something went wrong: Size of parameter container should be >= 2, but is "<<m_pars.size());
-    return m_pars[1];
+    return Base::getParameter(1);
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 template <enum Material _mat>
 typename std::enable_if<_mat==Material::MR, void>::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setRatio_impl(const gsFunction<T> & Ratio)
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setRatio_impl(const gsFunctionSet<T> & Ratio)
 {
-    if ((index_t)m_pars.size() < 3)
-        m_pars.resize(3);
-    m_pars[2] = const_cast<gsFunction<T> *>(&Ratio);
+    Base::setParameter(2,Ratio);
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 template <enum Material _mat>
 typename std::enable_if<_mat!=Material::MR, void>::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setRatio_impl(const gsFunction<T> & Ratio)
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setRatio_impl(const gsFunctionSet<T> & Ratio)
 {
     GISMO_NO_IMPLEMENTATION;
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 template <enum Material _mat>
-typename std::enable_if<_mat==Material::MR, gsFunction<T> * >::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getRatio_impl()
+typename std::enable_if<_mat==Material::MR, const typename gsMaterialMatrix<dim,T,matId,comp,mat,imp>::function_ptr >::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getRatio_impl() const
 {
-    GISMO_ASSERT((index_t)m_pars.size()>2,"Something went wrong: Size of parameter container should be > 2, but is "<<m_pars.size());
-    return m_pars[2];
+    return Base::getParameter(2);
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 template <enum Material _mat>
-typename std::enable_if<_mat!=Material::MR, gsFunction<T> * >::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getRatio_impl()
-{
-    GISMO_NO_IMPLEMENTATION;
-}
-
-template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
-template <enum Material _mat>
-typename std::enable_if<_mat==Material::OG, void>::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setMu_impl(const index_t & i, const gsFunction<T> & Mu_i)
-{
-    if ((index_t)m_pars.size() < 2+2*i+1)
-        m_pars.resize(2+2*i+1);
-    m_pars[2+2*i] = const_cast<gsFunction<T> *>(&Mu_i);
-}
-
-template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
-template <enum Material _mat>
-typename std::enable_if<_mat!=Material::OG, void>::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setMu_impl(const index_t & i, const gsFunction<T> & Mu_i)
-{
-    GISMO_NO_IMPLEMENTATION;
-}
-
-template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
-template <enum Material _mat>
-typename std::enable_if<_mat==Material::OG, gsFunction<T> * >::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getMu_impl(const index_t & i)
-{
-    GISMO_ASSERT((index_t)m_pars.size()>2+2*i,"Something went wrong: Size of parameter container should be > 2, but is "<<m_pars.size());
-    return m_pars[2+2*i];
-}
-
-template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
-template <enum Material _mat>
-typename std::enable_if<_mat!=Material::OG, gsFunction<T> * >::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getMu_impl(const index_t & i)
+typename std::enable_if<_mat!=Material::MR, const typename gsMaterialMatrix<dim,T,matId,comp,mat,imp>::function_ptr >::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getRatio_impl() const
 {
     GISMO_NO_IMPLEMENTATION;
 }
@@ -1151,34 +1133,63 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getMu_impl(const index_t & i)
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 template <enum Material _mat>
 typename std::enable_if<_mat==Material::OG, void>::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setAlpha_impl(const index_t & i, const gsFunction<T> & Alpha_i)
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setMu_impl(const index_t & i, const gsFunctionSet<T> & Mu_i)
 {
-    if ((index_t)m_pars.size() < 2+2*i+2)
-        m_pars.resize(2+2*i+2);
-    m_pars[2+2*i+1] = const_cast<gsFunction<T> *>(&Alpha_i);
+    Base::setParameter(2+2*i,Mu_i);
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 template <enum Material _mat>
 typename std::enable_if<_mat!=Material::OG, void>::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setAlpha_impl(const index_t & i, const gsFunction<T> & Alpha_i)
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setMu_impl(const index_t & i, const gsFunctionSet<T> & Mu_i)
 {
     GISMO_NO_IMPLEMENTATION;
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 template <enum Material _mat>
-typename std::enable_if<_mat==Material::OG, gsFunction<T> * >::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getAlpha_impl(const index_t & i)
+typename std::enable_if<_mat==Material::OG, const typename gsMaterialMatrix<dim,T,matId,comp,mat,imp>::function_ptr >::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getMu_impl(const index_t & i) const
 {
-    GISMO_ASSERT((index_t)m_pars.size()>2+2*i+1,"Something went wrong: Size of parameter container should be > 2, but is "<<m_pars.size());
-    return m_pars[2+2*i+1];
+    return Base::getParameter(2+2*i);
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 template <enum Material _mat>
-typename std::enable_if<_mat!=Material::OG, gsFunction<T> * >::type
-gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getAlpha_impl(const index_t & i)
+typename std::enable_if<_mat!=Material::OG, const typename gsMaterialMatrix<dim,T,matId,comp,mat,imp>::function_ptr >::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getMu_impl(const index_t & i) const
+{
+    GISMO_NO_IMPLEMENTATION;
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat==Material::OG, void>::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setAlpha_impl(const index_t & i, const gsFunctionSet<T> & Alpha_i)
+{
+    Base::setParameter(2+2*i+1,Alpha_i);
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat!=Material::OG, void>::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_setAlpha_impl(const index_t & i, const gsFunctionSet<T> & Alpha_i)
+{
+    GISMO_NO_IMPLEMENTATION;
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat==Material::OG, const typename gsMaterialMatrix<dim,T,matId,comp,mat,imp>::function_ptr >::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getAlpha_impl(const index_t & i) const
+{
+    return Base::getParameter(2+2*i+1);
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+typename std::enable_if<_mat!=Material::OG, const typename gsMaterialMatrix<dim,T,matId,comp,mat,imp>::function_ptr >::type
+gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_getAlpha_impl(const index_t & i) const
 {
     GISMO_NO_IMPLEMENTATION;
 }
@@ -2848,5 +2859,144 @@ gsMaterialMatrix<dim,T,matId,comp,mat,imp>::_Cabcd_impl(const index_t a, const i
 //     else
 //         GISMO_ERROR("Material model not implemented.");
 // }
+
+namespace internal
+{
+
+/// @brief get a Neo-Hookean Material Matrix from XML data
+///
+/// \ingroup KLShell
+template<short_t d, class T, bool comp>
+class gsXml< gsMaterialMatrix<d,T,11,comp> >
+{
+private:
+    gsXml() { }
+    typedef gsMaterialMatrix<d,T,11,comp> Object;
+
+public:
+    GSXML_COMMON_FUNCTIONS(gsMaterialMatrix<TMPLA4(d,T,11,comp)>);
+    static std::string tag ()  { return "MaterialMatrix"; }
+    static std::string type ()
+    {
+        std::string comp_str = ((comp) ? "Compressible" : "Incompressible");
+        return comp_str + "NH" +  to_string(d);
+    }
+
+    GSXML_GET_POINTER(Object);
+
+    static void get_into(gsXmlNode * node,Object & obj)
+    {
+        obj = getMaterialMatrixFromXml< Object >( node );
+    }
+
+    static gsXmlNode * put (const Object & obj,
+                            gsXmlTree & data)
+    {
+        return putMaterialMatrixToXml< Object >( obj,data );
+    }
+};
+
+/// @brief get a Extended Neo-Hookean Material Matrix from XML data
+///
+/// \ingroup KLShell
+template<short_t d, class T, bool comp>
+class gsXml< gsMaterialMatrix<d,T,12,comp> >
+{
+private:
+    gsXml() { }
+    typedef gsMaterialMatrix<d,T,12,comp> Object;
+
+public:
+    GSXML_COMMON_FUNCTIONS(gsMaterialMatrix<TMPLA4(d,T,12,comp)>);
+    static std::string tag ()  { return "MaterialMatrix"; }
+    static std::string type ()
+    {
+        std::string comp_str = ((comp) ? "Compressible" : "Incompressible");
+        return comp_str + "NHe" +  to_string(d);
+    }
+
+    GSXML_GET_POINTER(Object);
+
+    static void get_into(gsXmlNode * node,Object & obj)
+    {
+        obj = getMaterialMatrixFromXml< Object >( node );
+    }
+
+    static gsXmlNode * put (const Object & obj,
+                            gsXmlTree & data)
+    {
+        return putMaterialMatrixToXml< Object >( obj,data );
+    }
+};
+
+/// @brief get a Mooney-Rivlin Material Matrix from XML data
+///
+/// \ingroup KLShell
+template<short_t d, class T, bool comp>
+class gsXml< gsMaterialMatrix<d,T,13,comp> >
+{
+private:
+    gsXml() { }
+    typedef gsMaterialMatrix<d,T,13,comp> Object;
+
+public:
+    GSXML_COMMON_FUNCTIONS(gsMaterialMatrix<TMPLA4(d,T,13,comp)>);
+    static std::string tag ()  { return "MaterialMatrix"; }
+    static std::string type ()
+    {
+        std::string comp_str = ((comp) ? "Compressible" : "Incompressible");
+        return comp_str + "MR" +  to_string(d);
+    }
+
+    GSXML_GET_POINTER(Object);
+
+    static void get_into(gsXmlNode * node,Object & obj)
+    {
+        obj = getMaterialMatrixFromXml< Object >( node );
+    }
+
+    static gsXmlNode * put (const Object & obj,
+                            gsXmlTree & data)
+    {
+        return putMaterialMatrixToXml< Object >( obj,data );
+    }
+};
+
+/// @brief get an Ogden Material Matrix from XML data
+///
+/// \ingroup KLShell
+template<short_t d, class T, bool comp>
+class gsXml< gsMaterialMatrix<d,T,34,comp> >
+{
+private:
+    gsXml() { }
+    typedef gsMaterialMatrix<d,T,34,comp> Object;
+
+public:
+    GSXML_COMMON_FUNCTIONS(gsMaterialMatrix<TMPLA4(d,T,34,comp)>);
+    static std::string tag ()  { return "MaterialMatrix"; }
+    static std::string type ()
+    {
+        std::string comp_str = ((comp) ? "Compressible" : "Incompressible");
+        return comp_str + "OG" +  to_string(d);
+    }
+
+    GSXML_GET_POINTER(Object);
+
+    static void get_into(gsXmlNode * node,Object & obj)
+    {
+        obj = getMaterialMatrixFromXml< Object >( node );
+    }
+
+    static gsXmlNode * put (const Object & obj,
+                            gsXmlTree & data)
+    {
+        return putMaterialMatrixToXml< Object >( obj,data );
+    }
+};
+
+}// namespace internal
+
+
 
 } // end namespace

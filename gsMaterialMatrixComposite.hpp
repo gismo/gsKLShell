@@ -38,13 +38,20 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                         const std::vector< gsFunctionSet<T> *>  & alpha,
                         const std::vector< gsFunctionSet<T> *>  & rho           )
                         :
-                        Base(&mp,nullptr,nullptr,nullptr),
-                        m_Ts(give(thickness)),
-                        m_Gs(give(G)),
-                        m_As(give(alpha)),
-                        m_Rs(give(rho))
+                        Base(&mp)
 {
-    _initialize();
+    index_t nLayers = thickness.size();
+    GISMO_ASSERT(nLayers==(index_t)G.size(),    "Size error in layer input");
+    GISMO_ASSERT(nLayers==(index_t)alpha.size(),"Size error in layer input");
+    GISMO_ASSERT(nLayers==(index_t)rho.size(),  "Size error in layer input");
+    _initialize(nLayers);
+    for (index_t k=0; k!=nLayers; k++)
+    {
+        m_Ts[k] = memory::make_shared_not_owned(thickness[k]);
+        m_Gs[k] = memory::make_shared_not_owned(G[k]);
+        m_As[k] = memory::make_shared_not_owned(alpha[k]);
+        m_Rs[k] = memory::make_shared_not_owned(rho[k]);
+    }
 }
 
 template <short_t dim, class T >
@@ -54,12 +61,18 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
                         const std::vector< gsFunctionSet<T> *>  & G,
                         const std::vector< gsFunctionSet<T> *>  & alpha         )
                         :
-                        Base(&mp,nullptr,nullptr,nullptr),
-                        m_Ts(give(thickness)),
-                        m_Gs(give(G)),
-                        m_As(give(alpha))
+                        Base(&mp)
 {
-    _initialize();
+    index_t nLayers = thickness.size();
+    GISMO_ASSERT(nLayers==(index_t)G.size(),    "Size error in layer input");
+    GISMO_ASSERT(nLayers==(index_t)alpha.size(),"Size error in layer input");
+    _initialize(nLayers);
+    for (index_t k=0; k!=nLayers; k++)
+    {
+        m_Ts[k] = memory::make_shared_not_owned(thickness[k]);
+        m_Gs[k] = memory::make_shared_not_owned(G[k]);
+        m_As[k] = memory::make_shared_not_owned(alpha[k]);
+    }
 }
 
 template <short_t dim, class T >
@@ -84,24 +97,16 @@ std::ostream & gsMaterialMatrixComposite<dim,T>::print(std::ostream &os) const
 }
 
 template <short_t dim, class T >
-void gsMaterialMatrixComposite<dim,T>::_initializeParameters()
-{
-    GISMO_ASSERT(m_pars.size()==6,"parameters should contain 6 functions, not "<<m_pars.size());
-    m_E11   = m_pars[0];
-    m_E22   = m_pars[1];
-    m_G12   = m_pars[2];
-    m_nu12  = m_pars[3];
-    m_nu21  = m_pars[4];
-    m_phi   = m_pars[5];
-}
-
-template <short_t dim, class T >
-void gsMaterialMatrixComposite<dim,T>::_initialize()
+void gsMaterialMatrixComposite<dim,T>::_initialize(const index_t nLayers)
 {
     // Set default options
     this->_defaultOptions();
 
-    m_nLayers = m_Ts.size();
+    m_nLayers = nLayers;
+    m_Ts.resize(m_nLayers);
+    m_Gs.resize(m_nLayers);
+    m_As.resize(m_nLayers);
+    m_Rs.resize(m_nLayers);
 }
 
 template <short_t dim, class T >

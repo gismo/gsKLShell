@@ -34,45 +34,65 @@ class gsMaterialMatrixBaseDimData;
 template <short_t dim, class T>
 class gsMaterialMatrixBaseDim : public gsMaterialMatrixBase<T>
 {
-    using Base = gsMaterialMatrixBase<T>;
 
 public:
+
+    typedef T Scalar_t;
+
+    using Base = gsMaterialMatrixBase<T>;
+
+    typedef typename Base::function_ptr function_ptr;
 
     // enum {Linear=0}; // If true (1), this property entails that S = C *˙E
 
     gsMaterialMatrixBaseDim() 
     : 
-    m_thickness(nullptr), 
-    m_density(nullptr)
+    Base(nullptr,nullptr,nullptr,nullptr)
     {
-        this->setUndeformed(nullptr);
-        this->setDeformed(nullptr);
         this->defaultOptions();
         membersSetZero();
     }
 
-    gsMaterialMatrixBaseDim(const gsFunctionSet<T> & mp)
+    gsMaterialMatrixBaseDim(const gsFunctionSet<T> * mp)
     :
-    m_thickness(nullptr), m_density(nullptr)
+    Base(mp,nullptr,nullptr,nullptr)
     {
-        GISMO_ASSERT(mp.targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
-        this->setUndeformed(&mp);
-        this->setDeformed(nullptr);
+        GISMO_ASSERT(mp->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
+        this->defaultOptions();
+        membersSetZero();
+    }
+
+    gsMaterialMatrixBaseDim(const gsFunctionSet<T> * mp,
+                            const gsFunctionSet<T> * mp_def)
+    :
+    Base(mp,mp_def,nullptr,nullptr)
+    {
+        GISMO_ASSERT(mp->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
+        GISMO_ASSERT(mp_def->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
+        this->defaultOptions();
+        membersSetZero();
+    }
+
+    gsMaterialMatrixBaseDim(const gsFunctionSet<T> * mp,
+                            const gsFunctionSet<T> * thickness,
+                            const gsFunctionSet<T> * Density)
+    :
+    Base(mp,nullptr,thickness,Density)
+    {
+        GISMO_ASSERT(mp->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
         this->defaultOptions();
         membersSetZero();
     }
 
     gsMaterialMatrixBaseDim(const gsFunctionSet<T> * mp,
                             const gsFunctionSet<T> * mp_def,
-                            const gsFunction<T> * thickness,
-                            const gsFunction<T> * Density)
+                            const gsFunctionSet<T> * thickness,
+                            const gsFunctionSet<T> * Density)
     :
-    m_thickness(thickness),
-    m_density(Density)
+    Base(mp,mp_def,thickness,Density)
     {
         GISMO_ASSERT(mp->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
-        this->setUndeformed(mp);
-        this->setDeformed(mp_def);
+        GISMO_ASSERT(mp_def->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
         this->defaultOptions();
         membersSetZero();
     }
@@ -116,44 +136,6 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     virtual gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const;
-
-    /// Sets the thickness
-    virtual void setThickness(const gsFunction<T> & thickness)
-    {
-        m_thickness = const_cast<gsFunction<T> *>(&thickness);
-    }
-    /// Gets the Density
-    virtual gsFunction<T> * getThickness() {return const_cast<gsFunction<T> *>(m_thickness);}
-
-    /// Sets the density
-    virtual void setDensity(const gsFunction<T> & Density)
-    {
-        m_density = const_cast<gsFunction<T> *>(&Density);
-    }
-    /// Gets the Density
-    virtual gsFunction<T> * getDensity() {return const_cast<gsFunction<T> *>(m_density);}
-
-    /**
-     * @brief      Sets the material parameters.
-     *
-     * @param[in]  pars  Function pointers for the parameters in a container
-     */
-    inline virtual void setParameters(const std::vector<gsFunction<T>*> &pars)
-    {
-        m_pars = pars;
-    }
-    /**
-     * @brief      Gets the number of parameters
-     *
-     */
-    inline virtual index_t numParameters() const override { return m_pars.size(); }
-
-    /// See \ref gsMaterialMatrixBase for details
-    inline virtual void resetParameters()
-    {
-        m_pars.clear();
-        m_pars.resize(0);
-    }
 
 public:
 
@@ -260,9 +242,31 @@ public:
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     gsMatrix<T> _transformation(const gsMatrix<T> & basis1, const gsMatrix<T> & basis2 ) const;
 
-    virtual void setDeformed(const gsFunctionSet<T> * deformed) {Base::setDeformed(deformed);}
+    virtual void setUndeformed(const gsFunctionSet<T> * undeformed) override
+    {
+        GISMO_ASSERT(undeformed->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
+        function_ptr f_ptr = memory::make_shared_not_owned(undeformed);
+        Base::setUndeformed(f_ptr);
+    }
 
-    bool hasDeformed() const { return m_defpatches->nPieces()!=0; }
+    virtual void setDeformed(const gsFunctionSet<T> * deformed) override
+    {
+        GISMO_ASSERT(deformed->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
+        function_ptr f_ptr = memory::make_shared_not_owned(deformed);
+        Base::setDeformed(f_ptr);
+    }
+
+    virtual void setUndeformed(const function_ptr undeformed) override
+    {
+        GISMO_ASSERT(undeformed->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
+        Base::setUndeformed(undeformed);
+    }
+
+    virtual void setDeformed(const function_ptr deformed) override
+    {
+        GISMO_ASSERT(deformed->targetDim()==dim,"Geometric dimension and the template dimension are not the same!");
+        Base::setDeformed(deformed);
+    }
 
 private:
 
@@ -417,9 +421,9 @@ protected:
 
     using Base::m_options;
 
-    std::vector<gsFunction<T>* > m_pars;
-    const gsFunction<T> * m_thickness;
-    const gsFunction<T> * m_density;
+    using Base::m_pars;
+    using Base::m_thickness;
+    using Base::m_density;
 
     // Geometric data point
     mutable util::gsThreaded< gsMaterialMatrixBaseDimData<dim,T> > m_data;

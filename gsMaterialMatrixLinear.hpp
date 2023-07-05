@@ -23,181 +23,132 @@
 
 #pragma once
 
-#include <gsKLShell/gsMaterialMatrixLinear.h>
 #include <gsKLShell/gsMaterialMatrixUtils.h>
+#include <gsIO/gsXml.h>
+#include <gsKLShell/gsMaterialMatrixXml.hpp>
 
 using namespace gismo;
-
-template <short_t d, typename T>
-class Cfun : public gsFunction<T>
-{
-public:
-    Cfun(const gsMaterialMatrixBaseDim<d,T> * materialMat, index_t patch, const gsVector<T> & u, const T & z)
-    :
-    m_materialMat(materialMat),
-    m_patchID(patch),
-    m_points(u),
-    m_z(z)
-    {
-
-    }
-
-    Cfun(const gsMaterialMatrixBaseDim<d,T> * materialMat, index_t patch, const gsVector<T> & u)
-    :
-    m_materialMat(materialMat),
-    m_patchID(patch),
-    m_points(u)
-    {
-        m_z.resize(1,1);
-        m_z.setZero();
-    }
-
-    void eval_into(const gsMatrix<T>& C, gsMatrix<T>& result) const
-    {
-        result.resize(targetDim(),C.cols());
-        for (index_t k=0; k!=C.cols(); k++)
-            result.col(k) = m_materialMat->eval3D_matrix_C(C.col(k),m_patchID,m_points,m_z,MaterialOutput::MatrixA);
-    }
-
-    short_t domainDim() const
-    {
-        return 3;
-    }
-
-    short_t targetDim() const
-    {
-        return 9;
-    }
-
-private:
-    const gsMaterialMatrixBaseDim<d,T> * m_materialMat;
-    mutable index_t m_patchID;
-    mutable gsVector<T> m_points;
-    mutable T m_z;
-};
-
-
-template <short_t d, typename T>
-class Sfun : public gsFunction<T>
-{
-public:
-    Sfun(const gsMaterialMatrixLinear<d,T> * materialMat, index_t patch, const gsVector<T> & u, const T & z)
-    :
-    m_materialMat(materialMat),
-    m_patchID(patch),
-    m_points(u),
-    m_z(z)
-    {
-
-    }
-
-    Sfun(const gsMaterialMatrixLinear<d,T> * materialMat, index_t patch, const gsVector<T> & u)
-    :
-    m_materialMat(materialMat),
-    m_patchID(patch),
-    m_points(u),
-    m_z(0)
-    {
-    }
-
-    void eval_into(const gsMatrix<T>& C, gsMatrix<T>& result) const
-    {
-        result.resize(targetDim(),C.cols());
-        for (index_t k=0; k!=C.cols(); k++)
-            result.col(k) = m_materialMat->eval3D_vector_C(C.col(k),m_patchID,m_points,m_z,MaterialOutput::VectorN);
-    }
-
-    short_t domainDim() const
-    {
-        return 3;
-    }
-
-    short_t targetDim() const
-    {
-        return 3;
-    }
-
-private:
-    const gsMaterialMatrixLinear<d,T> * m_materialMat;
-    mutable index_t m_patchID;
-    mutable gsVector<T> m_points;
-    mutable T m_z;
-};
-
 
 namespace gismo
 {
 
 template <short_t dim, class T>
-gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
-                                        const gsFunctionSet<T> & mp,
-                                        const gsFunction<T> & thickness
-                                        )
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear()
                                         :
-                                        Base(&mp,nullptr,&thickness,nullptr)
+                                        Base()
 {
-
-}
-
-template <short_t dim, class T >
-gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
-                                        const gsFunctionSet<T> & mp,
-                                        const gsFunction<T> & thickness,
-                                        const gsFunction<T> & YoungsModulus,
-                                        const gsFunction<T> & PoissonsRatio
-                                        )
-                                        :
-                                        Base(&mp,nullptr,&thickness,nullptr)
-{
-    m_pars.resize(2);
-    m_pars[0] = const_cast<gsFunction<T> *>(&YoungsModulus);
-    m_pars[1] = const_cast<gsFunction<T> *>(&PoissonsRatio);
-    _initialize();
-}
-
-template <short_t dim, class T >
-gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
-                                        const gsFunctionSet<T> & mp,
-                                        const gsFunction<T> & thickness,
-                                        const gsFunction<T> & YoungsModulus,
-                                        const gsFunction<T> & PoissonsRatio,
-                                        const gsFunction<T> & Density
-                                        )
-                                        :
-                                        Base(&mp,nullptr,&thickness,&Density)
-{
-    m_pars.resize(2);
-    m_pars[0] = const_cast<gsFunction<T> *>(&YoungsModulus);
-    m_pars[1] = const_cast<gsFunction<T> *>(&PoissonsRatio);
-    _initialize();
-}
-
-template <short_t dim, class T >
-gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
-                                        const gsFunctionSet<T> & mp,
-                                        const gsFunction<T> & thickness,
-                                        const std::vector<gsFunction<T>*> &pars
-                                        )
-                                        :
-                                        Base(&mp,nullptr,&thickness,nullptr)
-{
-    GISMO_ASSERT(pars.size()==2,"Two material parameters should be assigned!");
-    m_pars = pars;
     _initialize();
 }
 
 template <short_t dim, class T>
 gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
+                                        const gsFunctionSet<T> & mp,
+                                        const gsFunctionSet<T> & thickness
+                                        )
+                                        :
+                                        Base(&mp,&thickness,nullptr)
+{
+    _initialize();
+}
+
+template <short_t dim, class T >
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
+                                        const gsFunctionSet<T> & mp,
+                                        const gsFunctionSet<T> & thickness,
+                                        const gsFunctionSet<T> & YoungsModulus,
+                                        const gsFunctionSet<T> & PoissonsRatio
+                                        )
+                                        :
+                                        gsMaterialMatrixLinear(&mp,&thickness,YoungsModulus,PoissonsRatio,nullptr)
+{
+}
+
+template <short_t dim, class T >
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
+                                        const gsFunctionSet<T> & mp,
+                                        const gsFunctionSet<T> & thickness,
+                                        const gsFunctionSet<T> & YoungsModulus,
+                                        const gsFunctionSet<T> & PoissonsRatio,
+                                        const gsFunctionSet<T> & Density
+                                        )
+                                        :
+                                        gsMaterialMatrixLinear(&mp,&thickness,YoungsModulus,PoissonsRatio,&Density)
+{
+}
+
+template <short_t dim, class T >
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
+                                        const gsFunctionSet<T> * mp,
+                                        const gsFunctionSet<T> * thickness,
+                                        const gsFunctionSet<T> & YoungsModulus,
+                                        const gsFunctionSet<T> & PoissonsRatio,
+                                        const gsFunctionSet<T> * Density
+                                        )
+                                        :
+                                        Base(mp,thickness,Density)
+{
+    m_pars.resize(2);
+    this->setYoungsModulus(YoungsModulus);
+    this->setPoissonsRatio(PoissonsRatio);
+    _initialize();
+}
+
+template <short_t dim, class T >
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
                                     const gsFunctionSet<T> & mp,
-                                    const gsFunction<T> & thickness,
-                                    const std::vector<gsFunction<T>*> &pars,
-                                    const gsFunction<T> & density
+                                    const gsFunctionSet<T> & thickness,
+                                    const std::vector<gsFunctionSet<T>*> &pars
                                     )
                                     :
-                                    Base(&mp,nullptr,&thickness,&density)
+                                    gsMaterialMatrixLinear(&mp,&thickness,pars,nullptr)
+{
+}
+
+template <short_t dim, class T>
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
+                                    const gsFunctionSet<T> & mp,
+                                    const gsFunctionSet<T> & thickness,
+                                    const std::vector<gsFunctionSet<T>*> &pars,
+                                    const gsFunctionSet<T> & density
+                                    )
+                                    :
+                                    gsMaterialMatrixLinear(&mp,&thickness,pars,&density)
+{
+}
+
+template <short_t dim, class T >
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
+                                    const gsFunctionSet<T> & thickness,
+                                    const std::vector<gsFunctionSet<T>*> &pars
+                                    )
+                                    :
+                                    gsMaterialMatrixLinear(nullptr,&thickness,pars,nullptr)
+{
+}
+
+template <short_t dim, class T>
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
+                                    const gsFunctionSet<T> & thickness,
+                                    const std::vector<gsFunctionSet<T>*> &pars,
+                                    const gsFunctionSet<T> & density
+                                    )
+                                    :
+                                    gsMaterialMatrixLinear(nullptr,&thickness,pars,&density)
+{
+}
+
+template <short_t dim, class T>
+gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
+                                    const gsFunctionSet<T> * mp,
+                                    const gsFunctionSet<T> * thickness,
+                                    const std::vector<gsFunctionSet<T>*> &pars,
+                                    const gsFunctionSet<T> * density
+                                    )
+                                    :
+                                    Base(mp,thickness,density)
 {
     GISMO_ASSERT(pars.size()==2,"Two material parameters should be assigned!");
-    m_pars = pars;
+    this->setParameters(pars);
     _initialize();
 }
 
@@ -317,39 +268,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix_C(const gsMatrix<T> & C
 template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_dmatrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
-    // return gsMatrix<T>::Zero(27,u.cols()*z.rows());
-
-    this->_computePoints(patch,u);
-
-    gsMatrix<T> result(27,u.cols()*z.rows());
-    result.setZero();
-
-    gsMatrix<T> Cvoight(3,1), Ctmp;
-    for (index_t k=0; k!=u.cols(); k++)
-    {
-
-        // // Evaluate material properties on the quadrature point
-        // for (index_t v=0; v!=m_parmat.rows(); v++)
-        //     m_parvals.at(v) = m_parmat(v,k);
-
-        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
-        {
-            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
-
-            Cfun<dim,T> Cfunc(this,patch,u.col(k),z(j,k));
-            gsMatrix<T> tmpresult;
-
-            Cvoight(0,0) = m_data.mine().m_Gcov_def(0,0);
-            Cvoight(1,0) = m_data.mine().m_Gcov_def(1,1);
-            Cvoight(2,0) = m_data.mine().m_Gcov_def(0,1);
-
-
-            Cfunc.deriv_into(Cvoight,tmpresult);
-            result.col(j*u.cols()+k) = tmpresult;
-        }
-    }
-
-    return result;
+    return gsMatrix<T>::Zero(27,u.cols()*z.rows());
 }
 
 // template <short_t dim, class T>
@@ -708,75 +627,6 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::C(const gsMatrix<T> &) const
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T>::S(const gsMatrix<T> & C, const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
-{
-    this->_computePoints(patch,u);
-
-    gsMatrix<T> tmpresult;
-    Sfun<dim,T> Sfunc(this,patch,u.col(0),z(0,0));
-    Sfunc.eval_into(C,tmpresult);
-
-    gsMatrix<T> result;
-    return result;
-}
-
-template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T>::C(const gsMatrix<T> &  C, const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
-{
-    GISMO_ASSERT(C.cols()==1,"Expect C in voight notation, C = [C11, C22, C12]");
-    gsWarn<<"This function needs to compute the material parameters! Therefore needs compute points\n";
-
-    this->_computePoints(patch,u);
-
-    gsMatrix<T> tmpresult;
-    Sfun<dim,T> Sfunc(this,patch,u.col(0),z(0,0));
-    Sfunc.deriv_into(C,tmpresult);
-    // Because the derivative of S is taken w.r.t. the vector C = C11, C22, C12, since E = 0.5 ( C - G), and since voight notation is used, we need to multiply the last column of the derivative with 0.5 to revover the correct matrix. This is because the last column is dS_ij / dE_12 = 2C_1112; 2C_2212; 2C_1212.
-    gsAsMatrix<T> Cmat = tmpresult.reshapeCol(0,3,3);
-    Cmat.col(2) *= 0.5;
-
-    Cfun<dim,T> Cfunc(this,patch,u.col(0),z(0,0));
-    Cfunc.eval_into(C,tmpresult);
-
-    Cfunc.deriv_into(C,tmpresult);
-
-    gsMatrix<T> result(3,3);
-    result(0,0)                 = _Cijkl(0,0,0,0); // C1111
-    result(1,1)                 = _Cijkl(1,1,1,1); // C2222
-    result(2,2)                 = _Cijkl(0,1,0,1); // C1212
-    result(1,0) = result(0,1)   = _Cijkl(0,0,1,1); // C1122
-    result(2,0) = result(0,2)   = _Cijkl(0,0,0,1); // C1112
-    result(2,1) = result(1,2)   = _Cijkl(1,1,0,1); // C2212
-    return result;
-}
-
-template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T>::dC(const gsMatrix<T> & C, const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
-{
-    GISMO_ASSERT(C.cols()==1,"Expect C in voight notation, C = [C11, C22, C12]");
-
-    // Put C in matrix notation
-    gsMatrix<T> Cmat(3,3);
-    Cmat.setZero();
-    Cmat(0,0) = C(0,0);
-    Cmat(1,1) = C(1,0);
-    Cmat(0,1) = Cmat(1,0) = C(2,0);
-    Cmat(2,2) = 1;
-
-    // gsMatrix<T> tmpresult;
-    // Cfun<dim,T> fun(this,patch,u,z);
-    // fun.eval_into(Cmat,tmpresult);
-
-
-    // Cfun<dim,T> Cfunc(this,patch,u,z);
-    // Cfunc.eval_into(Cmat,tmpresult);
-    // gsDebugVar(tmpresult);
-
-    gsMatrix<T> result;
-    return result;
-}
-
-template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const T z, enum MaterialOutput out) const
 {
     gsMatrix<T> strain;
@@ -826,5 +676,48 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const T z, enum MaterialOutput out
 // }
 
 //--------------------------------------------------------------------------------------------------------------------------------------
+
+namespace internal
+{
+
+/// @brief get a Linear Material Matrix from XML data
+///
+/// \ingroup KLShell
+template<short_t d, class T>
+class gsXml< gsMaterialMatrixLinear<d,T> >
+{
+private:
+    gsXml() { }
+    typedef gsMaterialMatrixLinear<d,T> Object;
+
+public:
+    GSXML_COMMON_FUNCTIONS(gsMaterialMatrixLinear<TMPLA2(d,T)>);
+    static std::string tag ()  { return "MaterialMatrix"; }
+    static std::string type () { return "Linear" +  to_string(d); }
+
+    // GSXML_GET_POINTER(Object);
+
+    static Object * get(gsXmlNode * node)
+    {
+        Object * result = new Object;
+        get_into(node, *result);
+        return result;
+    }
+
+    static void get_into(gsXmlNode * node,Object & obj)
+    {
+        obj = getMaterialMatrixFromXml< Object >( node );
+    }
+
+    static gsXmlNode * put (const Object & obj,
+                            gsXmlTree & data)
+    {
+        return putMaterialMatrixToXml< Object >( obj,data );
+        // GISMO_NO_IMPLEMENTATION;
+        // return putGeometryToXml(obj,data);
+    }
+};
+
+}// namespace internal
 
 } // end namespace

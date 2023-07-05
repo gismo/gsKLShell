@@ -1,8 +1,11 @@
 #include <gsCore/gsTemplateTools.h>
 
 #include <gsKLShell/gsMaterialMatrixBase.h>
+#include <gsKLShell/gsMaterialMatrixBase.hpp>
 #include <gsKLShell/gsMaterialMatrixBaseDim.h>
 #include <gsKLShell/gsMaterialMatrixBaseDim.hpp>
+
+#include <gsKLShell/gsMaterialMatrixXml.hpp>
 
 namespace gismo
 {
@@ -10,6 +13,11 @@ namespace gismo
 
   CLASS_TEMPLATE_INST gsMaterialMatrixBaseDim<2,real_t>;
   CLASS_TEMPLATE_INST gsMaterialMatrixBaseDim<3,real_t>;
+
+// namespace internal
+// {
+//   CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixBase<real_t>>;
+// }
 
   #ifdef GISMO_WITH_PYBIND11
 

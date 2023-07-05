@@ -84,6 +84,12 @@ public:
         this->_makePieces(undeformed);
     }
 
+    /// Destructor
+    ~gsMaterialMatrixEval()
+    {
+        freeAll(m_pieces);
+    }
+
     /// Domain dimension, always 2 for shells
     short_t domainDim() const {return 2;}
 

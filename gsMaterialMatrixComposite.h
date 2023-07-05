@@ -44,6 +44,8 @@ public:
 
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 
+    typedef typename Base::function_ptr function_ptr;
+
     /** @brief Constructor of the assembler object.
 
         \param[in] ...
@@ -65,7 +67,6 @@ public:
                             const std::vector< gsFunctionSet<T> *>              & thickness,
                             const std::vector< gsFunctionSet<T> *>              & G,
                             const std::vector< gsFunctionSet<T> *>              & alpha         );
-
 
     enum MatIntegration isMatIntegrated() const {return MatIntegration::Integrated; }
     enum MatIntegration isVecIntegrated() const {return MatIntegration::Integrated; }
@@ -107,13 +108,6 @@ public:
 
     std::ostream &print(std::ostream &os) const override;
 
-    /// Sets the thickness
-    void setThickness(const gsFunction<T> & thickness)
-    {
-        m_thickness = const_cast<gsFunction<T> *>(&thickness);
-    }
-
-
 public:
     /// Shared pointer for gsMaterialMatrixComposite
     typedef memory::shared_ptr< gsMaterialMatrixComposite > Ptr;
@@ -122,8 +116,7 @@ public:
     typedef memory::unique_ptr< gsMaterialMatrixComposite > uPtr;
 
 protected:
-    void _initialize();
-    void _initializeParameters();
+    void _initialize(const index_t nLayers);
     void _defaultOptions();
 
     gsMatrix<T> _transformationMatrix(const gsMatrix<T> & phi, const gsMatrix<T> & u) const;
@@ -141,15 +134,6 @@ protected:
     // constructor
     using Base::m_patches;
     using Base::m_defpatches;
-    const gsFunction<T> * m_thickness;
-    const gsFunction<T> * m_E11;
-    const gsFunction<T> * m_E22;
-    const gsFunction<T> * m_G12;
-    const gsFunction<T> * m_nu12;
-    const gsFunction<T> * m_nu21;
-    const gsFunction<T> * m_phi;
-    std::vector<gsFunction<T>* > m_pars; // TO DO: change to uPtr
-    const gsFunction<T> * m_rho;
 
     // Composite
     index_t m_nLayers;
@@ -160,10 +144,10 @@ protected:
 
     gsOptionList m_options;
 
-    const std::vector<gsFunctionSet<T> * > m_Ts;
-    const std::vector<gsFunctionSet<T> * > m_Gs;
-    const std::vector<gsFunctionSet<T> * > m_As;
-    const std::vector<gsFunctionSet<T> * > m_Rs;
+    std::vector< function_ptr > m_Ts;
+    std::vector< function_ptr > m_Gs;
+    std::vector< function_ptr > m_As;
+    std::vector< function_ptr > m_Rs;
     mutable util::gsThreaded<std::vector< gsMatrix<T> >> m_Gcontainer, m_Tcontainer, m_Acontainer, m_Rcontainer;
 };
 
