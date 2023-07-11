@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
     gsInfo<<"Computing Eigenmodes..."<<std::flush;
     if (dense)
     {
-        Eigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  eigSolver;
+        gsEigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  eigSolver;
         eigSolver.compute(matrix-shift*mass,mass);
         values = eigSolver.eigenvalues();
         vectors = eigSolver.eigenvectors();
@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
         values.array() += shift;
         vectors = solver.eigenvectors();
 #else
-        Eigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  eigSolver;
+        gsEigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  eigSolver;
         eigSolver.compute(matrix-shift*mass,mass);
         values = eigSolver.eigenvalues();
         vectors = eigSolver.eigenvectors();
