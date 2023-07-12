@@ -40,11 +40,20 @@ class gsMaterialMatrixLinear : public gsMaterialMatrixBaseDim<dim,T>
 {
 public:
 
+    typedef T Scalar_t;
+
     GISMO_CLONE_FUNCTION(gsMaterialMatrixLinear)
 
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 
+    typedef typename Base::function_ptr function_ptr;
+
     enum {Linear=1};
+
+    /**
+     * @brief      Empty constructor
+     */
+    gsMaterialMatrixLinear();
 
     /**
      * @brief      Constructor without material parameters
@@ -53,7 +62,7 @@ public:
      * @param[in]  thickness      Thickness function
      */
     gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
-                        const gsFunction<T> & thickness);
+                        const gsFunctionSet<T> & thickness);
 
     /**
      * @brief      Constructor without deformed multipatch and density
@@ -64,9 +73,9 @@ public:
      * @param[in]  PoissonRatio   The poisson ratio
      */
     gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
-                        const gsFunction<T> & thickness,
-                        const gsFunction<T> & YoungsModulus,
-                        const gsFunction<T> & PoissonRatio);
+                        const gsFunctionSet<T> & thickness,
+                        const gsFunctionSet<T> & YoungsModulus,
+                        const gsFunctionSet<T> & PoissonRatio);
 
     /**
      * @brief      Full constructor
@@ -78,11 +87,27 @@ public:
      * @param[in]  Density        The density
      */
     gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
-                        const gsFunction<T> & thickness,
-                        const gsFunction<T> & YoungsModulus,
-                        const gsFunction<T> & PoissonRatio,
-                        const gsFunction<T> & Density);
+                        const gsFunctionSet<T> & thickness,
+                        const gsFunctionSet<T> & YoungsModulus,
+                        const gsFunctionSet<T> & PoissonRatio,
+                        const gsFunctionSet<T> & Density);
 
+protected:
+    /**
+     * @brief      Full constructor
+     *
+     * @param[in]  mp             Original geometry
+     * @param[in]  thickness      Thickness function
+     * @param[in]  YoungsModulus  The youngs modulus
+     * @param[in]  PoissonRatio   The poisson ratio
+     * @param[in]  Density        The density
+     */
+    gsMaterialMatrixLinear(   const gsFunctionSet<T> * mp,
+                        const gsFunctionSet<T> * thickness,
+                        const gsFunctionSet<T> & YoungsModulus,
+                        const gsFunctionSet<T> & PoissonRatio,
+                        const gsFunctionSet<T> * Density);
+public:
     /**
      * @brief      Constructor without density
      *
@@ -91,27 +116,58 @@ public:
      * @param[in]  pars       Vector with parameters (E, nu)
      */
     gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
-                        const gsFunction<T> & thickness,
-                        const std::vector<gsFunction<T> *> &pars);
+                        const gsFunctionSet<T> & thickness,
+                        const std::vector<gsFunctionSet<T> *> &pars);
 
     /**
      * @brief      Full constructor
      *
      * @param[in]  mp         Original geometry
-     * @param[in]  mp_def     Deformed geometry
      * @param[in]  thickness  Thickness function
      * @param[in]  pars       Vector with parameters (E, nu)
      * @param[in]  Density    Density function
      */
     gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
-                        const gsFunction<T> & thickness,
-                        const std::vector<gsFunction<T> *> &pars,
-                        const gsFunction<T> & Density);
+                        const gsFunctionSet<T> & thickness,
+                        const std::vector<gsFunctionSet<T> *> &pars,
+                        const gsFunctionSet<T> & Density);
+
+    /**
+     * @brief      Constructor without density and multipatch
+     *
+     * @param[in]  thickness  Thickness function
+     * @param[in]  pars       Vector with parameters (E, nu)
+     */
+    gsMaterialMatrixLinear(    const gsFunctionSet<T> & thickness,
+                        const std::vector<gsFunctionSet<T> *> &pars);
+
+    /**
+     * @brief      Constructor without multipatch
+     *
+     * @param[in]  thickness  Thickness function
+     * @param[in]  pars       Vector with parameters (E, nu)
+     * @param[in]  Density    Density function
+     */
+    gsMaterialMatrixLinear(   const gsFunctionSet<T> & thickness,
+                        const std::vector<gsFunctionSet<T> *> &pars,
+                        const gsFunctionSet<T> & Density);
+
+protected:
+    /**
+     * @brief      Full constructor
+     *
+     * @param[in]  mp         Original geometry
+     * @param[in]  thickness  Thickness function
+     * @param[in]  pars       Vector with parameters (E, nu)
+     * @param[in]  Density    Density function
+     */
+    gsMaterialMatrixLinear(   const gsFunctionSet<T> * mp,
+                        const gsFunctionSet<T> * thickness,
+                        const std::vector<gsFunctionSet<T> *> &pars,
+                        const gsFunctionSet<T> * Density);
+public:
 
     gsMaterialMatrixLinear( const gsMaterialMatrixLinear<dim,T> & other);
-
-    /// Destructor
-    gsMaterialMatrixLinear() { }
 
     /// See \ref gsMaterialMatrixBase for details
     inline enum MatIntegration isMatIntegrated() const override {return MatIntegration::Constant; }
@@ -159,48 +215,18 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_detF (const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
-
-    /// Sets the thickness
-    void setThickness(const gsFunction<T> & thickness)
-    {
-        m_thickness = const_cast<gsFunction<T> *>(&thickness);;
-    }
     
     /// Sets the YoungsModulus
-    void setYoungsModulus(const gsFunction<T> & YoungsModulus)
-    {
-        if ((index_t)m_pars.size() < 1)
-            m_pars.resize(1);
-        m_pars[0] = const_cast<gsFunction<T> *>(&YoungsModulus);
-    }
+    void setYoungsModulus(const gsFunctionSet<T> & YoungsModulus) { Base::setParameter(0,YoungsModulus); }
 
     /// Gets the YoungsModulus
-    gsFunction<T> * getYoungsModulus() {return m_pars[0];}
+    const function_ptr getYoungsModulus() const { return Base::getParameter(0); }
 
     /// Sets the Poisson's Ratio
-    void setPoissonsRatio(const gsFunction<T> & PoissonsRatio)
-    {
-        if ((index_t)m_pars.size() < 2)
-            m_pars.resize(2);
-        m_pars[1] = const_cast<gsFunction<T> *>(&PoissonsRatio);
-    }
+    void setPoissonsRatio(const gsFunctionSet<T> & PoissonsRatio) { Base::setParameter(1,PoissonsRatio); }
+
     /// Gets the Poisson's Ratio
-    gsFunction<T> * getPoissonsRatio() {return m_pars[1];}
-
-    /// Sets the Density
-    void setDensity(const gsFunction<T> & Density)
-    {
-        m_density = const_cast<gsFunction<T> *>(&Density);
-    }
-    /// Gets the Density
-    gsFunction<T> * getDensity() {return const_cast<gsFunction<T> *>(m_density);}
-
-    /// See \ref gsMaterialMatrixBase for details
-    void setParameters(const std::vector<gsFunction<T>*> &pars)
-    {
-        GISMO_ASSERT(pars.size()==2,"Two material parameters should be assigned!");
-        m_pars = pars;
-    }
+    const function_ptr getPoissonsRatio() const { return Base::getParameter(1); }
 
     /// See \ref gsMaterialMatrixBase for details
     std::ostream &print(std::ostream &os) const override;

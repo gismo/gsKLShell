@@ -52,6 +52,8 @@ public:
 
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 
+    typedef typename Base::function_ptr function_ptr;
+
     /**
      * @brief      Constructor without material parameters
      *
@@ -59,7 +61,7 @@ public:
      * @param[in]  thickness      Thickness function
      */
     gsMaterialMatrix(   const gsFunctionSet<T> & mp,
-                        const gsFunction<T> & thickness);
+                        const gsFunctionSet<T> & thickness);
 
     /**
      * @brief      General constructor without density
@@ -69,8 +71,27 @@ public:
      * @param[in]  pars       Vector with parameters (E, nu)
      */
     gsMaterialMatrix(   const gsFunctionSet<T> & mp,
-                        const gsFunction<T> & thickness,
-                        const std::vector<gsFunction<T> *> &pars);
+                        const gsFunctionSet<T> & thickness,
+                        const std::vector<gsFunctionSet<T> *> &pars);
+
+    /**
+     * @brief      General constructor without density and multipatch
+     *
+     * @param[in]  thickness  Thickness function
+     * @param[in]  pars       Vector with parameters (E, nu)
+     */
+    gsMaterialMatrix(   const gsFunctionSet<T> & thickness,
+                        const std::vector<gsFunctionSet<T> *> &pars);
+
+    /**
+     * @brief      General constructor without multipatch
+     *
+     * @param[in]  thickness  Thickness function
+     * @param[in]  pars       Vector with parameters (E, nu)
+     */
+    gsMaterialMatrix(   const gsFunctionSet<T> & thickness,
+                        const std::vector<gsFunctionSet<T> *> &pars,
+                        const gsFunctionSet<T> & Density);
 
     /**
      * @brief      Full general constructor
@@ -81,10 +102,25 @@ public:
      * @param[in]  Density    Density function
      */
     gsMaterialMatrix(   const gsFunctionSet<T> & mp,
-                        const gsFunction<T> & thickness,
-                        const std::vector<gsFunction<T> *> &pars,
-                        const gsFunction<T> & Density);
+                        const gsFunctionSet<T> & thickness,
+                        const std::vector<gsFunctionSet<T> *> &pars,
+                        const gsFunctionSet<T> & Density);
 
+protected:
+    /**
+     * @brief      Full general constructor
+     *
+     * @param[in]  mp         Original geometry
+     * @param[in]  thickness  Thickness function
+     * @param[in]  pars       Vector with parameters (E, nu)
+     * @param[in]  Density    Density function
+     */
+    gsMaterialMatrix(   const gsFunctionSet<T> * mp,
+                        const gsFunctionSet<T> * thickness,
+                        const std::vector<gsFunctionSet<T> *> &pars,
+                        const gsFunctionSet<T> * Density);
+
+public:
     /// Destructor
     gsMaterialMatrix() { }
 
@@ -146,32 +182,32 @@ public:
     gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
 
     /// Sets the YoungsModulus
-    void setYoungsModulus(const gsFunction<T> & YoungsModulus);
+    void setYoungsModulus(const gsFunctionSet<T> & YoungsModulus);
 
     /// Gets the YoungsModulus
-    gsFunction<T> * getYoungsModulus();
+    const function_ptr getYoungsModulus() const ;
 
     /// Sets the Poisson's Ratio
-    void setPoissonsRatio(const gsFunction<T> & PoissonsRatio);
+    void setPoissonsRatio(const gsFunctionSet<T> & PoissonsRatio);
     /// Gets the Poisson's Ratio
-    gsFunction<T> * getPoissonsRatio();
+    const function_ptr getPoissonsRatio() const ;
 
     /// Sets the Ratio for the MR material
-    void setRatio(const gsFunction<T> & Ratio) { _setRatio_impl<mat>(Ratio);}
+    void setRatio(const gsFunctionSet<T> & Ratio) { _setRatio_impl<mat>(Ratio);}
     /// Gets the Ratio for the MR material
-    gsFunction<T> * getRatio(){ return _getRatio_impl<mat>(); }
+    const function_ptr getRatio() const { return _getRatio_impl<mat>(); }
 
     /// Sets Mu_i
-    void setMu(const index_t & i, const gsFunction<T> & Mu_i) { _setMu_impl<mat>(i,Mu_i); }
+    void setMu(const index_t & i, const gsFunctionSet<T> & Mu_i) { _setMu_impl<mat>(i,Mu_i); }
 
     /// Gets Mu_i
-    gsFunction<T> * getMu(const index_t & i) {return _getMu_impl<mat>(i);}
+    const function_ptr getMu(const index_t & i) const {return _getMu_impl<mat>(i);}
 
     /// Sets Alpha_i
-    void setAlpha(const index_t & i, const gsFunction<T> & Alpha_i) { _setAlpha_impl<mat>(i,Alpha_i); }
+    void setAlpha(const index_t & i, const gsFunctionSet<T> & Alpha_i) { _setAlpha_impl<mat>(i,Alpha_i); }
 
     /// Gets Alpha_i
-    gsFunction<T> * getAlpha(const index_t & i) {return _getAlpha_impl<mat>(i);}
+    const function_ptr getAlpha(const index_t & i) const {return _getAlpha_impl<mat>(i);}
 
     /// See \ref gsMaterialMatrixBase for details
     std::ostream &print(std::ostream &os) const override;
@@ -533,34 +569,34 @@ private:
     typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_pstress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
     template<enum Material _mat>
-    typename std::enable_if<_mat==Material::MR, void>::type _setRatio_impl(const gsFunction<T> & Ratio);
+    typename std::enable_if<_mat==Material::MR, void>::type _setRatio_impl(const gsFunctionSet<T> & Ratio);
     template<enum Material _mat>
-    typename std::enable_if<_mat!=Material::MR, void>::type _setRatio_impl(const gsFunction<T> & Ratio);
+    typename std::enable_if<_mat!=Material::MR, void>::type _setRatio_impl(const gsFunctionSet<T> & Ratio);
 
     template<enum Material _mat>
-    typename std::enable_if<_mat==Material::MR, gsFunction<T> *>::type _getRatio_impl();
+    typename std::enable_if<_mat==Material::MR, const function_ptr>::type _getRatio_impl() const;
     template<enum Material _mat>
-    typename std::enable_if<_mat!=Material::MR, gsFunction<T> *>::type _getRatio_impl();
+    typename std::enable_if<_mat!=Material::MR, const function_ptr>::type _getRatio_impl() const;
 
     template<enum Material _mat>
-    typename std::enable_if<_mat==Material::OG, void>::type _setMu_impl(const index_t & i, const gsFunction<T> & Mu_i);
+    typename std::enable_if<_mat==Material::OG, void>::type _setMu_impl(const index_t & i, const gsFunctionSet<T> & Mu_i);
     template<enum Material _mat>
-    typename std::enable_if<_mat!=Material::OG, void>::type _setMu_impl(const index_t & i, const gsFunction<T> & Mu_i);
+    typename std::enable_if<_mat!=Material::OG, void>::type _setMu_impl(const index_t & i, const gsFunctionSet<T> & Mu_i);
 
     template<enum Material _mat>
-    typename std::enable_if<_mat==Material::OG, gsFunction<T> *>::type _getMu_impl(const index_t & i);
+    typename std::enable_if<_mat==Material::OG, const function_ptr>::type _getMu_impl(const index_t & i) const;
     template<enum Material _mat>
-    typename std::enable_if<_mat!=Material::OG, gsFunction<T> *>::type _getMu_impl(const index_t & i);
+    typename std::enable_if<_mat!=Material::OG, const function_ptr>::type _getMu_impl(const index_t & i) const;
 
     template<enum Material _mat>
-    typename std::enable_if<_mat==Material::OG, void>::type _setAlpha_impl(const index_t & i, const gsFunction<T> & Alpha_i);
+    typename std::enable_if<_mat==Material::OG, void>::type _setAlpha_impl(const index_t & i, const gsFunctionSet<T> & Alpha_i);
     template<enum Material _mat>
-    typename std::enable_if<_mat!=Material::OG, void>::type _setAlpha_impl(const index_t & i, const gsFunction<T> & Alpha_i);
+    typename std::enable_if<_mat!=Material::OG, void>::type _setAlpha_impl(const index_t & i, const gsFunctionSet<T> & Alpha_i);
 
     template<enum Material _mat>
-    typename std::enable_if<_mat==Material::OG, gsFunction<T> *>::type _getAlpha_impl(const index_t & i);
+    typename std::enable_if<_mat==Material::OG, const function_ptr>::type _getAlpha_impl(const index_t & i) const;
     template<enum Material _mat>
-    typename std::enable_if<_mat!=Material::OG, gsFunction<T> *>::type _getAlpha_impl(const index_t & i);
+    typename std::enable_if<_mat!=Material::OG, const function_ptr>::type _getAlpha_impl(const index_t & i) const;
 
 protected:
 

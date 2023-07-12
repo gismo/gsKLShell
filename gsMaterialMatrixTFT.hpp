@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <gsKLShell/gsMaterialMatrixLinear.h>
 #include <gsKLShell/gsMaterialMatrixUtils.h>
+#include <gsCore/gsFunction.h>
 
 using namespace gismo;
 
@@ -774,7 +774,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_TF(const index_t patch, 
 {
     if (m_options.getSwitch("Explicit"))
     {
-        const gsFunctionSet<T> * tmp = &(m_materialMat->getDeformed());
+        function_ptr tmp = m_materialMat->getDeformed();
         m_materialMat->setDeformed(m_defpatches0);
         gsMatrix<T> TF = m_materialMat->eval3D_tensionfield(patch,u,z,MaterialOutput::TensionField);
         m_materialMat->setDeformed(tmp);
@@ -1024,6 +1024,45 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
 //     }
 
 // }
+
+// namespace internal
+// {
+
+// /// @brief get a Linear Material Matrix from XML data
+// ///
+// /// \ingroup KLShell
+// template<short_t d, class T> // implemented for template linear=false
+// class gsXml< gsMaterialMatrixTFT<d,T,false> >
+// {
+// private:
+//     gsXml() { }
+//     typedef gsMaterialMatrixTFT<d,T,false> Object;
+
+// public:
+//     GSXML_COMMON_FUNCTIONS(gsMaterialMatrixTFT<TMPLA3(d,T,false)>);
+//     static std::string tag ()  { return "MaterialMatrix"; }
+//     static std::string type () { return "Linear" +  to_string(d); }
+
+//     GSXML_GET_POINTER(Object)
+
+//     static void get_into(gsXmlNode * node, Object & obj)
+//     {
+//         gsMaterialMatrixBase<T> * base = gsXml< gsMaterialMatrixBase<T> >::get(node);
+//         obj = Object(base);
+//     }
+
+//     static gsXmlNode * put (const Object & obj,
+//                             gsXmlTree & data)
+//     {
+//         gsXml< gsMaterialMatrixBase<T> >::put(node,data);
+
+//         return putMaterialMatrixToXml< Object >( obj,data );
+//         // GISMO_NO_IMPLEMENTATION;
+//         // return putGeometryToXml(obj,data);
+//     }
+// };
+
+// }// namespace internal
 
 } // end namespace
 

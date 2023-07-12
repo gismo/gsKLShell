@@ -17,7 +17,6 @@
 #include <gsKLShell/getMaterialMatrix.h>
 #include <gsKLShell/gsMaterialMatrixEval.h>
 #include <gsKLShell/gsMaterialMatrixIntegrate.h>
-#include <gsKLShell/gsMaterialMatrixTFTLinear.h>
 #include <gsKLShell/gsMaterialMatrixTFT.h>
 
 #include "gismo_unittest.h"       // Brings in G+Smo and the UnitTest++ framework
@@ -334,7 +333,7 @@ SUITE(gsMaterialMatrix_test)                 // The suite should have the same n
         gsConstantFunction<> alpha3fun(alpha3,2);
         gsConstantFunction<> mu3fun(mu3,2);
 
-        std::vector<gsFunction<>*> parameters;
+        std::vector<gsFunctionSet<>*> parameters;
         if (material==0) // SvK & Composites
         {
           parameters.resize(2);

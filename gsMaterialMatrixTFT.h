@@ -18,10 +18,6 @@
 #include <gsKLShell/gsMaterialMatrixBase.h>
 #include <gsKLShell/gsMaterialMatrixBaseDim.h>
 #include <gsKLShell/gsMaterialMatrixUtils.h>
-#include <gsKLShell/gsMaterialMatrixLinear.h>
-#include <gsKLShell/gsMaterialMatrix.h>
-#include <gsIO/gsOptionList.h>
-#include <gsCore/gsFuncData.h>
 
 namespace gismo
 {
@@ -43,70 +39,65 @@ template <  short_t dim,
 class gsMaterialMatrixTFT : public gsMaterialMatrixBaseDim<dim,T>
 {
 public:
+    /// Shared pointer for gsMaterialMatrixTFT
+    typedef memory::shared_ptr< gsMaterialMatrixTFT > Ptr;
 
-    GISMO_CLONE_FUNCTION(gsMaterialMatrixTFT)
+    /// Unique pointer for gsMaterialMatrixTFT
+    typedef memory::unique_ptr< gsMaterialMatrixTFT > uPtr;
 
+    /// Shared pointer to a \ref gsMaterialMatrixBase
+    typedef typename gsMaterialMatrixBase<T>::Ptr material_ptr;
+
+    /// Base class
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 
-    /**
-     * @brief      Constructor without deformed multipatch and density
-     *
-     * @param[in]  mp         Original geometry
-     * @param[in]  thickness  Thickness function
-     * @param[in]  pars       Vector with parameters (E, nu)
-     */
-    gsMaterialMatrixTFT(gsMaterialMatrixBase<T> * materialmatrix)
-    :
-    m_materialMat(materialmatrix)
-    {
-        this->setUndeformed(&materialmatrix->getUndeformed());
-        this->setDeformed(&materialmatrix->getDeformed());
-        this->setThickness(*materialmatrix->getThickness());
-        m_options.addReal("SlackMultiplier","Multiplies the original value of the matrix for the slack state",0);
-        m_options.addSwitch("Explicit","Explicit iterations; use tension field from a fixed deformed geometry that does not change when calling setDeformed",false);
-        // if (!dynamic_cast<const gsMaterialMatrixLinear<dim,T> *>(m_materialMat))
-            // GISMO_ERROR("Material matrix must be linear");
-    }
+    /// Shared pointer to a \ref gsFunctionSet
+    typedef typename gsFunctionSet<T>::Ptr function_ptr;
+
+    // Define clone functions
+    GISMO_CLONE_FUNCTION(gsMaterialMatrixTFT)
+
+public:
 
     /**
-     * @brief      Constructor without deformed multipatch and density
+     * @brief      Constructs a TFT material matrix using a reference to another material matrix
      *
-     * @param[in]  mp         Original geometry
-     * @param[in]  thickness  Thickness function
-     * @param[in]  pars       Vector with parameters (E, nu)
+     * @param      materialMatrix  The original material matrix
      */
-    gsMaterialMatrixTFT(    const gsFunctionSet<T> & mp,
-                            const gsFunction<T> & thickness,
-                            gsMaterialMatrixBase<T> * materialmatrix)
+    gsMaterialMatrixTFT(gsMaterialMatrixBase<T> * materialMatrix)
     :
-    Base(&mp,nullptr,&thickness,nullptr),
-    m_materialMat(materialmatrix)
-    {
-        m_options.addReal("SlackMultiplier","Multiplies the original value of the matrix for the slack state",0);
-        m_options.addSwitch("Explicit","Explicit iterations; use tension field from a fixed deformed geometry that does not change when calling setDeformed",false);
-    }
+    gsMaterialMatrixTFT(memory::make_shared_not_owned(materialMatrix))
+    {}
 
     /**
-     * @brief      Constructor without deformed multipatch and density
+     * @brief      Constructs a TFT material matrix using a reference to another material matrix
      *
-     * @param[in]  mp         Original geometry
-     * @param[in]  thickness  Thickness function
-     * @param[in]  pars       Vector with parameters (E, nu)
+     * @param      materialMatrix  The original material matrix
      */
-    gsMaterialMatrixTFT(    const gsFunctionSet<T> & mp,
-                            const gsFunction<T> & thickness,
-                            const gsFunction<T> & density,
-                            gsMaterialMatrixBase<T> * materialmatrix)
+    gsMaterialMatrixTFT(gsMaterialMatrixBase<T> & materialMatrix)
     :
-    Base(&mp,nullptr,&thickness,&density),
-    m_materialMat(materialmatrix)
+    gsMaterialMatrixTFT(memory::make_shared(materialMatrix.clone().release()))
+    {}
+
+    /**
+     * @brief      Constructs a TFT material matrix using a reference to another material matrix
+     *
+     * @param      materialMatrix  The original material matrix
+     */
+    gsMaterialMatrixTFT(const material_ptr & materialMatrix)
+    :
+    m_materialMat(materialMatrix)
     {
+        if (materialMatrix.get()->hasUndeformed())
+            this->setUndeformed(materialMatrix.get()->getUndeformed());
+        if (materialMatrix.get()->hasDeformed())
+            this->setDeformed(materialMatrix.get()->getDeformed());
+
+        this->setThickness(materialMatrix.get()->getThickness());
+
         m_options.addReal("SlackMultiplier","Multiplies the original value of the matrix for the slack state",0);
         m_options.addSwitch("Explicit","Explicit iterations; use tension field from a fixed deformed geometry that does not change when calling setDeformed",false);
     }
-
-    /// Destructor
-    gsMaterialMatrixTFT() { }
 
     /// See \ref gsMaterialMatrixBase for details
     /// Here, we use the integrated matrix and vector to make our computations!
@@ -184,12 +175,33 @@ public:
     gsMatrix<T> eval3D_gamma(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    void setParameters(const std::vector<gsFunction<T>*> &pars)
+    void setParameters(const std::vector<gsFunctionSet<T>*> &pars)
     { m_materialMat->setParameters(pars); }
 
     /// See \ref gsMaterialMatrixBase for details
     void info() const
     { m_materialMat->info(); }
+
+    /// See \ref gsMaterialMatrixBase for details
+    void setUndeformed(function_ptr undeformed) override
+    {
+        Base::setUndeformed(undeformed);
+        m_materialMat->setUndeformed(m_patches);
+    }
+
+    /// See \ref gsMaterialMatrixBase for details
+    void setDeformed(function_ptr deformed) override
+    {
+        Base::setDeformed(deformed);
+        m_materialMat->setDeformed(m_defpatches);
+    }
+
+    /// See \ref gsMaterialMatrixBase for details
+    void setUndeformed(const gsFunctionSet<T> * undeformed) override
+    {
+        Base::setUndeformed(undeformed);
+        m_materialMat->setUndeformed(m_patches);
+    }
 
     /// See \ref gsMaterialMatrixBase for details
     void setDeformed(const gsFunctionSet<T> * deformed) override
@@ -198,8 +210,15 @@ public:
         m_materialMat->setDeformed(m_defpatches);
     }
 
-    /// See \ref gsMaterialMatrixBase for details
+    /// Updates the reference to the deformed patches used for TFT (explicit only)
     void updateDeformed(const gsFunctionSet<T> * deformed)
+    {
+        function_ptr fun = memory::make_shared_not_owned(deformed);
+        m_defpatches0 = fun;
+    }
+
+    /// Updates the reference to the deformed patches used for TFT (explicit only)
+    void updateDeformed(const function_ptr & deformed)
     {
         m_defpatches0 = deformed;
     }
@@ -232,19 +251,12 @@ protected:
     bool _check_theta_full(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const;
     bool _check_theta_gamma(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const;
 
-
-public:
-    /// Shared pointer for gsMaterialMatrixTFT
-    typedef memory::shared_ptr< gsMaterialMatrixTFT > Ptr;
-
-    /// Unique pointer for gsMaterialMatrixTFT
-    typedef memory::unique_ptr< gsMaterialMatrixTFT > uPtr;
-
 protected:
-    mutable gsMaterialMatrixBase<T> * m_materialMat;
+
+    mutable material_ptr m_materialMat;
     using Base::m_patches;
     using Base::m_defpatches;
-    const gsFunctionSet<T> * m_defpatches0;
+    function_ptr m_defpatches0;
     using Base::m_options;
 
     using Base::m_data;

@@ -3,6 +3,7 @@
 #include <gsKLShell/gsMaterialMatrixLinear.h>
 #include <gsKLShell/gsMaterialMatrixLinear.hpp>
 
+#include <gsKLShell/gsMaterialMatrixXml.hpp>
 
 namespace gismo
 {

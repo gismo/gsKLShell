@@ -17,7 +17,6 @@
 #include <gsKLShell/getMaterialMatrix.h>
 #include <gsKLShell/gsMaterialMatrixEval.h>
 #include <gsKLShell/gsMaterialMatrixIntegrate.h>
-#include <gsKLShell/gsMaterialMatrixTFTLinear.h>
 #include <gsKLShell/gsMaterialMatrixTFT.h>
 
 using namespace gismo;
@@ -182,6 +181,8 @@ int main(int argc, char *argv[])
     alpha3 = -2.0;
     mu3    = -0.1e5/4.225e5*mu;
 
+    gsMaterialMatrixBase<real_t> testtest;
+    gsReadFile<real_t>("materials/MaterialMatrix.xml",testtest);
 
     gsCmdLine cmd("Tutorial on solving a Poisson problem.");
     cmd.addInt( "m", "Material", "Material law",  material );
@@ -242,7 +243,7 @@ int main(int argc, char *argv[])
     gsConstantFunction<> alpha3fun(alpha3,2);
     gsConstantFunction<> mu3fun(mu3,2);
 
-    std::vector<gsFunction<>*> parameters;
+    std::vector<gsFunctionSet<>*> parameters;
     if (material==0) // SvK & Composites
     {
       parameters.resize(2);
@@ -293,6 +294,9 @@ int main(int argc, char *argv[])
         materialMatrix = getMaterialMatrix<2,real_t>(mp,t,parameters,options);
         materialMatrixTFT = new gsMaterialMatrixTFT<2,real_t,false>(materialMatrix);
     }
+
+    gsWrite(*materialMatrix,"materials/MaterialMatrix2.xml");
+
 
     gsVector<> testpt(2);
     testpt.setConstant(0.25);
@@ -376,5 +380,8 @@ int main(int argc, char *argv[])
     gsMatrix<> CTFT_MM = matTFT.piece(0).eval(pt).reshape(3,3);
     gsDebugVar(CTFT_FD-CTFT_MM);
 
+    delete materialMatrix;
+    delete materialMatrixTFT;
     return EXIT_SUCCESS;
+
 }// end main
