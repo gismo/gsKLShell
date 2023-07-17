@@ -291,7 +291,7 @@ void gsThinShellAssembler<d, T, bending>::_assembleNeumann()
 
 template <short_t d, class T, bool bending>
 template<int _d>
-typename std::enable_if<_d==3, void>::type
+typename std::enable_if<(_d==3), void>::type
 gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -314,24 +314,24 @@ gsThinShellAssembler<d, T, bending>::_assembleNeumann_impl()
 }
 
 template <short_t d, class T, bool bending>
-template <bool matrix>
+template <bool _matrix>
 void gsThinShellAssembler<d, T, bending>::_assemblePressure(const gsFunction<T> & pressFun)
 {
     this->_getOptions();
-    _assemblePressure_impl<d,matrix>(pressFun);
+    _assemblePressure_impl<d,_matrix>(pressFun);
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && _matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> &)
 {
     // No matrix contribution for the linear case
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && !matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && !_matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> & pressFun)
 {
     gsMultiPatch<T> & defpatches = m_patches;
@@ -349,7 +349,7 @@ gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> 
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
+template<int _d, bool _matrix>
 typename std::enable_if<!(_d==3), void>::type
 gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> &)
 {
@@ -357,16 +357,16 @@ gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> 
 }
 
 template <short_t d, class T, bool bending>
-template <bool matrix>
+template <bool _matrix>
 void gsThinShellAssembler<d, T, bending>::_assemblePressure(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed)
 {
     this->_getOptions();
-    _assemblePressure_impl<d,matrix>(pressFun,deformed);
+    _assemblePressure_impl<d,_matrix>(pressFun,deformed);
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && _matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -383,8 +383,8 @@ gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> 
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && !matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && !_matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -402,7 +402,7 @@ gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> 
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
+template<int _d, bool _matrix>
 typename std::enable_if<!(_d==3), void>::type
 gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> & , const gsFunctionSet<T> & )
 {
@@ -410,24 +410,24 @@ gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> 
 }
 
 template <short_t d, class T, bool bending>
-template <bool matrix>
+template <bool _matrix>
 void gsThinShellAssembler<d, T, bending>::_assembleFoundation(const gsFunction<T> & foundFun)
 {
     this->_getOptions();
-    _assembleFoundation_impl<d,matrix>(foundFun);
+    _assembleFoundation_impl<d,_matrix>(foundFun);
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && _matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & foundFun)
 {
     // No matrix contribution for the linear case
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && !matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && !_matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & foundFun)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -443,7 +443,7 @@ gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
+template<int _d, bool _matrix>
 typename std::enable_if<!(_d==3), void>::type
 gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & )
 {
@@ -451,16 +451,16 @@ gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T
 }
 
 template <short_t d, class T, bool bending>
-template <bool matrix>
+template <bool _matrix>
 void gsThinShellAssembler<d, T, bending>::_assembleFoundation(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed)
 {
     this->_getOptions();
-    _assembleFoundation_impl<d,matrix>(foundFun,deformed);
+    _assembleFoundation_impl<d,_matrix>(foundFun,deformed);
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && _matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -476,8 +476,8 @@ gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && !matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && !_matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -495,7 +495,7 @@ gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
+template<int _d, bool _matrix>
 typename std::enable_if<!(_d==3), void>::type
 gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & , const gsFunctionSet<T> & )
 {
@@ -503,16 +503,16 @@ gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T
 }
 
 template <short_t d, class T, bool bending>
-template <bool matrix>
+template <bool _matrix>
 void gsThinShellAssembler<d, T, bending>::_assembleWeakBCs()
 {
     this->_getOptions();
-    _assembleWeakBCs_impl<d,matrix>();
+    _assembleWeakBCs_impl<d,_matrix>();
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && _matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 {
     gsMultiPatch<T> & defpatches = m_patches;
@@ -556,8 +556,8 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && !matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && !_matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 {
     gsMultiPatch<T> & defpatches = m_patches;
@@ -590,8 +590,8 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<!(_d==3) && matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<!(_d==3) && _matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 {
     gsMultiPatch<T> & defpatches = m_patches;
@@ -621,8 +621,8 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<!(_d==3) && !matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<!(_d==3) && !_matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -640,16 +640,16 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl()
 }
 
 template <short_t d, class T, bool bending>
-template <bool matrix>
+template <bool _matrix>
 void gsThinShellAssembler<d, T, bending>::_assembleWeakBCs(const gsFunctionSet<T> & deformed)
 {
     this->_getOptions();
-    _assembleWeakBCs_impl<d,matrix>(deformed);
+    _assembleWeakBCs_impl<d,_matrix>(deformed);
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && _matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -699,8 +699,8 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && !matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && !_matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -747,8 +747,8 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<!(_d==3) && matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<!(_d==3) && _matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -776,8 +776,8 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<!(_d==3) && !matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<!(_d==3) && !_matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -807,18 +807,18 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakBCs_impl(const gsFunctionSet<T
 }
 
 template <short_t d, class T, bool bending>
-template <bool matrix>
+template <bool _matrix>
 void gsThinShellAssembler<d, T, bending>::_assembleWeakIfc()
 {
     this->_getOptions();
     if (m_weakC0.size()==0 && m_weakC1.size()==0)
         return;
-    _assembleWeakIfc_impl<d,matrix>();
+    _assembleWeakIfc_impl<d,_matrix>();
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && _matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 {
     gsMultiPatch<T> & defpatches = m_patches;
@@ -899,8 +899,8 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && !matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && !_matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 {
 /*
@@ -909,8 +909,8 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<!(_d==3) && matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<!(_d==3) && _matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 {
     gsMultiPatch<T> & defpatches = m_patches;
@@ -945,8 +945,8 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<!(_d==3) && !matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<!(_d==3) && !_matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 {
 /*
@@ -955,16 +955,16 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl()
 }
 
 template <short_t d, class T, bool bending>
-template <bool matrix>
+template <bool _matrix>
 void gsThinShellAssembler<d, T, bending>::_assembleWeakIfc(const gsFunctionSet<T> & deformed)
 {
     this->_getOptions();
-    _assembleWeakIfc_impl<d,matrix>(deformed);
+    _assembleWeakIfc_impl<d,_matrix>(deformed);
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && _matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -1098,8 +1098,8 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<_d==3 && !matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<(_d==3) && !_matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -1171,8 +1171,8 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<!(_d==3) && matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<!(_d==3) && _matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -1209,8 +1209,8 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
 }
 
 template <short_t d, class T, bool bending>
-template<int _d, bool matrix>
-typename std::enable_if<!(_d==3) && !matrix, void>::type
+template<int _d, bool _matrix>
+typename std::enable_if<!(_d==3) && !_matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T> & deformed)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
@@ -1452,7 +1452,7 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assemble()
 */
 template<int d, typename T, bool bending>
 template<int _d, bool _bending>
-typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
+typename std::enable_if<(_d==3) && _bending, ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assemble_impl()
 {
     this->_getOptions();
@@ -1617,7 +1617,7 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMatrix(con
 
 template<int d, typename T, bool bending>
 template<int _d, bool _bending>
-typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
+typename std::enable_if<(_d==3) && _bending, ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> & deformed)
 {
     m_assembler.cleanUp();
@@ -1771,7 +1771,7 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMatrix(con
 
 template<int d, typename T, bool bending>
 template<int _d, bool _bending>
-typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
+typename std::enable_if<(_d==3) && _bending, ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update)
 {
     m_assembler.cleanUp();
@@ -1899,7 +1899,7 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleVector(con
 
 template<int d, typename T, bool bending>
 template<int _d, bool _bending>
-typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
+typename std::enable_if<(_d==3) && _bending, ThinShellAssemblerStatus>::type
 gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> & deformed)
 {
     m_assembler.cleanUp();
@@ -2085,7 +2085,7 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::boundaryForce(const gsFunctionS
 
 template<int d, typename T, bool bending>
 template<int _d, bool _bending>
-typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
+typename std::enable_if<(_d==3) && _bending, gsMatrix<T> >::type
 gsThinShellAssembler<d, T, bending>::boundaryForce_impl(const gsFunctionSet<T> & deformed, patchSide& ps)
 {
     gsExprAssembler<T> assembler;
@@ -2232,7 +2232,7 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::boundaryForceVector(const gsFun
 
 template<int d, typename T, bool bending>
 template<int _d, bool _bending>
-typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
+typename std::enable_if<(_d==3) && _bending, gsMatrix<T> >::type
 gsThinShellAssembler<d, T, bending>::boundaryForceVector_impl(const gsFunctionSet<T> & deformed, patchSide& ps, index_t com)
 {
     gsExprAssembler<T> assembler;
