@@ -55,7 +55,7 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     auto That   = cartcon(m_ori);
     auto Ttilde = cartcov(m_ori);
     auto E_m    = 0.5 * ( flat(jac(m_def).tr()*jac(m_def)) - flat(jac(m_ori).tr()* jac(m_ori)) ) * reshape(m_m12,3,3) * That.tr();
-    auto E_f    = ( deriv2(m_ori,sn(m_ori).normalized().tr()) - deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m12,3,3) * That.tr();
+    auto E_f    = ( expr::deriv2(m_ori,sn(m_ori).normalized().tr()) - expr::deriv2(m_def,sn(m_def).normalized().tr()) ) * reshape(m_m12,3,3) * That.tr();
 
     auto S_m    = S0.tr() * Ttilde.tr();
     auto S_f    = S1.tr() * Ttilde.tr();

@@ -207,7 +207,7 @@ public:
 private:
     /// Specialisation of assemble() for surfaces (3D)
     template<short_t _d, bool _bending>
-    typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type assemble_impl();
+    typename std::enable_if<(_d==3) && _bending, ThinShellAssemblerStatus>::type assemble_impl();
 
     /// Specialisation of assemble() for planar geometries (2D)
     template<short_t _d, bool _bending>
@@ -253,7 +253,7 @@ public:
 private:
     /// Implementation of assembleMatrix for surfaces (3D)
     template<short_t _d, bool _bending>
-    typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
+    typename std::enable_if<(_d==3) && _bending, ThinShellAssemblerStatus>::type
     assembleMatrix_impl(const gsFunctionSet<T>   & deformed  );
 
     /// Implementation of assembleMatrix for planar geometries (2D)
@@ -263,7 +263,7 @@ private:
 
     /// Implementation of assembleMatrix for surfaces (3D)
     template<short_t _d, bool _bending>
-    typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
+    typename std::enable_if<(_d==3) && _bending, ThinShellAssemblerStatus>::type
     assembleMatrix_impl(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update);
 
     /// Implementation of assembleMatrix for planar geometries (2D)
@@ -303,7 +303,7 @@ public:
 private:
     /// Implementation of assembleVector for surfaces (3D)
     template<short_t _d, bool _bending>
-    typename std::enable_if<_d==3 && _bending, ThinShellAssemblerStatus>::type
+    typename std::enable_if<(_d==3) && _bending, ThinShellAssemblerStatus>::type
     assembleVector_impl(const gsFunctionSet<T>   & deformed, const bool homogenize);
 
     /// Implementation of assembleVector for planar geometries (2D)
@@ -326,7 +326,7 @@ public:
 private:
     /// Implementation of the boundary force vector for surfaces (3D)
     template<short_t _d, bool _bending>
-    typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
+    typename std::enable_if<(_d==3) && _bending, gsMatrix<T> >::type
     boundaryForce_impl(const gsFunctionSet<T> & deformed, const std::vector<patchSide> & patchSides) const;
 
     /// Implementation of the boundary force vector for planar geometries (2D)
@@ -463,24 +463,24 @@ protected:
 
     void _assembleNeumann();
 
-    template <bool matrix>
+    template <bool _matrix>
     void _assemblePressure(const gsFunction<T> & pressFun);
-    template <bool matrix>
+    template <bool _matrix>
     void _assemblePressure(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed);
 
-    template <bool matrix>
+    template <bool _matrix>
     void _assembleFoundation(const gsFunction<T> & foundFun);
-    template <bool matrix>
+    template <bool _matrix>
     void _assembleFoundation(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed);
 
-    template <bool matrix>
+    template <bool _matrix>
     void _assembleWeakBCs();
-    template <bool matrix>
+    template <bool _matrix>
     void _assembleWeakBCs(const gsFunctionSet<T> & deformed);
 
-    template <bool matrix>
+    template <bool _matrix>
     void _assembleWeakIfc();
-    template <bool matrix>
+    template <bool _matrix>
     void _assembleWeakIfc(const gsFunctionSet<T> & deformed);
 
     void _assembleDirichlet();
@@ -493,123 +493,123 @@ protected:
 
 private:
     template<short_t _d>
-    typename std::enable_if<_d==3, void>::type
+    typename std::enable_if<(_d==3), void>::type
     _assembleNeumann_impl();
 
     template<short_t _d>
     typename std::enable_if<!(_d==3), void>::type
     _assembleNeumann_impl();
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<_d==3 && matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && _matrix, void>::type
     _assemblePressure_impl(const gsFunction<T> & pressFun);
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<_d==3 && !matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && !_matrix, void>::type
     _assemblePressure_impl(const gsFunction<T> & pressFun);
 
-    template<short_t _d, bool matrix>
+    template<short_t _d, bool _matrix>
     typename std::enable_if<!(_d==3), void>::type
     _assemblePressure_impl(const gsFunction<T> & pressFun);
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<_d==3 && matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && _matrix, void>::type
     _assemblePressure_impl(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool matrix>
-    typename std::enable_if<_d==3 && !matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && !_matrix, void>::type
     _assemblePressure_impl(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed);
 
-    template<int _d, bool matrix>
+    template<short_t _d, bool _matrix>
     typename std::enable_if<!(_d==3), void>::type
     _assemblePressure_impl(const gsFunction<T> & pressFun, const gsFunctionSet<T> & deformed);
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<_d==3 && matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && _matrix, void>::type
     _assembleFoundation_impl(const gsFunction<T> & foundFun);
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<_d==3 && !matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && !_matrix, void>::type
     _assembleFoundation_impl(const gsFunction<T> & foundFun);
 
-    template<short_t _d, bool matrix>
+    template<short_t _d, bool _matrix>
     typename std::enable_if<!(_d==3), void>::type
     _assembleFoundation_impl(const gsFunction<T> & foundFun);
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<_d==3 && matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && _matrix, void>::type
     _assembleFoundation_impl(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed);
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<_d==3 && !matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && !_matrix, void>::type
     _assembleFoundation_impl(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed);
 
-    template<short_t _d, bool matrix>
+    template<short_t _d, bool _matrix>
     typename std::enable_if<!(_d==3), void>::type
     _assembleFoundation_impl(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed);
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<_d==3 && matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && _matrix, void>::type
     _assembleWeakBCs_impl();
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<_d==3 && !matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && !_matrix, void>::type
     _assembleWeakBCs_impl();
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<!(_d==3) && matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<!(_d==3) && _matrix, void>::type
     _assembleWeakBCs_impl();
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<!(_d==3) && !matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<!(_d==3) && !_matrix, void>::type
     _assembleWeakBCs_impl();
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<_d==3 && matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && _matrix, void>::type
     _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<_d==3 && !matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && !_matrix, void>::type
     _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<!(_d==3) && matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<!(_d==3) && _matrix, void>::type
     _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<!(_d==3) && !matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<!(_d==3) && !_matrix, void>::type
     _assembleWeakBCs_impl(const gsFunctionSet<T> & deformed);
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<_d==3 && matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && _matrix, void>::type
     _assembleWeakIfc_impl();
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<_d==3 && !matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && !_matrix, void>::type
     _assembleWeakIfc_impl();
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<!(_d==3) && matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<!(_d==3) && _matrix, void>::type
     _assembleWeakIfc_impl();
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<!(_d==3) && !matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<!(_d==3) && !_matrix, void>::type
     _assembleWeakIfc_impl();
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<_d==3 && matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && _matrix, void>::type
     _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<_d==3 && !matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<(_d==3) && !_matrix, void>::type
     _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<!(_d==3) && matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<!(_d==3) && _matrix, void>::type
     _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
 
-    template<short_t _d, bool matrix>
-    typename std::enable_if<!(_d==3) && !matrix, void>::type
+    template<short_t _d, bool _matrix>
+    typename std::enable_if<!(_d==3) && !_matrix, void>::type
     _assembleWeakIfc_impl(const gsFunctionSet<T> & deformed);
 
 protected:
