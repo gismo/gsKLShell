@@ -24,7 +24,9 @@
 #include <gsKLShell/gsMaterialMatrixLinear.h>
 #include <gsKLShell/gsFunctionSum.h>
 
+#ifdef gsSpectra_ENABLED
 #include <gsSpectra/gsSpectra.h>
+#endif
 
 #include <gsUtils/gsQuasiInterpolate.h>
 
@@ -223,7 +225,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-#ifdef GISMO_WITH_SPECTRA
+#ifdef gsSpectra_ENABLED
         Spectra::SortRule selectionRule = Spectra::SortRule::LargestMagn;
         Spectra::SortRule sortRule = Spectra::SortRule::SmallestMagn;
 
