@@ -268,7 +268,6 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
         result.reshapeCol(k,3,3) = Cmat;
 
     }
-    gsDebugVar(result);
     return result;
 }
 
