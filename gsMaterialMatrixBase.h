@@ -228,6 +228,8 @@ public:
 
     void setDeformed(const gsFunctionSet<T> * deformed) {m_defpatches = deformed; }
 
+    virtual bool initialized() const { gsDebugVar("Hi!"); return false; }
+
 protected:
     const gsFunctionSet<T> * m_defpatches;
 };

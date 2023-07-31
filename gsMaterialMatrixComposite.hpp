@@ -102,6 +102,19 @@ void gsMaterialMatrixComposite<dim,T>::_initialize()
     this->_defaultOptions();
 
     m_nLayers = m_Ts.size();
+
+    // Check if the functions are non-empty and have the correct size
+    GISMO_ENSURE(m_Ts.size()==m_Gs.size(),"Thickness vector and shear modulus vector must have the same size, but m_Ts.size()="<<m_Ts.size()<<"!="<<m_Gs.size()<<"=m_Gs.size()");
+    GISMO_ENSURE(m_Ts.size()==m_As.size(),"Thickness vector and alpha vector must have the same size, but m_Ts.size()="<<m_Ts.size()<<"!="<<m_As.size()<<"=m_As.size()");
+    GISMO_ENSURE(m_Ts.size()==m_Rs.size() || m_Rs.size()==0,"Thickness vector and density vector must have the same size, but m_Ts.size()="<<m_Ts.size()<<"!="<<m_Rs.size()<<"=m_Rs.size()");
+    for (size_t k=0; k!=m_Ts.size(); k++)
+    {
+        GISMO_ENSURE(m_Ts[k]!=NULL,"Function "<<k<<" of the thickness vector is not defined!");
+        GISMO_ENSURE(m_Gs[k]!=NULL,"Function "<<k<<" of the shear moduli vector is not defined!");
+        GISMO_ENSURE(m_As[k]!=NULL,"Function "<<k<<" of the alpha vector is not defined!");
+    }
+    for (size_t k=0; k!=m_Rs.size(); k++)
+        GISMO_ENSURE(m_Rs[k]!=NULL,"Function "<<k<<" of the density vector is not defined!");
 }
 
 template <short_t dim, class T >
@@ -255,6 +268,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
         result.reshapeCol(k,3,3) = Cmat;
 
     }
+    gsDebugVar(result);
     return result;
 }
 

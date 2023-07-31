@@ -39,7 +39,10 @@ public:
     m_z(z)
     {
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
+        {
+            GISMO_ASSERT(materialMatrices.piece(p)->initialized(),"Material matrix "<<p<<" is incomplete!");
             m_pieces.push_back(new gsMaterialMatrixEvalSingle<T,out>(p,m_materialMatrices.piece(p),m_deformed,m_z));
+        }
     }
 
     /// Constructor
@@ -51,6 +54,7 @@ public:
     m_deformed(deformed),
     m_z(z)
     {
+        GISMO_ASSERT(materialMatrix->initialized(),"Material matrix is incomplete!");
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
         {
             m_materialMatrices.add(materialMatrix);

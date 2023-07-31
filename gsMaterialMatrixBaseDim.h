@@ -117,6 +117,10 @@ public:
         m_pars.resize(0);
     }
 
+    inline virtual bool initialized() const override
+    {
+        return m_thickness != nullptr && m_patches!= nullptr;
+    }
 
 public:
 

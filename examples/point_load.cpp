@@ -274,9 +274,8 @@ int main(int argc, char* argv[])
     }
 
     //! [Make assembler]
-    gsMaterialMatrixBase<real_t>* materialMatrix;
+    gsMaterialMatrixBase<real_t>* materialMatrix = NULL;
     gsOptionList options;
-    
     if      (material==0) //Linear
     {
         if (composite) // Composite

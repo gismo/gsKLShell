@@ -99,6 +99,11 @@ public:
 
     void info() const;
 
+    bool initialized() const override
+    {
+        return m_patches!=nullptr;
+    }
+
 public:
     /// Shared pointer for gsMaterialMatrixComposite
     typedef memory::shared_ptr< gsMaterialMatrixComposite > Ptr;

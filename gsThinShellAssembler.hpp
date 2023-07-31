@@ -68,6 +68,8 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
                                         m_forceFun(&surface_force)
 {
     m_materialMatrices = gsMaterialMatrixContainer<T>(m_patches.nPatches());
+    GISMO_ASSERT(materialMatrix!=nullptr,"Material matrix is incomplete!");
+    GISMO_ASSERT(materialMatrix->initialized(),"Material matrix is incomplete!");
     for (size_t p=0; p!=m_patches.nPatches(); p++)
         m_materialMatrices.add(materialMatrix);
 
