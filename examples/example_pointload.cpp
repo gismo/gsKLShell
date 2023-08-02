@@ -1,3 +1,16 @@
+/** @file example_pointload.cpp
+
+    @brief Asymmetric loading applied with an offset angle (pi/50)
+    from the crown of a semicircular arch.
+
+    Example 7 from Yang et al 2006
+
+    Yang, Y.B., Lin, S.P., & Leu,L.J. (2006) Solution strategy and rigid element for nonlinear analysis of elastically structures based on updated Lagrangian formulation. Engineering Structures, 29, 1189-1200. https://doi.org/10.1016/j.engstruct.2006.08.015
+
+    Author(s): J. Li
+
+    TODO: Not able to find the density information
+ **/
 #include <gismo.h>
 
 #include <gsKLShell/getMaterialMatrix.h>
@@ -48,7 +61,7 @@ int main(int argc, char* argv[]) {
     index_t impl = 1; // 1= analytical, 2= generalized, 3= spectral
 
     real_t E_modulus = 200;
-    real_t PoissonRatio = 0.0;
+    real_t PoissonRatio = 0.4;
     real_t Density = 1.0; //Couldn't find
 
     real_t ifcDirichlet = 1.0;
@@ -109,20 +122,6 @@ int main(int argc, char* argv[]) {
 
 
     //! [Set material parameters]
-//    if(testCase ==0)
-//    {
-//        PoissonRatio = 0.499;
-//        real_t I = 1;
-//        real_t A = 1;
-//        real_t PI = 3.1415926535;
-//        real_t aDim = 50;
-//        real_t bDim = pow(8*I/PI, 1/4.0);
-//        gsTensorNurbs<2> geo = *gsNurbsCreator<>::NurbsHalfAnnulus((aDim-bDim)/2, aDim/2);
-//        mp.addPatch(geo);
-//        mp.embed(3);
-//
-//
-//    }
     real_t I = 1;
     real_t A = 1;
     real_t PI = 3.1415926535;
@@ -179,11 +178,8 @@ int main(int argc, char* argv[]) {
 
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
 
-    gsConstantFunction<> displx(0.1, 3);
-    gsConstantFunction<> disply(0.25, 3);
-//    gsConstantFunction<> nu(PoissonRatio,3);
 
-    real_t load = -1.0;
+    real_t load = -2.0;
     gsVector<> neu(3);
     neu << 0.0, 0.0, load;
     gsFunctionExpr<> neuDataFun1;
@@ -194,7 +190,7 @@ int main(int argc, char* argv[]) {
     real_t refPatch = 0;
 
     // Pinched-pinched
-    BCs.addCondition(boundary::north, condition_type::neumann, &neuData);
+//    BCs.addCondition(boundary::north, condition_type::neumann, &neuData);
     BCs.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 1);
     BCs.addCondition(boundary::north, condition_type::clamped, 0, 0, false, 2);
 
@@ -210,7 +206,7 @@ int main(int argc, char* argv[]) {
     }
 
     gsMatrix<> writePoints(2, 1);
-    writePoints.col(0) << 0.54, 0.5;
+    writePoints.col(0) << 0.5, 0.54;
 
     std::string dirname = "ArcLengthResults";
     dirname = dirname + "/" + "Point_load";
@@ -227,10 +223,10 @@ int main(int argc, char* argv[]) {
     t.addPiece(t0);
     // Point loads
     gsVector<> point(2);
-    point << 0.54, 0.5;
+    point << 0.5, 0.54;
     refPoint = point;
         gsVector<> newload(3);
-        newload << 0.0,0.0,-1;
+        newload << 0.0,0.0,-2.0;
     pLoads.addLoad(point, newload, 0);
     // Surface forces
     tmp << 0, 0, 0;
@@ -244,55 +240,6 @@ int main(int argc, char* argv[]) {
         initStepOutput(dirname + "/" + wn, writePoints);
 
 
-
-//    template<class T> typename gsNurbsCreator<T>::TensorNurbs3Ptr
-//    gsNurbsCreator<T>::Nurbs3DHalfAnnulus(T const & r0, T const r1, T const &x, T const &y, T const &z, T const & thickness)
-//    {
-//        gsKnotVector<T> KVx (0,1,0,4);
-//        gsKnotVector<T> KVy (0,1,0,2);
-//        gsKnotVector<T> KVz (0,1,0,2);
-//        gsMatrix<T> C(16,3);
-//
-//        C<< r0,0, 0,
-//            r0,2*r0,0,
-//            -r0,2*r0,0,
-//            -r0,0,0,
-//            r1,0,0,
-//            r1,2*r1,0,
-//            -r1,2*r1,0,
-//            -r1,0,0,
-//            r0,0, thickness,
-//            r0,2*r0,thickness,
-//            -r0,2*r0,thickness,
-//            -r0,0,thickness,
-//            r1,0,thickness,
-//            r1,2*r1,thickness,
-//            -r1,2*r1,thickness,
-//        -r1,0,thickness;
-//        float PI = 3.1415926535;
-//        C.col(0).array() *= PI;
-//        C.col(1).array() *= PI;
-//        C.col(0).array() += x;
-//        C.col(1).array() += y;
-//        C.col(2).array() += z;
-//
-//        gsMatrix<T> ww(16,1);
-//        ww.setOnes();
-//        ww.at(1)= 0.333333333333333;
-//        ww.at(2)= 0.333333333333333 ;
-//        ww.at(5)= 0.333333333333333 ;
-//        ww.at(6)= 0.333333333333333 ;
-//        ww.at(9)= 0.333333333333333 ;
-//        ww.at(10)= 0.333333333333333 ;
-//        ww.at(13)= 0.333333333333333 ;
-//        ww.at(14)= 0.333333333333333 ;
-//        return TensorNurbs3Ptr(new gsTensorNurbs<3, T>(KVx, KVy, KVz, give(C), give(ww)));
-//    }
-//    gsTensorNurbs<3> geo_3d = *gsNurbsCreator<>::Nurbs3DHalfAnnulus((aDim-bDim)/2, aDim/2,0,0,0,1);
-
-//    mp.addAutoBoundaries(); //Make all patch sides which are not yet declared as interface or boundary to a boundary.
-//    std::string output("single_patch_arc");
-//
 //
     //! [Make material functions]
     // Linear isotropic material model
@@ -448,9 +395,9 @@ int main(int argc, char* argv[]) {
     arcLength->initialize();
 
     gsParaviewCollection collection(dirname + "/" + output);
-    gsParaviewCollection Smembrane(dirname + "/" + "membrane");
-    gsParaviewCollection Sflexural(dirname + "/" + "flexural");
-    gsParaviewCollection Smembrane_p(dirname + "/" + "membrane_p");
+//    gsParaviewCollection Smembrane(dirname + "/" + "membrane");
+//    gsParaviewCollection Sflexural(dirname + "/" + "flexural");
+//    gsParaviewCollection Smembrane_p(dirname + "/" + "membrane_p");
     gsMultiPatch<> deformation = mp;
 
     // Make objects for previous solutions
@@ -503,7 +450,7 @@ int main(int argc, char* argv[]) {
             fileName = dirname + "/" + "membrane" + util::to_string(k);
             gsWriteParaview(membraneStress, fileName, 1000);
             fileName = "membrane" + util::to_string(k) + "0";
-            Smembrane.addTimestep(fileName, k, ".vts");
+//            Smembrane.addTimestep(fileName, k, ".vts");
 
             gsPiecewiseFunction<> flexuralStresses;
             assembler->constructStress(mp_def, flexuralStresses, stress_type::flexural);
@@ -512,7 +459,7 @@ int main(int argc, char* argv[]) {
             fileName = dirname + "/" + "flexural" + util::to_string(k);
             gsWriteParaview(flexuralStress, fileName, 1000);
             fileName = "flexural" + util::to_string(k) + "0";
-            Sflexural.addTimestep(fileName, k, ".vts");
+//            Sflexural.addTimestep(fileName, k, ".vts");
 
             if (impl == 3) {
                 gsPiecewiseFunction<> membraneStresses_p;
@@ -522,7 +469,7 @@ int main(int argc, char* argv[]) {
                 fileName = dirname + "/" + "membrane_p" + util::to_string(k);
                 gsWriteParaview(membraneStress_p, fileName, 1000);
                 fileName = "membrane_p" + util::to_string(k) + "0";
-                Smembrane_p.addTimestep(fileName, k, ".vts");
+//                Smembrane_p.addTimestep(fileName, k, ".vts");
             }
 
         }
@@ -530,71 +477,19 @@ int main(int argc, char* argv[]) {
 
         //! [Assemble ALM]
 
-//        //! [Solve linear problem]
-//        gsInfo << "Solving system with " << assembler->numDofs() << " DoFs\n";
-//        gsVector<> solVector;
-//        gsSparseSolver<>::CGDiagonal solver;
-//        solver.compute(matrix);
-//        solVector = solver.solve(Force);
-//        ! [Solve linear problem]
-
-//        //! [Solve non-linear problem]
-//        if (nonlinear) {
-//            real_t residual = Force.norm();
-//            real_t residual0 = residual;
-//            real_t residualOld = residual;
-//            gsVector<real_t> updateVector = solVector;
-//            gsVector<real_t> resVec = Residual(solVector);
-//            gsSparseMatrix<real_t> jacMat;
-//            for (index_t it = 0; it != 100; ++it) {
-//                jacMat = Jacobian(solVector);
-//                solver.compute(jacMat);
-//                updateVector = solver.solve(resVec); // this is the UPDATE
-//                solVector += updateVector;
-//
-//                resVec = Residual(solVector);
-//                residual = resVec.norm();
-//
-//                gsInfo << "Iteration: " << it
-//                       << ", residue: " << residual
-//                       << ", update norm: " << updateVector.norm()
-//                       << ", log(Ri/R0): " << math::log10(residualOld / residual0)
-//                       << ", log(Ri+1/R0): " << math::log10(residual / residual0)
-//                       << "\n";
-//
-//                residualOld = residual;
-//
-//                if (updateVector.norm() < 1e-6)
-//                    break;
-//                else if (it + 1 == it)
-//                    gsWarn << "Maximum iterations reached!\n";
-//            }
-//        }
-//        //! [Solve non-linear problem]
-
-        //! [Construct and evaluate solution]
-//        mp_def = assembler->constructSolution(solVector);
-//        gsMultiPatch<> deformation = assembler->constructDisplacement(solVector);
-        //! [Construct and evaluate solution]
 
         //! [Construct and evaluate solution]
         gsVector<> refVals = deformation.patch(refPatch).eval(refPoint);
-        // real_t numVal;
-        // if      (testCase == 0 || testCase == 1 || testCase == 3)
-        //     numVal = refVals.at(2);
-        // else
-        //     numVal = refVals.at(1);
 
-        // gsInfo << "Displacement at reference point: "<<numVal<<"\n";
         gsInfo << "Displacement at reference point: " << refVals << "\n";
         //! [Construct and evaluate solution]
 
         //! [Export visualization in ParaView]
         if (plot) {
             collection.save();
-            Smembrane.save();
-            Sflexural.save();
-            Smembrane_p.save();
+//            Smembrane.save();
+//            Sflexural.save();
+//            Smembrane_p.save();
         }
 
     if (write)
