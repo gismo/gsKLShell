@@ -695,14 +695,14 @@ public:
     static std::string tag ()  { return "MaterialMatrix"; }
     static std::string type () { return "Linear" +  to_string(d); }
 
-    // GSXML_GET_POINTER(Object);
+    GSXML_GET_POINTER(Object);
 
-    static Object * get(gsXmlNode * node)
-    {
-        Object * result = new Object;
-        get_into(node, *result);
-        return result;
-    }
+    // static Object * get(gsXmlNode * node)
+    // {
+    //     Object result;
+    //     get_into(node, result);
+    //     return result.clone().release();
+    // }
 
     static void get_into(gsXmlNode * node,Object & obj)
     {

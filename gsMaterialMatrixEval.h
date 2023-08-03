@@ -49,9 +49,7 @@ public:
     m_z(z)
     {
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
-        {
-            m_materialMatrices.add(materialMatrix);
-        }
+            m_materialMatrices.set(p,materialMatrix);
         this->_makePieces();
     }
 
@@ -79,8 +77,7 @@ public:
     m_z(z)
     {
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
-            m_materialMatrices.add(materialMatrix);
-
+            m_materialMatrices.set(p,materialMatrix);
         this->_makePieces(undeformed);
     }
 

@@ -69,7 +69,7 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
 {
     m_materialMatrices = gsMaterialMatrixContainer<T>(m_patches.nPatches());
     for (size_t p=0; p!=m_patches.nPatches(); p++)
-        m_materialMatrices.add(materialMatrix);
+        m_materialMatrices.set(p,materialMatrix);
 
     this->_defaultOptions();
     this->_getOptions();
@@ -2788,6 +2788,7 @@ gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::constructMultiPatch(const g
 {
     m_solvector = solVector;
     space m_space = m_assembler.trialSpace(0);
+    m_space.setup(m_bcs, dirichlet::l2Projection, m_continuity);
     const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart() = m_ddofs; //CHECK FIXEDPART
 
     if (const gsMappedBasis<2,T> * mbasis = dynamic_cast<const gsMappedBasis<2,T> * >(m_spaceBasis))
@@ -2849,6 +2850,7 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::fullSolutionVector(const gsMatr
 {
     gsMatrix<T> solVector = vector;
     space m_space = m_assembler.trialSpace(0);
+    m_space.setup(m_bcs, dirichlet::l2Projection, m_continuity);
     solution m_solution = m_assembler.getSolution(m_space, solVector);
     gsMatrix<T> result;
     m_solution.extractFull(result);
@@ -2996,6 +2998,7 @@ void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & f
 
     // Solution vector and solution variable
     space m_space = m_assembler.trialSpace(0);
+    m_space.setup(m_bcs, dirichlet::l2Projection, m_continuity);
     const_cast<expr::gsFeSpace<T> & >(m_space).fixedPart() = m_ddofs;
 
     solution m_solution = m_assembler.getSolution(m_space, tmp);

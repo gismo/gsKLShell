@@ -33,6 +33,19 @@ namespace gismo
 {
 
 template <short_t dim, class T, bool linear >
+std::ostream & gsMaterialMatrixTFT<dim,T,linear>::print(std::ostream &os) const
+{
+    os  <<"---------------------------------------------------------------------\n"
+        <<"---------------------Tension-Field Theory Material-------------------\n"
+        <<"---------------------------------------------------------------------\n\n";
+
+    m_materialMat->print(os);
+
+    os  <<"---------------------------------------------------------------------\n\n";
+    return os;
+}
+
+template <short_t dim, class T, bool linear >
 gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     // GISMO_ASSERT(out==MaterialOutput::MatrixA,"Tension Field Theory only works for membrane models, hence only outputs the A matrix");

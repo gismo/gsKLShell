@@ -526,7 +526,7 @@ public:
     virtual inline void setThickness(const function_ptr & thickness) { m_thickness = thickness; }
 
     /// Sets the thickness
-    virtual void setThickness(const gsFunction<T> & thickness)
+    virtual void setThickness(const gsFunctionSet<T> & thickness)
     {
         function_ptr fun = memory::make_shared(thickness.clone().release());
         m_thickness = fun;
@@ -541,7 +541,7 @@ public:
     /// Sets the density
     virtual inline void setDensity(function_ptr Density) { m_density = Density; }
     /// Sets the density
-    virtual void setDensity(const gsFunction<T> & Density)
+    virtual void setDensity(const gsFunctionSet<T> & Density)
     {
         function_ptr fun = memory::make_shared(Density.clone().release());
         m_density = fun;
@@ -631,9 +631,14 @@ public:
     /// Prints the object as a string.
     virtual std::ostream &print(std::ostream &os) const
     {
-        os << "gsMaterialMatrixBase class\n";
+        os<<"gsMaterialMatrixBase (type not understood).\n";
         return os;
     }
+
+    /// Returns this
+    virtual inline const gsMaterialMatrixBase<T> * material() const { return this; }
+    /// Returns this
+    virtual inline gsMaterialMatrixBase<T> * material() { return this; }
 
     virtual inline gsMatrix<T> S(const gsMatrix<T> & strain) const
     { GISMO_NO_IMPLEMENTATION; }
@@ -672,9 +677,10 @@ protected:
 };
 
 template<class T>
-std::ostream& operator<<(std::ostream& os, const gsMaterialMatrixBase<T>& mm) 
-{ return mm.print(os); }
-
+std::ostream& operator<<(std::ostream& os, const gsMaterialMatrixBase<T>& mm)
+{
+    return mm.print(os);
+}
 
 #ifdef GISMO_WITH_PYBIND11
 

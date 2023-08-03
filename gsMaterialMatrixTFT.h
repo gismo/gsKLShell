@@ -226,6 +226,14 @@ public:
     /// Computes theta
     gsMatrix<T> eval_theta(const gsMatrix<T> & Cs, const gsMatrix<T> & Ns, const gsMatrix<T> & Es) const;
 
+    /// See \ref gsMaterialMatrixBase for details
+    std::ostream &print(std::ostream &os) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
+    const gsMaterialMatrixBase<T> * material() const override { return m_materialMat.get(); }
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMaterialMatrixBase<T> * material() override { return m_materialMat.get(); }
 
 protected:
     template <bool _linear>

@@ -1,6 +1,6 @@
-/** @file gsXmlUtils.hpp
+/** @file gsMaterialMatrixXml.hpp
 
-    @brief Provides implementation of input/output XML utilities struct.
+    @brief TO DO
 
     This file is part of the G+Smo library. 
 
@@ -8,7 +8,7 @@
     License, v. 2.0. If a copy of the MPL was not distributed with this
     file, You can obtain one at http://mozilla.org/MPL/2.0/.
     
-    Author(s): A. Mantzaflaris
+    Author(s): TO DO
 */
 
 #pragma once
@@ -16,10 +16,6 @@
 #include <fstream>
 #include <gsCore/gsFunctionExpr.h>
 #include <gsIO/gsXmlGenericUtils.hpp>
-
-#include <gsKLShell/gsMaterialMatrixLinear.h>
-#include <gsKLShell/gsMaterialMatrix.h>
-#include <gsKLShell/gsMaterialMatrixBase.h>
 
 namespace gismo {
 

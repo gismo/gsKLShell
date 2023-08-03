@@ -45,7 +45,7 @@ public:
     m_deformed(deformed)
     {
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
-            m_materialMatrices.add(materialMatrix);
+            m_materialMatrices.set(p,materialMatrix);
         this->_makePieces(deformed);
     }
 
@@ -70,7 +70,7 @@ public:
     {
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
         {
-            m_materialMatrices.add(materialMatrix);
+            m_materialMatrices.set(p,materialMatrix);
             this->_makePieces(undeformed,deformed);
         }
     }

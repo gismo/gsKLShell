@@ -79,7 +79,7 @@ void gsMaterialMatrixBaseDim<dim,T>::stretch_into(const index_t patch, const gsM
         _getMetric(i,0.0); // on point i, with height 0.0
         C = tmp.reshapeCol(i,3,3);
         res = this->_evalStretch(C,m_data.mine().m_gcon_ori);
-        result.col(i) = res.second.reshape(3,1);
+        result.col(i) = res.first.reshape(3,1);
     }
 }
 
