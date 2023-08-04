@@ -49,6 +49,7 @@ public:
     gsMaterialMatrixContainer( index_t size = 0 )
     {
         m_container.resize(size);
+        // To do: initialize with null pointers
     }
 
     gsMaterialMatrixContainer(const gsMaterialMatrixContainer & other)
@@ -85,6 +86,12 @@ public:
     void set(const index_t i, const gsMaterialMatrixBase<T> * mat)
     {
         m_container[i] = memory::make_shared_not_owned(mat);
+    }
+
+    ///\brief Set a material matrix from a gsMaterialMatrixBase<T>::uPtr
+    void set(const index_t i, const typename gsMaterialMatrixBase<T>::Ptr mat)
+    {
+        m_container[i] = mat;
     }
 
     gsMaterialMatrixBase<T> * piece(const index_t k) const
@@ -142,12 +149,12 @@ public:
 
         // Read material inventory
         int count = countByTag("MaterialMatrix", node);
-        std::vector<gsMaterialMatrixBase<T> *> mat(count);
+        std::vector<typename gsMaterialMatrixBase<T>::Ptr> mat(count);
         for (gsXmlNode * child = node->first_node("MaterialMatrix"); child; child =
                 child->next_sibling("MaterialMatrix"))
         {
             const int i = atoi(child->first_attribute("index")->value());
-            mat[i] = gsXml<gsMaterialMatrixBase<T>>::get(child);
+            mat[i] = memory::make_shared(gsXml<gsMaterialMatrixBase<T>>::get(child));
         }
 
         obj = gsMaterialMatrixContainer<T>(size);
@@ -155,9 +162,10 @@ public:
                 child = child->next_sibling("group"))
         {
             const int mIndex = atoi(child->first_attribute("material")->value());
-            std::istringstream str;
-            index_t patch;
-            while( ( gsGetValue(str,patch)) )
+            std::istringstream group_str;
+            group_str.str( child->value() );
+
+            for(int patch; ( gsGetInt(group_str,patch)); )
                 obj.set(patch,mat[mIndex]);
         }
 

@@ -177,10 +177,33 @@ public:
         Object * tmp = get_impl(node);
         if (TFT)
         {
-            if ( s == "Linear2" || s == "Linear3" )
+            if      (   ( s == "Linear2"            ) )
                 return new gsMaterialMatrixTFT<2,T,true>(tmp);
-            else
+            else if (   ( s == "Linear3"            ) )
+                return new gsMaterialMatrixTFT<3,T,true>(tmp);
+            else if (   ( s == "CompressibleNH2"    ) ||
+                        ( s == "IncompressibleNH2"  ) ||
+                        ( s == "CompressibleNHe2"   ) ||
+                        ( s == "IncompressibleNHe2" ) ||
+                        ( s == "CompressibleMR2"    ) ||
+                        ( s == "IncompressibleMR2"  ) ||
+                        ( s == "CompressibleOG2"    ) ||
+                        ( s == "IncompressibleOG2"  ) )
                 return new gsMaterialMatrixTFT<2,T,false>(tmp);
+            else if (   ( s == "CompressibleNH3"    ) ||
+                        ( s == "IncompressibleNH3"  ) ||
+                        ( s == "CompressibleNHe3"   ) ||
+                        ( s == "IncompressibleNHe3" ) ||
+                        ( s == "CompressibleMR3"    ) ||
+                        ( s == "IncompressibleMR3"  ) ||
+                        ( s == "CompressibleOG3"    ) ||
+                        ( s == "IncompressibleOG3"  ) )
+                return new gsMaterialMatrixTFT<3,T,false>(tmp);
+            else
+            {
+                gsWarn<<"Material matrix for TFT model not recognised\n";
+                return NULL;
+            }
         }
         else
             return tmp;
