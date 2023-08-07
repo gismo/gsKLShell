@@ -106,45 +106,24 @@ int main(int argc, char *argv[]){
 
     //! [Set boundary conditions]
     std::vector< std::pair<patchSide,int> > clamped;
-    real_t U_inf = 1;
+    real_t Pressure_outer = 0.00001;
+    real_t Pressure_inner = 0.01;
     gsBoundaryConditions<> BCs;
     BCs.setGeoMap(mp);
 
-    gsVector<> neu1(2);
-    neu1<<-70.71067811865,-70.71067811865;
-    gsVector<> neu2(2);
-    neu2<<7.0710678118654,7.0710678118654;
-    gsConstantFunction<> neuData1(neu1,2);
-    gsConstantFunction<> neuData2(neu2,2);
-
-    BCs.addCondition(boundary::north,condition_type::dirichlet, 0, 0, false, 0 );
-    BCs.addCondition(boundary::north,condition_type::dirichlet, 0, 0, false, 1 );
-    BCs.addCondition(boundary::west, condition_type::neumann, &neuData2 );
-    BCs.addCondition(boundary::east, condition_type::neumann, &neuData1 );
-    BCs.addCondition(boundary::south,condition_type::dirichlet, 0, 0, false, 0 );
-    BCs.addCondition(boundary::south,condition_type::dirichlet, 0, 0, false, 1 );
+    gsFunctionExpr<> neu_outer, neu_inner;
+    neu_outer = gsFunctionExpr<>(std::to_string(Pressure_outer/r1) + "*(x + y)",2);
+    neu_inner = gsFunctionExpr<>(std::to_string(Pressure_inner/r0) + "*(x + y)",2);
 
 
-
-//    gsFunctionExpr<> phi_in("0","0",2);
-//    gsFunctionExpr<> phi_out("0",std::to_string(U_inf*r0*r1/(r1*r1)) + "*x",2);
-//    gsFunctionExpr<> symmetry("0","0",2);
-//    gsFunctionExpr<> wall(std::to_string(r0) + "*1/(sqrt(1+y^2/x^2))",2);
-//
-
-
-//
-//
-//    BCs.addCondition(0, boundary::north, condition_type::dirichlet, phi_in);
-////    clamped.push_back( std::make_pair(patchSide(0,boundary::north),2) );
-//    BCs.addCondition(0, boundary::east, condition_type::dirichlet, phi_out);
-////    clamped.push_back( std::make_pair(patchSide(0,boundary::east),2) );
-//    BCs.addCondition(0, boundary::south, condition_type::neumann, symmetry);
-////    clamped.push_back( std::make_pair(patchSide(0,boundary::south),2) );
-//    BCs.addCondition(0, boundary::west, condition_type::neumann, wall);
-//    clamped.push_back( std::make_pair(patchSide(0,boundary::west),2) );
-//    gsFunctionExpr<> t0(std::to_string(thickness), 2);
-//    t.addPiece(t0);
+    BCs.addCondition(0,boundary::north,condition_type::dirichlet, 0, 0, false, 0 );
+    BCs.addCondition(0,boundary::east, condition_type::dirichlet, &neu_outer );
+    BCs.addCondition(0,boundary::east, condition_type::clamped, 0, 0, false, 0 );
+    BCs.addCondition(0,boundary::east, condition_type::clamped, 0, 0, false, 1 );
+    BCs.addCondition(0,boundary::west, condition_type::dirichlet, &neu_inner );
+    BCs.addCondition(0,boundary::west, condition_type::clamped, 0, 0, false, 0 );
+    BCs.addCondition(0,boundary::west, condition_type::clamped, 0, 0, false, 1 );
+    BCs.addCondition(0,boundary::south,condition_type::dirichlet, 0, 0, false, 1 );
 
     //! [Set boundary conditions]
 
@@ -367,8 +346,5 @@ int main(int argc, char *argv[]){
 
     delete assembler;
     return EXIT_SUCCESS;
-
-
-
 
 }
