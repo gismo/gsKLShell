@@ -111,7 +111,7 @@ int main(int argc, char *argv[]){
     BCs.setGeoMap(mp);
 
     gsVector<> neu1(2);
-    neu1<<70.71067811865,70.71067811865;
+    neu1<<-70.71067811865,-70.71067811865;
     gsVector<> neu2(2);
     neu2<<7.0710678118654,7.0710678118654;
     gsConstantFunction<> neuData1(neu1,2);
@@ -368,15 +368,6 @@ int main(int argc, char *argv[]){
     delete assembler;
     return EXIT_SUCCESS;
 
-
-
-//    if(membrane) // no bending term
-//        assembler = new gsThinShellAssembler<2, real_t, false>(mp,dbasis,BCs,force,materialMatrix);
-//    else
-//        assembler = new gsThinShellAssembler<2, real_t, true >(mp,dbasis,BCs,force,materialMatrix);
-
-
-    //! [Make assembler]
 
 
 
