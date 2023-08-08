@@ -1,9 +1,8 @@
-/** @file example_pointload.cpp
+/** @file example_2DShellPressureBC.cpp
 
-    @brief Asymmetric loading applied with an offset angle (pi/50)
-    from the crown of a semicircular arch.
+    @brief Pressure boundary condition
 
-    Example 13 from Liu et al 2006
+    Figure 24 from Liu et al 2006
 
     Liu, B., Xing, Y., Wang, Z., Lu, X., & Sun, H. (2017) Non-uniform rational Lagrange functions and its applications to isogeometric analysis of in-plane and flexural vibration of thin plates. Computer Methods in Applied Mechanics and Engineering, 321, 173-208. http://dx.doi.org/10.1016/j.cma.2017.04.007
 
@@ -43,7 +42,7 @@ int main(int argc, char *argv[]){
                 "Number of degree elevation steps to perform before solving (0: equalize degree in all directions)", numElevate );
     cmd.addInt( "r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
 //    cmd.addReal( "R", "Ratio", "Mooney Rivlin Ratio",  Ratio );
-//    cmd.addInt( "t", "testCase", "Test case to run: 1 = unit square; 2 = Scordelis Lo Roof",  testCase );
+//    cmd.addInt( "t", "testCase", "Test case to run: 1 = quarter annulus",  testCase );
     cmd.addInt( "m", "Material", "Material law",  material );
     cmd.addInt( "I", "Implementation", "Implementation: 1= analytical, 2= generalized, 3= spectral",  impl );
     cmd.addSwitch("comp", "1: compressible, 0: incompressible",  Compressibility );
