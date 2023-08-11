@@ -116,7 +116,6 @@ int main(int argc, char** argv){
     BCs.addCondition(1,boundary::south, condition_type::dirichlet, 0, 0, false,0 ); // unknown 0 - x
     BCs.addCondition(1,boundary::south, condition_type::dirichlet, 0, 0, false,1 ); // unknown 1 - y
     BCs.addCondition(1,boundary::south, condition_type::dirichlet, 0, 0, false,2 ); // unknown 2 - z
-    BCs.addCondition(1,boundary::south, condition_type::dirichlet, 0, 0, false,0 ); // unknown 0 - x
 
 
     BCs.addCondition(1,boundary::north, condition_type::dirichlet, 0, 0, false,0 ); // unknown 1 - y
@@ -150,6 +149,33 @@ int main(int argc, char** argv){
 
     // Initialize solution obejct
     gsMultiPatch<> mp_def = mp;
+
+    // Linear isotropic material model
+    gsConstantFunction<> force(tmp, 3);
+    gsFunctionExpr<> t(std::to_string(thickness),3);
+    gsFunctionExpr<> E(std::to_string(E_modulus),3);
+    gsFunctionExpr<> nu(std::to_string(PoissonRatio),3);
+
+    std::vector<gsFunction<>*> parameters; //SvK & Composites & NH & NH_ext
+    parameters.resize(2);
+    parameters[0] = &E;
+    parameters[1] = &nu;
+
+    gsMaterialMatrixBase<real_t>* materialMatrix;
+
+    gsOptionList options;
+
+    index_t Compressibility = 0;
+
+    options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",Compressibility);
+    materialMatrix = getMaterialMatrix<3,real_t>(mp,t,parameters,options);
+
+    gsBucklingSolver<real_t> buckling(K_L,rhs,dK_NL);
+    buckling.options().setInt("solver",2);
+    buckling.options().setInt("selectionRule",0);
+    buckling.options().setInt("sortRule",4);
+    buckling.options().setSwitch("verbose",true);
+    buckling.options().setInt("ncvFac",2);
 
 
 
