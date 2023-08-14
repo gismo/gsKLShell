@@ -428,8 +428,10 @@ protected:
     // Geometric data point
     mutable util::gsThreaded< gsMaterialMatrixBaseDimData<dim,T> > m_data;
 public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW //must be present whenever the class contains fixed size matrices
 
+#   define Eigen gsEigen
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW //must be present whenever the class contains fixed size matrices
+#   undef Eigen
 };
 
 template<short_t dim, class T>
@@ -467,7 +469,9 @@ public:
 
     mutable gsVector<T> m_thetas, m_gammas;
 
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW //must be present whenever the class contains fixed size matrices
+#   define Eigen gsEigen
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+#   undef Eigen //must be present whenever the class contains fixed size matrices
 };
 
 #ifdef GISMO_WITH_PYBIND11

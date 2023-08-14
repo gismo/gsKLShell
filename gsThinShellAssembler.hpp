@@ -177,8 +177,7 @@ void gsThinShellAssembler<d, T, bending>::_defaultOptions()
     m_options.addReal("WeakClamped","Penalty parameter weak clamped conditions",1e3);
     m_options.addInt("Continuity","Set the continuity for the space",-1);
 
-    m_options.addReal("IfcDirichlet","Penalty parameter weak dirichlet conditions on the interface",1e3);
-    m_options.addReal("IfcClamped","Penalty parameter weak clamped conditions on the interface",1e3);
+    m_options.addReal("IfcPenalty","Penalty parameter weak coupling conditions on the interface",1e3);
     m_options.addInt("IfcDefault","Default weak(!) interface coupling; C^k, k={-1,0,1}",1);
     m_options.addString("Solver","Sparse linear solver", "CGDiagonal");
 
@@ -201,8 +200,7 @@ void gsThinShellAssembler<d, T, bending>::_getOptions()
 
     m_alpha_d_bc = m_options.getReal("WeakDirichlet");
     m_alpha_r_bc = m_options.getReal("WeakClamped");
-    m_alpha_d_ifc = m_alpha_r_ifc = m_options.getReal("IfcDirichlet");
-    // m_alpha_r_ifc = m_options.getReal("IfcClamped");
+    m_alpha_d_ifc = m_alpha_r_ifc = m_options.getReal("IfcPenalty");
     m_IfcDefault = m_options.getInt("IfcDefault");
 }
 

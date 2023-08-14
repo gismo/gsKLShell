@@ -1242,7 +1242,7 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalStretch(
     stretches.resize(3,1);    stretches.setZero();
     stretchvec.resize(3,3);   stretchvec.setZero();
 
-    Eigen::SelfAdjointEigenSolver< gsMatrix<real_t>::Base >  eigSolver;
+    typename gsEigen::SelfAdjointEigenSolver< typename gsMatrix<T>::Base >  eigSolver;
 
     GISMO_ENSURE(m_data.mine().m_gcon_ori.cols()!=0,"Is the basis initialized?");
 
@@ -1295,7 +1295,7 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalPStress(
     pstresses.resize(2,1);    pstresses.setZero();
     pstressvec.resize(3,2);   pstressvec.setZero();
 
-    typename Eigen::SelfAdjointEigenSolver< typename gsMatrix<T>::Base >  eigSolver;
+    typename gsEigen::SelfAdjointEigenSolver< typename gsMatrix<T>::Base >  eigSolver;
 
     gsMatrix<T> B(3,3);
     B.setZero();
@@ -1339,7 +1339,7 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalPStrain(
     pstrains.resize(3,1);    pstrains.setZero();
     pstrainvec.resize(3,3);   pstrainvec.setZero();
 
-    typename Eigen::SelfAdjointEigenSolver< typename gsMatrix<T>::Base >  eigSolver;
+    typename gsEigen::SelfAdjointEigenSolver< typename gsMatrix<T>::Base >  eigSolver;
 
     gsMatrix<T> B(3,3);
     B.setZero();

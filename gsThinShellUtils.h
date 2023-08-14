@@ -92,7 +92,9 @@ public:
 
     var1_expr(const E & u, const gsGeometryMap<Scalar> & G) : _u(u), _G(G) { }
 
+#   define Eigen gsEigen
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+#   undef Eigen
 
     // helper function
     static inline gsVector<Scalar,3> vecFun(index_t pos, Scalar val)
@@ -224,7 +226,9 @@ public:
 
     mutable gsMatrix<Scalar> uGrads, vGrads, cJac, cDer2, evEf, result;
     mutable gsVector<Scalar> m_u, m_v, normal, m_uv, m_u_der, n_der, n_der2, tmp; // memomry leaks when gsVector<T,3>, i.e. fixed dimension
+#   define Eigen gsEigen
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+#   undef Eigen
 
     // helper function
     static inline gsVector<Scalar,3> vecFun(index_t pos, Scalar val)
@@ -349,7 +353,9 @@ public:
 
     mutable gsMatrix<Scalar> uGrads, vGrads, cJac, cDer2, evEf, result;
     mutable gsVector<Scalar> m_u, m_v, normal, m_uv, m_u_der, n_der, n_der2, tmp; // memomry leaks when gsVector<T,3>, i.e. fixed dimension
+#   define Eigen gsEigen
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+#   undef Eigen
 
     // helper function
     static inline gsVector<Scalar,3> vecFun(index_t pos, Scalar val)
@@ -473,7 +479,9 @@ public:
 
     tvar1_expr(const E & u, const gsGeometryMap<Scalar> & G) : _u(u), _G(G) { }
 
+#   define Eigen gsEigen
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+#   undef Eigen
 
     // helper function
     static inline gsVector<Scalar,3> vecFun(index_t pos, Scalar val)
@@ -666,7 +674,9 @@ public:
 
     ovar1_expr(const E & u, const gsGeometryMap<Scalar> & G) : _u(u), _G(G) { }
 
+#   define Eigen gsEigen
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+#   undef Eigen
 
     // helper function
     static inline gsVector<Scalar,3> vecFun(index_t pos, Scalar val)
@@ -815,7 +825,9 @@ public:
 
     ovar2dot_expr(const E1 & u, const E2 & v, const gsGeometryMap<Scalar> & G, _expr<E3> const& C) : _u(u), _v(v), _G(G), _C(C) { }
 
+#   define Eigen gsEigen
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+#   undef Eigen
 
     // helper function
     static inline gsVector<Scalar,3> vecFun(index_t pos, Scalar val)

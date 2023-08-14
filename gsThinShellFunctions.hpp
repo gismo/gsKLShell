@@ -102,7 +102,7 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     {
         case stress_type::displacement :
             for (index_t k = 0; k != u.cols(); ++k)
-                result.col(k) = ev.eval(m_def,u.col(k),m_patchID);
+                result.col(k) = ev.eval(m_def-m_ori,u.col(k),m_patchID);
             break;
 
         case stress_type::membrane :
