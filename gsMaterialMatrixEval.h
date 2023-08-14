@@ -36,6 +36,9 @@ public:
     m_deformed(deformed),
     m_z(z)
     {
+        for (index_t p = 0; p!=deformed->nPieces(); ++p)
+            GISMO_ASSERT(materialMatrices.piece(p)->initialized(),"Material matrix "<<p<<" is incomplete!");
+
         this->_makePieces();
     }
 
@@ -48,6 +51,7 @@ public:
     m_deformed(deformed),
     m_z(z)
     {
+        GISMO_ASSERT(materialMatrix->initialized(),"Material matrix is incomplete!");
         for (index_t p = 0; p!=deformed->nPieces(); ++p)
             m_materialMatrices.set(p,materialMatrix);
         this->_makePieces();

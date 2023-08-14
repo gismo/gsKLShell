@@ -108,6 +108,11 @@ public:
 
     std::ostream &print(std::ostream &os) const override;
 
+    bool initialized() const override
+    {
+        return m_patches!=nullptr;
+    }
+
 public:
     /// Shared pointer for gsMaterialMatrixComposite
     typedef memory::shared_ptr< gsMaterialMatrixComposite > Ptr;

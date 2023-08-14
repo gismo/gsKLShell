@@ -224,7 +224,6 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
                 C(2,1) = C(1,2) = _Cijkl(1,1,0,1); // C2212
         }
     }
-
     return result;
 }
 

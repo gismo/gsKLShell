@@ -666,6 +666,8 @@ public:
     virtual bool hasUndeformed() const { return m_defpatches!=nullptr; }
     virtual bool hasDeformed() const { return m_defpatches!=nullptr; }
 
+    virtual bool initialized() const { return false; }
+
 protected:
     function_ptr m_patches;
     function_ptr m_defpatches;

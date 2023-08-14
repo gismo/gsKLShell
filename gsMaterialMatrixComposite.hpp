@@ -44,7 +44,18 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
     GISMO_ASSERT(nLayers==(index_t)G.size(),    "Size error in layer input");
     GISMO_ASSERT(nLayers==(index_t)alpha.size(),"Size error in layer input");
     GISMO_ASSERT(nLayers==(index_t)rho.size(),  "Size error in layer input");
+
+    for (size_t k=0; k!=thickness.size(); k++)
+    {
+        GISMO_ENSURE(thickness[k]!=NULL,"Function "<<k<<" of the thickness vector is not defined!");
+        GISMO_ENSURE(G[k]!=NULL,"Function "<<k<<" of the shear moduli vector is not defined!");
+        GISMO_ENSURE(alpha[k]!=NULL,"Function "<<k<<" of the alpha vector is not defined!");
+    }
+    for (size_t k=0; k!=rho.size(); k++)
+        GISMO_ENSURE(rho[k]!=NULL,"Function "<<k<<" of the density vector is not defined!");
+
     _initialize(nLayers);
+
     for (index_t k=0; k!=nLayers; k++)
     {
         m_Ts[k] = memory::make_shared_not_owned(thickness[k]);
@@ -66,6 +77,14 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
     index_t nLayers = thickness.size();
     GISMO_ASSERT(nLayers==(index_t)G.size(),    "Size error in layer input");
     GISMO_ASSERT(nLayers==(index_t)alpha.size(),"Size error in layer input");
+    
+    for (size_t k=0; k!=thickness.size(); k++)
+    {
+        GISMO_ENSURE(thickness[k]!=NULL,"Function "<<k<<" of the thickness vector is not defined!");
+        GISMO_ENSURE(G[k]!=NULL,"Function "<<k<<" of the shear moduli vector is not defined!");
+        GISMO_ENSURE(alpha[k]!=NULL,"Function "<<k<<" of the alpha vector is not defined!");
+    }
+
     _initialize(nLayers);
     for (index_t k=0; k!=nLayers; k++)
     {

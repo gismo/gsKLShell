@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
     {
         thickness = 0.25;
         E_modulus = 4.32E8;
-        fn = "surface/scordelis_lo_roof.xml";
+        fn = "surfaces/scordelis_lo_roof.xml";
         gsReadFile<>(fn, mp);
         PoissonRatio = 0.0;
     }
