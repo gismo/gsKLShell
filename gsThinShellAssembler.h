@@ -319,7 +319,8 @@ private:
     boundaryForceVector_impl(const gsFunctionSet<T>   & deformed , patchSide& ps, index_t com );
 
     /// Implementation of the boundary force vector for surfaces (3D)
-
+    template<short_t _d, bool _bending>
+    typename std::enable_if<_d==3 && _bending, gsMatrix<T> >::type
     boundaryForce_impl(const gsFunctionSet<T>   & deformed , patchSide& ps);
 
     /// Implementation of the boundary force vector for planar geometries (2D)
