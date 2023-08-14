@@ -2,10 +2,25 @@
 
     @brief 2D shell vibration
 
-    Example 13 from Liu et al 2006
+    Example 26 from Liu et al 2006
 
     Liu, B., Xing, Y., Wang, Z., Lu, X., & Sun, H. (2017) Non-uniform rational Lagrange functions and its applications to isogeometric analysis of in-plane and flexural vibration of thin plates. Computer Methods in Applied Mechanics and Engineering, 321, 173-208. http://dx.doi.org/10.1016/j.cma.2017.04.007
 
+    Our results:
+    -----------------------------------------------------------
+    Omega 0 = 13.264506012621019693
+    Omega 1 = 25.948329127222432788
+    Omega 2 = 46.868225986961668639
+    Omega 3 = 68.842673494422726321
+    Omega 4 = 74.844691337606633397
+
+    Liu et al
+    ------------------------------------------------------------
+    Omega 0 = 7.98598284677940
+    Omega 1 = 22.7690915637245
+    Omega 2 = 47.5081920801538
+    Omega 3 = 69.6137907904339
+    Omega 4 = 80.9901698316950
     Author(s): J. Li
  **/
 
@@ -49,12 +64,12 @@ int main(int argc, char *argv[])
     bool plot       = true;
     bool nonlinear  = false;
     bool first  = false;
-    int mode = 0;
+    int mode = 1;
 
-    real_t E_modulus = 7.1e10; //Pa
+    real_t E_modulus = 71e9; //Pa
     real_t PoissonRatio = 0.3;
     real_t Density = 2700.0; //kg/m^3
-    real_t thickness = 0.005; //mm
+    real_t thickness = 0.05; //mm
 
 
 //    real_t rho = 1e0;
@@ -90,6 +105,7 @@ int main(int argc, char *argv[])
     real_t r1 = 1.0;
     real_t Area = 0.25*PI*(pow(r1,2) - pow(r0,2));
     EI = 1.0/12.0*((r1-r0)*math::pow(thickness*2,3))*E_modulus;
+    std::string fn;
     fn = "surfaces/quarterannulus.xml";
     EA = E_modulus*Area;
     r = math::sqrt(EI/EA);
@@ -116,6 +132,8 @@ int main(int argc, char *argv[])
     // Initiate eigenfrequency
     real_t omega1 = 0.0;
     real_t poisson_ratio = 0.3;
+    real_t poisson_ratio_new = poisson_ratio/(1-poisson_ratio);
+    real_t E_modulus_new = E_modulus/(1-poisson_ratio * poisson_ratio);
 
     // Boundary conditions
     std::vector< std::pair<patchSide,int> > clamped;
@@ -129,23 +147,28 @@ int main(int argc, char *argv[])
     std::string ty("0");
     std::string tz("0");
 
-
     BCs.addCondition(boundary::west, condition_type::dirichlet, 0, 0 );
     BCs.addCondition(boundary::west, condition_type::dirichlet, 0, 1 );
     BCs.addCondition(boundary::west, condition_type::dirichlet, 0, 2 );
-    BCs.addCondition(boundary::west, condition_type::clamped,0,0,false,2);
+    BCs.addCondition(boundary::west, condition_type::clamped,0,0,true,-1);
     // Right
-    BCs.addCondition(boundary::east, condition_type::dirichlet, 0, 0 );
-    BCs.addCondition(boundary::east, condition_type::dirichlet, 0, 1 );
-    BCs.addCondition(boundary::east, condition_type::dirichlet, 0, 2 );
+//    BCs.addCondition(boundary::east, condition_type::dirichlet, 0, 0 );
+//    BCs.addCondition(boundary::east, condition_type::dirichlet, 0, 1 );
+//    BCs.addCondition(boundary::east, condition_type::dirichlet, 0, 2 );
+//    BCs.addCondition(boundary::east, condition_type::clamped,0,0,true,-1);
     // Top
     BCs.addCondition(boundary::north, condition_type::dirichlet, 0, 0 );
     BCs.addCondition(boundary::north, condition_type::dirichlet, 0, 1 );
     BCs.addCondition(boundary::north, condition_type::dirichlet, 0, 2 );
+    BCs.addCondition(boundary::north, condition_type::clamped,0,0,true,-1);
     // Bottom
     BCs.addCondition(boundary::south, condition_type::dirichlet, 0, 0 );
     BCs.addCondition(boundary::south, condition_type::dirichlet, 0, 1 );
     BCs.addCondition(boundary::south, condition_type::dirichlet, 0, 2 );
+    BCs.addCondition(boundary::south, condition_type::clamped,0,0,true,-1);
+
+
+
 
     omega1 = 6.8138;
 
@@ -180,10 +203,12 @@ int main(int argc, char *argv[])
     gsVector<> tmp(3);
     tmp << 0, 0, 0;
 
+    real_t G_shear = E_modulus_new/2*(1+poisson_ratio_new);
+    real_t D_shear = E_modulus * pow(thickness,3)/(12 * pow(1-poisson_ratio,2));
     gsConstantFunction<> force(tmp,3);
     gsFunctionExpr<> t(std::to_string(thickness), 3);
     gsFunctionExpr<> E(std::to_string(E_modulus),3);
-    gsFunctionExpr<> nu(std::to_string(PoissonRatio),3);
+    gsFunctionExpr<> nu(std::to_string(poisson_ratio),3);
     gsFunctionExpr<> rho(std::to_string(Density),3);
 //    gsConstantFunction<> ratio(Ratio,3);
     std::vector<gsFunction<>*> parameters;
@@ -246,6 +271,19 @@ int main(int argc, char *argv[])
     gsMatrix<> values = modal.values();
     gsMatrix<> vectors = modal.vectors();
 
+    gsMatrix<> dimensionless_value(values.rows(),values.cols());
+
+    for (index_t k = 0; k<values.rows(); k++){
+        dimensionless_value.at(k) = pow(values.at(k),0.5);
+    }
+
+    dimensionless_value = dimensionless_value * pow(Density * thickness/D_shear,0.5);
+
+    gsInfo<< "First 10 eigenvalues:\n";
+    for (index_t k = 0; k<10; k++)
+        gsInfo<<"\t"<<std::setprecision(20)<<dimensionless_value.at(k)<<"\n";
+    gsInfo<<"\n";
+
     gsInfo<< "First 10 eigenvalues:\n";
     for (index_t k = 0; k<10; k++)
         gsInfo<<"\t"<<std::setprecision(20)<<values.at(k)<<"\n";
@@ -304,7 +342,7 @@ int main(int argc, char *argv[])
 
         std::string wnM = "ModalResults/eigenvalues.txt";
 
-        writeToCSVfile(wnM,values);
+        writeToCSVfile(wnM,dimensionless_value);
     }
 
     delete materialMatrix;
