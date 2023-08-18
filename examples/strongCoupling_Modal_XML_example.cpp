@@ -106,29 +106,30 @@ int main(int argc, char *argv[])
     // STEP 1: Get curve network with merged linear interfaces
     gsInfo<<"Loading curve network..."<<std::flush;
     geom.computeTopology();
-    geom.constructInterfaceRep();
-    geom.constructBoundaryRep();
-    auto & irep = geom.interfaceRep();
-    auto & brep = geom.boundaryRep();
-    // gsDebug <<" irep "<< irep.size() <<" \n" ;
-    gsDebug <<" brep "<< brep.size() <<" \n" ;
+    geom.embed(3);
+    // geom.constructInterfaceRep();
+    // geom.constructBoundaryRep();
+    // auto & irep = geom.interfaceRep();
+    // auto & brep = geom.boundaryRep();
+    // // gsDebug <<" irep "<< irep.size() <<" \n" ;
+    // gsDebug <<" brep "<< brep.size() <<" \n" ;
 
-    // outputing...
-    gsMultiPatch<> crv_net, iface_net, bnd_net;
-    for (auto it = irep.begin(); it!=irep.end(); ++it)
-    {
-        iface_net.addPatch((*it->second));
-        crv_net.addPatch((*it->second));
-    }
-    for (auto it = brep.begin(); it!=brep.end(); ++it)
-    {
-        bnd_net.addPatch((*it->second));
-        crv_net.addPatch((*it->second));
-    }
+    // // outputing...
+    // gsMultiPatch<> crv_net, iface_net, bnd_net;
+    // for (auto it = irep.begin(); it!=irep.end(); ++it)
+    // {
+    //     iface_net.addPatch((*it->second));
+    //     crv_net.addPatch((*it->second));
+    // }
+    // for (auto it = brep.begin(); it!=brep.end(); ++it)
+    // {
+    //     bnd_net.addPatch((*it->second));
+    //     crv_net.addPatch((*it->second));
+    // }
 
-    if (plot) gsWriteParaview(iface_net,"iface_net",100);
-    if (plot) gsWriteParaview(bnd_net,"bnd_net",100);
-    // if (plot) gsWriteParaview(crv_net,"crv_net",100);
+    // if (plot) gsWriteParaview(iface_net,"iface_net",100);
+    // if (plot) gsWriteParaview(bnd_net,"bnd_net",100);
+    // // if (plot) gsWriteParaview(crv_net,"crv_net",100);
 
     gsInfo<<"Reading mapped basis from "<<basisFileName<<"..."<<std::flush;
     fd.read(basisFileName);

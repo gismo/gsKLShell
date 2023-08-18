@@ -1,4 +1,4 @@
-/** @file example_shell3D.cpp
+/** @file TODO
 
     @brief Simple 3D examples for the shell class
 

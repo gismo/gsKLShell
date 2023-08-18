@@ -1,4 +1,4 @@
-/** @file gsCompositeBasis_test.h
+/** @file TODO
 
     @brief File testing the gsCompositeBasis class.
 
@@ -28,10 +28,7 @@
 
 #include <gsUtils/gsQuasiInterpolate.h>
 
-
 #include <gsAssembler/gsExprAssembler.h>
-
-#include <gsStructuralAnalysis/gsStructuralAnalysisUtils.h>
 
 #include <gsKLShell/gsThinShellUtils.h>
 

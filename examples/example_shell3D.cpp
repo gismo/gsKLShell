@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
     real_t ifcClamped = 1.0;
 
 
-    gsCmdLine cmd("2D shell example.");
+    gsCmdLine cmd("3D shell example.");
     cmd.addReal( "D", "Dir", "Dirichlet penalty scalar",  ifcDirichlet );
     cmd.addReal( "C", "Cla", "Clamped penalty scalar",  ifcClamped );
     cmd.addInt( "e", "degreeElevation",
