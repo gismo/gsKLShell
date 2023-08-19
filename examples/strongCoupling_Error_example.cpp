@@ -384,25 +384,34 @@ int main(int argc, char *argv[])
         else if (method==4)
         {
             gsMultiPatch<> tmp;
+            // Project the previous geometry on the finest tensor level:
             for (size_t p=0; p!=geom.nPatches(); p++)
             {
-                gsTHBSpline<2,real_t> * thbspline;
-                gsTensorBSpline<2,real_t> * tbspline;
-                if ((thbspline = dynamic_cast<gsTHBSpline<2,real_t> *>(&geom.patch(p)) ))
+                gsTHBSplineBasis<2,real_t> * thbsplineBasis;
+                gsTensorBSplineBasis<2,real_t> * tbsplineBasis;
+                if ((thbsplineBasis = dynamic_cast<gsTHBSplineBasis<2,real_t> *>(&geom.basis(p)) ))
                 {
-                    gsTensorBSpline<2,real_t> flat;
-                    thbspline->convertToBSpline(flat);
-                    tmp.addPatch(flat);
+                    gsMatrix<> coefs;
+                    // First project the geometry geom0 onto bb2 and make a mapped spline
+                    gsTHBSplineBasis<2,real_t> tbasis = thbsplineBasis->tensorLevel(thbsplineBasis->maxLevel());
+                    gsInfo<<"L2-Projection error of geom patch"<<p<<" on bb2 = "<<gsL2Projection<real_t>::projectGeometry(tbasis,geom.patch(p),coefs)<<"\n";
+                    coefs.resize(coefs.rows()/geom0.geoDim(),geom0.geoDim());
+                    tmp.addPatch(tbasis.makeGeometry(coefs));
                 }
-                else if ((tbspline = dynamic_cast<gsTensorBSpline<2,real_t> *>(&geom.patch(p)) ))
+                else if ((tbsplineBasis = dynamic_cast<gsTensorBSplineBasis<2,real_t> *>(&geom.basis(p)) ))
                 {
                     geom.patch(p).uniformRefine(1,degree-smoothness);
                     tmp.addPatch(geom.patch(p));
                 }
+                else
+                    GISMO_ERROR("Geometry type not understood");
             }
             tmp.computeTopology();
-            geom = tmp;
-            if (plot) gsWriteParaview( geom, "geom_ini",1000,true,false);
+            geom.swap(tmp);
+            dbasis = gsMultiBasis<>(geom);
+
+
+            if (plot) gsWriteParaview( tmp, "geom_ini",1000,true,false);
 
             // Construct the D-Patch on mp
             gsSparseMatrix<real_t> global2local;
@@ -419,15 +428,23 @@ int main(int argc, char *argv[])
             }
             else
             {
-                gsMatrix<> targetCoefs, sourceCoefs;
-                gsL2Projection<real_t>::projectGeometry(dbasis,bb2,geom0,targetCoefs);
-                targetCoefs.resize(targetCoefs.rows()/2,2);
-                bb2.getMapper().mapToSourceCoefs(targetCoefs,sourceCoefs);
                 gsDofMapper mapper(dbasis);
+                mapper.finalize();
+                gsMatrix<> coefs;
+                // First project the geometry geom0 onto bb2 and make a mapped spline
+                gsInfo<<"L2-Projection error of geom0 on bb2 = "<<gsL2Projection<real_t>::projectGeometry(dbasis,bb2,geom0,coefs)<<"\n";
+                coefs.resize(coefs.rows()/geom0.geoDim(),geom0.geoDim());
+                gsMappedSpline<2,real_t> mspline;
+                mspline.init(bb2,coefs);
+                if (plot) gsWriteParaview( mspline, "mspline");
+
+                // Then project onto dbasis so that geom represents the mapped geometry
+                gsInfo<<"L2-Projection error of geom0 on dbasis = "<<gsL2Projection<real_t>::projectGeometry(dbasis,mspline,coefs)<<"\n";
+                coefs.resize(coefs.rows()/mp.geoDim(),mp.geoDim());
                 index_t offset = 0;
-                for (index_t p = 0; p != geom0.nPatches(); p++)
+                for (size_t p = 0; p != geom.nPatches(); p++)
                 {
-                    geom.patch(p) = give(*dbasis.basis(p).makeGeometry((sourceCoefs.block(offset,0,mapper.patchSize(p),mp.geoDim()))));
+                    geom.patch(p) = give(*dbasis.basis(p).makeGeometry((coefs.block(offset,0,mapper.patchSize(p),mp.geoDim()))));
                     offset += mapper.patchSize(p);
                 }
             }
