@@ -47,7 +47,6 @@ int main(int argc, char *argv[])
     bool plot       = false;
     bool mesh       = false;
     bool stress     = false;
-    bool write      = false;
     bool last       = false;
     bool nonlinear  = false;
     bool homogeneous= false;
@@ -65,11 +64,11 @@ int main(int argc, char *argv[])
     fn2 = "pde/2p_square_bvp.xml";
     fn3 = "options/solver_options.xml";
 
+    std::string write = "solution.csv";
+
     index_t method = 0;
     index_t PiMat = 0;
     real_t beta = 0.4;
-
-    std::string dirname = ".";
 
     gsCmdLine cmd("Composite basis tests.");
     cmd.addReal( "D", "Dir", "Dirichlet BC penalty scalar",  bcDirichlet );
@@ -78,7 +77,7 @@ int main(int argc, char *argv[])
     cmd.addString( "G", "geom","File containing the geometry",  fn1 );
     cmd.addString( "B", "bvp", "File containing the Boundary Value Problem (BVP)",  fn2 );
     cmd.addString( "O", "opt", "File containing solver options",  fn3 );
-    cmd.addString( "o", "out", "Dir name of the output",  dirname );
+    cmd.addString( "w", "write","Filename for the output of the convergence data",write);
 
     cmd.addInt( "p", "degree", "Set the polynomial degree of the basis.", degree );
     cmd.addInt( "s", "smoothness", "Set the smoothness of the basis.",  smoothness );
@@ -93,7 +92,6 @@ int main(int argc, char *argv[])
     cmd.addSwitch("plot", "plot",plot);
     cmd.addSwitch("mesh", "mesh",mesh);
     cmd.addSwitch("stress", "stress",stress);
-    cmd.addSwitch("write", "write",write);
     cmd.addSwitch("last", "last case only",last);
     cmd.addSwitch( "nl", "Nonlinear analysis", nonlinear );
     cmd.addSwitch("homogeneous", "homogeneous dirichlet BCs",homogeneous);
@@ -226,11 +224,6 @@ int main(int argc, char *argv[])
     gsInfo<<"Finished\n";
     //! [Read input file]
 
-    //! [Create output directory]
-    if ((plot || write) && !dirname.empty())
-        gsFileManager::mkdir(dirname);
-    //! [Create output directory]
-
     gsMultiBasis<> dbasis(mp);
 
     //! [Refine and elevate]
@@ -254,7 +247,7 @@ int main(int argc, char *argv[])
     }
     numRefine -= numRefine0;
 
-    if (plot) gsWriteParaview<>( mp    , dirname + "/mp", 1000, mesh);
+    if (plot) gsWriteParaview<>( mp    , "mp", 1000, mesh);
 
     //! [Make assembler]
     std::vector<gsFunction<>*> parameters(2);
@@ -624,7 +617,7 @@ int main(int argc, char *argv[])
         buffer<<"\n";
     }
     gsInfo<<buffer.str();
-    if (write) writeToFile(buffer.str(),file,dirname + "/solutions.csv");
+    if (!write.empty()) writeToFile(buffer.str(),file,write);
     //! [Export reference point data]
 
     //! [Export visualization in ParaView]
