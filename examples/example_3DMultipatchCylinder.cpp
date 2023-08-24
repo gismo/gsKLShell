@@ -8,6 +8,7 @@
     Author(s): J. Li
 
     todo: In the paper they used 60 segments geometry, our geometry only has four patches.
+    P.S: one bug in material matrix (xml)
  **/
 //! [Include namespace]
 #include <gismo.h>
@@ -43,7 +44,7 @@ int main(int argc, char** argv){
 
     // Input options
     int numElevate  = 0;
-    int numHref     = 4;
+    int numHref     = 6;
     int numElevateL = -1;
     int numHrefL    = -1;
     bool plot       = true;
