@@ -201,13 +201,13 @@ int main(int argc, char *argv[])
 
     // Initialize the system
 
-    gsInfo<<"Assembling stiffness matrix..."<<std::flush;
+    gsInfo<<"Assembling stiffness matrix... ("<<assembler.numDofs()<<" x "<<assembler.numDofs()<<")"<<std::flush;
     assembler.assemble();
     gsSparseMatrix<> matrix = assembler.matrix();
     gsInfo<<"Finished\n";
     // gsDebugVar(matrix.toDense());
     gsVector<> vector = assembler.rhs();
-    gsInfo<<"Assembling mass matrix..."<<std::flush;
+    gsInfo<<"Assembling mass matrix..."<<assembler.numDofs()<<" x "<<assembler.numDofs()<<")"<<std::flush;
     assembler.assembleMass();
     gsSparseMatrix<> mass   = assembler.massMatrix();
     gsInfo<<"Finished\n";
