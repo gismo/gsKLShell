@@ -920,6 +920,7 @@ public:
    * @brief Initializes the Python wrapper for the class: gsThinShellAssembler
    */
   void pybind11_init_gsThinShellAssemblerBase(pybind11::module &m);
+  void pybind11_enum_gsThinShellAssemblerStatus(pybind11::module &m);
 
 #endif // GISMO_WITH_PYBIND11
 
