@@ -943,6 +943,8 @@ public:
                         snvarv.noalias() = (mv - ( normal.dot(mv) ) * normal);
 
 
+                        // See point 2 of
+                        // Herrema, Austin J. et al. 2021. “Corrigendum to ‘Penalty Coupling of Non-Matching Isogeometric Kirchhoff–Love Shell Patches with Application to Composite Wind Turbine Blades’ [Comput. Methods Appl. Mech. Engrg. 346 (2019) 810–840].” Computer Methods in Applied Mechanics and Engineering 373: 113488.
                         // Second variation of the tangent (colvector)
                         tvar2 = -1 / tangent.norm() * (
                                                         ( tvarv.dot(dtanu) * utangent )

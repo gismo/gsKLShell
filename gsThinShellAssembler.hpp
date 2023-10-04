@@ -1053,21 +1053,20 @@ gsThinShellAssembler<d, T, bending>::_assembleWeakIfc_impl(const gsFunctionSet<T
     // dW^pr / du_r --> first line
     m_assembler.assembleIfc(m_weakC1,
                      alpha_r * dN_lr * var2(m_space.left() ,m_space.left() ,m_def.left() ,usn(m_def.right()).tr() ) * meas(m_ori)      // left left
+                     +//Symmetry
+                     alpha_r * dN_rl * var2( m_space.left(),m_space.left(),m_def.left(),usn(m_def.right() ).tr() ) * meas(m_ori)     // left left
                     ,
                      alpha_r * dN_lr * ( var1(m_space.left() ,m_def.left() ) * var1(m_space.right(),m_def.right()).tr() ) * meas(m_ori)// left right
-                    ,
-                     alpha_r * dN_lr * ( var1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() ) * meas(m_ori)// right left
-                    ,
-                     alpha_r * dN_lr * var2( m_space.right(),m_space.right(),m_def.right(),usn(m_def.left() ).tr() ) * meas(m_ori)     // right right
-                    ,
-                    // Symmetry
-                     alpha_r * dN_rl * var2(m_space.right() ,m_space.right() ,m_def.right() ,usn(m_def.left()).tr() ) * meas(m_ori)      // right right
-                    ,
-                     alpha_r * dN_rl * ( var1(m_space.right() ,m_def.right() ) * var1(m_space.left(),m_def.left()).tr() ) * meas(m_ori)// right left
-                    ,
+                     +//Symmetry
                      alpha_r * dN_rl * ( var1(m_space.left(),m_def.left()) * var1(m_space.right() ,m_def.right() ).tr() ) * meas(m_ori)// left right
                     ,
-                     alpha_r * dN_rl * var2( m_space.left(),m_space.left(),m_def.left(),usn(m_def.right() ).tr() ) * meas(m_ori)     // left left
+                     alpha_r * dN_lr * ( var1(m_space.right(),m_def.right()) * var1(m_space.left() ,m_def.left() ).tr() ) * meas(m_ori)// right left
+                     +//Symmetry
+                     alpha_r * dN_rl * ( var1(m_space.right() ,m_def.right() ) * var1(m_space.left(),m_def.left()).tr() ) * meas(m_ori)// right left
+                    ,
+                     alpha_r * dN_lr * var2( m_space.right(),m_space.right(),m_def.right(),usn(m_def.left() ).tr() ) * meas(m_ori)     // right right
+                     +//Symmetry
+                     alpha_r * dN_rl * var2(m_space.right() ,m_space.right() ,m_def.right() ,usn(m_def.left()).tr() ) * meas(m_ori)      // right right
                      );
 
     // Penalty of out-of-plane coupling
