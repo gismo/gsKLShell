@@ -359,7 +359,7 @@ int main(int argc, char *argv[])
     Ts[0] = &thicks;
 
     //! [Make assembler]
-    std::vector<gsFunction<>*> parameters;
+    std::vector<gsFunctionSet<>*> parameters;
     gsMaterialMatrixBase<real_t>* materialMatrix;
     gsOptionList options;
     // Make gsMaterialMatrix depending on the user-defined choices
@@ -446,8 +446,7 @@ int main(int argc, char *argv[])
 
     // Set the penalty parameter for the interface C1 continuity
     assembler->options().setInt("Continuity",-1);
-    assembler->options().setReal("IfcDirichlet",ifcDirichlet);
-    assembler->options().setReal("IfcClamped",ifcClamped);
+    assembler->options().setReal("IfcPenalty",ifcDirichlet);
     assembler->addWeakC0(mp.topology().interfaces());
     assembler->addWeakC1(mp.topology().interfaces());
     assembler->initInterfaces();

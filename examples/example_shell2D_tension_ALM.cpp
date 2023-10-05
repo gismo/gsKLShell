@@ -42,6 +42,8 @@ int main(int argc, char *argv[])
   bool verbose = false;
   std::string fn;
 
+  bool split= false;
+
   bool SingularPoint= false;
   bool quasiNewton  = false;
   int quasiNewtonInt= -1;
@@ -88,6 +90,7 @@ int main(int argc, char *argv[])
   cmd.addSwitch("verbose", "Full matrix and vector output", verbose);
   cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
   cmd.addSwitch("stress", "Create a ParaView visualization file with the stresses", stress);
+  cmd.addSwitch("split", "Split the geometry in 4 patches", split);
 
   try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
   //! [Parse command line]
@@ -137,6 +140,10 @@ int main(int argc, char *argv[])
   mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
   mp.patch(0).coefs().col(0) *= length;
   mp.patch(0).coefs().col(1) *= width;
+
+  if (split)
+    mp = mp.uniformSplit();
+
   mp.addAutoBoundaries();
   mp.computeTopology();
 
@@ -211,10 +218,6 @@ int main(int argc, char *argv[])
   }
 
   //! [Define jacobian and residual]
-  gsStopwatch stopwatch,stopwatch2;
-  real_t time = 0.0;
-  real_t totaltime = 0.0;
-
   gsInfo<<"---------------------------------------------------------------------\n";
   gsInfo<<"-------------------------Stage 1-------------------------------------\n";
   gsInfo<<"---------------------------------------------------------------------\n";
@@ -223,18 +226,40 @@ int main(int argc, char *argv[])
   bc.setGeoMap(mp);
   gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
 
-  bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0 ,false,0);
+  if (!split)
+  {
+    bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0 ,false,0);
 
-  bc.addCondition(boundary::east, condition_type::collapsed, 0, 0 ,false,0);
-  bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0 ,false,1);
+    bc.addCondition(boundary::east, condition_type::collapsed, 0, 0 ,false,0);
+    bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0 ,false,1);
 
-  bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1 ); // unknown 2 - z.
+    bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1 ); // unknown 2 - z.
 
-  real_t Load = 2*1e0;
-  gsVector<> point(2); point<< 1.0, 0.5 ;
-  gsVector<> load (2); load << Load,0.0;
-  pLoads.addLoad(point, load, 0 );
+    real_t Load = 2*1e0;
+    gsVector<> point(2); point<< 1.0, 0.5 ;
+    gsVector<> load (2); load << Load,0.0;
+    pLoads.addLoad(point, load, 0 );
+  }
+  else
+  {
+    bc.addCondition(0,boundary::west, condition_type::dirichlet, 0, 0 ,false,0);
+    bc.addCondition(1,boundary::west, condition_type::dirichlet, 0, 0 ,false,0);
 
+    bc.addCondition(2,boundary::east, condition_type::collapsed, 0, 0 ,false,0);
+    bc.addCondition(3,boundary::east, condition_type::collapsed, 0, 0 ,false,0);
+    bc.addCondition(2,boundary::east, condition_type::dirichlet, 0, 0 ,false,1);
+    bc.addCondition(3,boundary::east, condition_type::dirichlet, 0, 0 ,false,1);
+
+    bc.addCondition(0,boundary::south, condition_type::dirichlet, 0, 0, false, 1 ); // unknown 2 - z.
+    bc.addCondition(2,boundary::south, condition_type::dirichlet, 0, 0, false, 1 ); // unknown 2 - z.
+
+    real_t Load = 2*1e0;
+    gsVector<> point(2); point<< 1.0, 1.0 ;
+    gsVector<> load (2); load << Load,0.0;
+    pLoads.addLoad(point, load, 3 );
+  }
+
+  
   // Construct the gsThinShellAssembler
   gsThinShellAssemblerBase<real_t>* assembler;
   gsMaterialMatrixTFT<2,real_t,false> materialMatrixTFT(mp,t,materialMatrix);
@@ -252,39 +277,32 @@ int main(int argc, char *argv[])
   assembler->setOptions(assemblerOptions);
   //! [Make assembler]
 
-  // Function for the Jacobian
-  typedef std::function<gsSparseMatrix<real_t> (gsVector<real_t> const &)>    Jacobian_t;
-  typedef std::function<gsVector<real_t> (gsVector<real_t> const &, real_t, gsVector<real_t> const &) >   ALResidual_t;
-  Jacobian_t Jacobian = [&time,&stopwatch,&assembler](gsVector<real_t> const &x)
-  {
-    gsMultiPatch<> tmp;
-    stopwatch.restart();
-    assembler->constructSolution(x,tmp);
-    assembler->assembleMatrix(tmp);
-    time += stopwatch.stop();
-    gsSparseMatrix<real_t> m = assembler->matrix();
-    return m;
-  };
-  // Function for the Residual
-  ALResidual_t ALResidual = [&time,&stopwatch,&assembler](gsVector<real_t> const &x, real_t lam, gsVector<real_t> const &force)
-  {
-    gsMultiPatch<> tmp;
-    stopwatch.restart();
-    assembler->constructSolution(x,tmp);
-    assembler->assembleVector(tmp);
-    gsVector<real_t> Fint = -(assembler->rhs() - force);
-    gsVector<real_t> result = Fint - lam * force;
-    time += stopwatch.stop();
-    return result; // - lam * force;
-  };
-  //! [Define jacobian and residual]
-
-  stopwatch.restart();
-  stopwatch2.restart();
-  assembler->assemble();
   //! [Assemble linear part]
+  // Assemble linear system to obtain the force vector
+  assembler->assemble();
   gsVector<> Force = assembler->rhs();
   //! [Assemble linear part]
+
+  gsDebugVar(Force);
+
+  // Function for the Jacobian
+  gsStructuralAnalysisOps<real_t>::Jacobian_t Jacobian = [&assembler,&mp_def](gsVector<real_t> const &x, gsSparseMatrix<real_t> & m)
+  {
+    ThinShellAssemblerStatus status;
+    assembler->constructSolution(x,mp_def);
+    status = assembler->assembleMatrix(mp_def);
+    m = assembler->matrix();
+    return status == ThinShellAssemblerStatus::Success;
+  };
+  // Function for the Residual
+  gsStructuralAnalysisOps<real_t>::ALResidual_t ALResidual = [&assembler,&mp_def,&Force](gsVector<real_t> const &x, real_t lam, gsVector<real_t> & result)
+  {
+      ThinShellAssemblerStatus status;
+      assembler->constructSolution(x,mp_def);
+      status = assembler->assembleVector(mp_def);
+      result = Force - lam * Force - assembler->rhs(); // assembler rhs - force = Finternal
+      return status == ThinShellAssemblerStatus::Success;
+  };
 
 
   gsALMBase<real_t> * arcLength;
@@ -421,7 +439,8 @@ int main(int argc, char *argv[])
     }
 
     deformation = mp_def;
-  deformation.patch(0).coefs() -= mp.patch(0).coefs();// assuming 1 patch here
+    for (size_t p = 0; p!=mp.nPatches(); p++)
+      deformation.patch(p).coefs() -= mp.patch(p).coefs();// assuming 1 patch here
 
   // gsDebugVar(mp_def.patch(0).coefs());
 
@@ -430,7 +449,7 @@ int main(int argc, char *argv[])
     gsField<> solField(mp,deformation);
 
     std::string fileName = dirname + "/" + output + util::to_string(k);
-    gsWriteParaview<>(solField, fileName, 1000,true);
+    gsWriteParaview<>(solField, fileName, 1000,true,"_");
     fileName = output + util::to_string(k) + "0";
     collection.addPart(fileName + ".vts",k);
     collection.addPart(fileName + "_mesh.vtp",k);
@@ -447,18 +466,21 @@ int main(int argc, char *argv[])
     membraneStress = gsField<>(mp,membraneStresses,true);
 
     fileName = dirname + "/" + "membrane" + util::to_string(k);
-    gsWriteParaview( membraneStress, fileName, 1000);
-    fileName = "membrane" + util::to_string(k) + "0";
-    Smembrane.addPart(fileName + ".vts",k);
+    gsWriteParaview( membraneStress, fileName, 1000,true,"_");
+    for (size_t p = 0; p!=mp.nPatches(); p++)
+    {
+      fileName = "membrane" + util::to_string(k) + "_" + std::to_string(p);
+      Smembrane.addPart(fileName + ".vts",k,"",p);
+    }
 
-    ////////////////////////////////////////////////////////////////////////
-    assembler->constructStress(mp_def,flexuralStresses,stress_type::flexural);
-    flexuralStress = gsField<>(mp,flexuralStresses, true);
+    // ////////////////////////////////////////////////////////////////////////
+    // assembler->constructStress(mp_def,flexuralStresses,stress_type::flexural);
+    // flexuralStress = gsField<>(mp,flexuralStresses, true);
 
-    fileName = dirname + "/" + "flexural" + util::to_string(k);
-    gsWriteParaview( flexuralStress, fileName, 1000);
-    fileName = "flexural" + util::to_string(k) + "0";
-    Sflexural.addPart(fileName + ".vts",k);
+    // fileName = dirname + "/" + "flexural" + util::to_string(k);
+    // gsWriteParaview( flexuralStress, fileName, 1000);
+    // fileName = "flexural" + util::to_string(k) + "0";
+    // Sflexural.addPart(fileName + ".vts",k);
 
     // ////////////////////////////////////////////////////////////////////////
     // assembler->constructStress(mp_def,membraneStresses_p,stress_type::principal_stress_membrane);
@@ -474,9 +496,13 @@ int main(int argc, char *argv[])
     TensionField = gsField<>(mp,TensionFields, true);
 
     fileName = dirname + "/" + "tensionfield" + util::to_string(k);
-    gsWriteParaview( TensionField, fileName, 1000);
-    fileName = "tensionfield" + util::to_string(k) + "0";
-    Stensionfield.addPart(fileName + ".vts",k);
+    gsWriteParaview( TensionField, fileName, 1000,true,"_");
+    for (size_t p = 0; p!=mp.nPatches(); p++)
+    {
+      fileName = "tensionfield" + util::to_string(k) + "_" + std::to_string(p);
+      Stensionfield.addPart(fileName + ".vts",k,"",p);
+    }
+
   }
 
   if (!bisected)
