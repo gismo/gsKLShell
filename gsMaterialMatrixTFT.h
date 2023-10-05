@@ -86,7 +86,7 @@ public:
      */
     gsMaterialMatrixTFT(const material_ptr & materialMatrix)
     :
-    m_materialMat(materialMatrix)
+    m_materialMat(give(materialMatrix))
     {
         if (materialMatrix.get()->hasUndeformed())
             this->setUndeformed(materialMatrix.get()->getUndeformed());

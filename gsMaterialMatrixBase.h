@@ -49,7 +49,8 @@ public:
     m_defpatches(nullptr),
     m_thickness(nullptr),
     m_density(nullptr)
-    {}
+    {
+    }
 
     gsMaterialMatrixBase(   const gsFunctionSet<T> & mp,
                             const gsFunctionSet<T> & mp_def,
@@ -60,7 +61,8 @@ public:
     m_defpatches(memory::make_shared(mp_def.clone().release())),
     m_thickness(memory::make_shared(thickness.clone().release())),
     m_density(memory::make_shared(Density.clone().release()))
-    {}
+    {
+    }
 
     gsMaterialMatrixBase(   const gsFunctionSet<T> * mp,
                             const gsFunctionSet<T> * mp_def,
@@ -71,26 +73,65 @@ public:
     m_defpatches(memory::make_shared_not_owned(mp_def)),
     m_thickness(memory::make_shared_not_owned(thickness)),
     m_density(memory::make_shared_not_owned(Density))
-    {}
+    {
+    }
 
     gsMaterialMatrixBase(   const function_ptr & mp,
                             const function_ptr & mp_def,
                             const function_ptr & thickness,
                             const function_ptr & Density)
     :
-
     m_patches(mp),
     m_defpatches(mp_def),
     m_thickness(thickness),
     m_density(Density)
     {
-
     }
     
     GISMO_UPTR_FUNCTION_NO_IMPLEMENTATION(gsMaterialMatrixBase, clone)
 
     /// Destructor
     virtual ~gsMaterialMatrixBase() {};
+
+    /// Copy constructor (makes deep copy)
+    gsMaterialMatrixBase( const gsMaterialMatrixBase<T> & other )
+    {
+        operator=(other);
+    }
+
+    /// Move constructor
+    gsMaterialMatrixBase( gsMaterialMatrixBase<T> && other )
+    {
+        operator=(give(other));
+    }
+
+    gsMaterialMatrixBase<T> & operator= ( const gsMaterialMatrixBase<T> & other )
+    {
+        if (this!=&other)
+        {
+            m_patches = other.m_patches;
+            m_defpatches = other.m_defpatches;
+            m_options = other.m_options;
+
+            m_pars = other.m_pars;
+            m_thickness = other.m_thickness;
+            m_density = other.m_density;
+        }
+        return *this;
+    }
+
+    gsMaterialMatrixBase<T> & operator= ( gsMaterialMatrixBase<T> && other )
+    {
+        m_patches = give(other.m_patches);
+        m_defpatches = give(other.m_defpatches);
+        m_options = give(other.m_options);
+
+
+        m_pars = give(other.m_pars);
+        m_thickness = give(other.m_thickness);
+        m_density = give(other.m_density);
+        return *this;
+    }
 
     /**
      * @brief      Specifies how the matrix is integrated
@@ -663,10 +704,12 @@ public:
     const function_ptr getUndeformed() const { return m_patches; }
     const function_ptr getDeformed()  const { return m_defpatches; }
 
-    virtual bool hasUndeformed() const { return m_defpatches!=nullptr; }
+    virtual bool hasUndeformed() const
+    { return m_defpatches!=nullptr; }
     virtual bool hasDeformed() const { return m_defpatches!=nullptr; }
 
-    virtual bool initialized() const { return false; }
+    virtual bool initialized() const
+    { GISMO_NO_IMPLEMENTATION; }
 
 protected:
     function_ptr m_patches;

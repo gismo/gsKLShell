@@ -653,7 +653,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
 
         // Get the total force on the tension boundary
         patchSide ps(0,boundary::east);
-        gsMatrix<> forceVector = assembler->boundaryForceVector(mp_def,ps,0);
+        gsMatrix<> forceVector = assembler->boundaryForce(mp_def,ps);
         real_t sideForce = forceVector.sum();
         real_t S   = -sideForce / (thickness*lambdas(0)*lambdas(2));
         real_t L   = lambdas(0);

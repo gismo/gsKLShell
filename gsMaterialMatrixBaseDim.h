@@ -137,9 +137,9 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     virtual gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const;
     
-    inline virtual bool initialized() const override
+    virtual bool initialized() const override
     {
-        return m_thickness != nullptr && m_patches!= nullptr;
+        return ((m_thickness != nullptr)); // && (m_patches!= nullptr) //HV: could be defined without geometry, then call "setUndeformed"
     }
 
 public:
