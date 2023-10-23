@@ -86,7 +86,7 @@ private:
 
     mutable gsMatrix<Scalar> res;
     mutable gsMatrix<Scalar> bGrads, cJac;
-    mutable gsVector<Scalar,3> m_v, normal, unormal;
+    mutable gsVector<Scalar,3> m_v, normal;
 public:
     enum{ Space = E::Space, ScalarValued= 0, ColBlocks= 0};
 
@@ -151,7 +151,7 @@ private:
         res.resize(_u.cardinality(), cols()); // rows()*
 
         normal = _G.data().normal(k);// not normalized to unit length
-        unormal = normal.normalized();
+        normal.normalize();
 
         bGrads = _u.data().values[1].col(k);
         cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
@@ -167,8 +167,7 @@ private:
                               - vecFun(d, bGrads.at(2*j+1) ).cross( cJac.col3d(0) )) / measure;
 
                 // ---------------  First variation of the normal
-                // res.row(s+j).noalias() = (m_v - ( normal.dot(m_v) ) * normal).transpose();
-                res.row(s+j).noalias() = (m_v - ( unormal*m_v.transpose() ) * unormal).transpose(); // outer-product version
+                res.row(s+j).noalias() = (m_v - ( normal*m_v.transpose() ) * normal).transpose(); // outer-product version
             }
         }
         return res;
@@ -192,7 +191,6 @@ private:
                       -   ( bGrads.col3d(1) ).cross( cJac.col3d(0) ) ) / measure;
 
         // ---------------  First variation of the normal
-        // res.row(s+j).noalias() = (m_v - ( normal.dot(m_v) ) * normal).transpose();
         res = (m_v - ( normal*m_v.transpose() ) * normal).transpose(); // outer-product version
         return res;
     }
@@ -945,6 +943,8 @@ public:
                         snvarv.noalias() = (mv - ( normal.dot(mv) ) * normal);
 
 
+                        // See point 2 of
+                        // Herrema, Austin J. et al. 2021. “Corrigendum to ‘Penalty Coupling of Non-Matching Isogeometric Kirchhoff–Love Shell Patches with Application to Composite Wind Turbine Blades’ [Comput. Methods Appl. Mech. Engrg. 346 (2019) 810–840].” Computer Methods in Applied Mechanics and Engineering 373: 113488.
                         // Second variation of the tangent (colvector)
                         tvar2 = -1 / tangent.norm() * (
                                                         ( tvarv.dot(dtanu) * utangent )
@@ -1493,7 +1493,7 @@ public:
 
     cartcov_expr(const gsGeometryMap<T> & G) : _G(G) { }
 
-    mutable gsMatrix<Scalar> covBasis, conBasis, covMetric, conMetric, cartBasis;
+    mutable gsMatrix<Scalar> covBasis;
     mutable gsMatrix<Scalar,3,3> result;
     mutable gsVector<Scalar> normal, tmp;
     mutable gsVector<Scalar> e1, e2, a1, a2;
@@ -1506,79 +1506,36 @@ public:
             normal = _G.data().normals.col(k);
             normal.normalize();
             covBasis.resize(3,3);
-            conBasis.resize(3,3);
             covBasis.leftCols(2) = _G.data().jacobian(k);
             covBasis.col(2)      = normal;
-            covMetric = covBasis.transpose() * covBasis;
-
-            conMetric = covMetric.inverse();
-
-            conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
-
-            // e1 = covBasis.col(0); e1.normalize();
-            // e2 = conBasis.col(1); e2.normalize();
-
-            e1.resize(3);
-            e1 << 1,0,0;
-            e2.resize(3);
-            e2 << 0,1,0;
-
-            a1 = covBasis.col(0);
-            a2 = covBasis.col(1);
-
-            result(0,0) = (e1.dot(a1))*(a1.dot(e1));    // 1111
-            result(0,1) = (e1.dot(a2))*(a2.dot(e1));    // 1122
-            result(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));  // 1112
-            // Row 1
-            result(1,0) = (e2.dot(a1))*(a1.dot(e2));    // 2211
-            result(1,1) = (e2.dot(a2))*(a2.dot(e2));    // 2222
-            result(1,2) = 2*(e2.dot(a1))*(a2.dot(e2));  // 2212
-            // Row 2
-            result(2,0) = (e1.dot(a1))*(a1.dot(e2));    // 1211
-            result(2,1) = (e1.dot(a2))*(a2.dot(e2));    // 1222
-            result(2,2) = (e1.dot(a1))*(a2.dot(e2)) + (e1.dot(a2))*(a1.dot(e2));    // 1212
-
-            // return result.inverse(); // !!!!
-            return result;
         }
         else if (_G.targetDim()==2)
         {
             // Compute covariant bases in deformed and undeformed configuration
             covBasis.resize(2,2);
-            conBasis.resize(2,2);
             covBasis = _G.data().jacobian(k);
-            covMetric = covBasis.transpose() * covBasis;
-            conMetric = covMetric.inverse();
-            conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1);
-
-            // e1 = covBasis.col(0); e1.normalize();
-            // e2 = conBasis.col(1); e2.normalize();
-            // e3 = normal;
-
-            e1.resize(3);
-            e1 << 1,0,0;
-            e2.resize(3);
-            e2 << 0,1,0;
-
-            a1 = covBasis.col(0);
-            a2 = covBasis.col(1);
-
-            result(0,0) = (e1.dot(a1))*(a1.dot(e1));
-            result(0,1) = (e1.dot(a2))*(a2.dot(e2));
-            result(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));
-            // Row 1
-            result(1,0) = (e2.dot(a1))*(a1.dot(e2));
-            result(1,1) = (e2.dot(a2))*(a2.dot(e2));
-            result(1,2) = 2*(e2.dot(a1))*(a2.dot(e2));
-            // Row 2
-            result(2,0) = (e1.dot(a1))*(a1.dot(e2));
-            result(2,1) = (e1.dot(a2))*(a2.dot(e2));
-            result(2,2) = (e1.dot(a1))*(a2.dot(e2)) + (e1.dot(a2))*(a1.dot(e2));
-
-            return result;
         }
         else
             GISMO_ERROR("Not implemented");
+
+        a1 = covBasis.col(0);
+        a2 = covBasis.col(1);
+
+        e1 = a1.normalized();
+        e2 = (a2-(a2.dot(e1)*e1)).normalized();
+
+        result(0,0) = (e1.dot(a1))*(a1.dot(e1));    // 1111
+        result(0,1) = (e1.dot(a2))*(a2.dot(e1));    // 1122
+        result(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));  // 1112
+        // Row 1
+        result(1,0) = (e2.dot(a1))*(a1.dot(e2));    // 2211
+        result(1,1) = (e2.dot(a2))*(a2.dot(e2));    // 2222
+        result(1,2) = 2*(e2.dot(a1))*(a2.dot(e2));  // 2212
+        // Row 2
+        result(2,0) = (e1.dot(a1))*(a1.dot(e2));    // 1211
+        result(2,1) = (e1.dot(a2))*(a2.dot(e2));    // 1222
+        result(2,2) = (e1.dot(a1))*(a2.dot(e2)) + (e1.dot(a2))*(a1.dot(e2));    // 1212
+        return result;
     }
 
     cartcovinv_expr<T> inv() const
@@ -1664,7 +1621,7 @@ public:
     mutable gsMatrix<Scalar> covBasis, conBasis, covMetric, conMetric, cartBasis;
     mutable gsMatrix<Scalar,3,3> result;
     mutable gsVector<Scalar> normal, tmp;
-    mutable gsVector<Scalar> e1, e2, ac1, ac2;
+    mutable gsVector<Scalar> e1, e2, ac1, ac2, a1, a2;
 
     gsMatrix<Scalar> eval(const index_t k) const
     {
@@ -1684,33 +1641,12 @@ public:
 
             conBasis.col(0) = conMetric(0,0)*covBasis.col(0)+conMetric(0,1)*covBasis.col(1)+conMetric(0,2)*covBasis.col(2);
             conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1)+conMetric(1,2)*covBasis.col(2);
-
-            e1.resize(3);
-            e1 << 1,0,0;
-            e2.resize(3);
-            e2 << 0,1,0;
-
-            ac1 = conBasis.col(0);
-            ac2 = conBasis.col(1);
-
-            result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));      // 1111
-            result(0,1) = (e1.dot(ac2))*(ac2.dot(e1));      // 1122
-            result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));    // 1112
-            // Row 1
-            result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));      // 2211
-            result(1,1) = (e2.dot(ac2))*(ac2.dot(e2));      // 2222
-            result(1,2) = 2*(e2.dot(ac1))*(ac2.dot(e2));    // 2212
-            // Row 2
-            result(2,0) = (e1.dot(ac1))*(ac1.dot(e2));      // 1211
-            result(2,1) = (e1.dot(ac2))*(ac2.dot(e2));      // 1222
-            result(2,2) = (e1.dot(ac1))*(ac2.dot(e2)) + (e1.dot(ac2))*(ac1.dot(e2)); // 1212
-
-            return result;
         }
         else if (_G.targetDim()==2)
         {
             // Compute covariant bases in deformed and undeformed configuration
-            normal = _G.data().normals.col(k);
+            normal.resize(3);
+            normal<<0,0,1;
             normal.normalize();
             covBasis.resize(2,2);
             conBasis.resize(2,2);
@@ -1722,31 +1658,31 @@ public:
 
             conBasis.col(0) = conMetric(0,0)*covBasis.col(0)+conMetric(0,1)*covBasis.col(1);
             conBasis.col(1) = conMetric(1,0)*covBasis.col(0)+conMetric(1,1)*covBasis.col(1);
-
-            e1.resize(2);
-            e1<<1,0;
-            e2.resize(2);
-            e2<<0,1;
-
-            ac1 = conBasis.col(0);
-            ac2 = conBasis.col(1);
-
-            result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));
-            result(0,1) = (e1.dot(ac2))*(ac2.dot(e1));
-            result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));
-            // Row 1
-            result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));
-            result(1,1) = (e2.dot(ac2))*(ac2.dot(e2));
-            result(1,2) = 2*(e2.dot(ac1))*(ac2.dot(e2));
-            // Row 2
-            result(2,0) = (e1.dot(ac1))*(ac1.dot(e2));
-            result(2,1) = (e1.dot(ac2))*(ac2.dot(e2));
-            result(2,2) = (e1.dot(ac1))*(ac2.dot(e2)) + (e1.dot(ac2))*(ac1.dot(e2));
-
-            return result;
         }
         else
             GISMO_ERROR("Not implemented");
+
+        a1 = covBasis.col(0);
+        a2 = covBasis.col(1);
+
+        e1 = a1.normalized();
+        e2 = (a2-(a2.dot(e1)*e1)).normalized();
+
+        ac1 = conBasis.col(0);
+        ac2 = conBasis.col(1);
+
+        result(0,0) = (e1.dot(ac1))*(ac1.dot(e1));      // 1111
+        result(0,1) = (e1.dot(ac2))*(ac2.dot(e1));      // 1122
+        result(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));    // 1112
+        // Row 1
+        result(1,0) = (e2.dot(ac1))*(ac1.dot(e2));      // 2211
+        result(1,1) = (e2.dot(ac2))*(ac2.dot(e2));      // 2222
+        result(1,2) = 2*(e2.dot(ac1))*(ac2.dot(e2));    // 2212
+        // Row 2
+        result(2,0) = (e1.dot(ac1))*(ac1.dot(e2));      // 1211
+        result(2,1) = (e1.dot(ac2))*(ac2.dot(e2));      // 1222
+        result(2,2) = (e1.dot(ac1))*(ac2.dot(e2)) + (e1.dot(ac2))*(ac1.dot(e2)); // 1212
+        return result;
 
     }
 

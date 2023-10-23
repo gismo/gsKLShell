@@ -24,10 +24,11 @@
 #include <gsKLShell/gsMaterialMatrixLinear.h>
 #include <gsKLShell/gsFunctionSum.h>
 
+#ifdef gsSpectra_ENABLED
 #include <gsSpectra/gsSpectra.h>
+#endif
 
 #include <gsUtils/gsQuasiInterpolate.h>
-
 
 #include <gsAssembler/gsExprAssembler.h>
 
@@ -304,7 +305,7 @@ int main(int argc, char *argv[])
     if (plot)
         gsWriteParaview(geom,out + "/" + "geom",200,true);
 
-    std::vector<gsFunction<>*> parameters(2);
+    std::vector<gsFunctionSet<>*> parameters(2);
     parameters[0] = &E;
     parameters[1] = &nu;
 
@@ -317,10 +318,7 @@ int main(int argc, char *argv[])
 
     gsFunctionExpr<> force("0","0","0",3);
     assembler = gsThinShellAssembler<3, real_t, true>(geom,dbasis,bc,force,&materialMatrix);
-    // if (method==1)
     assembler.options().setInt("Continuity",-1);
-    // else if (method==2)
-    //     assembler.options().setInt("Continuity",-1);
     assembler.options().setReal("WeakDirichlet",bcDirichlet);
     assembler.options().setReal("WeakClamped",bcClamped);
     assembler.setSpaceBasis(bb2);
@@ -330,17 +328,15 @@ int main(int argc, char *argv[])
 
     // Initialize the system
 
-    gsInfo<<"Assembling stiffness matrix..."<<std::flush;
+    gsInfo<<"Assembling mass matrix..."<<assembler.numDofs()<<" x "<<assembler.numDofs()<<")"<<std::flush;
+    assembler.assembleMass(false);
+    gsSparseMatrix<> mass   = assembler.massMatrix();
+    gsInfo<<"Finished\n";
+    gsInfo<<"Assembling stiffness matrix... ("<<assembler.numDofs()<<" x "<<assembler.numDofs()<<")"<<std::flush;
     assembler.assemble();
     gsSparseMatrix<> matrix = assembler.matrix();
     gsInfo<<"Finished\n";
-    // gsDebugVar(matrix.toDense());
-    gsVector<> vector = assembler.rhs();
-    gsInfo<<"Assembling mass matrix..."<<std::flush;
-    assembler.assembleMass();
-    gsSparseMatrix<> mass   = assembler.massMatrix();
-    gsInfo<<"Finished\n";
-    // gsDebugVar(mass.toDense());
+
 
     gsVector<> values;
     gsMatrix<> vectors;
@@ -348,24 +344,23 @@ int main(int argc, char *argv[])
     gsInfo<<"Computing Eigenmodes..."<<std::flush;
     if (dense)
     {
-        Eigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  eigSolver;
+        gsEigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  eigSolver;
         eigSolver.compute(matrix-shift*mass,mass);
         values = eigSolver.eigenvalues();
         vectors = eigSolver.eigenvectors();
     }
     else
     {
-// #ifdef GISMO_WITH_SPECTRA
-#ifdef false
+#ifdef gsSpectra_ENABLED
         Spectra::SortRule selectionRule = Spectra::SortRule::LargestMagn;
         Spectra::SortRule sortRule = Spectra::SortRule::SmallestMagn;
 
         index_t ncvFac = 10;
         index_t number = nmodes;
-        // gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> solver(matrix-shift*mass,mass,number,ncvFac*number, shift);
-        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> solver(matrix,mass,number,ncvFac*number, shift);
+        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> solver(matrix-shift*mass,mass,number,ncvFac*number, shift);
+        // gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> solver(matrix,mass,number,ncvFac*number, shift);
         solver.init();
-        solver.compute(selectionRule,1000,1e-12,sortRule);
+        solver.compute(selectionRule,1000,1e-6,sortRule);
 
         if (solver.info()==Spectra::CompInfo::Successful)         { gsDebug<<"Spectra converged in "<<solver.num_iterations()<<" iterations and with "<<solver.num_operations()<<"operations. \n"; }
         else if (solver.info()==Spectra::CompInfo::NumericalIssue){ GISMO_ERROR("Spectra did not converge! Error code: NumericalIssue"); }
@@ -377,7 +372,7 @@ int main(int argc, char *argv[])
         values.array() += shift;
         vectors = solver.eigenvectors();
 #else
-        Eigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  eigSolver;
+        gsEigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  eigSolver;
         eigSolver.compute(matrix-shift*mass,mass);
         values = eigSolver.eigenvalues();
         vectors = eigSolver.eigenvectors();
@@ -425,14 +420,14 @@ int main(int argc, char *argv[])
 
             gsField<> solField(geom, mspline,true);
 
-            std::string fileName = dirname + "/" + output + util::to_string(m);
+            std::string fileName = dirname + "/" + output + util::to_string(m) + "_";
             gsWriteParaview<>(solField, fileName, 1000,mesh);
             for (index_t p = 0; p!=geom.nPatches(); p++)
             {
-                fileName = output + util::to_string(m);
-                collection.addTimestep(fileName,p,m,".vts");
+                fileName = output + util::to_string(m) + "_" + std::to_string(p);
+                collection.addPart(fileName + ".vts",m,"solution",p);
                 if (mesh)
-                    collection.addTimestep(fileName,p,m,"_mesh.vtp");
+                    collection.addPart(fileName + "_mesh.vtp",m,"mesh",p);
             }
         }
         collection.save();

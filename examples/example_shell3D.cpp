@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
     {
         thickness = 0.25;
         E_modulus = 4.32E8;
-        fn = "surface/scordelis_lo_roof.xml";
+        fn = "surfaces/scordelis_lo_roof.xml";
         gsReadFile<>(fn, mp);
         PoissonRatio = 0.0;
     }
@@ -462,7 +462,7 @@ int main(int argc, char *argv[])
     Ts[0] = &thicks;
 
     //! [Make assembler]
-    std::vector<gsFunction<>*> parameters;
+    std::vector<gsFunctionSet<>*> parameters;
     gsMaterialMatrixBase<real_t>* materialMatrix;
     gsOptionList options;
     // Make gsMaterialMatrix depending on the user-defined choices
@@ -492,8 +492,7 @@ int main(int argc, char *argv[])
         assembler = new gsThinShellAssembler<3, real_t, true >(mp,dbasis,bc,force,materialMatrix);
 
     // Set the penalty parameter for the interface C1 continuity
-    assembler->options().setReal("IfcDirichlet",ifcDirichlet);
-    assembler->options().setReal("IfcClamped",ifcClamped);
+    assembler->options().setReal("IfcPenalty",ifcDirichlet);
     assembler->addWeakC0(mp.topology().interfaces());
     assembler->addWeakC1(mp.topology().interfaces());
     assembler->initInterfaces();

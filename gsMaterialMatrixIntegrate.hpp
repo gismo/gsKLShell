@@ -84,7 +84,7 @@ gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsM
     if (m_materialMat->isVecIntegrated() == MatIntegration::NotIntegrated)
         this->integrateZ_into(u,getMoment(),result);
     else if (m_materialMat->isVecIntegrated() == MatIntegration::Integrated)
-        result = this->eval(u);
+        result = this->_eval(u);
     else if (m_materialMat->isVecIntegrated() == MatIntegration::Constant)
         this->multiplyZ_into(u,0,result);
     else if (m_materialMat->isVecIntegrated() == MatIntegration::Linear)
@@ -102,7 +102,7 @@ gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsM
     if (m_materialMat->isVecIntegrated() == MatIntegration::NotIntegrated)
         this->integrateZ_into(u,getMoment(),result);
     else if (m_materialMat->isVecIntegrated() == MatIntegration::Integrated)
-        result = this->eval(u);
+        result = this->_eval(u);
     else if (m_materialMat->isVecIntegrated() == MatIntegration::Constant)
         this->multiplyZ_into(u,2,result);
     else if (m_materialMat->isVecIntegrated() == MatIntegration::Linear)
@@ -120,7 +120,7 @@ gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsM
     if (m_materialMat->isMatIntegrated() == MatIntegration::NotIntegrated)
         this->integrateZ_into(u,getMoment(),result);
     else if (m_materialMat->isMatIntegrated() == MatIntegration::Integrated)
-        result = this->eval(u);
+        result = this->_eval(u);
     else if (m_materialMat->isMatIntegrated() == MatIntegration::Constant)
         this->multiplyZ_into(u,getMoment(),result);
     else if (m_materialMat->isMatIntegrated() == MatIntegration::Linear)
@@ -137,7 +137,24 @@ gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsM
     if (m_materialMat->isMatIntegrated() == MatIntegration::NotIntegrated)
         this->integrateZ_into(u,getMoment(),result);
     else if (m_materialMat->isMatIntegrated() == MatIntegration::Integrated)
-        result = this->eval(u);
+        result = this->_eval(u);
+    else if (m_materialMat->isMatIntegrated() == MatIntegration::Constant)
+        this->multiplyZ_into(u,getMoment(),result);
+    else if (m_materialMat->isMatIntegrated() == MatIntegration::Linear)
+        this->multiplyLinZ_into(u,getMoment(),result);
+    else
+        GISMO_ERROR("Integration status unknown");
+}
+
+template <class T, enum MaterialOutput out>
+template <enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::PStrainN || _out==MaterialOutput::PStrainM, void>::type
+gsMaterialMatrixIntegrateSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+{
+    if (m_materialMat->isMatIntegrated() == MatIntegration::NotIntegrated)
+        this->integrateZ_into(u,getMoment(),result);
+    else if (m_materialMat->isMatIntegrated() == MatIntegration::Integrated)
+        result = this->_eval(u);
     else if (m_materialMat->isMatIntegrated() == MatIntegration::Constant)
         this->multiplyZ_into(u,getMoment(),result);
     else if (m_materialMat->isMatIntegrated() == MatIntegration::Linear)
@@ -195,8 +212,7 @@ void gsMaterialMatrixIntegrateSingle<T,out>::integrateZ_into(const gsMatrix<T>& 
         w.col(k)=quWeights;
         z.col(k)=quNodes.transpose();
     }
-    vals = this->eval3D(u,z);
-
+    vals = this->_eval3D(u,z);
     T res;
     for (index_t k = 0; k != u.cols(); ++k) // for all points
     {
@@ -238,7 +254,7 @@ void gsMaterialMatrixIntegrateSingle<T,out>::multiplyLinZ_into(const gsMatrix<T>
 
     T fac = (moment % 2 == 0) ? 0. : 1.;
 
-    gsMatrix<T> vals = this->eval3D(u,z);
+    gsMatrix<T> vals = this->_eval3D(u,z);
     for (index_t k = 0; k != u.cols(); ++k) // for all points
     {
             // 1/(alpha+1) * [ (t/2)^(alpha+1) * g(...)  - (-t/2)^(alpha+1) * g(...) ]
@@ -265,7 +281,7 @@ void gsMaterialMatrixIntegrateSingle<T,out>::multiplyZ_into(const gsMatrix<T>& u
         gsMatrix<T> Tmat;
         m_materialMat->thickness_into(m_pIndex,u,Tmat);
         T Thalf;
-        gsMatrix<T> vals = this->eval(u);
+        gsMatrix<T> vals = this->_eval(u);
         for (index_t k = 0; k != u.cols(); ++k) // for all points
         {
             Thalf = Tmat(0, k) / 2.0;
@@ -277,15 +293,15 @@ void gsMaterialMatrixIntegrateSingle<T,out>::multiplyZ_into(const gsMatrix<T>& u
 }
 
 template <class T, enum MaterialOutput out>
-gsMatrix<T> gsMaterialMatrixIntegrateSingle<T,out>::eval(const gsMatrix<T>& u) const
+gsMatrix<T> gsMaterialMatrixIntegrateSingle<T,out>::_eval(const gsMatrix<T>& u) const
 {
     gsMatrix<T> Z(1,u.cols());
     Z.setZero();
-    return this->eval3D(u,Z);
+    return this->_eval3D(u,Z);
 }
 
 template <class T, enum MaterialOutput out>
-gsMatrix<T> gsMaterialMatrixIntegrateSingle<T,out>::eval3D(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
+gsMatrix<T> gsMaterialMatrixIntegrateSingle<T,out>::_eval3D(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
 {
     return this->eval3D_impl<out>(u,Z);
 }
@@ -302,13 +318,21 @@ gsMaterialMatrixIntegrateSingle<T,out>::eval3D_impl(const gsMatrix<T>& u, const 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::VectorN ||
-                        _out==MaterialOutput::CauchyVectorN ||
-                        _out==MaterialOutput::VectorM ||
-                        _out==MaterialOutput::CauchyVectorM, gsMatrix<T>>::type
+                        _out==MaterialOutput::VectorM   , gsMatrix<T>>::type
 gsMaterialMatrixIntegrateSingle<T,out>::eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
 {
     return m_materialMat->eval3D_vector(m_pIndex,u,Z,_out);
 }
+
+template <class T, enum MaterialOutput out>
+template <enum MaterialOutput _out>
+typename std::enable_if<_out==MaterialOutput::CauchyVectorN ||
+                        _out==MaterialOutput::CauchyVectorM, gsMatrix<T>>::type
+gsMaterialMatrixIntegrateSingle<T,out>::eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
+{
+    return m_materialMat->eval3D_CauchyVector(m_pIndex,u,Z,_out);
+}
+
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>

@@ -39,16 +39,26 @@ struct stress_type
         von_mises          = 0,  /// compute only von Mises stress
         von_mises_membrane = 1,  /// compute only von Mises stress - membrane stresses
         von_mises_flexural = 2,  /// compute only von Mises stress - flexural stresses
-        membrane           = 3,  /// compute normal and shear stresses due to membrane component
-        flexural           = 4,  /// compute normal and shear stresses due to membrane component
-        membrane_strain    = 5,  /// compute normal and shear stresses due to both components
-        flexural_strain    = 6,  /// compute normal and shear stresses due to both components
-        principal_stretch  = 7,  /// principal stretches
-        principal_stress_membrane  = 8,  /// principal stress membrane
-        principal_stress_flexural  = 9,  /// principal stress bending
-        principal_stretch_dir1  = 10,  /// principal stretch directions
-        principal_stretch_dir2  = 11,  /// principal stretch directions
-        principal_stretch_dir3  = 12,  /// principal stretch directions
+        membrane           = 3,  /// compute membrane Cauchy stresses
+        membrane_force     = 4,  /// compute membrane Cauchy stresses integrated over the thickness
+        membrane_PK2       = 5,  /// compute membrane PK2 stresses
+        membrane_force_PK2 = 6,  /// compute membrane PK2 stresses integrated over the thickness
+        flexural           = 7,  /// compute flexural Cauchy stresses
+        flexural_PK2       = 8,  /// compute flexural PK2 stresses
+        flexural_moment    = 9,  /// compute flexural Cauchy stresses integrated over the thickness
+        flexural_moment_PK2= 10, /// compute flexural PK2 stresses integrated over the thickness
+        total              = 11, ///
+        membrane_strain    = 12, ///
+        flexural_strain    = 13, ///
+        principal_membrane_strain    = 14,  ///
+        principal_flexural_strain    = 15,  ///
+        principal_stretch  = 16, /// principal stretches
+        principal_stress_membrane  = 17,  /// principal stress membrane
+        principal_stress_flexural  = 18,  /// principal stress bending
+        principal_stretch_dir1  = 19,  /// principal stretch directions
+        principal_stretch_dir2  = 20,  /// principal stretch directions
+        principal_stretch_dir3  = 21,  /// principal stretch directions
+        tension_field  = 99,
     };
 };
 
@@ -116,6 +126,30 @@ public:
                 return 3;
                 break;
 
+            case stress_type::membrane_PK2 :
+                return 3;
+                break;
+
+            case stress_type::flexural_PK2 :
+                return 3;
+                break;
+
+            case stress_type::membrane_force :
+                return 3;
+                break;
+
+            case stress_type::flexural_moment :
+                return 3;
+                break;
+
+            case stress_type::membrane_force_PK2 :
+                return 3;
+                break;
+
+            case stress_type::flexural_moment_PK2 :
+                return 3;
+                break;
+
             // TO BE IMPLEMENTED
             // -------------------------------------
             case stress_type::von_mises :
@@ -132,6 +166,12 @@ public:
             // -------------------------------------
 
             case stress_type::membrane_strain :
+                return 3;
+                break;
+            case stress_type::principal_membrane_strain :
+                return 3;
+                break;
+            case stress_type::principal_flexural_strain :
                 return 3;
                 break;
 
@@ -155,6 +195,9 @@ public:
                 break;
             case stress_type::principal_stretch_dir3 :
                 return 3;
+                break;
+            case stress_type::tension_field :
+                return 1;
                 break;
             /*
                 DEFAULT includes:

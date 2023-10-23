@@ -44,6 +44,8 @@ public:
 
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 
+    typedef typename Base::function_ptr function_ptr;
+
     /** @brief Constructor of the assembler object.
 
         \param[in] ...
@@ -65,7 +67,6 @@ public:
                             const std::vector< gsFunctionSet<T> *>              & thickness,
                             const std::vector< gsFunctionSet<T> *>              & G,
                             const std::vector< gsFunctionSet<T> *>              & alpha         );
-
 
     enum MatIntegration isMatIntegrated() const {return MatIntegration::Integrated; }
     enum MatIntegration isVecIntegrated() const {return MatIntegration::Integrated; }
@@ -92,19 +93,25 @@ public:
     void transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
     {GISMO_NO_IMPLEMENTATION;}
 
+    /// See \ref gsMaterialMatrixBase for details
+    void covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
+    {GISMO_NO_IMPLEMENTATION;}
+
+    /// See \ref gsMaterialMatrixBase for details
+    void contransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
+    {GISMO_NO_IMPLEMENTATION;}
+
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
     gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
     gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const
     { GISMO_NO_IMPLEMENTATION; }
 
-    void info() const;
+    std::ostream &print(std::ostream &os) const override;
 
-    /// Sets the thickness
-    void setThickness(const gsFunction<T> & thickness)
+    bool initialized() const override
     {
-        m_thickness = const_cast<gsFunction<T> *>(&thickness);
+        return m_patches!=nullptr;
     }
-
 
 public:
     /// Shared pointer for gsMaterialMatrixComposite
@@ -114,8 +121,7 @@ public:
     typedef memory::unique_ptr< gsMaterialMatrixComposite > uPtr;
 
 protected:
-    void _initialize();
-    void _initializeParameters();
+    void _initialize(const index_t nLayers);
     void _defaultOptions();
 
     gsMatrix<T> _transformationMatrix(const gsMatrix<T> & phi, const gsMatrix<T> & u) const;
@@ -123,25 +129,16 @@ protected:
     gsMatrix<T> _cart2cov(const gsVector<T> & a1, const gsVector<T> & a2, const gsVector<T> & e1, const gsVector<T> & e2) const;
     gsMatrix<T> _con2cart(const gsVector<T> & ac1, const gsVector<T> & ac2, const gsVector<T> & e1, const gsVector<T> & e2) const;
 
-
 protected:
 
     // template MAT
     void _computePoints(const index_t patch, const gsMatrix<T> & u, bool basis = true) const;
 
 protected:
+    
     // constructor
     using Base::m_patches;
     using Base::m_defpatches;
-    const gsFunction<T> * m_thickness;
-    const gsFunction<T> * m_E11;
-    const gsFunction<T> * m_E22;
-    const gsFunction<T> * m_G12;
-    const gsFunction<T> * m_nu12;
-    const gsFunction<T> * m_nu21;
-    const gsFunction<T> * m_phi;
-    std::vector<gsFunction<T>* > m_pars; // TO DO: change to uPtr
-    const gsFunction<T> * m_rho;
 
     // Composite
     index_t m_nLayers;
@@ -149,12 +146,13 @@ protected:
     // Geometric data
     using Base::m_data;
 
+
     gsOptionList m_options;
 
-    const std::vector<gsFunctionSet<T> * > m_Ts;
-    const std::vector<gsFunctionSet<T> * > m_Gs;
-    const std::vector<gsFunctionSet<T> * > m_As;
-    const std::vector<gsFunctionSet<T> * > m_Rs;
+    std::vector< function_ptr > m_Ts;
+    std::vector< function_ptr > m_Gs;
+    std::vector< function_ptr > m_As;
+    std::vector< function_ptr > m_Rs;
     mutable util::gsThreaded<std::vector< gsMatrix<T> >> m_Gcontainer, m_Tcontainer, m_Acontainer, m_Rcontainer;
 };
 

@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
     // for (size_t p = 0; p!=mp.nPatches(); ++p)
     //     gsDebugVar(mp.patch(p));
 
-    std::vector<gsFunction<>*> parameters(2);
+    std::vector<gsFunctionSet<>*> parameters(2);
     parameters[0] = &E;
     parameters[1] = &nu;
 
@@ -309,7 +309,7 @@ int main(int argc, char *argv[])
     {
         geom = mp;
         gsDPatch<2,real_t> dpatch(geom);
-        dpatch.options().setSwitch("SharpCorners",false);
+        dpatch.options().setSwitch("SharpCorners",true);
         dpatch.compute();
         dpatch.matrix_into(global2local);
 
@@ -317,6 +317,17 @@ int main(int argc, char *argv[])
         geom = dpatch.exportToPatches();
         dbasis = dpatch.localBasis();
         bb2.init(dbasis,global2local);
+
+        for (size_t p=0; p!=geom.nPatches(); p++)
+        {
+            gsMatrix<> coefs;
+            gsQuasiInterpolate<real_t>::localIntpl(dbasis.basis(p),mp.patch(p),coefs);
+            geom.patch(p).coefs() = coefs;
+            gsInfo<<"basis "<<p<<":\n"<<dbasis.basis(0)<<"\n";
+
+        }
+
+        // gsWriteParaview(dbasis.basis(p),"basis");
     }
     else if (method==2) // Pascal
     {
@@ -353,6 +364,21 @@ int main(int argc, char *argv[])
         geom = almostC1.exportToPatches();
         dbasis = almostC1.localBasis();
         bb2.init(dbasis,global2local);
+
+        for (size_t p=0; p!=geom.nPatches(); p++)
+        {
+            gsMatrix<> coefs;
+            gsQuasiInterpolate<real_t>::localIntpl(dbasis.basis(p),mp.patch(p),coefs);
+            geom.patch(p).coefs() = coefs;
+        }
+
+        // geom.embed(2);
+        // geom.computeTopology();
+        // gsWrite(geom,"geom");
+        // gsBarrierPatch<2,real_t> bp(geom);
+        // bp.compute();
+        // geom = bp.result();
+        // geom.embed(3);
     }
     else
         GISMO_ERROR("Option "<<method<<" for method does not exist");
@@ -381,36 +407,39 @@ int main(int argc, char *argv[])
     gsSparseMatrix<> K_L = assembler.matrix();
     // gsDebugVar(Force);
     // Nonlinear
+    gsStructuralAnalysisOps<real_t>::Jacobian_t Jacobian;
+    gsStructuralAnalysisOps<real_t>::ALResidual_t ALResidual;
     // Function for the Jacobian
-    typedef std::function<gsSparseMatrix<real_t> (gsVector<real_t> const &)>                                Jacobian_t;
-    typedef std::function<gsVector<real_t> (gsVector<real_t> const &) >                                     Residual_t;
-    typedef std::function<gsVector<real_t> (gsVector<real_t> const &, real_t, gsVector<real_t> const &force) >                             ALResidual_t;
-    Jacobian_t Jacobian = [&geom,&bb2,&assembler](gsVector<real_t> const &x)
+    Jacobian = [&assembler,&bb2,&geom](gsVector<real_t> const &x, gsSparseMatrix<real_t> & m)
     {
-        gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
-        GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
-        solFull.resize(solFull.rows()/3,3);
-        gsMappedSpline<2,real_t> mspline(bb2,solFull);
-        gsFunctionSum<real_t> def(&geom,&mspline);
+      ThinShellAssemblerStatus status;
+      gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
+      size_t d = geom.targetDim();
+      GISMO_ASSERT(solFull.rows() % d==0,"Rows of the solution vector does not match the number of control points");
+      solFull.resize(solFull.rows()/d,d);
 
-        assembler.assembleMatrix(def);
-        // gsSparseMatrix<real_t> m =
-        return assembler.matrix();
+      gsMappedSpline<2,real_t> mspline(bb2,solFull);
+      gsFunctionSum<real_t> def(&geom,&mspline);
+      assembler.assembleMatrix(def);
+      status = assembler.assembleMatrix(def);
+      m = assembler.matrix();
+      return status == ThinShellAssemblerStatus::Success;
     };
     // Function for the Residual
-    ALResidual_t ALResidual = [&geom,&bb2,&assembler /*,&Force_const*/](gsVector<real_t> const &x, real_t lam, gsVector<real_t> const &force)
+    ALResidual = [&assembler,&bb2,&geom,&Force](gsVector<real_t> const &x, real_t lam, gsVector<real_t> & result)
     {
-        gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
-        GISMO_ASSERT(solFull.rows() % 3==0,"Rows of the solution vector does not match the number of control points");
-        solFull.resize(solFull.rows()/3,3);
+      ThinShellAssemblerStatus status;
+      gsMatrix<real_t> solFull = assembler.fullSolutionVector(x);
+      size_t d = geom.targetDim();
+      GISMO_ASSERT(solFull.rows() % d==0,"Rows of the solution vector does not match the number of control points");
+      solFull.resize(solFull.rows()/d,d);
 
-        gsMappedSpline<2,real_t> mspline(bb2,solFull);
-        gsFunctionSum<real_t> def(&geom,&mspline);
+      gsMappedSpline<2,real_t> mspline(bb2,solFull);
+      gsFunctionSum<real_t> def(&geom,&mspline);
 
-        assembler.assembleVector(def);
-        gsVector<real_t> Fint = -(assembler.rhs() - force);
-        gsVector<real_t> result = Fint - lam * force/*- Force_const*/;
-        return result; // - lam * force;
+      status = assembler.assembleVector(def);
+      result = Force - lam * Force - assembler.rhs(); // assembler rhs - force = Finternal
+      return status == ThinShellAssemblerStatus::Success;
     };
 
     if (!SingularPoint)
@@ -443,7 +472,8 @@ int main(int argc, char *argv[])
         }
 
         gsInfo<<"Assembling nonlinear stiffness matrix..."<<std::flush;
-        gsSparseMatrix<> dK = Jacobian(solVector);
+        gsSparseMatrix<> dK;
+        Jacobian(solVector,dK);
         dK = dK - K_L;
         gsInfo<<"Finished\n";
 
@@ -602,7 +632,7 @@ int main(int argc, char *argv[])
       arcLength->options().setInt("QuasiIterations",quasiNewtonInt);
     }
     arcLength->options().setSwitch("Quasi",quasiNewton);
-    arcLength->options().setReal("Shift",shift);
+    // arcLength->options().setReal("Shift",shift);
 
     gsInfo<<arcLength->options();
     arcLength->applyOptions();

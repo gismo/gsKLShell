@@ -31,19 +31,29 @@ namespace gismo
  * @tparam     dim   The dimension of the problem (2 = planar, 3 = surface)
  * @tparam     T     Real type
  *
- * @ingroup    KLShell
+ * @ingroup    MaterialMatrix
  *
  */
 template <  short_t dim,
-            class T
-         >
+            class T     >
 class gsMaterialMatrixLinear : public gsMaterialMatrixBaseDim<dim,T>
 {
 public:
 
+    typedef T Scalar_t;
+
     GISMO_CLONE_FUNCTION(gsMaterialMatrixLinear)
 
     using Base = gsMaterialMatrixBaseDim<dim,T>;
+
+    typedef typename Base::function_ptr function_ptr;
+
+    enum {Linear=1};
+
+    /**
+     * @brief      Empty constructor
+     */
+    gsMaterialMatrixLinear();
 
     /**
      * @brief      Constructor without material parameters
@@ -52,7 +62,7 @@ public:
      * @param[in]  thickness      Thickness function
      */
     gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
-                        const gsFunction<T> & thickness);
+                        const gsFunctionSet<T> & thickness);
 
     /**
      * @brief      Constructor without deformed multipatch and density
@@ -63,9 +73,9 @@ public:
      * @param[in]  PoissonRatio   The poisson ratio
      */
     gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
-                        const gsFunction<T> & thickness,
-                        const gsFunction<T> & YoungsModulus,
-                        const gsFunction<T> & PoissonRatio);
+                        const gsFunctionSet<T> & thickness,
+                        const gsFunctionSet<T> & YoungsModulus,
+                        const gsFunctionSet<T> & PoissonRatio);
 
     /**
      * @brief      Full constructor
@@ -77,11 +87,27 @@ public:
      * @param[in]  Density        The density
      */
     gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
-                        const gsFunction<T> & thickness,
-                        const gsFunction<T> & YoungsModulus,
-                        const gsFunction<T> & PoissonRatio,
-                        const gsFunction<T> & Density);
+                        const gsFunctionSet<T> & thickness,
+                        const gsFunctionSet<T> & YoungsModulus,
+                        const gsFunctionSet<T> & PoissonRatio,
+                        const gsFunctionSet<T> & Density);
 
+protected:
+    /**
+     * @brief      Full constructor
+     *
+     * @param[in]  mp             Original geometry
+     * @param[in]  thickness      Thickness function
+     * @param[in]  YoungsModulus  The youngs modulus
+     * @param[in]  PoissonRatio   The poisson ratio
+     * @param[in]  Density        The density
+     */
+    gsMaterialMatrixLinear(   const gsFunctionSet<T> * mp,
+                        const gsFunctionSet<T> * thickness,
+                        const gsFunctionSet<T> & YoungsModulus,
+                        const gsFunctionSet<T> & PoissonRatio,
+                        const gsFunctionSet<T> * Density);
+public:
     /**
      * @brief      Constructor without density
      *
@@ -90,96 +116,133 @@ public:
      * @param[in]  pars       Vector with parameters (E, nu)
      */
     gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
-                        const gsFunction<T> & thickness,
-                        const std::vector<gsFunction<T> *> &pars);
+                        const gsFunctionSet<T> & thickness,
+                        const std::vector<gsFunctionSet<T> *> &pars);
 
     /**
      * @brief      Full constructor
      *
      * @param[in]  mp         Original geometry
-     * @param[in]  mp_def     Deformed geometry
      * @param[in]  thickness  Thickness function
      * @param[in]  pars       Vector with parameters (E, nu)
      * @param[in]  Density    Density function
      */
     gsMaterialMatrixLinear(   const gsFunctionSet<T> & mp,
-                        const gsFunction<T> & thickness,
-                        const std::vector<gsFunction<T> *> &pars,
-                        const gsFunction<T> & Density);
+                        const gsFunctionSet<T> & thickness,
+                        const std::vector<gsFunctionSet<T> *> &pars,
+                        const gsFunctionSet<T> & Density);
 
-    /// Destructor
-    gsMaterialMatrixLinear() { }
+    /**
+     * @brief      Constructor without density and multipatch
+     *
+     * @param[in]  thickness  Thickness function
+     * @param[in]  pars       Vector with parameters (E, nu)
+     */
+    gsMaterialMatrixLinear(    const gsFunctionSet<T> & thickness,
+                        const std::vector<gsFunctionSet<T> *> &pars);
+
+    /**
+     * @brief      Constructor without multipatch
+     *
+     * @param[in]  thickness  Thickness function
+     * @param[in]  pars       Vector with parameters (E, nu)
+     * @param[in]  Density    Density function
+     */
+    gsMaterialMatrixLinear(   const gsFunctionSet<T> & thickness,
+                        const std::vector<gsFunctionSet<T> *> &pars,
+                        const gsFunctionSet<T> & Density);
+
+protected:
+    /**
+     * @brief      Full constructor
+     *
+     * @param[in]  mp         Original geometry
+     * @param[in]  thickness  Thickness function
+     * @param[in]  pars       Vector with parameters (E, nu)
+     * @param[in]  Density    Density function
+     */
+    gsMaterialMatrixLinear(   const gsFunctionSet<T> * mp,
+                        const gsFunctionSet<T> * thickness,
+                        const std::vector<gsFunctionSet<T> *> &pars,
+                        const gsFunctionSet<T> * Density);
+public:
+
+    gsMaterialMatrixLinear( const gsMaterialMatrixLinear<dim,T> & other);
 
     /// See \ref gsMaterialMatrixBase for details
-    inline enum MatIntegration isMatIntegrated() const {return MatIntegration::Constant; }
+    inline enum MatIntegration isMatIntegrated() const override {return MatIntegration::Constant; }
 
     /// See \ref gsMaterialMatrixBase for details
-    inline enum MatIntegration isVecIntegrated() const {return MatIntegration::Constant; }
+    inline enum MatIntegration isVecIntegrated() const override {return MatIntegration::Constant; }
 
     /// See \ref gsMaterialMatrixBase for details
-    gsOptionList & options() {return m_options;}
+    void defaultOptions();
 
     /// See \ref gsMaterialMatrixBase for details
-    void setOptions(gsOptionList opt) {m_options.update(opt,gsOptionList::addIfUnknown); }
+    gsMatrix<T> eval3D_matrix (const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> eval3D_dmatrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> eval3D_vector (const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> eval3D_CauchyVector (const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> eval3D_matrix_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T>& u, const T z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_vector_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
-    /// Sets the thickness
-    void setThickness(const gsFunction<T> & thickness)
-    {
-        m_thickness = const_cast<gsFunction<T> *>(&thickness);;
-    }
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_CauchyPStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_detF (const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    
     /// Sets the YoungsModulus
-    void setYoungsModulus(const gsFunction<T> & YoungsModulus)
-    {
-        if ((index_t)m_pars.size() < 1)
-            m_pars.resize(1);
-        m_pars[0] = const_cast<gsFunction<T> *>(&YoungsModulus);
-    }
+    void setYoungsModulus(const gsFunctionSet<T> & YoungsModulus) { Base::setParameter(0,YoungsModulus); }
 
     /// Gets the YoungsModulus
-    gsFunction<T> * getYoungsModulus() {return m_pars[0];}
+    const function_ptr getYoungsModulus() const { return Base::getParameter(0); }
 
     /// Sets the Poisson's Ratio
-    void setPoissonsRatio(const gsFunction<T> & PoissonsRatio)
-    {
-        if ((index_t)m_pars.size() < 2)
-            m_pars.resize(2);
-        m_pars[1] = const_cast<gsFunction<T> *>(&PoissonsRatio);
-    }
+    void setPoissonsRatio(const gsFunctionSet<T> & PoissonsRatio) { Base::setParameter(1,PoissonsRatio); }
+
     /// Gets the Poisson's Ratio
-    gsFunction<T> * getPoissonsRatio() {return m_pars[1];}
-
-    /// Sets the Density
-    void setDensity(const gsFunction<T> & Density)
-    {
-        m_density = const_cast<gsFunction<T> *>(&Density);
-    }
-    /// Gets the Density
-    gsFunction<T> * getDensity() {return const_cast<gsFunction<T> *>(m_density);}
+    const function_ptr getPoissonsRatio() const { return Base::getParameter(1); }
 
     /// See \ref gsMaterialMatrixBase for details
-    void setParameters(const std::vector<gsFunction<T>*> &pars)
-    {
-        GISMO_ASSERT(pars.size()==2,"Two material parameters should be assigned!");
-        m_pars = pars;
-    }
+    std::ostream &print(std::ostream &os) const override;
 
-    index_t numParameters() { return m_pars.size(); }
+    gsMatrix<T> S(const gsMatrix<T> & strain) const;
 
-    /// See \ref gsMaterialMatrixBase for details
-    void info() const;
+    gsMatrix<T> C(const gsMatrix<T> & strain) const;
+
+    /// Computes the vector S as function of the deformation tensor C=FTF
+    gsMatrix<T> S(const gsMatrix<T> & C, const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const;
+
+    /// Computes the matrix C as function of the deformation tensor C=FTF
+    gsMatrix<T> C(const gsMatrix<T> & C, const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const;
+
+    /// Computes the derivative of the matrix C as function of the deformation tensor C=FTF
+    gsMatrix<T> dC(const gsMatrix<T> & C, const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const;
 
 public:
     /// Shared pointer for gsMaterialMatrixLinear
@@ -197,11 +260,6 @@ protected:
      */
     void _initialize();
 
-    /**
-     * @brief      Sets default options
-     */
-    void _defaultOptions();
-
 protected:
     /**
      * @brief      Computes the linear material matrix entry with indices \a i \a j \a k \a l
@@ -216,7 +274,7 @@ protected:
     T _Cijkl  (const index_t i, const index_t j, const index_t k, const index_t l) const;
 
     /**
-     * @brief      Computes the linear force/moment entry with indices \a i \a j \a k \a l at height z
+     * @brief      Computes the linear force/moment entry with indices \a i \a j at height z
      *
      * Computes the thickness-integrated stress tensor, i.e. the normal force (0th thickness-moment) or the bending moment (1st thickness-moment).
      * Sij is computed as \f$ \mathcal{C}^{ijkl} : \mathbf{E}_{ij} \f$ where \f$\mathbf{E}_{ij} = a_{ij} z b_{ij}\f$ with \f$ a_{ij}\f$ the in-plane metric and \f$b_{ij}\f$ the curvature.
@@ -229,20 +287,23 @@ protected:
      *
      * @return     Sij
      */
-    T _Sij    (const index_t i, const index_t j, const T z, enum MaterialOutput out) const;
+    T _Sij    (const index_t i, const index_t j, const gsMatrix<T> & z) const;
 
-    // See \a gsMaterialMatrixBaseDim for details
-    using Base::_computePoints;
 
     using Base::_getMetric;
 
-    /// Computes the stretch given deformation tensor C, into a pair
-    std::pair<gsVector<T>,gsMatrix<T>> _evalPStress(const gsMatrix<T> & C ) const;
+    /**
+     * @brief      Computes the strain tensor
+     *
+     * @param[in]  z     Through-thickness coordinate
+     * @param[in]  out   Output specification
+     *
+     * @return     E
+     */
+    gsMatrix<T> _E      (const T z, enum MaterialOutput out) const;
 
 protected:
     // constructor
-    using Base::m_patches;
-    using Base::m_defpatches;
     using Base::m_thickness;
     using Base::m_pars;
     using Base::m_density;
@@ -250,7 +311,7 @@ protected:
     // Geometric data
     using Base::m_data;
 
-    gsOptionList m_options;
+    using Base::m_options;
 
 };
 

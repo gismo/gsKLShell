@@ -15,9 +15,15 @@
 
 #include <gsKLShell/gsThinShellAssembler.h>
 #include <gsKLShell/getMaterialMatrix.h>
+#include <gsKLShell/gsMaterialMatrixEval.h>
+#include <gsKLShell/gsMaterialMatrixIntegrate.h>
+
+#include <gsKLShell/gsMaterialMatrixTFT.h>
+#include <gsKLShell/gsMaterialMatrixLinear.h>
 
 using namespace gismo;
 
+// Choose among various shell examples, default = Thin Plate
 int main(int argc, char *argv[])
 {
     //! [Parse command line]
@@ -58,7 +64,13 @@ int main(int argc, char *argv[])
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
 
-    //! [Set material parameters]
+    //! [Read input file]
+    gsMultiPatch<> mp;
+    gsMultiPatch<> mp_def;
+
+    real_t length = 1;
+    real_t width = 1;
+    bool nonlinear = true;
     if (testCase == 0)
     {
         real_t mu = 1.5e6;
@@ -68,6 +80,14 @@ int main(int argc, char *argv[])
         else
           PoissonRatio = 0.45;
         E_modulus = 2*mu*(1+PoissonRatio);
+
+        length= 1;
+        width = 1;
+
+        mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
+        mp.patch(0).coefs().col(0) *= length;
+        mp.patch(0).coefs().col(1) *= width;
+        mp.addAutoBoundaries();
     }
     else if (testCase == 1)
     {
@@ -77,15 +97,58 @@ int main(int argc, char *argv[])
           PoissonRatio = 0.499;
         else
           PoissonRatio = 0.45;
-    }
-    gsInfo<<"mu = "<<E_modulus / (2 * (1 + PoissonRatio))<<"\n";
-    //! [Set material parameters]
 
-    //! [Make geometry and refine/elevate]
-    gsMultiPatch<> mp;
-    gsMultiPatch<> mp_def;
-    mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
-    mp.addAutoBoundaries();
+      length = 2;
+      width = 1;
+
+      mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
+      mp.patch(0).coefs().col(0) *= length;
+      mp.patch(0).coefs().col(1) *= width;
+      mp.addAutoBoundaries();
+    }
+    else if (testCase == 2)
+    {
+        nonlinear = false;
+        E_modulus = 1;
+        thickness = 1;
+        PoissonRatio = 0.3;
+
+        length = 3;
+        width = 1;
+
+        mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
+        mp.patch(0).coefs().col(0) *= length;
+        mp.patch(0).coefs().col(1) *= width;
+        mp.patch(0).coefs()(0,0) = width;
+
+    }
+    else if (testCase == 3)
+    {
+        nonlinear = true;
+        E_modulus = 1;
+        thickness = 1;
+        PoissonRatio = 0.3;
+
+        length = 3;
+        width = 1;
+
+        mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
+        mp.patch(0).coefs().col(0) *= length;
+        mp.patch(0).coefs().col(1) *= width;
+    }
+    else if (testCase == 4)
+    {
+        mp.addPatch( gsNurbsCreator<>::NurbsAnnulus(1,2) ); // degree
+        mp.patch(0).coefs().col(0) *= length;
+        mp.patch(0).coefs().col(1) *= width;
+
+        mp.computeTopology();
+        gsDebugVar(mp);
+        // mp.addInterface(0,boundary::east, 0, boundary::west);
+        // gsDebugVar(mp);
+
+    }
+
 
     // p-refine
     if (numElevate!=0)
@@ -97,7 +160,10 @@ int main(int argc, char *argv[])
 
     // Set the deformed configuration
     mp_def = mp;
-    if (plot) gsWriteParaview<>( mp_def    , "mp", 1000, true);
+    gsWriteParaview<>( mp_def    , "mp", 1000, true,true);
+    gsWrite(mp_def,"mp");
+
+    //! [Refinement]
     gsMultiBasis<> dbasis(mp);
 
     gsInfo << "Patches: "<< mp.nPatches() <<", degree: "<< dbasis.minCwiseDegree() <<"\n";
@@ -113,16 +179,29 @@ int main(int argc, char *argv[])
     gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
 
     real_t pressure = 0.0;
+
+
+    std::string fx = "0";
+    std::string fy = "0";
+
+    if (testCase == 0)
+        fx = "2625";
+    else if (testCase == 2)
+    {
+        real_t sigmax = 1e-1;
+        char buffer[2000];
+        sprintf(buffer,"%e ( 1 - y/%e)",sigmax,width);
+        fx = buffer;
+    }
+    else if (testCase == 3)
+        fx = "0.1";
+
+    gsFunctionExpr<> neuData(fx,fy,2);
+
     if (testCase == 0) // Uniaxial tension; use with hyperelastic material model!
     {
-        gsVector<> neu(2);
-        neu << 2625, 0;
-        gsConstantFunction<> neuData(neu,2);
-
         bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 0 );
-
         bc.addCondition(boundary::east, condition_type::neumann, &neuData );
-
         bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1 );
     }
     else if (testCase == 1)
@@ -139,9 +218,67 @@ int main(int argc, char *argv[])
         gsVector<> load (2); load << 0.25, 0.0 ;
         pLoads.addLoad(point, load, 0 );
     }
+    else if (testCase == 2)
+    {
+        bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 0 );
+        bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 1 );
+
+        bc.addCondition(boundary::east, condition_type::neumann, &neuData );
+    }
+    else if (testCase == 3)
+    {
+        bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 0 );
+        bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1 );
+
+        bc.addCondition(boundary::north, condition_type::collapsed, 0, 0 ,false, 0);
+        bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 1 );
+
+        gsVector<> point(2); point<< 0.5,1.0;
+        gsVector<> load (2); load << 0.25, 0.0 ;
+        pLoads.addLoad(point, load, 0 );
+    }
+    else if (testCase == 4)
+    {
+        bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0 ,false, 0);
+        bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 1 );
+
+        gsVector<> point(2);
+        gsVector<> load (2);
+
+        point<< 0.0,0.0;
+        load << 0.0, 1.0 ;
+        pLoads.addLoad(point, load, 0 );
+
+        point<< 0.25,0.0;
+        load << -1.0, 0.0 ;
+        pLoads.addLoad(point, load, 0 );
+
+        point<< 0.5,0.0;
+        load << 0.0,-1.0 ;
+        pLoads.addLoad(point, load, 0 );
+
+        point<< 0.75,0.0;
+        load << 1.0, 0.0 ;
+        pLoads.addLoad(point, load, 0 );
+    }
     else
         GISMO_ERROR("Test case not known");
     //! [Set boundary conditions]
+
+        typedef gsExprAssembler<>::space       space;
+        gsExprAssembler<> A(1,1);
+        space u = A.getSpace(dbasis, 2, 0); // last argument is the space ID
+        u.setup(bc,dirichlet::l2Projection,0);
+        A.setIntegrationElements(dbasis);
+        A.initSystem();
+        gsDebugVar(A.numDofs());
+        gsDebugVar(u.mapper().freeSize());
+        gsDebugVar(u.mapper().size());
+        gsDebugVar(u.mapper().firstIndex());
+        gsDebugVar(u.mapper().freeSize());
+        gsDebugVar(u.mapper().firstIndex()+u.mapper().freeSize());
+    // return 0;
+
 
     //! [Make material functions]
     // Linear isotropic material model and Neo-Hookean material
@@ -249,7 +386,7 @@ int main(int argc, char *argv[])
     // Construct the gsThinShellAssembler
     gsThinShellAssemblerBase<real_t>* assembler;
     assembler = new gsThinShellAssembler<2, real_t, false>(mp,dbasis,bc,force,materialMatrix);
-
+    assembler->options().setInt("Continuity",0);
     // Add point loads to the assembler
     assembler->setPointLoads(pLoads);
     //! [Make assembler]
@@ -304,37 +441,38 @@ int main(int argc, char *argv[])
     solVector = solver.solve(vector);
     //! [Solve linear problem]
 
-    //! [Solve non-linear problem]
-    real_t residual = vector.norm();
-    real_t residual0 = residual;
-    real_t residualOld = residual;
-    gsVector<real_t> updateVector = solVector;
-    gsVector<real_t> resVec = Residual(solVector);
-    gsSparseMatrix<real_t> jacMat;
-    for (index_t it = 0; it != 100; ++it)
+    if (nonlinear)
     {
-        jacMat = Jacobian(solVector);
-        solver.compute(jacMat);
-        updateVector = solver.solve(resVec); // this is the UPDATE
-        solVector += updateVector;
+        real_t residual = vector.norm();
+        real_t residual0 = residual;
+        real_t residualOld = residual;
+        gsVector<real_t> updateVector = solVector;
+        gsVector<real_t> resVec = Residual(solVector);
+        gsSparseMatrix<real_t> jacMat;
+        for (index_t it = 0; it != 100; ++it)
+        {
+            jacMat = Jacobian(solVector);
+            solver.compute(jacMat);
+            updateVector = solver.solve(resVec); // this is the UPDATE
+            solVector += updateVector;
 
-        resVec = Residual(solVector);
-        residual = resVec.norm();
+            resVec = Residual(solVector);
+            residual = resVec.norm();
 
-        gsInfo<<"Iteration: "<< it
-           <<", residue: "<< residual
-           <<", update norm: "<<updateVector.norm()
-           <<", log(Ri/R0): "<< math::log10(residualOld/residual0)
-           <<", log(Ri+1/R0): "<< math::log10(residual/residual0)
-           <<"\n";
+            gsInfo<<"Iteration: "<< it
+               <<", residue: "<< residual
+               <<", update norm: "<<updateVector.norm()
+               <<", log(Ri/R0): "<< math::log10(residualOld/residual0)
+               <<", log(Ri+1/R0): "<< math::log10(residual/residual0)
+               <<"\n";
 
-        residualOld = residual;
+            residualOld = residual;
 
-        if (updateVector.norm() < 1e-6)
-            break;
-        else if (it+1 == it)
-            gsWarn<<"Maximum iterations reached!\n";
-
+            if (updateVector.norm() < 1e-6)
+                break;
+            else if (it+1 == it)
+                gsWarn<<"Maximum iterations reached!\n";
+        }
     }
     //! [Solve non-linear problem]
 
@@ -394,21 +532,113 @@ int main(int argc, char *argv[])
         assembler->constructStress(mp_def,stretch3,stress_type::principal_stretch_dir3);
         gsField<> stretchDir3(mp_def,stretch3, true);
 
+        gsPiecewiseFunction<> VMStresses;
+        assembler->constructStress(mp_def,VMStresses,stress_type::von_mises_membrane);
+        gsField<> VMStress(mp_def,VMStresses, true);
 
-        gsWriteParaview(membraneStress,"MembraneStress");
-        gsWriteParaview(flexuralStress,"FlexuralStress");
-        gsWriteParaview(Stretches,"PrincipalStretch");
-        gsWriteParaview(pstressM,"PrincipalMembraneStress");
-        gsWriteParaview(pstressF,"PrincipalFlexuralStress");
-        gsWriteParaview(stretchDir1,"PrincipalDirection1");
-        gsWriteParaview(stretchDir1,"PrincipalDirection1");
-        gsWriteParaview(stretchDir2,"PrincipalDirection2");
-        gsWriteParaview(stretchDir3,"PrincipalDirection3");
+
+
+        gsWriteParaview(membraneStress,"MembraneStress",5000);
+        gsWriteParaview(VMStress,"MembraneStressVM",5000);
+        gsWriteParaview(flexuralStress,"FlexuralStress",5000);
+        gsWriteParaview(Stretches,"PrincipalStretch",5000);
+        gsWriteParaview(pstressM,"PrincipalMembraneStress",5000);
+        gsWriteParaview(pstressF,"PrincipalFlexuralStress",5000);
+        gsWriteParaview(stretchDir1,"PrincipalDirection1",5000);
+        gsWriteParaview(stretchDir1,"PrincipalDirection1",5000);
+        gsWriteParaview(stretchDir2,"PrincipalDirection2",5000);
+        gsWriteParaview(stretchDir3,"PrincipalDirection3",5000);
+
+
+    }
+
+    if (testCase==2)
+    {
+        gsPiecewiseFunction<> VMStresses;
+        assembler->constructStress(mp_def,VMStresses,stress_type::von_mises_membrane);
+        gsField<> VMStress(mp_def,VMStresses, true);
+        gsVector<> pt(2);
+        pt<<0,0;
+        gsInfo<<"Stress in corner: "<<VMStresses.piece(0).eval(pt)<<"\n";
     }
     // ! [Export visualization in ParaView]
 
     gsInfo<<"Total ellapsed assembly time: \t\t"<<time<<" s\n";
     gsInfo<<"Total ellapsed solution time (incl. assembly): \t"<<totaltime<<" s\n";
+
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////
+
+    gsMatrix<> z(1,1);
+    z.setZero();
+
+    gsVector<> pt(2);
+    pt<<0.5,0.5;
+
+    gsMaterialMatrixLinear<2,real_t> * materialMatrixLinear = new gsMaterialMatrixLinear<2,real_t>(mp,t,parameters,rho);
+    gsMaterialMatrixTFT<2,real_t> * materialMatrixTFT = new gsMaterialMatrixTFT<2,real_t>(materialMatrixLinear);
+
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixA> matA(materialMatrixTFT,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixB> matB(materialMatrixTFT,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixC> matC(materialMatrixTFT,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixD> matD(materialMatrixTFT,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorN> vecN(materialMatrixTFT,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorM> vecM(materialMatrixTFT,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::PStrainN> pstrain(materialMatrix,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::PStressN> pstress(materialMatrix,&mp_def);
+
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixA> matAL(materialMatrixLinear,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixB> matBL(materialMatrixLinear,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixC> matCL(materialMatrixLinear,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixD> matDL(materialMatrixLinear,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorN> vecNL(materialMatrixLinear,&mp_def);
+    gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorM> vecML(materialMatrixLinear,&mp_def);
+
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::TensionField> tensionfield(materialMatrixLinear,&mp_def,z);
+
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> mat(materialMatrixLinear,&mp_def,z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::StretchDir> pdir(materialMatrixLinear,&mp_def,z);
+
+    gsDebugVar(matA.eval(pt));
+    gsDebugVar(matAL.eval(pt));
+
+    gsDebugVar(matB.eval(pt));
+    gsDebugVar(matBL.eval(pt));
+
+    gsDebugVar(matC.eval(pt));
+    gsDebugVar(matCL.eval(pt));
+
+    gsDebugVar(matD.eval(pt));
+    gsDebugVar(matDL.eval(pt));
+
+    gsDebugVar(matD.eval(pt));
+    gsDebugVar(matDL.eval(pt));
+
+    gsDebugVar(vecN.eval(pt));
+    gsDebugVar(vecNL.eval(pt));
+
+    gsDebugVar(vecM.eval(pt));
+    gsDebugVar(vecML.eval(pt));
+
+
+    gsField<> tensionField(mp_def, tensionfield, true);
+    gsInfo<<"Plotting in Paraview...\n";
+    gsWriteParaview<>( tensionField, "TensionField", 10000, true);
+
+    gsThinShellAssemblerBase<real_t> * assembler2;
+    gsThinShellAssemblerBase<real_t> * assembler3;
+    assembler2 = new gsThinShellAssembler<2, real_t, false>(mp,dbasis,bc,force,materialMatrixLinear);
+    assembler2->assemble();
+    assembler3 = new gsThinShellAssembler<2, real_t, false>(mp,dbasis,bc,force,materialMatrixTFT);
+    assembler3->assemble();
+
+    assembler->assemble();
+    gsDebugVar(assembler->matrix().toDense());
+    gsDebugVar(assembler2->matrix().toDense());
+    gsDebugVar(assembler3->matrix().toDense());
 
     delete assembler;
     return EXIT_SUCCESS;

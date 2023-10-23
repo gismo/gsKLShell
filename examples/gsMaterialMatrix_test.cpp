@@ -1,6 +1,6 @@
 /** @file gsMaterialMatrix_test.cpp
 
-    @brief Simple example for material matrix evaluations
+    @brief Code for the arc-length method of a shell based on loads
 
     This file is part of the G+Smo library.
 
@@ -23,6 +23,7 @@ using namespace gismo;
 
 int main (int argc, char** argv)
 {
+
     int material = 0;
 	int impl = 1;
 	int Compressibility = 0;
@@ -34,14 +35,36 @@ int main (int argc, char** argv)
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
 
-    // Make geometry
-    gsMultiPatch<> mp, mp_def;
-    mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
-    mp.addAutoBoundaries();
-    mp.embed(3);
 
-    mp_def = mp;
-    mp_def.patch(0).coefs().col(0) *= 2;
+    gsMultiPatch<> mp, mp_def;
+    gsReadFile<>("deformed_plate_lin_T=" + std::to_string(1.0) + ".xml",mp_def);
+    gsReadFile<>("deformations/deformed_plate_nl_r5e3.xml",mp_def);
+
+
+
+    // mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
+    // mp.addAutoBoundaries();
+    // mp.embed(3);
+
+    mp = mp_def;
+    mp_def.patch(0).coefs().col(2).setZero();
+
+
+
+    gsWriteParaview(mp,"mp",1000);
+    gsWriteParaview(mp_def,"mp_def",1000);
+
+    // gsMatrix<> ones;
+    // // translate second patch up
+    // ones = gsMatrix<>::Ones(mp.patch(0).coefs().rows(),1); // patch 1
+    // // mp_def.patch(0).coefs().col(1) += ones; // patch 1
+    // mp_def.patch(0).scale(4,0); // patch 1
+    // mp_def.patch(0).scale(2,1); // patch 1
+    // mp_def.patch(0).rotate(3.141592/4.); // patch 1
+
+    // mp.embed(3);
+    // mp_def.embed(3);
+
 
     real_t thickness = 1e-2;
     real_t E_modulus = 1.0;
@@ -154,75 +177,103 @@ int main (int argc, char** argv)
     //////////////////////////////////////////////////////////////////////////////////////////////
 
     gsInfo<<"______________________________Point values_____________________________\n";
-    gsMatrix<> Z(1,1);
-    Z.setZero();
+    gsMatrix<> Z0(1,1);
+    Z0.setZero();
+    gsMatrix<> Zf(1,1);
+    Zf.setOnes();
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> mmA_p(materialMatrix,&mp_def,Z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> mmA_p(materialMatrix,&mp_def,Z0);
     variable mmAp = A.getCoeff(mmA_p);
     gsInfo<<"matrix A = \n"<<ev.eval(mmAp,pt)<<"\n";
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB> mmB_p(materialMatrix,&mp_def,Z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB> mmB_p(materialMatrix,&mp_def,Z0);
     variable mmBp = A.getCoeff(mmB_p);
     gsInfo<<"matrix B = \n"<<ev.eval(mmBp,pt)<<"\n";
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC> mmC_p(materialMatrix,&mp_def,Z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC> mmC_p(materialMatrix,&mp_def,Z0);
     variable mmCp = A.getCoeff(mmC_p);
     gsInfo<<"matrix C = \n"<<ev.eval(mmCp,pt)<<"\n";
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD> mmD_p(materialMatrix,&mp_def,Z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD> mmD_p(materialMatrix,&mp_def,Z0);
     variable mmDp = A.getCoeff(mmD_p);
     gsInfo<<"matrix D = \n"<<ev.eval(mmDp,pt)<<"\n";
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> S0_p(materialMatrix,&mp_def,Z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::VectorN> S0_p(materialMatrix,&mp_def,Z0);
     variable S0p = A.getCoeff(S0_p);
     gsInfo<<"Vector N = \n"<<ev.eval(S0p,pt)<<"\n";
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::VectorM> S1_p(materialMatrix,&mp_def,Z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::VectorM> S1_p(materialMatrix,&mp_def,Zf);
     variable S1p = A.getCoeff(S1_p);
     gsInfo<<"Vector M = \n"<<ev.eval(S1p,pt)<<"\n";
 
     /// FIX THIS ONE
-    gsMaterialMatrixEval<real_t,MaterialOutput::Generic> St_p(materialMatrix,&mp_def,Z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::Generic> St_p(materialMatrix,&mp_def,Zf);
     variable Stp = A.getCoeff(St_p);
     gsInfo<<"Vector total = \n"<<ev.eval(Stp,pt)<<"\n";
 
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::PStressN> P0_p(materialMatrix,&mp_def,Z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::PStressN> P0_p(materialMatrix,&mp_def,Z0);
     variable P0p = A.getCoeff(P0_p);
     gsInfo<<"Pstress N = \n"<<ev.eval(P0p,pt)<<"\n";
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::PStressM> P1_p(materialMatrix,&mp_def,Z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::PStressM> P1_p(materialMatrix,&mp_def,Zf);
     variable P1p = A.getCoeff(P1_p);
     gsInfo<<"Pstress M = \n"<<ev.eval(P1p,pt)<<"\n";
 
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::Stretch> lambda_p(materialMatrix,&mp_def,Z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::Stretch> lambda_p(materialMatrix,&mp_def,Z0);
     variable lambdap = A.getCoeff(lambda_p);
     gsInfo<<"Stretch = \n"<<ev.eval(lambdap,pt)<<"\n";
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::StretchDir> lambdaDir_p(materialMatrix,&mp_def,Z);
+    gsMaterialMatrixEval<real_t,MaterialOutput::StretchDir> lambdaDir_p(materialMatrix,&mp_def,Z0);
     variable lambdaDirp = A.getCoeff(lambdaDir_p);
     gsInfo<<"Stretch dirs = \n"<<ev.eval(lambdaDirp,pt)<<"\n";
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::Transformation> trans_p(materialMatrix,&mp_def,Z);
-    variable transp = A.getCoeff(trans_p);
-    gsInfo<<"Transformation = \n"<<ev.eval(transp,pt)<<"\n";
+    gsMaterialMatrixEval<real_t,MaterialOutput::CovTransform> trans_p1(materialMatrix,&mp_def,Z0);
+    variable transp1 = A.getCoeff(trans_p1);
+    gsInfo<<"CovTransform = \n"<<ev.eval(transp1,pt)<<"\n";
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::ConTransform> trans_p2(materialMatrix,&mp_def,Z0);
+    variable transp2 = A.getCoeff(trans_p2);
+    gsInfo<<"ConTransform = \n"<<ev.eval(transp2,pt)<<"\n";
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","0.5",2);
     variable m2 = A.getCoeff(mult2t);
 
-    auto Em = 0.5 * ( flat(jac(def).tr()*jac(def)) - flat(jac(map).tr()* jac(map)) );
+    auto Em = 0.5 * ( flat(jac(def).tr()*jac(def)) - flat(jac(map).tr()* jac(map)) ) * reshape(m2,3,3);
     auto Cm = ( flat(jac(def).tr()*jac(def)) ) * reshape(m2,3,3);
     gsInfo<<"Em = \n"<<ev.eval(Em,pt)<<"\n";
     gsInfo<<"Sm = \n"<<ev.eval(Em * reshape(mmAp,3,3),pt)<<"\n";
-    gsInfo<<"Em = \n"<<ev.eval(Cm * reshape(transp,3,3).tr(),pt)<<"\n";
+    gsInfo<<"Cm = \n"<<ev.eval(Cm * reshape(transp2,3,3).tr(),pt)<<"\n";
 
-    gsInfo<<"PStressN (transformed) = \n"<<ev.eval(reshape(transp,3,3) * S0p,pt)<<"\n";
-    gsInfo<<"PStressM (transformed) = \n"<<ev.eval(reshape(transp,3,3) * S1p,pt)<<"\n";
-    gsInfo<<"PStressM (transformed) = \n"<<ev.eval(reshape(transp,3,3) * Stp,pt)<<"\n";
+    gsInfo<<"Em = \n"<<ev.eval(reshape(transp2,3,3) * Em.tr(),pt)<<"\n";
+    gsInfo<<"Em = \n"<<ev.eval(reshape(transp2,3,3).tr() * Em.tr(),pt)<<"\n";
 
-    gsWriteParaview(mp,"mp",1000);
-    gsWriteParaview(mp_def,"mp_def",1000);
+    gsInfo<<"PStressN (transformed) = \n"<<ev.eval(reshape(transp1,3,3) * S0p,pt)<<"\n";
+    gsInfo<<"PStressN (transformed) = \n"<<ev.eval(reshape(transp2,3,3) * S0p,pt)<<"\n";
+
+
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    gsMatrix<> Tmats;
+    gsMatrix<> Stretches;
+    gsMatrix<> Stresses;
+    gsMatrix<> PStresses;
+    trans_p1.eval_into(pts,Tmats);
+    lambda_p.eval_into(pts,Stretches);
+    S0_p.eval_into(pts,Stresses);
+    P0_p.eval_into(pts,PStresses);
+    for (index_t k=0; k!=pts.cols(); k++)
+    {
+        gsMatrix<> Tmat = Tmats.reshapeCol(k,3,3);
+        gsMatrix<> Stretch = Stretches.reshapeCol(k,3,1);
+        gsMatrix<> Stress = Stresses.reshapeCol(k,3,1);
+        gsMatrix<> PStress = PStresses.reshapeCol(k,3,1);
+
+        gsDebugVar((PStress - Tmat * Stress).norm());
+        gsDebugVar((PStress.transpose() - Stress.transpose() * Tmat.transpose()).norm());
+    }
 
 	return 0;
 }

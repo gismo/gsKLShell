@@ -285,7 +285,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         gsConstantFunction<> alpha3fun(alpha3,3);
         gsConstantFunction<> mu3fun(mu3,3);
 
-        std::vector<gsFunction<>*> parameters(3);
+        std::vector<gsFunctionSet<>*> parameters(3);
         parameters[0] = &E;
         parameters[1] = &nu;
         parameters[2] = &ratio;
@@ -547,7 +547,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         gsConstantFunction<> alpha3fun(alpha3,2);
         gsConstantFunction<> mu3fun(mu3,2);
 
-        std::vector<gsFunction<>*> parameters(3);
+        std::vector<gsFunctionSet<>*> parameters(3);
         parameters[0] = &E;
         parameters[1] = &nu;
         parameters[2] = &ratio;
@@ -653,7 +653,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
 
         // Get the total force on the tension boundary
         patchSide ps(0,boundary::east);
-        gsMatrix<> forceVector = assembler->boundaryForceVector(mp_def,ps,0);
+        gsMatrix<> forceVector = assembler->boundaryForce(mp_def,ps);
         real_t sideForce = forceVector.sum();
         real_t S   = -sideForce / (thickness*lambdas(0)*lambdas(2));
         real_t L   = lambdas(0);
@@ -847,7 +847,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         gsConstantFunction<> thicks(thickness/kmax,3);
         Ts[0] = Ts[1] = Ts[2] = Ts[3] = Ts[4] = &thicks;
 
-        std::vector<gsFunction<>*> parameters;
+        std::vector<gsFunctionSet<>*> parameters;
         gsMaterialMatrixBase<real_t>* materialMatrix;
 
         gsOptionList options;
