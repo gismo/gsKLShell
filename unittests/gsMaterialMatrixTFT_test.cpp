@@ -13,11 +13,11 @@
 
 #include <gismo.h>
 
-#include <gsKLShell/gsThinShellAssembler.h>
-#include <gsKLShell/getMaterialMatrix.h>
-#include <gsKLShell/gsMaterialMatrixEval.h>
-#include <gsKLShell/gsMaterialMatrixIntegrate.h>
-#include <gsKLShell/gsMaterialMatrixTFT.h>
+#include <gsKLShell/src/gsThinShellAssembler.h>
+#include <gsKLShell/src/getMaterialMatrix.h>
+#include <gsKLShell/src/gsMaterialMatrixEval.h>
+#include <gsKLShell/src/gsMaterialMatrixIntegrate.h>
+#include <gsKLShell/src/gsMaterialMatrixTFT.h>
 
 #include "gismo_unittest.h"       // Brings in G+Smo and the UnitTest++ framework
 

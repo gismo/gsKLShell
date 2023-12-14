@@ -13,11 +13,11 @@
 
 #include <gismo.h>
 
-#include <gsKLShell/gsThinShellAssembler.h>
-#include <gsKLShell/gsMaterialMatrixContainer.h>
-#include <gsKLShell/gsMaterialMatrixEval.h>
-#include <gsKLShell/gsMaterialMatrixIntegrate.h>
-#include <gsKLShell/getMaterialMatrix.h>
+#include <gsKLShell/src/gsThinShellAssembler.h>
+#include <gsKLShell/src/gsMaterialMatrixContainer.h>
+#include <gsKLShell/src/gsMaterialMatrixEval.h>
+#include <gsKLShell/src/gsMaterialMatrixIntegrate.h>
+#include <gsKLShell/src/getMaterialMatrix.h>
 #include <gsCore/gsPiecewiseFunction.h>
 
 using namespace gismo;

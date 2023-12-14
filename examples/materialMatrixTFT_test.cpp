@@ -13,11 +13,12 @@
 
 #include <gismo.h>
 
-#include <gsKLShell/gsThinShellAssembler.h>
-#include <gsKLShell/getMaterialMatrix.h>
-#include <gsKLShell/gsMaterialMatrixEval.h>
-#include <gsKLShell/gsMaterialMatrixIntegrate.h>
-#include <gsKLShell/gsMaterialMatrixTFT.h>
+#include <gsKLShell/src/gsThinShellAssembler.h>
+#include <gsKLShell/src/getMaterialMatrix.h>
+#include <gsKLShell/src/gsMaterialMatrixEval.h>
+#include <gsKLShell/src/gsMaterialMatrixIntegrate.h>
+#include <gsKLShell/src/gsMaterialMatrixTFT.h>
+#include <gsKLShell/src/gsMaterialMatrixLinear.h>
 
 using namespace gismo;
 
@@ -182,7 +183,25 @@ int main(int argc, char *argv[])
     mu3    = -0.1e5/4.225e5*mu;
 
     gsMaterialMatrixBase<real_t> testtest;
+        gsDebugVar("hi");
+    gsMaterialMatrixBase<real_t> * testtest2;
+    gsFileData<> fdm("materials/MaterialMatrix.xml");
+    testtest2 = fdm.getFirst<gsMaterialMatrixBase<real_t>>().release();
+
     gsReadFile<real_t>("materials/MaterialMatrix.xml",testtest);
+    if (gsMaterialMatrixTFT<2,real_t,true> * mat = dynamic_cast<gsMaterialMatrixTFT<2,real_t,true> *>(testtest2))
+        gsDebugVar(*mat);
+    else if (gsMaterialMatrixTFT<2,real_t,false> * mat = dynamic_cast<gsMaterialMatrixTFT<2,real_t,false> *>(testtest2))
+        gsDebugVar(*mat);
+    else if (gsMaterialMatrixTFT<2,real_t,false> * mat = dynamic_cast<gsMaterialMatrixTFT<2,real_t,false> *>(testtest2))
+        gsDebugVar(*mat);
+    else if (gsMaterialMatrixLinear<2,real_t> * mat = dynamic_cast<gsMaterialMatrixLinear<2,real_t> *>(testtest2))
+        gsDebugVar(*mat);
+    else
+        gsDebugVar("by");
+
+    gsWrite(*testtest2,"materials/MaterialMatrix2.xml");
+
 
     gsCmdLine cmd("Tutorial on solving a Poisson problem.");
     cmd.addInt( "m", "Material", "Material law",  material );
@@ -295,7 +314,7 @@ int main(int argc, char *argv[])
         materialMatrixTFT = new gsMaterialMatrixTFT<2,real_t,false>(materialMatrix);
     }
 
-    gsWrite(*materialMatrix,"materials/MaterialMatrix2.xml");
+    // gsWrite(*materialMatrix,"materials/MaterialMatrix2.xml");
 
 
     gsVector<> testpt(2);
@@ -382,6 +401,8 @@ int main(int argc, char *argv[])
 
     delete materialMatrix;
     delete materialMatrixTFT;
+    // delete testtest;
+    delete testtest2;
     return EXIT_SUCCESS;
 
 }// end main

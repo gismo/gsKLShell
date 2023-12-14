@@ -15,12 +15,13 @@
 #include <fstream>
 #include <gismo.h>
 
-#include <gsKLShell/gsThinShellAssembler.h>
-#include <gsKLShell/gsThinShellAssemblerDWR.h>
-#include <gsKLShell/gsThinShellUtils.h>
-#include <gsKLShell/getMaterialMatrix.h>
-#include <gsAssembler/gsAdaptiveMeshing.h>
-#include <gsAssembler/gsAdaptiveMeshingUtils.h>
+#include <gsKLShell/src/gsThinShellAssembler.h>
+#include <gsKLShell/src/gsThinShellAssemblerDWR.h>
+#include <gsKLShell/src/gsThinShellUtils.h>
+#include <gsKLShell/src/getMaterialMatrix.h>
+#include <gsAssembler/gsAdaptiveRefUtils.h>
+
+//#include <gsThinShell/gsNewtonIterator.h>
 
 using namespace gismo;
 

@@ -13,13 +13,13 @@
 
 #include <gismo.h>
 
-#include <gsKLShell/gsThinShellAssembler.h>
-#include <gsKLShell/getMaterialMatrix.h>
-#include <gsKLShell/gsMaterialMatrixEval.h>
-#include <gsKLShell/gsMaterialMatrixIntegrate.h>
+#include <gsKLShell/src/gsThinShellAssembler.h>
+#include <gsKLShell/src/getMaterialMatrix.h>
+#include <gsKLShell/src/gsMaterialMatrixEval.h>
+#include <gsKLShell/src/gsMaterialMatrixIntegrate.h>
 
-#include <gsKLShell/gsMaterialMatrixTFT.h>
-#include <gsKLShell/gsMaterialMatrixLinear.h>
+#include <gsKLShell/src/gsMaterialMatrixTFT.h>
+#include <gsKLShell/src/gsMaterialMatrixLinear.h>
 
 using namespace gismo;
 
@@ -36,6 +36,7 @@ int main(int argc, char *argv[])
     index_t material = 0;
     bool verbose = false;
     std::string fn;
+    bool TFT = false;
 
     bool composite = false;
     index_t impl = 1; // 1= analytical, 2= generalized, 3= spectral
@@ -55,6 +56,7 @@ int main(int argc, char *argv[])
     cmd.addInt( "m", "Material", "Material law",  material );
     cmd.addInt( "I", "Implementation", "Implementation: 1= analytical, 2= generalized, 3= spectral",  impl );
     cmd.addSwitch("comp", "1: compressible, 0: incompressible",  Compressibility );
+    cmd.addSwitch( "TFT", "Use Tension-Field Theory",  TFT );
     cmd.addString( "f", "file", "Input XML file", fn );
     cmd.addSwitch("verbose", "Full matrix and vector output", verbose);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
@@ -63,6 +65,8 @@ int main(int argc, char *argv[])
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
+
+/*
 
     //! [Read input file]
     gsMultiPatch<> mp;
@@ -364,6 +368,7 @@ int main(int argc, char *argv[])
 
     //! [Make assembler]
     gsMaterialMatrixBase<real_t>* materialMatrix;
+    gsMaterialMatrixBase<real_t>* materialMatrixTFT;
     gsOptionList options;
     // Make gsMaterialMatrix depending on the user-defined choices
     if      (material==0) //Linear
@@ -387,9 +392,17 @@ int main(int argc, char *argv[])
         materialMatrix = getMaterialMatrix<2,real_t>(mp,t,parameters,rho,options);
     }
 
+    materialMatrix->options().setInt("TensionField",0);
+    materialMatrixTFT = new gsMaterialMatrixTFT<2,real_t,false>(materialMatrix);
+    // materialMatrixTFT->options().setReal("SlackMultiplier",1e-1);
+
     // Construct the gsThinShellAssembler
     gsThinShellAssemblerBase<real_t>* assembler;
-    assembler = new gsThinShellAssembler<2, real_t, false>(mp,dbasis,bc,force,materialMatrix);
+    if (TFT)
+        assembler = new gsThinShellAssembler<2, real_t, false>(mp,dbasis,bc,force,materialMatrixTFT);
+    else
+        assembler = new gsThinShellAssembler<2, real_t, false>(mp,dbasis,bc,force,materialMatrix);
+
     assembler->options().setInt("Continuity",0);
     // Add point loads to the assembler
     assembler->setPointLoads(pLoads);
@@ -445,6 +458,8 @@ int main(int argc, char *argv[])
     solVector = solver.solve(vector);
     //! [Solve linear problem]
 
+    gsInfo<<"Nonlinear solve\n";
+    // if (false)
     if (nonlinear)
     {
         //! [Solve non-linear problem]
@@ -456,6 +471,14 @@ int main(int argc, char *argv[])
         gsSparseMatrix<real_t> jacMat;
         for (index_t it = 0; it != 100; ++it)
         {
+            gsMatrix<> z(1,1);
+            z.setZero();
+            gsMaterialMatrixEval<real_t,MaterialOutput::TensionField> tensionfield(materialMatrix,&mp_def,z);
+
+            gsField<> tensionField(mp_def, tensionfield, true);
+            gsInfo<<"Plotting in Paraview...\n";
+            gsWriteParaview<>( tensionField, "TensionField_" + std::to_string(it), 1000, true);
+
             jacMat = Jacobian(solVector);
             solver.compute(jacMat);
             updateVector = solver.solve(resVec); // this is the UPDATE
@@ -503,6 +526,7 @@ int main(int argc, char *argv[])
         gsInfo<<"Plotting in Paraview...\n";
         gsWriteParaview<>( solField, "Deformation", 1000, true);
     }
+
     if (stress)
     {
         gsPiecewiseFunction<> membraneStresses;
@@ -564,70 +588,14 @@ int main(int argc, char *argv[])
     pt<<0.5,0.5;
 
     gsMaterialMatrixLinear<2,real_t> * materialMatrixLinear = new gsMaterialMatrixLinear<2,real_t>(mp,t,parameters,rho);
-    gsMaterialMatrixTFT<2,real_t> * materialMatrixTFT = new gsMaterialMatrixTFT<2,real_t>(materialMatrixLinear);
-
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixA> matA(materialMatrixTFT,&mp_def);
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixB> matB(materialMatrixTFT,&mp_def);
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixC> matC(materialMatrixTFT,&mp_def);
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixD> matD(materialMatrixTFT,&mp_def);
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorN> vecN(materialMatrixTFT,&mp_def);
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorM> vecM(materialMatrixTFT,&mp_def);
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::PStrainN> pstrain(materialMatrix,&mp_def);
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::PStressN> pstress(materialMatrix,&mp_def);
-
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixA> matAL(materialMatrixLinear,&mp_def);
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixB> matBL(materialMatrixLinear,&mp_def);
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixC> matCL(materialMatrixLinear,&mp_def);
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::MatrixD> matDL(materialMatrixLinear,&mp_def);
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorN> vecNL(materialMatrixLinear,&mp_def);
-    gsMaterialMatrixIntegrate<real_t,MaterialOutput::VectorM> vecML(materialMatrixLinear,&mp_def);
-
-
     gsMaterialMatrixEval<real_t,MaterialOutput::TensionField> tensionfield(materialMatrixLinear,&mp_def,z);
-
-
-    gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA> mat(materialMatrixLinear,&mp_def,z);
-    gsMaterialMatrixEval<real_t,MaterialOutput::StretchDir> pdir(materialMatrixLinear,&mp_def,z);
-
-    gsDebugVar(matA.eval(pt));
-    gsDebugVar(matAL.eval(pt));
-
-    gsDebugVar(matB.eval(pt));
-    gsDebugVar(matBL.eval(pt));
-
-    gsDebugVar(matC.eval(pt));
-    gsDebugVar(matCL.eval(pt));
-
-    gsDebugVar(matD.eval(pt));
-    gsDebugVar(matDL.eval(pt));
-
-    gsDebugVar(matD.eval(pt));
-    gsDebugVar(matDL.eval(pt));
-
-    gsDebugVar(vecN.eval(pt));
-    gsDebugVar(vecNL.eval(pt));
-
-    gsDebugVar(vecM.eval(pt));
-    gsDebugVar(vecML.eval(pt));
-
 
     gsField<> tensionField(mp_def, tensionfield, true);
     gsInfo<<"Plotting in Paraview...\n";
     gsWriteParaview<>( tensionField, "TensionField", 10000, true);
 
-    gsThinShellAssemblerBase<real_t> * assembler2;
-    gsThinShellAssemblerBase<real_t> * assembler3;
-    assembler2 = new gsThinShellAssembler<2, real_t, false>(mp,dbasis,bc,force,materialMatrixLinear);
-    assembler2->assemble();
-    assembler3 = new gsThinShellAssembler<2, real_t, false>(mp,dbasis,bc,force,materialMatrixTFT);
-    assembler3->assemble();
-
-    assembler->assemble();
-    gsDebugVar(assembler->matrix().toDense());
-    gsDebugVar(assembler2->matrix().toDense());
-    gsDebugVar(assembler3->matrix().toDense());
-
     delete assembler;
+*/
     return EXIT_SUCCESS;
 
 }// end main

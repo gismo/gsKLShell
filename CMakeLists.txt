@@ -1,7 +1,9 @@
-### CMakeLists.txt --- G+Smo module
+######################################################################
+## CMakeLists.txt --- gsKLShell
+## This file is part of the G+Smo library.
 ##
-## Author: Angelos Mantzaflaris
-## Copyright (C) 2018
+## Author: Angelos Mantzaflaris, Hugo Verhelst
+## Copyright (C) 2023
 ######################################################################
 
 ## gsKLShell module
@@ -11,9 +13,9 @@ project(gsKLShell)
 include(gsConfig)
 
 ## Collect files
-aux_header_directory     (${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_NAME}_H  )
-aux_cpp_directory        (${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_NAME}_CPP)
-aux_tmpl_header_directory(${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_NAME}_HPP)
+aux_header_directory     (${CMAKE_CURRENT_SOURCE_DIR}/src ${PROJECT_NAME}_H  )
+aux_cpp_directory        (${CMAKE_CURRENT_SOURCE_DIR}/src ${PROJECT_NAME}_CPP)
+aux_tmpl_header_directory(${CMAKE_CURRENT_SOURCE_DIR}/src ${PROJECT_NAME}_HPP)
 
 if( (NOT GISMO_BUILD_LIB) )
   aux_instance_directory (${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_NAME}_INS)
