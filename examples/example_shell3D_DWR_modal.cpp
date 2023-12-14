@@ -14,7 +14,7 @@
 #include <gismo.h>
 #include <typeinfo>
 
-#ifdef GISMO_WITH_SPECTRA
+#ifdef gsSpectra_ENABLED
 #include <gsSpectra/gsSpectra.h>
 #endif
 
@@ -337,7 +337,7 @@ int main(int argc, char *argv[])
     gsFunctionExpr<> nu(std::to_string(PoissonRatio), 3);
     gsFunctionExpr<> rho(std::to_string(Density), 3);
 
-    std::vector<gsFunction<> *> parameters(2);
+    std::vector<gsFunctionSet<> *> parameters(2);
     parameters[0] = &E;
     parameters[1] = &nu;
     gsMaterialMatrixBase<real_t> *materialMatrix;
@@ -436,12 +436,11 @@ int main(int argc, char *argv[])
         modalL.options().setInt("sortRule",4);
         modalL.options().setSwitch("verbose",true);
         modalL.options().setInt("ncvFac",2);
-	modalL.options().setReal("tolerance",1e-30);
+	    modalL.options().setReal("tolerance",1e-30);
 
-#ifdef GISMO_WITH_SPECTRA
+#ifdef gsSpectra_ENABLED
         index_t numL = std::min(DWR->matrixL().cols()-1,10);
-        gsDebugVar(numL);
-        modalL.computeSparse(0,numL);
+        modalL.computeSparse(numL);
 #else
         modalL.compute();
 #endif
@@ -491,9 +490,9 @@ int main(int argc, char *argv[])
         gsModalSolver<real_t> modalH(DWR->matrixH(),DWR->massH());
         modalH.options() = modalL.options();
 
-#ifdef GISMO_WITH_SPECTRA
+#ifdef gsSpectra_ENABLED
         index_t numH = std::min(DWR->matrixH().cols()-1,10);
-        modalH.computeSparse(0,numH);
+        modalH.computeSparse(numH);
 #else
         modalH.compute();
 #endif

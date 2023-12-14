@@ -174,9 +174,10 @@ public:
     static gsXmlNode * put (const Object & obj,
                             gsXmlTree & data)
     {
-        gsWarn<<"Writing gsMaterialMatrixContainer to Xml is not implemented\n";
-        gsXmlNode * result;
-        return result;
+        GISMO_ERROR("Writing gsMaterialMatrixContainer to Xml is not implemented");
+        // gsWarn<<"Writing gsMaterialMatrixContainer to Xml is not implemented\n";
+        // gsXmlNode * result;
+        // return result;
         // return putMaterialMatrixToXml< Object >( obj,data );
     }
 };

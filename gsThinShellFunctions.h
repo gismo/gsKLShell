@@ -186,7 +186,7 @@ public:
                 return 3;
                 break;
             case stress_type::principal_stress:
-                return 3;
+                return 2;
                 break;
             case stress_type::principal_stress_membrane :
                 return 2;

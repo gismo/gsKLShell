@@ -111,32 +111,38 @@ public:
     virtual void  thickness_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
-
-    /// See \ref gsMaterialMatrixBase for details
-    virtual void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
-
-    /// See \ref gsMaterialMatrixBase for details
     virtual void parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual void spec2cov_transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+    virtual gsMatrix<T> eval3D_spec2cov(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual void spec2con_transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+    virtual gsMatrix<T> eval3D_spec2con(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual void cov2cart_transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+    virtual gsMatrix<T> eval3D_cov2cart(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual void con2cart_transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+    virtual gsMatrix<T> eval3D_con2cart(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual void deformation_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+    virtual gsMatrix<T> eval3D_deformation(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
+
+    /// See \ref gsMaterialMatrixBase for details
+    virtual gsMatrix<T> eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
 
     /// See \ref gsMaterialMatrixBase for details
     virtual gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const;
     
+    /// See \ref gsMaterialMatrixBase for details
+    virtual gsMatrix<T> eval3D_pstretch(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
+
+    /// See \ref gsMaterialMatrixBase for details
+    virtual gsMatrix<T> eval3D_pstretchDir(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
+
+    /// See \ref gsMaterialMatrixBase for details
+    virtual gsMatrix<T> eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
+
     virtual bool initialized() const override
     {
         return ((m_thickness != nullptr)); // && (m_patches!= nullptr) //HV: could be defined without geometry, then call "setUndeformed"
@@ -229,20 +235,14 @@ public:
     /// Computes the stretch given deformation tensor C, into a pair
     std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C, const gsMatrix<T> & gcon_ori ) const;
 
-    /// Computes the stretch given deformation tensor C, into a pair
-    std::pair<gsVector<T>,gsMatrix<T>> _evalPStress(const gsMatrix<T> & C ) const;
-
-    /// Computes the stretch given deformation tensor C, into a pair
+    /// Computes the principal strain given deformation tensor C, into a pair
     std::pair<gsVector<T>,gsMatrix<T>> _evalPStrain(const gsMatrix<T> & C ) const;
+
+    /// Computes the principal stress given stress tensor S, into a pair
+    std::pair<gsVector<T>,gsMatrix<T>> _evalPStress(const gsMatrix<T> & S ) const;
 
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     void _computeStretch(const gsMatrix<T> & C, const gsMatrix<T> & gcon_ori ) const;
-
-    /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
-    void _computePStress(const gsMatrix<T> & C ) const;
-
-    /// Computes the principal stretch of a given stress tensor S, into a pair
-    std::pair<gsVector<T>,gsMatrix<T>> _evalPStress(const gsMatrix<T> & S ) const;
 
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
     void _computePStrain(const gsMatrix<T> & C ) const;

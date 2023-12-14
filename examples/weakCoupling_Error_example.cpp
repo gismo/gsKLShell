@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
     // for (size_t p = 0; p!=mp.nPatches(); ++p)
     //     gsDebugVar(mp.patch(p));
 
-    std::vector<gsFunction<>*> parameters(2);
+    std::vector<gsFunctionSet<>*> parameters(2);
     parameters[0] = &E;
     parameters[1] = &nu;
 

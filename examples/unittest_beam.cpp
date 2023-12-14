@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
     gsFunctionExpr<> rho(std::to_string(Density),3);
 
     gsMaterialMatrixBase<real_t>* materialMatrix;
-    std::vector<gsFunction<>*> parameters(2);
+    std::vector<gsFunctionSet<>*> parameters(2);
     parameters[0] = &E;
     parameters[1] = &nu;
     gsOptionList options;

@@ -208,7 +208,7 @@ int main(int argc, char *argv[])
         gsInfo <<"Basis "<<p<<": "<< dbasis.basis(0)<<"\n";
 
     //! [Make assembler]
-    std::vector<gsFunction<>*> parameters(2);
+    std::vector<gsFunctionSet<>*> parameters(2);
     parameters[0] = &E;
     parameters[1] = &nu;
 

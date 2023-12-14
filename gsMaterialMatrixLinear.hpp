@@ -158,123 +158,6 @@ gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear( const gsMaterialMatrixLin
     *this =(other);
 }
 
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::pstretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-{
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-
-    this->_computePoints(patch,u,true);
-
-    result.resize(3, u.cols());
-    std::pair<gsVector<T>,gsMatrix<T>> res;
-    for (index_t i=0; i!= u.cols(); i++)
-    {
-        this->_getMetric(i,0.0,true); // on point i, with height 0.0
-
-        gsMatrix<T> C(3,3);
-        C.setZero();
-        C.block(0,0,2,2) = m_Gcov_def.block(0,0,2,2);
-        C(2,2) = 1./m_J0_sq;
-
-        res = this->_evalStretch(C);
-        result.col(i) = res.first;
-    }
-}
-
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::pstress_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-{
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-
-    this->_computePoints(patch,u,true);
-
-    result.resize(3, u.cols());
-    std::pair<gsVector<T>,gsMatrix<T>> res;
-    gsMatrix<T,3,3> S;
-    enum MaterialOutput out = MaterialOutput::Generic;
-    for (index_t i=0; i!= u.cols(); i++)
-    {
-        // Evaluate material properties on the quadrature point
-        for (index_t v=0; v!=m_parmat.rows(); v++)
-            m_parvals.at(v) = m_parmat(v,i);
-
-
-        this->_getMetric(i,0.0,true); // on point i, with height 0.0
-
-        S.setZero();
-        S(0, 0) = _Sij(0, 0, 0, out);
-        S(0, 1) = _Sij(0, 1, 0, out);
-        S(1, 0) = _Sij(1, 0, 0, out);
-        S(1, 1) = _Sij(1, 1, 0, out);
-        S(2, 2) = 0;
-
-        res = _evalPStress(S);
-        result.col(i) = res.first;
-    }
-}
-
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::pstressDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-{
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-
-    this->_computePoints(patch,u);
-    gsMatrix<T> z(1,u.cols());
-    z.setZero();
-
-    result.resize(9, u.cols());
-    result.setZero();
-
-    gsMatrix<T> Smat = this->eval3D_vector(patch,u,z);
-    gsMatrix<T> S(3,3);
-    std::pair<gsVector<T>,gsMatrix<T>> res;
-    for (index_t k=0; k!=u.cols(); k++)
-    {
-        this->_getMetric(k, z(0, k) * m_Tmat(0, k)); // on point i, on height z(0,j)
-
-        S(0,0) = Smat(0,k);
-        S(1,1) = Smat(1,k);
-        S(0,1) =
-        S(1,0) = Smat(2,k);
-        S(0,2) = S(1,2) = S(2,0) = S(2,1) = S(2,2) = 0; // assumed to be satisfied
-        res = this->_evalPStress(S);
-        result.col(k) = res.second.reshape(9,1);
-    }
-}
-
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::pstressDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-{
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-
-    this->_computePoints(patch,u);
-    gsMatrix<T> z(1,u.cols());
-    z.setZero();
-
-    result.resize(9, u.cols());
-    result.setZero();
-
-    gsMatrix<T> Smat = this->eval3D_vector(patch,u,z);
-    gsMatrix<T> S(3,3);
-    std::pair<gsVector<T>,gsMatrix<T>> res;
-    for (index_t k=0; k!=u.cols(); k++)
-    {
-        this->_getMetric(k, z(0, k) * m_Tmat(0, k)); // on point i, on height z(0,j)
-
-        S(0,0) = Smat(0,k);
-        S(1,1) = Smat(1,k);
-        S(0,1) =
-        S(1,0) = Smat(2,k);
-        S(0,2) = S(1,2) = S(2,0) = S(2,1) = S(2,2) = 0; // assumed to be satisfied
-        res = this->_evalPStress(S);
-        result.col(k) = res.second.reshape(9,1);
-    }
-}
-
 template <short_t dim, class T>
 std::ostream & gsMaterialMatrixLinear<dim,T>::print(std::ostream &os) const
 {
@@ -285,46 +168,6 @@ std::ostream & gsMaterialMatrixLinear<dim,T>::print(std::ostream &os) const
     os  <<"Material model: \t";
     os  <<"Saint-Venant Kirchhoff";
     os  <<"\n";
-}
-
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
-{
-    m_map.mine().flags = NEED_VALUE;
-    m_map.mine().points = u;
-    static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(m_map);
-    m_thickness->eval_into(m_map.mine().values[0], result);
-}
-
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::pstretchTransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
-{
-    result.resize(9, u.cols());
-    gsMatrix<T> tmp, conbasis,sbasis;
-    this->pstretchDir_into(patch,u,tmp);
-    for (index_t i=0; i!= u.cols(); i++)
-    {
-        this->_getMetric(i,0.0,true); // on point i, with height 0.0
-        sbasis = tmp.reshapeCol(i,3,3);
-        conbasis = m_gcon_ori;
-        result.col(i) = this->_transformation(conbasis,sbasis).reshape(9,1);
-    }
-}
-
-template <short_t dim, class T >
-void gsMaterialMatrixLinear<dim,T>::pstressTransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T> & result) const
-{
-    result.resize(9, u.cols());
-    gsMatrix<T> tmp, covbasis,sbasis;
-    this->pstressDir_into(patch,u,tmp);
-    for (index_t i=0; i!= u.cols(); i++)
-    {
-        this->_getMetric(i,0.0,true); // on point i, with height 0.0
-        sbasis = tmp.reshapeCol(i,3,3);
-        covbasis = m_gcov_ori;
-        result.col(i) = this->_transformation(covbasis,sbasis).reshape(9,1);
-    }
-=======
     os  <<"---------------------------------------------------------------------\n\n";
     return os;
 }
@@ -341,7 +184,6 @@ void gsMaterialMatrixLinear<dim,T>::_initialize()
 {
     // Set default options
     this->defaultOptions();
->>>>>>> develop
 }
 
 template <short_t dim, class T>
@@ -562,6 +404,39 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstress(const index_t patch, c
 }
 
 template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstressDir(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    gsMatrix<T> Smat = eval3D_stress(patch,u,z,out);
+
+    gsMatrix<T> result(9, u.cols() * z.rows());
+    result.setZero();
+    gsMatrix<T,3,3> S;
+    index_t colIdx;
+    std::pair<gsVector<T>,gsMatrix<T>> res;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        // Evaluate material properties on the quadrature point
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
+
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            colIdx = j * u.cols() + k;
+            S.setZero();
+            S(0,0) = Smat(0,colIdx);
+            S(1,1) = Smat(1,colIdx);
+            S(0,1) = S(1,0) = Smat(2,colIdx);
+            S(2,2) = 0;
+            res = this->_evalPStress(S);
+            result.col(j * u.cols() + k) = res.second.reshape(9,1);
+        }
+    }
+
+    return result;
+
+}
+
+template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_CauchyPStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     gsMatrix<T> Smat = eval3D_CauchyStress(patch,u,z,out);
@@ -587,62 +462,6 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_CauchyPStress(const index_t pa
             S(2,2) = 0;
             res = this->_evalPStress(S);
             result.col(j * u.cols() + k) = res.first;
-        }
-    }
-
-    return result;
-
-}
-
-
-template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
-{
-    gsMatrix<T> Emat = eval3D_strain(patch,u,z,out);
-
-    gsMatrix<T> result(3, u.cols() * z.rows());
-    result.setZero();
-    gsMatrix<T,3,3> E;
-    index_t colIdx;
-    std::pair<gsVector<T>,gsMatrix<T>> res;
-    for (index_t k=0; k!=u.cols(); k++)
-    {
-        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
-        {
-            colIdx = j * u.cols() + k;
-            E.setZero();
-            E(0,0) = Emat(0,colIdx);
-            E(1,1) = Emat(1,colIdx);
-            E(0,1) = E(1,0) = 0.5*Emat(2,colIdx);
-            E(2,2) = 0;
-            res = this->_evalPStrain(E);
-            result.col(j * u.cols() + k) = res.first;
-        }
-    }
-
-    return result;
-
-}
-
-template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
-{
-    this->_computePoints(patch,u);
-
-    gsMatrix<T> result(3, u.cols() * z.rows());
-    result.setZero();
-    gsMatrix<T,2,2> E;
-    for (index_t k=0; k!=u.cols(); k++)
-    {
-        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
-        {
-            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
-
-            // E.setZero();
-            E.block(0,0,2,2) = _E(0,out);
-            result(0,j*u.cols() + k) = E(0,0);
-            result(1,j*u.cols() + k) = E(1,1);
-            result(2,j*u.cols() + k) = E(0,1) + E(1,0);
         }
     }
 
@@ -807,7 +626,10 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const T z, enum MaterialOutput out
                 out == MaterialOutput::PCauchyStressM   ||
                 out == MaterialOutput::StrainM             )
         strain = (m_data.mine().m_Bcov_ori - m_data.mine().m_Bcov_def);
-    else if (out == MaterialOutput::Generic || out == MaterialOutput::Strain || out == MaterialOutput::Stress) // To be used with multiplyLinZ_into or integrateZ_into
+    else if (   out == MaterialOutput::Generic          ||
+                out == MaterialOutput::Strain           ||
+                out == MaterialOutput::Stress           ||
+                out == MaterialOutput::PStress             ) // To be used with multiplyLinZ_into or integrateZ_into
         strain = 0.5*(m_data.mine().m_Gcov_def.block(0,0,2,2) - m_data.mine().m_Gcov_ori.block(0,0,2,2));
     else
         GISMO_ERROR("Output type MaterialOutput::" + std::to_string((short_t)(out)) + " not understood. See gsMaterialMatrixUtils.h");

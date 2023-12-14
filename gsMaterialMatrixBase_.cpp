@@ -29,12 +29,14 @@ namespace gismo
     // Member functions
     .def("setOptions", &Class::setOptions, "Sets the options")
     .def("density_into", &Class::density_into, "Computes the density into a matrix")
-    .def("stretch_into", &Class::stretch_into, "Computes the stretches into a matrix")
-    .def("stretchDir_into", &Class::stretchDir_into, "Computes the stretch directions into a matrix")
+    .def("pstretch_into", &Class::pstretch_into, "Computes the stretches into a matrix")
+    .def("pstretchDir_into", &Class::pstretchDir_into, "Computes the stretch directions into a matrix")
     .def("thickness_into", &Class::thickness_into, "Computes the thickness into a matrix")
     .def("transform_into", &Class::transform_into, "Computes the stretch transformation into a matrix")
-    .def("eval3D_matrix", &Class::eval3D_matrix, "Evaluates the material matrix")
-    .def("eval3D_vector", &Class::eval3D_vector, "Evaluates the stress vector")
+    .def("eval3D_matrix", static_cast<gsMatrix<real_t> (Class::*)(   const index_t, const gsMatrix<real_t> &, const gsMatrix<real_t> &, enum MaterialOutput    ) const> (&Class::eval3D_matrix), "Evaluates the material matrix")
+    .def("eval3D_matrix", static_cast<gsMatrix<real_t> (Class::*)(   const index_t, const gsVector<real_t> &, const          real_t  &, enum MaterialOutput    ) const> (&Class::eval3D_matrix), "Evaluates the material matrix")
+    .def("eval3D_vector", static_cast<gsMatrix<real_t> (Class::*)(   const index_t, const gsMatrix<real_t> &, const gsMatrix<real_t> &, enum MaterialOutput    ) const> (&Class::eval3D_vector), "Evaluates the material matrix")
+    .def("eval3D_vector", static_cast<gsMatrix<real_t> (Class::*)(   const index_t, const gsVector<real_t> &, const          real_t  &, enum MaterialOutput    ) const> (&Class::eval3D_vector), "Evaluates the material matrix")
     .def("eval3D_pstress", &Class::eval3D_pstress, "Evaluates the principal stress vector")
 
     .def("setYoungsModulus",  &Class::setYoungsModulus,   "Sets the Young's Modulus")
@@ -42,7 +44,8 @@ namespace gismo
     .def("setRatio"        ,  &Class::setRatio        ,   "Sets the Ratio for MR model")
     .def("setMu"           ,  &Class::setMu           ,   "Sets the Mu_i for OG model")
     .def("setAlpha"        ,  &Class::setAlpha        ,   "Sets the Alpha_i for OG model")
-    .def("setDensity"      ,  &Class::setDensity      ,   "Sets the Density")
+    .def("setDensity"      ,  static_cast<void (Class::*)(   const gsFunctionSet<real_t> &    ) > (&Class::setDensity)      ,   "Sets the Density")
+    .def("setThickness"    ,  static_cast<void (Class::*)(   const gsFunctionSet<real_t> &    ) > (&Class::setThickness)    ,   "Sets the Thickness")
     ;
   }
 

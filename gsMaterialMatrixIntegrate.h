@@ -276,11 +276,13 @@ private:
     /// Implementation of \ref getMoment for MaterialOutput::VectorN; the moment is 0
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorN ||
+                            _out==MaterialOutput::PStressN||
                             _out==MaterialOutput::CauchyVectorN, T>::type getMoment_impl() const { return 0; };
 
     /// Implementation of \ref getMoment for MaterialOutput::VectorM; the moment is 1
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::VectorM ||
+                            _out==MaterialOutput::PStressM||
                             _out==MaterialOutput::CauchyVectorM, T>::type getMoment_impl() const { return 1; };
 
     /// Implementation of \ref getMoment for MaterialOutput::MatrixA; the moment is 0
@@ -402,6 +404,12 @@ private:
                             _out==MaterialOutput::MatrixB ||
                             _out==MaterialOutput::MatrixC ||
                             _out==MaterialOutput::MatrixD   , gsMatrix<T>>::type eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const;
+
+    /// Specialisation of \ref eval3D for vectors
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::PStress  ||
+                            _out==MaterialOutput::PStressN ||
+                            _out==MaterialOutput::PStressM   , gsMatrix<T>>::type eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const;
 
     /// Specialisation of \ref eval3D for other types
     template<enum MaterialOutput _out>

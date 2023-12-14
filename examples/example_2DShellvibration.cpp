@@ -186,7 +186,7 @@ int main(int argc, char *argv[])
     gsFunctionExpr<> nu(std::to_string(PoissonRatio),3);
     gsFunctionExpr<> rho(std::to_string(Density),3);
 //    gsConstantFunction<> ratio(Ratio,3);
-    std::vector<gsFunction<>*> parameters;
+    std::vector<gsFunctionSet<>*> parameters;
     if (material==0) // SvK & Composites
     {
         parameters.resize(2);

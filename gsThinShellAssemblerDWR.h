@@ -116,60 +116,60 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     //--------------------- SYSTEM ASSEMBLY ----------------------------------//
     ////////////////////////////////////////////////////////////////////////////
-    void assembleL();
-    void assembleH();
+    ThinShellAssemblerStatus assembleL();
+    ThinShellAssemblerStatus assembleH();
 
-    void assembleMassL(bool lumped = false)
-    { m_massL = _assembleMass(m_assemblerL, lumped); }
-    void assembleMassH(bool lumped = false)
-    { m_massH = _assembleMass(m_assemblerH, lumped); }
-    void assembleMatrixL()
-    { m_matrixL = _assembleMatrix(m_assemblerL); }
-    void assembleMatrixH()
-    { m_matrixH = _assembleMatrix(m_assemblerH); }
-    void assembleMatrixL(const gsMultiPatch<T> & deformed)
-    { m_matrixL = _assembleMatrix(m_assemblerL,deformed); }
-    void assembleMatrixH(const gsMultiPatch<T> & deformed)
-    { m_matrixH = _assembleMatrix(m_assemblerH,deformed); }
+    ThinShellAssemblerStatus assembleMassL(bool lumped = false)
+    { return _assembleMass(m_assemblerL, m_massL, lumped); }
+    ThinShellAssemblerStatus assembleMassH(bool lumped = false)
+    { return _assembleMass(m_assemblerH, m_massH, lumped); }
+    ThinShellAssemblerStatus assembleMatrixL()
+    { return _assembleMatrix(m_assemblerL, m_matrixL); }
+    ThinShellAssemblerStatus assembleMatrixH()
+    { return _assembleMatrix(m_assemblerH, m_matrixH); }
+    ThinShellAssemblerStatus assembleMatrixL(const gsMultiPatch<T> & deformed)
+    { return _assembleMatrix(m_assemblerL,deformed, m_matrixL); }
+    ThinShellAssemblerStatus assembleMatrixH(const gsMultiPatch<T> & deformed)
+    { return _assembleMatrix(m_assemblerH,deformed, m_matrixH); }
 
-    void assemblePrimalL()
-    { m_pL = _assemblePrimal(m_assemblerL); }
-    void assemblePrimalH()
-    { m_pH = _assemblePrimal(m_assemblerH); }
-    void assemblePrimalL(const gsMultiPatch<T> & deformed)
-    { m_pL = _assemblePrimal(m_assemblerL,deformed); }
-    void assemblePrimalH(const gsMultiPatch<T> & deformed)
-    { m_pH = _assemblePrimal(m_assemblerH,deformed); }
+    ThinShellAssemblerStatus assemblePrimalL()
+    { return _assemblePrimal(m_assemblerL, m_pL); }
+    ThinShellAssemblerStatus assemblePrimalH()
+    { return _assemblePrimal(m_assemblerH, m_pH); }
+    ThinShellAssemblerStatus assemblePrimalL(const gsMultiPatch<T> & deformed)
+    { return _assemblePrimal(m_assemblerL,deformed, m_pL); }
+    ThinShellAssemblerStatus assemblePrimalH(const gsMultiPatch<T> & deformed)
+    { return _assemblePrimal(m_assemblerH,deformed, m_pH); }
 
-    void assembleDualL(const gsMultiPatch<T> & primal)
-    { m_dL = _assembleDual(m_assemblerL,primal); }
-    void assembleDualH(const gsMultiPatch<T> & primal)
-    { m_dH = _assembleDual(m_assemblerH,primal); }
-    \
-    void assembleDualL(const bContainer & bnds, const gsMultiPatch<T> & primal)
-    { m_dL = _assembleDual(bnds,m_assemblerL,primal); }
-    void assembleDualH(const bContainer & bnds, const gsMultiPatch<T> & primal)
-    { m_dH = _assembleDual(bnds,m_assemblerH,primal); }
+    ThinShellAssemblerStatus assembleDualL(const gsMultiPatch<T> & primal)
+    { return _assembleDual(m_assemblerL,primal, m_dL); }
+    ThinShellAssemblerStatus assembleDualH(const gsMultiPatch<T> & primal)
+    { return _assembleDual(m_assemblerH,primal, m_dH); }
 
-    void assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal)
-    { m_dL = _assembleDual(points,m_assemblerL,primal); }
-    void assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal)
-    { m_dH = _assembleDual(points,m_assemblerH,primal); }
+    ThinShellAssemblerStatus assembleDualL(const bContainer & bnds, const gsMultiPatch<T> & primal)
+    { return _assembleDual(bnds,m_assemblerL,primal, m_dL); }
+    ThinShellAssemblerStatus assembleDualH(const bContainer & bnds, const gsMultiPatch<T> & primal)
+    { return _assembleDual(bnds,m_assemblerH,primal, m_dH); }
 
-    void assembleDualL(const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
-    { m_dL = _assembleDual(m_assemblerL,primal,deformed); }
-    void assembleDualH(const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
-    { m_dH = _assembleDual(m_assemblerH,primal,deformed); }
+    ThinShellAssemblerStatus assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal)
+    { return _assembleDual(points,m_assemblerL,primal, m_dL); }
+    ThinShellAssemblerStatus assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal)
+    { return _assembleDual(points,m_assemblerH,primal, m_dH); }
 
-    void assembleDualL(const bContainer & bnds, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
-    { m_dL = _assembleDual(bnds,m_assemblerL,primal,deformed); }
-    void assembleDualH(const bContainer & bnds, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
-    { m_dH = _assembleDual(bnds,m_assemblerH,primal,deformed); }
+    ThinShellAssemblerStatus assembleDualL(const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
+    { return _assembleDual(m_assemblerL,primal,deformed, m_dL); }
+    ThinShellAssemblerStatus assembleDualH(const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
+    { return _assembleDual(m_assemblerH,primal,deformed, m_dH); }
 
-    void assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
-    { m_dL = _assembleDual(points,m_assemblerL,primal,deformed); }
-    void assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
-    { m_dH = _assembleDual(points,m_assemblerH,primal,deformed); }
+    ThinShellAssemblerStatus assembleDualL(const bContainer & bnds, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
+    { return _assembleDual(bnds,m_assemblerL,primal,deformed, m_dL); }
+    ThinShellAssemblerStatus assembleDualH(const bContainer & bnds, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
+    { return _assembleDual(bnds,m_assemblerH,primal,deformed, m_dH); }
+
+    ThinShellAssemblerStatus assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
+    { return _assembleDual(points,m_assemblerL,primal,deformed, m_dL); }
+    ThinShellAssemblerStatus assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed)
+    { return _assembleDual(points,m_assemblerH,primal,deformed, m_dH); }
 
     const gsSparseMatrix<T> & matrixL() const { return m_matrixL; }
     const gsSparseMatrix<T> & matrixH() const { return m_matrixH; }
@@ -276,14 +276,14 @@ public:
 
 protected:
 
-    gsSparseMatrix<T>   _assembleMass(gsThinShellAssemblerBase<T> * assembler, bool lumped = false);
+    ThinShellAssemblerStatus _assembleMass(gsThinShellAssemblerBase<T> * assembler, gsSparseMatrix<T> & result, bool lumped = false);
 
-    std::pair<gsSparseMatrix<T>,gsVector<T>>   _assemble(gsThinShellAssemblerBase<T> * assembler);
+    ThinShellAssemblerStatus _assemble(gsThinShellAssemblerBase<T> * assembler, std::pair<gsSparseMatrix<T>,gsVector<T>> & result);
 
-    gsSparseMatrix<T>   _assembleMatrix(gsThinShellAssemblerBase<T> * assembler);
-    gsSparseMatrix<T>   _assembleMatrix(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & deformed);
-    gsVector<T>         _assemblePrimal(gsThinShellAssemblerBase<T> * assembler);
-    gsVector<T>         _assemblePrimal(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & deformed);
+    ThinShellAssemblerStatus _assembleMatrix(gsThinShellAssemblerBase<T> * assembler, gsSparseMatrix<T> & result);
+    ThinShellAssemblerStatus _assembleMatrix(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & deformed, gsSparseMatrix<T> & result);
+    ThinShellAssemblerStatus _assemblePrimal(gsThinShellAssemblerBase<T> * assembler, gsVector<T> & result);
+    ThinShellAssemblerStatus _assemblePrimal(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & deformed, gsVector<T> & result);
 
     /**
      * @brief      Assembles the dual as a domain integral
@@ -295,15 +295,15 @@ protected:
      *
      * @return     RHS vector
      */
-    gsVector<T>         _assembleDual(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
+    ThinShellAssemblerStatus _assembleDual(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, gsVector<T> & result)
     {
         gsMultiPatch<T> deformed = m_patches;
         for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
             deformed.patch(k).coefs() += primal.patch(k).coefs();  // Gdef points to mp_def, therefore updated
 
-        return _assembleDual(assembler,primal,deformed);
+        return _assembleDual(assembler,primal,deformed,result);
     }
-    gsVector<T>         _assembleDual(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
+    ThinShellAssemblerStatus _assembleDual(gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed, gsVector<T> & result);
 
     /**
      * @brief      Assembles the dual on boundaries
@@ -316,15 +316,15 @@ protected:
      *
      * @return     RHS vector
      */
-    gsVector<T>         _assembleDual(const bContainer & bnds, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
+    ThinShellAssemblerStatus _assembleDual(const bContainer & bnds, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, gsVector<T> & result)
     {
         gsMultiPatch<T> deformed = m_patches;
         for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
             deformed.patch(k).coefs() += primal.patch(k).coefs();  // Gdef points to mp_def, therefore updated
 
-        return _assembleDual(bnds,assembler,primal,deformed);
+        return _assembleDual(bnds,assembler,primal,deformed,result);
     }
-    gsVector<T>         _assembleDual(const bContainer & bnds, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
+    ThinShellAssemblerStatus _assembleDual(const bContainer & bnds, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed, gsVector<T> & result);
 
     /**
      * @brief      Assembles the dual on points
@@ -337,15 +337,15 @@ protected:
      *
      * @return     RHS vector
      */
-    gsVector<T>         _assembleDual(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal)
+    ThinShellAssemblerStatus _assembleDual(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, gsVector<T> & result)
     {
         gsMultiPatch<T> deformed = m_patches;
         for ( size_t k =0; k!=primal.nPatches(); ++k) // Deform the geometry
             deformed.patch(k).coefs() += primal.patch(k).coefs();  // Gdef points to mp_def, therefore updated
 
-        return _assembleDual(points,assembler,primal,deformed);
+        return _assembleDual(points,assembler,primal,deformed,result);
     }
-    gsVector<T>         _assembleDual(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed);
+    ThinShellAssemblerStatus _assembleDual(const gsMatrix<T> & points, gsThinShellAssemblerBase<T> * assembler, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed, gsVector<T> & result);
 
     template<int _elWise>
     void computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, bool withLoads,
@@ -417,7 +417,7 @@ protected:
 
     using Base::m_patches;
     // using Base::m_defpatches;
-    using Base::m_materialMat;
+    using Base::m_materialMatrices;
     using Base::m_forceFun;
     using Base::m_options;
     using Base::m_foundFun;
@@ -472,39 +472,39 @@ public:
     virtual void setSpaceBasisL(const gsFunctionSet<T> & spaceBasis) =0;
     virtual void setSpaceBasisH(const gsFunctionSet<T> & spaceBasis) =0;
 
-    virtual void assembleL() =0;
-    virtual void assembleH() =0;
+    virtual ThinShellAssemblerStatus assembleL() =0;
+    virtual ThinShellAssemblerStatus assembleH() =0;
 
-    virtual void assembleMassL(bool lumped = false) =0;
-    virtual void assembleMassH(bool lumped = false) =0;
-    virtual void assembleMatrixL() =0;
-    virtual void assembleMatrixH() =0;
-    virtual void assembleMatrixL(const gsMultiPatch<T> & deformed) =0;
-    virtual void assembleMatrixH(const gsMultiPatch<T> & deformed) =0;
+    virtual ThinShellAssemblerStatus assembleMassL(bool lumped = false) =0;
+    virtual ThinShellAssemblerStatus assembleMassH(bool lumped = false) =0;
+    virtual ThinShellAssemblerStatus assembleMatrixL() =0;
+    virtual ThinShellAssemblerStatus assembleMatrixH() =0;
+    virtual ThinShellAssemblerStatus assembleMatrixL(const gsMultiPatch<T> & deformed) =0;
+    virtual ThinShellAssemblerStatus assembleMatrixH(const gsMultiPatch<T> & deformed) =0;
 
-    virtual void assemblePrimalL() =0;
-    virtual void assemblePrimalH() =0;
-    virtual void assemblePrimalL(const gsMultiPatch<T> & deformed) =0;
-    virtual void assemblePrimalH(const gsMultiPatch<T> & deformed) =0;
+    virtual ThinShellAssemblerStatus assemblePrimalL() =0;
+    virtual ThinShellAssemblerStatus assemblePrimalH() =0;
+    virtual ThinShellAssemblerStatus assemblePrimalL(const gsMultiPatch<T> & deformed) =0;
+    virtual ThinShellAssemblerStatus assemblePrimalH(const gsMultiPatch<T> & deformed) =0;
 
 
-    virtual void assembleDualL(const gsMultiPatch<T> & primal) =0;
-    virtual void assembleDualH(const gsMultiPatch<T> & primal) =0;
+    virtual ThinShellAssemblerStatus assembleDualL(const gsMultiPatch<T> & primal) =0;
+    virtual ThinShellAssemblerStatus assembleDualH(const gsMultiPatch<T> & primal) =0;
 
-    virtual void assembleDualL(const bContainer & bnds, const gsMultiPatch<T> & primal) =0;
-    virtual void assembleDualH(const bContainer & bnds, const gsMultiPatch<T> & primal) =0;
+    virtual ThinShellAssemblerStatus assembleDualL(const bContainer & bnds, const gsMultiPatch<T> & primal) =0;
+    virtual ThinShellAssemblerStatus assembleDualH(const bContainer & bnds, const gsMultiPatch<T> & primal) =0;
 
-    virtual void assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal) =0;
-    virtual void assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal) =0;
+    virtual ThinShellAssemblerStatus assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal) =0;
+    virtual ThinShellAssemblerStatus assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal) =0;
 
-    virtual void assembleDualL(const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
-    virtual void assembleDualH(const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
+    virtual ThinShellAssemblerStatus assembleDualL(const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
+    virtual ThinShellAssemblerStatus assembleDualH(const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
 
-    virtual void assembleDualL(const bContainer & bnds, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
-    virtual void assembleDualH(const bContainer & bnds, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
+    virtual ThinShellAssemblerStatus assembleDualL(const bContainer & bnds, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
+    virtual ThinShellAssemblerStatus assembleDualH(const bContainer & bnds, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
 
-    virtual void assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
-    virtual void assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
+    virtual ThinShellAssemblerStatus assembleDualL(const gsMatrix<T> & points, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
+    virtual ThinShellAssemblerStatus assembleDualH(const gsMatrix<T> & points, const gsMultiPatch<T> & primal, const gsMultiPatch<T> & deformed) =0;
 
     virtual const gsSparseMatrix<T> & matrixL() const =0;
     virtual const gsSparseMatrix<T> & matrixH() const =0;

@@ -272,7 +272,7 @@ int main(int argc, char* argv[]) {
     Phis[0] = &phi;
 
     //! [Make assembler]
-    std::vector<gsFunction<> *> parameters;
+    std::vector<gsFunctionSet<> *> parameters;
     gsMaterialMatrixBase<real_t> *materialMatrix;
     gsOptionList options;
 

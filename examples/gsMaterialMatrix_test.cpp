@@ -55,7 +55,7 @@ int main (int argc, char** argv)
     gsFunctionExpr<> nu(std::to_string(PoissonRatio),3);
     gsConstantFunction<> ratio(Ratio,3);
 
-    std::vector<gsFunction<>*> parameters;
+    std::vector<gsFunctionSet<>*> parameters;
     if (material==0 || material==1 || material==2)
     {
         parameters.resize(2);

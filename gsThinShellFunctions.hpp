@@ -58,9 +58,9 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     variable Sc1 = ev.getVariable(m_Sc1);
 
     gsMaterialMatrixEval<T,MaterialOutput::PStress> m_Sp(m_materialMatrices,m_defpatches,z);
-    variable Sp = m_assembler.getCoeff(m_Sp);
+    variable Sp = ev.getVariable(m_Sp);
     gsMaterialMatrixEval<T,MaterialOutput::PStressDir> m_pstressdir(m_materialMatrices,m_defpatches,z);
-    variable pstressdir = m_assembler.getCoeff(m_pstressdir);
+    variable pstressdir = ev.getVariable(m_pstressdir);
 
     gsMaterialMatrixEval<T,MaterialOutput::PCauchyStressN> m_Sp0(m_materialMatrices,m_defpatches,z);
     variable Sp0 = ev.getVariable(m_Sp0);
@@ -79,7 +79,6 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     variable lambda = ev.getVariable(m_lambda);
     gsMaterialMatrixEval<T,MaterialOutput::StretchDir> m_lambdadir(m_materialMatrices,m_defpatches,z);
     variable lambdadir = ev.getVariable(m_lambdadir);
->>>>>>> develop
 
     gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
     variable m_m2 = ev.getVariable(mult2t);

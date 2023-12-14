@@ -118,7 +118,7 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::Stretch, void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->pstretch_into(m_pIndex,u,result);
+    result = m_materialMat->eval3D_pstretch(m_pIndex,u,m_z.replicate(1,u.cols()));
 }
 
 template <class T, enum MaterialOutput out>
@@ -128,7 +128,7 @@ typename std::enable_if<_out==MaterialOutput::PStress  ||
                         _out==MaterialOutput::PStressM      , void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->pstretch_into(m_pIndex,u,result);
+    result = m_materialMat->eval3D_pstress(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
 }
 
 template <class T, enum MaterialOutput out>
@@ -145,16 +145,7 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::PStrainN || _out==MaterialOutput::PStrainM, void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    result = m_materialMat->eval3D_pstrain(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
-}
-
-template <class T, enum MaterialOutput out>
-template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::Stretch, void>::type
-gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
->>>>>>> develop
-{
-    m_materialMat->pstress_into(m_pIndex,u,result);
+    result = m_materialMat->eval3D_pstrain(m_pIndex,u,m_z.replicate(1,u.cols()));
 }
 
 template <class T, enum MaterialOutput out>
@@ -162,31 +153,31 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::StretchDir, void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->pstretchDir_into(m_pIndex,u,result);
+    result = m_materialMat->eval3D_pstretchDir(m_pIndex,u,m_z.replicate(1,u.cols()));
 }
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::PStressDir, void>::type
-gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->pstressDir_into(m_pIndex,u,result);
+    result = m_materialMat->eval3D_pstressDir(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
 }
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::StretchTransform, void>::type
-gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->pstretchTransform_into(m_pIndex,u,result);
+    result = m_materialMat->eval3D_pstretchTransform(m_pIndex,u,m_z.replicate(1,u.cols()));
 }
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::StretchTransform, void>::type
-gsMaterialMatrixEval<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
+typename std::enable_if<_out==MaterialOutput::PStressTransform, void>::type
+gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->pstressTransform_into(m_pIndex,u,result);
+    result = m_materialMat->eval3D_pstressTransform(m_pIndex,u,m_z.replicate(1,u.cols()));
 }
 
 template <class T, enum MaterialOutput out>
@@ -194,7 +185,7 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::Spec2CovTransform, void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->spec2cov_transform_into(m_pIndex,u,result);
+    result = m_materialMat->eval3D_spec2cov(m_pIndex,u,m_z.replicate(1,u.cols()));
 }
 
 template <class T, enum MaterialOutput out>
@@ -202,7 +193,7 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::Spec2ConTransform, void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->spec2con_transform_into(m_pIndex,u,result);
+    result = m_materialMat->eval3D_spec2con(m_pIndex,u,m_z.replicate(1,u.cols()));
 }
 
 template <class T, enum MaterialOutput out>
@@ -210,7 +201,7 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::Cov2CartTransform, void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->cov2cart_transform_into(m_pIndex,u,result);
+    result = m_materialMat->eval3D_cov2cart(m_pIndex,u,m_z.replicate(1,u.cols()));
 }
 
 template <class T, enum MaterialOutput out>
@@ -218,7 +209,7 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::Con2CartTransform, void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->con2cart_transform_into(m_pIndex,u,result);
+    result = m_materialMat->eval3D_con2cart(m_pIndex,u,m_z.replicate(1,u.cols()));
 }
 
 template <class T, enum MaterialOutput out>
@@ -252,7 +243,7 @@ typename std::enable_if<_out==MaterialOutput::Strain  ||
                         _out==MaterialOutput::StrainM   , void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    result = m_materialMat->eval3D_strain(m_pIndex,u,m_z.replicate(1,u.cols()),_out);
+    result = m_materialMat->eval3D_strain(m_pIndex,u,m_z.replicate(1,u.cols()));
 }
 
 template <class T, enum MaterialOutput out>
@@ -297,7 +288,7 @@ template <enum MaterialOutput _out>
 typename std::enable_if<_out==MaterialOutput::Deformation, void>::type
 gsMaterialMatrixEvalSingle<T,out>::eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    m_materialMat->deformation_into(m_pIndex,u,result);
+    result = m_materialMat->eval3D_deformation(m_pIndex,u,m_z.replicate(1,u.cols()));
 }
 
 

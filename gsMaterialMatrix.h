@@ -140,12 +140,6 @@ public:
     void pstretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    void pstress_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override;
-
-    /// See \ref gsMaterialMatrixBase for details
-    void pstressDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override;
-
-    /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
@@ -167,13 +161,10 @@ public:
     gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
     /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_pstressDir(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+
+    /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_CauchyPStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
-
-    /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
-
-    /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;

@@ -226,7 +226,7 @@ int main(int argc, char *argv[])
 
     if (plot) gsWriteParaview(mp,"mp",1000,true,false);
 
-    std::vector<gsFunction<>*> parameters(2);
+    std::vector<gsFunctionSet<>*> parameters(2);
     parameters[0] = &E;
     parameters[1] = &nu;
 

@@ -328,7 +328,7 @@ int main(int argc, char *argv[])
     Ts[0] = &thicks;
 
     // Define parameters vector depending on material law
-    std::vector<gsFunction<>*> parameters;
+    std::vector<gsFunctionSet<>*> parameters;
     if (material==0) // SvK & Composites
     {
       parameters.resize(2);

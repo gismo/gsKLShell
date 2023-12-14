@@ -439,7 +439,7 @@ SUITE(gsMaterialMatrix_test)                 // The suite should have the same n
         /// STRAIN
         gsMatrix<> e = 1./2. * (Cmat - gori);
         e(2,0) *= 2;
-        gsMatrix<> strain_MM = materialMatrix->eval3D_strain(0,pt,z,MaterialOutput::Generic);
+        gsMatrix<> strain_MM = materialMatrix->eval3D_strain(0,pt,z);
         CHECK_MATRIX_CLOSE(e,strain_MM,1e-3);
 
         /// MATRIX

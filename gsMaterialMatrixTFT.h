@@ -121,14 +121,6 @@ public:
     { m_materialMat->density_into( patch,u,result ); }
 
     /// See \ref gsMaterialMatrixBase for details
-    void stretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-    { m_materialMat->stretch_into( patch,u,result ); }
-
-    /// See \ref gsMaterialMatrixBase for details
-    void stretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-    { m_materialMat->stretchDir_into( patch,u,result ); }
-
-    /// See \ref gsMaterialMatrixBase for details
     void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
     { m_materialMat->thickness_into( patch,u,result ); }
 
@@ -150,10 +142,10 @@ public:
     gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    gsMatrix<T> eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
+    gsMatrix<T> eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const override;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
@@ -173,6 +165,14 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_gamma(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_pstretch(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const override
+    { return m_materialMat->eval3D_pstretch( patch,u,z ); }
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_pstretchDir(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const override
+    { return m_materialMat->eval3D_pstretchDir( patch,u,z ); }
 
     /// See \ref gsMaterialMatrixBase for details
     void setParameters(const std::vector<gsFunctionSet<T>*> &pars)

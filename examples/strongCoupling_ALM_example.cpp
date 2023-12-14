@@ -481,7 +481,7 @@ int main(int argc, char *argv[])
         gsMatrix<> vectors;
 
         gsInfo<<"Computing Eigenmodes..."<<std::flush;
-#ifdef GISMO_WITH_SPECTRA
+#ifdef gsSpectra_ENABLED
         Spectra::SortRule selectionRule = Spectra::SortRule::LargestMagn;
         Spectra::SortRule sortRule = Spectra::SortRule::SmallestMagn;
 

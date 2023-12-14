@@ -107,7 +107,7 @@ public:
     const gsMatrix<Scalar> & eval(const index_t k) const {return eval_impl(_u,k); }
 
     index_t rows() const { return 1; }
-    index_t cols() const { return _u.dim(); }
+    index_t cols() const { return cols_impl(_u); }
 
     void parse(gsExprHelper<Scalar> & evList) const
     {
@@ -174,16 +174,33 @@ private:
     }
 
     template<class U> inline
+    typename util::enable_if< util::is_same<U,gsFeVariable<Scalar> >::value, const gsMatrix<Scalar> & >::type
+    eval_impl(const U & u, const index_t k)  const
+    {
+        grad_expr<U> vGrad = grad_expr<U>(u);
+        bGrads = vGrad.eval(k);
+
+        return make_vector(k);
+    }
+
+    // Specialisation for a solution
+    template<class U> inline
     typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k)  const
     {
         GISMO_ASSERT(1==_u.data().actives.cols(), "Single actives expected");
         grad_expr<gsFeSolution<Scalar>> sGrad =  grad_expr<gsFeSolution<Scalar>>(_u);
-        res.resize(rows(), cols()); // rows()*
+        bGrads = sGrad.eval(k);
 
+        return make_vector(k);
+    }
+
+    const gsMatrix<Scalar> & make_vector(const index_t k) const
+    {
+        res.resize(rows(), cols()); // rows()*
         normal = _G.data().normal(k);// not normalized to unit length
         normal.normalize();
-        bGrads = sGrad.eval(k);
+
         cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
         const Scalar measure = (cJac.col3d(0).cross( cJac.col3d(1) )).norm();
 
@@ -194,6 +211,28 @@ private:
         res = (m_v - ( normal*m_v.transpose() ) * normal).transpose(); // outer-product version
         return res;
     }
+
+    template<class U> inline
+    typename util::enable_if< util::is_same<U,gsGeometryMap<Scalar> >::value, index_t >::type
+    cols_impl(const U & u)  const
+    {
+        return _u.data().dim.second;
+    }
+
+    template<class U> inline
+    typename util::enable_if<util::is_same<U,gsFeSpace<Scalar> >::value || util::is_same<U,gsFeSolution<Scalar> >::value, index_t >::type
+    cols_impl(const U & u) const
+    {
+        return _u.dim();
+    }
+
+    template<class U> inline
+    typename util::enable_if<util::is_same<U,gsFeVariable<Scalar> >::value, index_t >::type
+    cols_impl(const U & u) const
+    {
+        return _u.source().targetDim();
+    }
+
 };
 
 /**
@@ -502,9 +541,19 @@ public:
 
     void parse(gsExprHelper<Scalar> & evList) const
     {
+        grad(_u).parse(evList); //
+
         _u.parse(evList);
+        evList.add(_u);
+        _u.data().flags |= NEED_GRAD | NEED_ACTIVE;
+
         _v.parse(evList);
+        evList.add(_v);
+        _v.data().flags |= NEED_GRAD | NEED_ACTIVE;
+
         _G.parse(evList);
+        evList.add(_G);
+        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_DERIV2;
     }
 
     const gsFeSpace<Scalar> & rowVar() const { return _u.rowVar(); }
@@ -521,58 +570,6 @@ private:
     eval_impl(const U & u, const V & v, const index_t k)  const
     {
         GISMO_NO_IMPLEMENTATION;
-        // res.resize(_u.cardinality(), cols()); // rows()*
-
-        // normal = _G.data().normal(k);
-        // normal.normalize();
-        // uGrads = _u.data().values[1].col(k);
-        // vGrads = _v.data().values[1].col(k);
-        // cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
-
-        // const index_t cardU = _u.data().values[0].rows(); // number of actives per component of u
-        // const index_t cardV = _v.data().values[0].rows(); // number of actives per component of v
-        // const Scalar measure =  _G.data().measures.at(k);
-
-        // for (index_t j = 0; j!= cardU; ++j) // for all basis functions u (1)
-        // {
-        //     for (index_t i = 0; i!= cardV; ++i) // for all basis functions v (1)
-        //     {
-        //         for (index_t d = 0; d!= _u.dim(); ++d) // for all basis functions u (2)
-        //         {
-        //             m_u.noalias() = ( vecFun(d, uGrads.at(2*j  ) ).cross( cJac.col(1).template head<3>() )
-        //                              -vecFun(d, uGrads.at(2*j+1) ).cross( cJac.col(0).template head<3>() ))
-        //                             / measure;
-
-        //             const short_t s = d*cardU;
-
-        //             for (index_t c = 0; c!= _v.dim(); ++c) // for all basis functions v (2)
-        //             {
-        //                 const short_t r = c*cardV;
-        //                 m_v.noalias() = ( vecFun(c, vGrads.at(2*i  ) ).cross( cJac.col(1).template head<3>() )
-        //                                  -vecFun(c, vGrads.at(2*i+1) ).cross( cJac.col(0).template head<3>() ))
-        //                                 / measure;
-
-        //                 // n_der.noalias() = (m_v - ( normal.dot(m_v) ) * normal);
-        //                 n_der.noalias() = (m_v - ( normal*m_v.transpose() ) * normal); // outer-product version
-
-        //                 m_uv.noalias() = ( vecFun(d, uGrads.at(2*j  ) ).cross( vecFun(c, vGrads.at(2*i+1) ) )
-        //                                   +vecFun(c, vGrads.at(2*i  ) ).cross( vecFun(d, uGrads.at(2*j+1) ) ))
-        //                                   / measure; //check
-
-        //                 m_u_der.noalias() = (m_uv - ( normal.dot(m_v) ) * m_u);
-        //                 // m_u_der.noalias() = (m_uv - ( normal*m_v.transpose() ) * m_u); // outer-product version TODO
-
-        //                 // ---------------  Second variation of the normal
-        //                 tmp = m_u_der - (m_u.dot(n_der) + normal.dot(m_u_der) ) * normal - (normal.dot(m_u) ) * n_der;
-        //                 // tmp = m_u_der - (m_u.dot(n_der) + normal.dot(m_u_der) ) * normal - (normal.dot(m_u) ) * n_der;
-
-        //                 // Evaluate the product
-        //                 res(s + j, r + i ) = result(0,0);
-        //             }
-        //         }
-        //     }
-        // }
-        // return res;
     }
 
     template<class U, class V> inline
@@ -581,7 +578,7 @@ private:
     {
         grad_expr<U> uGrad = grad_expr<U>(u);
         uGrads = uGrad.eval(k);
-        grad_expr<U> vGrad = grad_expr<U>(u);
+        grad_expr<U> vGrad = grad_expr<V>(v);
         vGrads = vGrad.eval(k);
 
         res.resize(rows(), cols()); // rows()*
@@ -592,8 +589,7 @@ private:
         cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
         cDer2 = _G.data().values[2].reshapeCol(k, _G.data().dim.second, _G.data().dim.second);
 
-        const Scalar measure =  _G.data().measures.at(k);
-
+        const Scalar measure = (cJac.col3d(0).cross( cJac.col3d(1) )).norm();
 
         m_u.noalias() = ( ( uGrads.col(0).template head<3>() ).cross( cJac.col(1).template head<3>() )
                         - ( uGrads.col(1).template head<3>() ).cross( cJac.col(0).template head<3>() ) )
@@ -1367,6 +1363,9 @@ private:
         tmp2.resize(nDers, dim);
         for (index_t comp = 0; comp != u.source().targetDim(); comp++)
             tmp2.col(comp) = tmp.block(comp * nDers, 0, nDers, 1); //star,length
+
+        vEv = _v.eval(k);
+        res = vEv * tmp2.transpose();
         return res;
     }
 
@@ -2023,6 +2022,10 @@ unitVec_expr uv(const index_t index, const index_t dim) { return unitVec_expr(in
 
 template<class E> EIGEN_STRONG_INLINE
 var1_expr<E> var1(const E & u, const gsGeometryMap<typename E::Scalar> & G) { return var1_expr<E>(u, G); }
+
+template<class E1, class E2> EIGEN_STRONG_INLINE
+var2_expr<E1,E2> var2(const E1 & u, const E2 & v, const gsGeometryMap<typename E1::Scalar> & G)
+{ return var2_expr<E1,E2>(u,v, G); }
 
 template<class E1, class E2, class E3> EIGEN_STRONG_INLINE
 var2dot_expr<E1,E2,E3> var2(const E1 & u, const E2 & v, const gsGeometryMap<typename E1::Scalar> & G, const E3 & Ef)

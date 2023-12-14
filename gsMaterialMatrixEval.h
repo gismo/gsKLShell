@@ -300,7 +300,8 @@ private:
 
     /// Specialisation of \ref eval_into for the membrane and flexural principle stresses
     template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::PStressN ||
+    typename std::enable_if<_out==MaterialOutput::PStress  ||
+                            _out==MaterialOutput::PStressN ||
                             _out==MaterialOutput::PStressM  , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// Specialisation of \ref eval_into for the membrane and flexural principle stresses
@@ -313,14 +314,9 @@ private:
     typename std::enable_if<_out==MaterialOutput::PStrainN ||
                             _out==MaterialOutput::PStrainM  , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
->>>>>>> develop
     /// Specialisation of \ref eval_into for the stretches
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Stretch   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
-
-    /// Specialisation of \ref eval_into for the principal stresses
-    template<enum MaterialOutput _out>
-    typename std::enable_if<_out==MaterialOutput::PStress   , void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// Specialisation of \ref eval_into for the stretch directions
     template<enum MaterialOutput _out>

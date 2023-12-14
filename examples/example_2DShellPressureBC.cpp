@@ -154,7 +154,7 @@ int main(int argc, char *argv[]){
     Phis[0] = &phi;
 
     // Define thickness
-    std::vector<gsFunction<>*> parameters(2);
+    std::vector<gsFunctionSet<>*> parameters(2);
     parameters[0] = &E;
     parameters[1] = &nu;
     gsConstantFunction<> thicks(thickness/kmax,2);

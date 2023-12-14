@@ -336,7 +336,9 @@ gsMaterialMatrixIntegrateSingle<T,out>::eval3D_impl(const gsMatrix<T>& u, const 
 
 template <class T, enum MaterialOutput out>
 template <enum MaterialOutput _out>
-typename std::enable_if<_out==MaterialOutput::PStressN || _out==MaterialOutput::PStressM, gsMatrix<T>>::type
+typename std::enable_if<_out==MaterialOutput::PStress  ||
+                        _out==MaterialOutput::PStressN ||
+                        _out==MaterialOutput::PStressM, gsMatrix<T>>::type
 gsMaterialMatrixIntegrateSingle<T,out>::eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
 {
     return m_materialMat->eval3D_pstress(m_pIndex,u,Z,_out);

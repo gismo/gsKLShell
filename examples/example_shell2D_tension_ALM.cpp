@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
   gsConstantFunction<> rho(Density,2);
   gsConstantFunction<> ratio(Ratio,2);
 
-  std::vector<gsFunction<>*> parameters;
+  std::vector<gsFunctionSet<>*> parameters;
   if (material==0) // SvK
   {
     parameters.resize(2);

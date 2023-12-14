@@ -246,66 +246,6 @@ public:
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
-     * @brief      Provides the transformation from the spectral basis to the covariant basis
-     *
-     * @param[in]  patch   The patch to be evaluated on
-     * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The result
-     */
-    virtual inline void  spec2cov_transform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-    { GISMO_NO_IMPLEMENTATION; }
-
-    /**
-     * @brief      Provides the transformation from the spectral basis to the contravariant basis
-     *
-     * @param[in]  patch   The patch to be evaluated on
-     * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The result
-     */
-    virtual inline void  spec2con_transform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-    { GISMO_NO_IMPLEMENTATION; }
-
-    /**
-     * @brief      Provides the transformation from the covariant basis to the local cartesian basis
-     *
-     * @param[in]  patch   The patch to be evaluated on
-     * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The result
-     */
-    virtual inline void  cov2cart_transform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-    { GISMO_NO_IMPLEMENTATION; }
-
-    /**
-     * @brief      Provides the transformation from the contravariant basis to the local cartesian basis
-     *
-     * @param[in]  patch   The patch to be evaluated on
-     * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The resut
-     */
-    virtual inline void  con2cart_transform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-    { GISMO_NO_IMPLEMENTATION; }
-
-    /**
-     * @brief      Provides the transformation of the principle stretches
-     *
-     * @param[in]  patch   The patch to be evaluated on
-     * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The resut
-     */
-    virtual inline void  pstretchTransform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-    { spec2con_transform_into(patch,u,result); }
-
-        /**
-     * @brief      Provides the transformation of the principle stresses
-     *
-     * @param[in]  patch   The patch to be evaluated on
-     * @param[in]  u       The in-plane shell coordinates to be eveluated on
-     * @param      result  The resut
-     */
-    virtual inline void  pstressTransform_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
-    { spec2cov_transform_into(patch,u,result); }
-
-    /**
      * @brief      Constructs a transformation matrix that transforms a quantity (IN VOIGHT NOTATION) in the spectral basis to the (undeformed) convariant basis
      *
      * @param[in]  patch   The patch to be evaluated on
@@ -316,13 +256,101 @@ public:
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
-     * @brief      Computes the deformation tensor C = F'F
+     * @brief      Provides the transformation from the spectral basis to the
+     *             covariant basis
      *
-     * @param[in]  patch   The patch to be evaluated on
-     * @param[in]  u       The in-plane shell coordinates to be eveluated on
+     * @param[in]  patch  The patch to be evaluated on
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
      * @param      result  The result
+     *
+     * @return     Matrix with the result (deformation tensor) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline void  deformation_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+    virtual inline gsMatrix<T>  eval3D_spec2cov(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+    { GISMO_NO_IMPLEMENTATION; }
+
+    /**
+     * @brief      Provides the transformation from the spectral basis to the
+     *             contravariant basis
+     *
+     * @param[in]  patch  The patch to be evaluated on
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     *
+     * @return     Matrix with the result (deformation tensor) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
+    virtual inline gsMatrix<T>  eval3D_spec2con(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+    { GISMO_NO_IMPLEMENTATION; }
+
+    /**
+     * @brief      Provides the transformation from the covariant basis to the
+     *             local cartesian basis
+     *
+     * @param[in]  patch  The patch to be evaluated on
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     * @param      result  The result
+     *
+     * @return     Matrix with the result (deformation tensor) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
+    virtual inline gsMatrix<T> eval3D_cov2cart(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+    { GISMO_NO_IMPLEMENTATION; }
+
+    /**
+     * @brief      Provides the transformation from the contravariant basis to
+     *             the local cartesian basis
+     *
+     * @param[in]  patch  The patch to be evaluated on
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     *
+     * @return     Matrix with the result (deformation tensor) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
+    virtual inline gsMatrix<T> eval3D_con2cart(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+    { GISMO_NO_IMPLEMENTATION; }
+
+    /**
+     * @brief      Provides the transformation of the principle stretches
+     *
+     * @param[in]  patch  The patch to be evaluated on
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     *
+     * @return     Matrix with the result (deformation tensor) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
+    virtual inline gsMatrix<T> eval3D_pstretchTransform(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+    { return eval3D_spec2con(patch,u,z); }
+
+    /**
+     * @brief      Provides the transformation of the principle stresses
+     *
+     * @param[in]  patch  The patch to be evaluated on
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     *
+     * @return     Matrix with the result (deformation tensor) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
+    virtual inline gsMatrix<T> eval3D_pstressTransform(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+    { return eval3D_spec2cov(patch,u,z); }
+
+    /**
+     * @brief      Evaluates deformation tensor on \a patch on in-plane points \a u with height \a z
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     * @param[in]  out    (for classes with MatIntegration==Integrated, more details about \ref MaterialOutput can be found in \ref gsMaterialMatrixUtils)
+     *
+     * @return     Matrix with the result (deformation tensor) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
+    virtual inline gsMatrix<T>  eval3D_deformation(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -380,29 +408,6 @@ public:
         return eval3D_dmatrix(patch,u,zmat,out);
     }
 
-    // /**
-    //  * @brief      { function_description }
-    //  *
-    //  * @param[in]  patch  The patch
-    //  * @param[in]  u      { parameter_description }
-    //  * @param[in]  z      { parameter_description }
-    //  * @param[in]  out    The out
-    //  *
-    //  * @return     { description_of_the_return_value }
-    //  */
-    // virtual inline gsMatrix<T>  eval3D_dmatrix(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
-    // {
-    //     GISMO_NO_IMPLEMENTATION;
-    //     // return gsMatrix<T>::Zero(27,u.cols()*z.rows());
-    // }
-
-    // virtual inline gsMatrix<T>  eval3D_dmatrix(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
-    // {
-    //     gsMatrix<T> zmat(1,1);
-    //     zmat<<z;
-    //     return eval3D_dmatrix(patch,u,zmat,out);
-    // }
-
     /**
      * @brief      Evaluates the vector on \a patch on in-plane points \a u with height \a z
      *
@@ -441,7 +446,6 @@ public:
     {
         GISMO_NO_IMPLEMENTATION;
     }
-    // = 0;
     /**
      * @brief      Evaluates the principal stress on \a patch on in-plane points \a u with height \a z
      *
@@ -457,6 +461,47 @@ public:
     { GISMO_NO_IMPLEMENTATION; }
     virtual inline gsMatrix<T> eval3D_CauchyPStress(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
     { GISMO_NO_IMPLEMENTATION; }
+    /**
+     * @brief      Evaluates the principal stress directions on \a patch on in-plane points \a u with height \a z
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     * @param[in]  out    (for classes with MatIntegration==Integrated, more details about \ref MaterialOutput can be found in \ref gsMaterialMatrixUtils)
+     *
+     * @return     Matrix with the result (principal stress directions) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
+    virtual inline gsMatrix<T> eval3D_pstressDir(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
+    { GISMO_NO_IMPLEMENTATION; }
+
+    /**
+     * @brief      Evaluates the principal stretch on \a patch on in-plane points \a u with height \a z
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     * @param[in]  out    (for classes with MatIntegration==Integrated, more details about \ref MaterialOutput can be found in \ref gsMaterialMatrixUtils)
+     *
+     * @return     Matrix with the result (principal stretch) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
+    virtual inline gsMatrix<T> eval3D_pstretch(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z) const
+    { GISMO_NO_IMPLEMENTATION; }
+    /**
+     * @brief      Evaluates the principal stretch directions on \a patch on in-plane points \a u with height \a z
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     * @param[in]  out    (for classes with MatIntegration==Integrated, more details about \ref MaterialOutput can be found in \ref gsMaterialMatrixUtils)
+     *
+     * @return     Matrix with the result (principal stretch directions) ordered per z coordinate per point
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
+    virtual inline gsMatrix<T> eval3D_pstretchDir(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z) const
+    { GISMO_NO_IMPLEMENTATION; }
+
 
     /**
      * @brief      Evaluates the principal strain on \a patch on in-plane points \a u with height \a z
@@ -469,7 +514,7 @@ public:
      * @return     Matrix with the result (principal strain) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T> eval3D_pstrain(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z, enum MaterialOutput out) const
+    virtual inline gsMatrix<T> eval3D_pstrain(const index_t patch, const gsMatrix<T>& u, const gsMatrix<T>& z) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -482,13 +527,13 @@ public:
      *
      * @return     { description_of_the_return_value }
      */
-    virtual inline gsMatrix<T> eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+    virtual inline gsMatrix<T> eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
     { GISMO_NO_IMPLEMENTATION; }
-    virtual inline gsMatrix<T> eval3D_strain(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    virtual inline gsMatrix<T> eval3D_strain(const index_t patch, const gsVector<T>& u, const T & z) const
     {
         gsMatrix<T> zmat(1,1);
         zmat<<z;
-        return eval3D_strain(patch,u,zmat,out);
+        return eval3D_strain(patch,u,zmat);
     }
 
     /**

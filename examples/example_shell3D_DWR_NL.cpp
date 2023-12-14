@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
     gsFunctionExpr<> Emod(std::to_string(E_modulus),3);
     gsFunctionExpr<> Pois(std::to_string(PoissonRatio),3);
 
-    std::vector<gsFunction<>*> parameters(2);
+    std::vector<gsFunctionSet<>*> parameters(2);
     parameters[0] = &Emod;
     parameters[1] = &Pois;
     gsMaterialMatrixBase<real_t>* materialMatrix;

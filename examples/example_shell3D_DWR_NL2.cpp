@@ -22,6 +22,7 @@
 #include <gsAssembler/gsAdaptiveMeshing.h>
 #include <gsAssembler/gsAdaptiveMeshingUtils.h>
 
+#include <gsStructuralAnalysis/gsStructuralAnalysisTools.h>
 #include <gsStructuralAnalysis/gsALMLoadControl.h>
 #include <gsStructuralAnalysis/gsALMCrisfield.h>
 
@@ -224,7 +225,7 @@ int main(int argc, char *argv[])
     gsFunctionExpr<> Emod(std::to_string(E_modulus),3);
     gsFunctionExpr<> Pois(std::to_string(PoissonRatio),3);
 
-    std::vector<gsFunction<>*> parameters(2);
+    std::vector<gsFunctionSet<>*> parameters(2);
     parameters[0] = &Emod;
     parameters[1] = &Pois;
     gsMaterialMatrixBase<real_t>* materialMatrix;
@@ -351,24 +352,24 @@ int main(int argc, char *argv[])
         DWR->assemblePrimalL();
         gsVector<> Force = DWR->primalL();
 
-        typedef std::function<gsSparseMatrix<real_t> (gsVector<real_t> const &)>                                Jacobian_t;
         typedef std::function<gsVector<real_t> (gsVector<real_t> const &, real_t, gsVector<real_t> const &) >   ALResidual_t;
         // Function for the Jacobian
-        Jacobian_t Jacobian = [&DWR,&mp_def](gsVector<real_t> const &x)
+        gsStructuralAnalysisOps<real_t>::Jacobian_t Jacobian = [&DWR,&mp_def](gsVector<real_t> const &x, gsSparseMatrix<real_t> & m)
         {
+          ThinShellAssemblerStatus status;
           DWR->constructSolutionL(x,mp_def);
-          DWR->assembleMatrixL(mp_def);
-          gsSparseMatrix<real_t> m = DWR->matrixL();
-          return m;
+          status = DWR->assembleMatrixL(mp_def);
+          m = DWR->matrixL();
+          return status == ThinShellAssemblerStatus::Success;
         };
         // Function for the Residual
-        ALResidual_t ALResidual = [&DWR,&mp_def](gsVector<real_t> const &x, real_t lam, gsVector<real_t> const &force)
+        gsStructuralAnalysisOps<real_t>::ALResidual_t ALResidual = [&DWR,&mp_def,&Force](gsVector<real_t> const &x, real_t lam, gsVector<real_t> & result)
         {
+          ThinShellAssemblerStatus status;
           DWR->constructSolutionL(x,mp_def);
-          DWR->assemblePrimalL(mp_def);
-          gsVector<real_t> Fint = -(DWR->primalL() - force);
-          gsVector<real_t> result = Fint - lam * force;
-          return result; // - lam * force;
+          status = DWR->assemblePrimalL(mp_def);
+          result = Force - lam * Force - DWR->primalL(); // assembler rhs - force = Finternal
+          return status == ThinShellAssemblerStatus::Success;
         };
 
         gsInfo << "Solving primal, size ="<<DWR->matrixL().rows()<<","<<DWR->matrixL().cols()<<"... "<< "\n";
@@ -382,9 +383,9 @@ int main(int argc, char *argv[])
 #endif
         arcLength.options().setReal("Length",dL);
         real_t tol  = 1e-3;
-	real_t tolU = 1e-3;
-	real_t tolF = 1e-3;
-	arcLength.options().setReal("Tol",tol);
+    	real_t tolU = 1e-3;
+    	real_t tolF = 1e-3;
+    	arcLength.options().setReal("Tol",tol);
         arcLength.options().setReal("TolU",tolU);
         arcLength.options().setReal("TolF",tolF);
         arcLength.options().setInt("MaxIter",10);
@@ -393,7 +394,7 @@ int main(int argc, char *argv[])
 
         loadControl.options() = arcLength.options();
         loadControl.options().setInt("BifurcationMethod",gsALMBase<real_t>::bifmethod::Nothing);
-	arcLength.options().setReal("Scaling",0.0);
+	    arcLength.options().setReal("Scaling",0.0);
         arcLength.applyOptions();
         loadControl.applyOptions();
 
@@ -472,7 +473,7 @@ int main(int argc, char *argv[])
         gsInfo << "Assembling dual vector (L)... "<< std::flush;
         gsVector<> rhsL(DWR->numDofsL());
         rhsL.setZero();
-	DWR->assembleDualL(primalL);
+	    DWR->assembleDualL(primalL);
         rhsL += DWR->dualL();
         DWR->assembleDualL(points,primalL);
         rhsL += DWR->dualL();
@@ -526,8 +527,8 @@ int main(int argc, char *argv[])
 
         approxs[r] = DWR->computeError(dualL,dualH,mp_def,true);
         sqapproxs[r] = DWR->computeSquaredError(dualL,dualH,mp_def,true);
-	gsInfo<<"Error = "<<approxs[r]<<"\n";
-	gsInfo<<"Squared error = "<<sqapproxs[r]<<"\n";
+    	gsInfo<<"Error = "<<approxs[r]<<"\n";
+    	gsInfo<<"Squared error = "<<sqapproxs[r]<<"\n";
         estGoal[r] = numGoal[r]+DWR->computeError(dualL,dualH,mp_def,true);
 
         gsVector<> Uz_pt(2);

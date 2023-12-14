@@ -101,43 +101,43 @@ enum class MaterialOutput : short_t
     Density = 1,
     VectorN = 2,
     VectorM = 3,
-    CauchyVectorN = 21,
-    CauchyVectorM = 31,
-    MatrixA  = 4,
-    MatrixB  = 5,
-    MatrixC  = 6,
-    MatrixD  = 7,
-    PStress  = 81,
-    PStressN = 8,
-    PStressM = 9,
-    PCauchyStressN = 81,
-    PCauchyStressM = 91,
-    PStrainN = 10,
-    PStrainM = 11,
-    Stretch = 12,       // ONLY ON MID-PLANE
-    StretchDir = 13,    // ONLY ON MID-PLANE
-    TensionField = 14,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
-    Theta = 141,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
-    Gamma = 142,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
-    Spec2CovTransform = 15,  // Transformation matrix from spectral to covariant basis
-    Spec2ConTransform = 16,  // Transformation matrix from spectral to contravariant basis
-    Cov2CartTransform = 17,  // Transformation matrix from covariant basis to cartesian basis
-    Con2CartTransform = 18,  // Transformation matrix from contravariant basis to cartesian basis
-    tretchTransform   = 19,  // Transformation matrix from principal stretch axes to contravariant axes, such that E_con = E_p * T
-    PStressTransform  = 20,  // Transformation matrix from principal stress axes to covariant axes, such that S_cov = S_p * T
-    Strain  = 87,
-    StrainN = 88,
-    StrainM = 89,
-    Stress  = 97,
-    StressN = 98,
-    StressM = 99,
-    CauchyStress  = 971,
-    CauchyStressN = 981,
-    CauchyStressM = 991,
-    Thickness = 100,
-    Parameters = 101,
-    Deformation = 102,
-
+    CauchyVectorN = 4,
+    CauchyVectorM = 5,
+    MatrixA  = 6,
+    MatrixB  = 7,
+    MatrixC  = 8,
+    MatrixD  = 9,
+    PStress  = 10,
+    PStressDir= 11,
+    PStressN = 12,
+    PStressM = 13,
+    PCauchyStressN = 14,
+    PCauchyStressM = 15,
+    PStrainN = 16,
+    PStrainM = 17,
+    Stretch = 18,       // ONLY ON MID-PLANE
+    StretchDir = 19,    // ONLY ON MID-PLANE
+    TensionField = 20,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
+    Theta = 21,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
+    Gamma = 22,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
+    Strain  = 23,
+    StrainN = 24,
+    StrainM = 25,
+    Stress  = 26,
+    StressN = 27,
+    StressM = 28,
+    CauchyStress  = 29,
+    CauchyStressN = 30,
+    CauchyStressM = 31,
+    Spec2CovTransform = 101,  // Transformation matrix from spectral to covariant basis
+    Spec2ConTransform = 102,  // Transformation matrix from spectral to contravariant basis
+    Cov2CartTransform = 103,  // Transformation matrix from covariant basis to cartesian basis
+    Con2CartTransform = 104,  // Transformation matrix from contravariant basis to cartesian basis
+    StretchTransform  = 105,  // Transformation matrix from principal stretch axes to contravariant axes, such that E_con = E_p * T
+    PStressTransform  = 106,  // Transformation matrix from principal stress axes to covariant axes, such that S_cov = S_p * T
+    Thickness = 1000,
+    Parameters = 1001,
+    Deformation = 1002,
     // FINISH VON MISES WITH THE CAUCHY STRESS!!!
 };
 

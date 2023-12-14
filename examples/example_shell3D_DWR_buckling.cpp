@@ -13,7 +13,7 @@
 
 #include <gismo.h>
 
-#ifdef GISMO_WITH_SPECTRA
+#ifdef gsSpectra_ENABLED
 #include <gsSpectra/gsSpectra.h>
 #endif
 
@@ -23,6 +23,8 @@
 #include <gsKLShell/getMaterialMatrix.h>
 #include <gsAssembler/gsAdaptiveMeshing.h>
 #include <gsAssembler/gsAdaptiveMeshingUtils.h>
+
+#include <gsStructuralAnalysis/gsBucklingSolver.h>
 
 using namespace gismo;
 
@@ -314,7 +316,7 @@ int main(int argc, char *argv[])
     gsFunctionExpr<> E(std::to_string(E_modulus), 3);
     gsFunctionExpr<> nu(std::to_string(PoissonRatio), 3);
 
-    std::vector<gsFunction<> *> parameters(2);
+    std::vector<gsFunctionSet<> *> parameters(2);
     parameters[0] = &E;
     parameters[1] = &nu;
     gsMaterialMatrixBase<real_t> *materialMatrix;
@@ -342,7 +344,6 @@ int main(int argc, char *argv[])
 
     // solvers
     gsSparseSolver<>::LU solver;
-    Eigen::GeneralizedSelfAdjointEigenSolver<gsMatrix<real_t>::Base> eigSolver;
 
     // solutions
     gsMultiPatch<> primalL, dualL, dualH;
@@ -425,24 +426,24 @@ int main(int argc, char *argv[])
         // Solve system
         gsInfo << "Solving primal, size =" << DWR->matrixL().rows() << "," << DWR->matrixL().cols() << "... " << std::flush;
 
-#ifdef GISMO_WITH_SPECTRA
-        index_t num = std::min(K_L.cols()-1,10);
         Kdiff = K_NL - K_L;
-        gsSpectraGenSymShiftSolver<gsSparseMatrix<real_t>,Spectra::GEigsMode::ShiftInvert> eigsolverL(K_L,Kdiff,num,2*num,0.0);
-        eigsolverL.init();
-        eigsolverL.compute(Spectra::SortRule::LargestMagn,1000,1e-30,Spectra::SortRule::SmallestMagn);
+        gsBucklingSolver<real_t> bucklingL(Kdiff,K_L);
+        bucklingL.options().setInt("solver",3);
+        bucklingL.options().setInt("selectionRule",0);
+        bucklingL.options().setInt("sortRule",4);
+        bucklingL.options().setSwitch("verbose",true);
+        bucklingL.options().setInt("ncvFac",2);
+        bucklingL.options().setReal("tolerance",1e-30);
+        bucklingL.options().setReal("shift",1e-9);
 
-        if (eigsolverL.info()==Spectra::CompInfo::Successful)         { gsDebug<<"Spectra converged in "<<eigsolverL.num_iterations()<<" iterations and with "<<eigsolverL.num_operations()<<"operations. \n"; }
-        else if (eigsolverL.info()==Spectra::CompInfo::NumericalIssue){ GISMO_ERROR("Spectra did not converge! Error code: NumericalIssue"); }
-        else if (eigsolverL.info()==Spectra::CompInfo::NotConverging) { GISMO_ERROR("Spectra did not converge! Error code: NotConverging"); }
-        else if (eigsolverL.info()==Spectra::CompInfo::NotComputed)   { GISMO_ERROR("Spectra did not converge! Error code: NotComputed");   }
-        else                                                      { GISMO_ERROR("No error code known"); }
+#ifdef gsSpectra_ENABLED
+        index_t numL = std::min(DWR->matrixL().cols()-1,10);
+        bucklingL.computeSparse(numL);
 #else
-        Eigen::GeneralizedSelfAdjointEigenSolver<gsMatrix<real_t>::Base> eigsolverL;
-        eigsolverL.compute(K_L,K_NL-K_L);
+        bucklingL.compute();
 #endif
 
-        if (modeIdx > eigsolverL.eigenvalues().size()-1)
+        if (modeIdx > bucklingL.values().size()-1)
         {
             gsWarn<<"No error computed because mode does not exist (system size)!\n";
             approxs[r] = 0;
@@ -459,13 +460,8 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        eigvalL = dualvalL = eigsolverL.eigenvalues()[modeIdx];
-        solVector = solVectorDualL = eigsolverL.eigenvectors().col(modeIdx);
-
-        // eigSolver.compute(K_L, K_NL-K_L);
-        // gsDebugVar(eigSolver.eigenvalues()[modeIdx]*Load);
-        // solVector = solVectorDualL = eigSolver.eigenvectors().col(modeIdx);
-        // eigvalL = dualvalL = eigSolver.eigenvalues()[modeIdx];
+        eigvalL = dualvalL = bucklingL.values()(modeIdx,0);
+        solVector = solVectorDualL = bucklingL.vectors().col(modeIdx);
 
         DWR->constructMultiPatchL(solVector, primalL);
 
@@ -493,29 +489,20 @@ int main(int argc, char *argv[])
 
         gsInfo << "Solving dual (high), size = " << DWR->matrixH().rows() << "," << DWR->matrixH().cols() << "... " << std::flush;
 
-#ifdef GISMO_WITH_SPECTRA
-        Kdiff = K_NL - K_L;
-        gsSpectraGenSymShiftSolver<gsSparseMatrix<real_t>,Spectra::GEigsMode::ShiftInvert> eigsolverH(K_L,Kdiff,num,2*num,0.0);
-        eigsolverH.init();
-        eigsolverH.compute(Spectra::SortRule::LargestMagn,1000,1e-30,Spectra::SortRule::SmallestMagn);
 
-        if (eigsolverH.info()==Spectra::CompInfo::Successful)         { gsDebug<<"Spectra converged in "<<eigsolverH.num_iterations()<<" iterations and with "<<eigsolverH.num_operations()<<"operations. \n"; }
-        else if (eigsolverH.info()==Spectra::CompInfo::NumericalIssue){ GISMO_ERROR("Spectra did not converge! Error code: NumericalIssue"); }
-        else if (eigsolverH.info()==Spectra::CompInfo::NotConverging) { GISMO_ERROR("Spectra did not converge! Error code: NotConverging"); }
-        else if (eigsolverH.info()==Spectra::CompInfo::NotComputed)   { GISMO_ERROR("Spectra did not converge! Error code: NotComputed");   }
-        else
+        Kdiff = K_NL - K_L;
+        gsBucklingSolver<real_t> bucklingH(Kdiff,K_L);
+        bucklingH.options() = bucklingL.options();
+
+#ifdef gsSpectra_ENABLED
+        index_t numH = std::min(DWR->matrixH().cols()-1,10);
+        bucklingH.computeSparse(numH);
 #else
-        Eigen::GeneralizedSelfAdjointEigenSolver<gsMatrix<real_t>::Base> eigsolverH;
-        eigsolverH.compute(K_L,K_NL-K_L);
+        bucklingH.compute();
 #endif
 
-        dualvalH = eigsolverH.eigenvalues()[modeIdx];
-        solVectorDualH = eigsolverH.eigenvectors().col(modeIdx);
-        //
-        // eigSolver.compute(K_L, K_NL-K_L);
-        // gsDebugVar(eigSolver.eigenvalues()[modeIdx]*Load);
-        // solVectorDualH = eigSolver.eigenvectors().col(modeIdx);
-        // dualvalH = eigSolver.eigenvalues()[modeIdx];
+        dualvalH = bucklingH.values()(modeIdx,0);
+        solVector = solVectorDualH = bucklingH.vectors().col(modeIdx);
 
         // mass-normalize w.r.t. primal
         DWR->constructMultiPatchH(solVectorDualH, dualH);

@@ -250,7 +250,7 @@ int main(int argc, char *argv[])
     // for (size_t p = 0; p!=mp.nPatches(); ++p)
     //     gsDebugVar(mp.patch(p));
 
-    std::vector<gsFunction<>*> parameters(2);
+    std::vector<gsFunctionSet<>*> parameters(2);
     parameters[0] = &E;
     parameters[1] = &nu;
 
@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
         gsMatrix<> vectors;
 
         gsInfo<<"Computing Eigenmodes..."<<std::flush;
-#ifdef GISMO_WITH_SPECTRA
+#ifdef gsSpectra_ENABLED
         Spectra::SortRule selectionRule = Spectra::SortRule::LargestMagn;
         Spectra::SortRule sortRule = Spectra::SortRule::SmallestMagn;
 

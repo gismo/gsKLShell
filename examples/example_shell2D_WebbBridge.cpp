@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
 
     gsWarn<<"Obtain E and nu\n";
     // Define parameters vector depending on material law
-    std::vector<gsFunction<>*> parameters;
+    std::vector<gsFunctionSet<>*> parameters;
     if (material==0) // SvK & Composites
     {
       parameters.resize(2);
