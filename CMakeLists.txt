@@ -55,4 +55,9 @@ foreach(file ${FILES})
     install(TARGETS ${tarname} DESTINATION "${BIN_INSTALL_DIR}" COMPONENT exe OPTIONAL)
 endforeach(file ${FILES})
 
+# add unittests
+aux_gs_cpp_directory(${PROJECT_SOURCE_DIR}/unittests unittests_SRCS)
+set(gismo_UNITTESTS ${gismo_UNITTESTS} ${unittests_SRCS}
+  CACHE INTERNAL "gismo list of unittests")
+
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin/)

@@ -47,7 +47,7 @@ public:
         _init(m_functions);
     }
 
-    index_t nPieces() const {return m_size;}
+    index_t nPieces() const {return m_functions[0]->nPieces();}
 
     short_t domainDim() const
     { return m_functions[0]->domainDim(); }
@@ -90,6 +90,7 @@ protected:
     std::vector<const gsFunctionSet<T> * > m_functions;
     std::vector<gsFunctionPieceSum<T> > m_pieces;
     const index_t m_size;
+    gsMatrix<T> m_support;
 
 };
 
@@ -108,7 +109,22 @@ public:
     m_geom(geom),
     m_index(index)
     {
+        m_support = m_geom->func(0)->piece(m_index).support();
+        for (index_t p = 1; p!=m_geom->funcSize(); p++)
+            for (index_t d=0; d!=m_support.rows(); d++)
+            {
+                GISMO_ASSERT(m_geom->func(p)->piece(m_index).support().rows()!=0 && m_geom->func(p)->piece(m_index).support().cols()!=0,"Support is empty");
 
+                if (m_support(d,0) > m_geom->func(p)->piece(m_index).support()(d,0))
+                    m_support(d,0) = m_geom->func(p)->piece(m_index).support()(d,0);
+                if (m_support(d,1) < m_geom->func(p)->piece(m_index).support()(d,1))
+                    m_support(d,1) = m_geom->func(p)->piece(m_index).support()(d,1);
+            }
+    }
+
+    gsMatrix<T> support() const
+    {
+        return m_support;
     }
 
     short_t domainDim() const
@@ -183,6 +199,7 @@ public:
 protected:
     const gsFunctionSum<T> * m_geom;
     const index_t m_index;
+    gsMatrix<T> m_support;
 
 };
 

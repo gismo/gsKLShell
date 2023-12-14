@@ -3,13 +3,14 @@
 #include <gsKLShell/gsMaterialMatrixLinear.h>
 #include <gsKLShell/gsMaterialMatrixLinear.hpp>
 
+#include <gsKLShell/gsMaterialMatrixXml.hpp>
 
 namespace gismo
 {
   CLASS_TEMPLATE_INST gsMaterialMatrixLinear<2,real_t>;
   CLASS_TEMPLATE_INST gsMaterialMatrixLinear<3,real_t>;
 
-  #ifdef GISMO_BUILD_PYBIND11
+  #ifdef GISMO_WITH_PYBIND11
 
     namespace py = pybind11;
 

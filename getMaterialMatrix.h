@@ -116,9 +116,9 @@ gsMatrix<T> gsCompositeMatrixRaw(   const T G11,
 template<short_t d, class T>
 gsMaterialMatrixBase<T> * getMaterialMatrix(
                                 const gsMultiPatch<T>               & mp,
-                                const gsFunction<T>                 & thickness,
-                                const std::vector<gsFunction<T> *>  & parameters,
-                                const gsFunction<T>                 & rho,
+                                const gsFunctionSet<T>                 & thickness,
+                                const std::vector<gsFunctionSet<T> *>  & parameters,
+                                const gsFunctionSet<T>                 & rho,
                                 const gsOptionList                  & options
                                 )
 {
@@ -134,7 +134,7 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         if (impl==Implementation::Composite)
             GISMO_ERROR("Construct composite material models using the constructor of gsMaterialMatrixComposite directly.");
         else
-            return new gsMaterialMatrixLinear<d,T>(mp,thickness,parameters,rho);
+            return new gsMaterialMatrixLinear<d,T>(mp,thickness,*parameters.at(0),*parameters.at(1),rho);
     }
     else
     {
@@ -280,8 +280,8 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
 template<short_t d, class T>
 gsMaterialMatrixBase<T> * getMaterialMatrix(
                                 const gsMultiPatch<T>               & mp,
-                                const gsFunction<T>                 & thickness,
-                                const std::vector<gsFunction<T> *>  & parameters,
+                                const gsFunctionSet<T>                 & thickness,
+                                const std::vector<gsFunctionSet<T> *>  & parameters,
                                 const gsOptionList                  & options
                                 )
 {
@@ -297,7 +297,7 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         if (impl==Implementation::Composite)
                 GISMO_ERROR("Construct composite material models using the constructor of gsMaterialMatrixComposite directly.");
         else
-                return new gsMaterialMatrixLinear<d,T>(mp,thickness,parameters);
+                return new gsMaterialMatrixLinear<d,T>(mp,thickness,*parameters.at(0),*parameters.at(1));
     }
     else
     {

@@ -14,7 +14,11 @@
 #include <gismo.h>
 
 #include <gsKLShell/gsThinShellAssembler.h>
+#include <gsKLShell/gsMaterialMatrixContainer.h>
+#include <gsKLShell/gsMaterialMatrixEval.h>
+#include <gsKLShell/gsMaterialMatrixIntegrate.h>
 #include <gsKLShell/getMaterialMatrix.h>
+#include <gsCore/gsPiecewiseFunction.h>
 
 using namespace gismo;
 
@@ -23,6 +27,8 @@ int main(int argc, char *argv[])
 {
     //! [Parse command line]
     bool plot  = false;
+    bool mesh  = false;
+    bool cnet  = false;
     bool stress= false;
     index_t numRefine  = 1;
     index_t numElevate = 1;
@@ -37,12 +43,19 @@ int main(int argc, char *argv[])
     real_t Density = 1.0;
     real_t thickness = 1.0;
 
+    real_t ifcDirichlet = 1.0;
+    real_t ifcClamped = 1.0;
+
     gsCmdLine cmd("2D shell example.");
+    cmd.addReal( "D", "Dir", "Dirichlet penalty scalar",  ifcDirichlet );
+    cmd.addReal( "C", "Cla", "Clamped penalty scalar",  ifcClamped );
     cmd.addInt( "e", "degreeElevation",
                 "Number of degree elevation steps to perform before solving (0: equalize degree in all directions)", numElevate );
     cmd.addInt( "r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
     cmd.addInt( "t", "testCase", "Test case to run: 0 = square plate with pressure; 1 = Scordelis Lo Roof; 2 = quarter hemisphere; 3 = pinched cylinder",  testCase );
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
+    cmd.addSwitch("mesh", "Plot the mesh", mesh);
+    cmd.addSwitch("cnet", "Plot the control net", cnet);
     cmd.addSwitch("stress", "Create a ParaView visualization file with the stresses", stress);
     cmd.addSwitch("membrane", "Use membrane model (no bending)", membrane);
     cmd.addSwitch("composite", "Composite material", composite);
@@ -59,7 +72,7 @@ int main(int argc, char *argv[])
     {
         thickness = 0.25;
         E_modulus = 4.32E8;
-        fn = "surface/scordelis_lo_roof.xml";
+        fn = "surfaces/scordelis_lo_roof.xml";
         gsReadFile<>(fn, mp);
         PoissonRatio = 0.0;
     }
@@ -76,6 +89,30 @@ int main(int argc, char *argv[])
         E_modulus = 3E6;
         PoissonRatio = 0.3;
         gsReadFile<>("surface/pinched_cylinder.xml", mp);
+    }
+    else if (testCase == 4)
+    {
+        thickness = 1;
+        E_modulus = 1;
+        PoissonRatio = 0.0;
+
+        // MULTIPATCH CASE plate
+        gsReadFile<>("planar/two_squares.xml", mp);
+        mp.embed(3);
+    }
+    else if (testCase == 5)
+    {
+        thickness = 1;
+        E_modulus = 1;
+        PoissonRatio = 0.3;
+        gsReadFile<>("multipatches/T-beam.xml", mp);
+    }
+    else if (testCase == 6)
+    {
+        thickness = 1;
+        E_modulus = 1;
+        PoissonRatio = 0.3;
+        gsReadFile<>("multipatches/I-beam.xml", mp);
     }
     else
     {
@@ -99,7 +136,7 @@ int main(int argc, char *argv[])
         mp.uniformRefine();
 
     mp_def = mp;
-    gsWriteParaview<>( mp_def    , "mp", 1000, true);
+    gsWriteParaview<>( mp_def    , "mp", 1000, mesh,cnet);
     //! [Refine and elevate]
 
     gsMultiBasis<> dbasis(mp);
@@ -111,9 +148,13 @@ int main(int argc, char *argv[])
     //! [Set boundary conditions]
     gsBoundaryConditions<> bc;
     bc.setGeoMap(mp);
+
+    gsPiecewiseFunction<> force(mp.nPatches());
+    gsPiecewiseFunction<> t(mp.nPatches());
+    // gsPiecewiseFunction<> nu(mp.nPatches());
+
     gsVector<> tmp(3);
     tmp << 0, 0, 0;
-
     gsVector<> neu(3);
     neu << 0, 0, 0;
 
@@ -127,6 +168,7 @@ int main(int argc, char *argv[])
     real_t pressure = 0.0;
 
     gsVector<> refPoint(2);
+    real_t refPatch = 0;
     if (testCase == 0)
     {
         for (index_t i=0; i!=3; ++i)
@@ -141,9 +183,18 @@ int main(int argc, char *argv[])
         refPoint<<0.5,0.5;
         tmp << 0,0,-1;
 
+        gsConstantFunction<> force0(tmp,3);
+        force.addPiece(force0);
+
+        gsFunctionExpr<> t0(std::to_string(thickness), 3);
+        t.addPiece(t0);
+
+        // gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
+        // nu.addPiece(nu0);
     }
     else if (testCase == 1)
     {
+        tmp<<0,0,-90;
         // Diaphragm conditions
         bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0 ,false, 1 );
         bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0 ,false, 2 );
@@ -153,8 +204,17 @@ int main(int argc, char *argv[])
         bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0 ,false, 1 );
         bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0 ,false, 2 );
 
+        tmp<<0,0,-900;
         // Surface forces
-        tmp << 0, 0, -90;
+        gsConstantFunction<> force0(tmp,3);
+        force.addPiece(force0);
+
+        gsFunctionExpr<> t0(std::to_string(thickness), 3);
+        t.addPiece(t0);
+
+        // gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
+        // nu.addPiece(nu0);
+
         refPoint<<0.5,1;
     }
     else if (testCase == 2)
@@ -174,7 +234,16 @@ int main(int argc, char *argv[])
         bc.addCondition(boundary::west, condition_type::clamped, 0, 0, false, 2 );
 
         // Surface forces
-        tmp.setZero();
+        gsConstantFunction<> force0(tmp,3);
+        force.addPiece(force0);
+
+        // thickness
+        gsFunctionExpr<> t0(std::to_string(thickness), 3);
+        t.addPiece(t0);
+
+        // // material parameters
+        // gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
+        // nu.addPiece(nu0);
 
         // Point loads
         gsVector<> point(2);
@@ -209,12 +278,151 @@ int main(int argc, char *argv[])
 
         // Surface forces
         tmp.setZero();
+        gsConstantFunction<> force0(tmp,3);
+        force.addPiece(force0);
+
+        // thickness
+        gsFunctionExpr<> t0(std::to_string(thickness), 3);
+        t.addPiece(t0);
+
+        // // material parameters
+        // gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
+        // nu.addPiece(nu0);
 
         // Point loads
         gsVector<> point(2); point<< 1.0, 1.0 ;
         gsVector<> load (3); load << 0.0, 0.0, -0.25 ;
         pLoads.addLoad(point, load, 0 );
 
+        refPoint = point;
+    }
+    else if (testCase == 4)
+    {
+        for (index_t d = 0; d!=3; d++)
+        {
+            bc.addCondition(0, boundary::east, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(1, boundary::west, condition_type::dirichlet, 0, 0, false, d);
+
+            bc.addCondition(0, boundary::south, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(0, boundary::north, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(1, boundary::south, condition_type::dirichlet, 0, 0, false, d);
+            bc.addCondition(1, boundary::north, condition_type::dirichlet, 0, 0, false, d);
+        }
+
+        // Surface forces
+        tmp << 0,0,-1e0;
+        gsConstantFunction<> force0(tmp,3);
+        force.addPiece(force0);
+        tmp << 0,0,-1e0;
+        gsConstantFunction<> force1(tmp,3);
+        force.addPiece(force1);
+
+        // thickness
+        gsFunctionExpr<> t0(std::to_string(thickness), 3);
+        t.addPiece(t0);
+        gsFunctionExpr<> t1(std::to_string(thickness), 3);
+        t.addPiece(t1);
+
+        // // material parameters
+        // gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
+        // nu.addPiece(nu0);
+        // gsFunctionExpr<> nu1(std::to_string(PoissonRatio), 3);
+        // nu.addPiece(nu1);
+
+        // Point loads
+        gsVector<> point(2); point<< 0.0, 0.5 ;
+        refPoint = point;
+    }
+    else if (testCase == 5)
+    {
+        for (index_t d = 0; d!=3; d++)
+            for (size_t p=0; p!=mp.nPatches(); ++p)
+                bc.addCondition(p, boundary::east, condition_type::dirichlet, 0, 0, false, d);
+        for (size_t p=0; p!=mp.nPatches(); ++p)
+            bc.addCondition(p, boundary::east, condition_type::clamped, 0, 0, false, 2);
+
+
+        // Surface forces
+        tmp << 0,0,0;
+        gsConstantFunction<> force0(tmp,3);
+        force.addPiece(force0);
+        tmp << 0,0,-1e-3;
+        gsConstantFunction<> force1(tmp,3);
+        force.addPiece(force1);
+        tmp << 0,0,-1e-3;
+        gsConstantFunction<> force2(tmp,3);
+        force.addPiece(force2);
+
+        // thickness
+        gsFunctionExpr<> t0(std::to_string(thickness), 3);
+        t.addPiece(t0);
+        gsFunctionExpr<> t1(std::to_string(thickness), 3);
+        t.addPiece(t1);
+        gsFunctionExpr<> t2(std::to_string(thickness), 3);
+        t.addPiece(t2);
+
+        // // material parameters
+        // gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
+        // nu.addPiece(nu0);
+        // gsFunctionExpr<> nu1(std::to_string(PoissonRatio), 3);
+        // nu.addPiece(nu1);
+        // gsFunctionExpr<> nu2(std::to_string(PoissonRatio), 3);
+        // nu.addPiece(nu2);
+
+        // Point loads
+        gsVector<> point(2); point<< 1.0, 1.0 ;
+        refPoint = point;
+    }
+    else if (testCase == 6)
+    {
+        for (index_t d = 0; d!=3; d++)
+            for (size_t p=0; p!=mp.nPatches(); ++p)
+                bc.addCondition(p, boundary::east, condition_type::dirichlet, 0, 0, false, d);
+        for (size_t p=0; p!=mp.nPatches(); ++p)
+            bc.addCondition(p, boundary::east, condition_type::clamped, 0, 0, false, 2);
+
+        // Point loads
+        tmp << 0,0,0;
+        gsConstantFunction<> force0(tmp,3);
+        force.addPiece(force0);
+        tmp << 0,0,-1e-3;
+        gsConstantFunction<> force1(tmp,3);
+        force.addPiece(force1);
+        tmp << 0,0,-1e-3;
+        gsConstantFunction<> force2(tmp,3);
+        force.addPiece(force2);
+        tmp << 0,0,0;
+        gsConstantFunction<> force3(tmp,3);
+        force.addPiece(force3);
+        tmp << 0,0,0;
+        gsConstantFunction<> force4(tmp,3);
+        force.addPiece(force4);
+
+        // thickness
+        gsFunctionExpr<> t0(std::to_string(thickness), 3);
+        t.addPiece(t0);
+        gsFunctionExpr<> t1(std::to_string(thickness), 3);
+        t.addPiece(t1);
+        gsFunctionExpr<> t2(std::to_string(thickness), 3);
+        t.addPiece(t2);
+        gsFunctionExpr<> t3(std::to_string(thickness), 3);
+        t.addPiece(t3);
+        gsFunctionExpr<> t4(std::to_string(thickness), 3);
+        t.addPiece(t4);
+
+        // // material parameters
+        // gsFunctionExpr<> nu0(std::to_string(PoissonRatio), 3);
+        // nu.addPiece(nu0);
+        // gsFunctionExpr<> nu1(std::to_string(PoissonRatio), 3);
+        // nu.addPiece(nu1);
+        // gsFunctionExpr<> nu2(std::to_string(PoissonRatio), 3);
+        // nu.addPiece(nu2);
+        // gsFunctionExpr<> nu3(std::to_string(PoissonRatio), 3);
+        // nu.addPiece(nu3);
+        // gsFunctionExpr<> nu4(std::to_string(PoissonRatio), 3);
+        // nu.addPiece(nu4);
+
+        gsVector<> point(2); point<< 1.0, 1.0 ;
         refPoint = point;
     }
     else
@@ -224,12 +432,12 @@ int main(int argc, char *argv[])
 
     //! [Make material functions]
     // Linear isotropic material model
-    gsConstantFunction<> force(tmp,3);
     gsConstantFunction<> pressFun(pressure,3);
-    gsFunctionExpr<> t(std::to_string(thickness), 3);
     gsFunctionExpr<> E(std::to_string(E_modulus),3);
-    gsFunctionExpr<> nu(std::to_string(PoissonRatio),3);
+    // gsConstantFunction<> t(thickness,3);
     gsFunctionExpr<> rho(std::to_string(Density),3);
+    gsConstantFunction<> nu(PoissonRatio,3);
+    // gsFunctionExpr<> force("0","0","0",3);
 
     // Linear anisotropic material model (only one layer for example purposes)
     index_t kmax = 1; // number of layers
@@ -253,7 +461,7 @@ int main(int argc, char *argv[])
     Ts[0] = &thicks;
 
     //! [Make assembler]
-    std::vector<gsFunction<>*> parameters;
+    std::vector<gsFunctionSet<>*> parameters;
     gsMaterialMatrixBase<real_t>* materialMatrix;
     gsOptionList options;
     // Make gsMaterialMatrix depending on the user-defined choices
@@ -271,12 +479,22 @@ int main(int argc, char *argv[])
         materialMatrix = getMaterialMatrix<3,real_t>(mp,t,parameters,rho,options);
     }
 
+    gsMaterialMatrixContainer<real_t> materialMats(mp.nPatches());
+    for (size_t p = 0; p!=mp.nPatches(); p++)
+        materialMats.add(materialMatrix);
+
     // Construct the gsThinShellAssembler
     gsThinShellAssemblerBase<real_t>* assembler;
     if(membrane) // no bending term
         assembler = new gsThinShellAssembler<3, real_t, false>(mp,dbasis,bc,force,materialMatrix);
     else
         assembler = new gsThinShellAssembler<3, real_t, true >(mp,dbasis,bc,force,materialMatrix);
+
+    // Set the penalty parameter for the interface C1 continuity
+    assembler->options().setReal("IfcPenalty",ifcDirichlet);
+    assembler->addWeakC0(mp.topology().interfaces());
+    assembler->addWeakC1(mp.topology().interfaces());
+    assembler->initInterfaces();
 
     assembler->setPointLoads(pLoads);
     if (pressure!= 0.0)
@@ -294,9 +512,11 @@ int main(int argc, char *argv[])
     typedef std::function<gsVector<real_t> (gsVector<real_t> const &) >         Residual_t;
     Jacobian_t Jacobian = [&time,&stopwatch,&assembler,&mp_def](gsVector<real_t> const &x)
     {
+      ThinShellAssemblerStatus status;
       stopwatch.restart();
       assembler->constructSolution(x,mp_def);
-      assembler->assembleMatrix(mp_def);
+      status = assembler->assembleMatrix(mp_def);
+      GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
       time += stopwatch.stop();
       gsSparseMatrix<real_t> m = assembler->matrix();
       return m;
@@ -304,17 +524,21 @@ int main(int argc, char *argv[])
     // Function for the Residual
     Residual_t Residual = [&time,&stopwatch,&assembler,&mp_def](gsVector<real_t> const &x)
     {
+      ThinShellAssemblerStatus status;
       stopwatch.restart();
       assembler->constructSolution(x,mp_def);
-      assembler->assembleVector(mp_def);
+      status = assembler->assembleVector(mp_def);
+      GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
       time += stopwatch.stop();
       return assembler->rhs();
     };
     //! [Define jacobian and residual]
 
+    ThinShellAssemblerStatus status;
     stopwatch.restart();
     stopwatch2.restart();
-    assembler->assemble();
+    status = assembler->assemble();
+    GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
     time += stopwatch.stop();
 
     //! [Assemble linear part]
@@ -323,11 +547,13 @@ int main(int argc, char *argv[])
     //! [Assemble linear part]
 
     //! [Solve linear problem]
+    gsInfo<<"Solving system with "<<assembler->numDofs()<<" DoFs\n";
     gsVector<> solVector;
     gsSparseSolver<>::CGDiagonal solver;
     solver.compute( matrix );
     solVector = solver.solve(vector);
     //! [Solve linear problem]
+
 
     //! [Solve non-linear problem]
     if (nonlinear)
@@ -374,22 +600,19 @@ int main(int argc, char *argv[])
 
 
     //! [Construct and evaluate solution]
-    gsVector<> refVals = deformation.patch(0).eval(refPoint);
-    real_t numVal;
-    if      (testCase == 0 || testCase == 1 || testCase == 3)
-        numVal = refVals.at(2);
-    else
-        numVal = refVals.at(1);
-
-    gsInfo << "Displacement at reference point: "<<numVal<<"\n";
+    gsVector<> refVals = deformation.patch(refPatch).eval(refPoint);
+    // gsInfo << "Displacement at reference point: "<<numVal<<"\n";
+    gsInfo << "Displacement at reference point: "<<refVals<<"\n";
     //! [Construct and evaluate solution]
 
     // ! [Export visualization in ParaView]
     if (plot)
     {
         gsField<> solField(mp_def, deformation);
+        // gsField<> solField(mp, deformation);
         gsInfo<<"Plotting in Paraview...\n";
-        gsWriteParaview<>( solField, "Deformation", 1000, true);
+        gsWriteParaview<>( solField, "Deformation", 1000, mesh);
+        gsWriteParaview<>( mp_def, "mp_def", 1000, mesh,cnet);
 
         if (testCase==3)
             gsWarn<<"Deformations are possibly zero in Paraview, due to the default precision (1e-5).\n";
@@ -410,8 +633,8 @@ int main(int argc, char *argv[])
             assembler->constructStress(mp_def,flexuralStresses,stress_type::flexural);
             gsField<> flexuralStress(mp_def,flexuralStresses, true);
 
-            gsWriteParaview(membraneStress,"MembraneStress");
-            gsWriteParaview(flexuralStress,"FlexuralStress");
+            gsWriteParaview(membraneStress,"MembraneStress",1000);
+            gsWriteParaview(flexuralStress,"FlexuralStress",1000);
         }
     }
     // ! [Export visualization in ParaView]
@@ -424,3 +647,377 @@ int main(int argc, char *argv[])
     return EXIT_SUCCESS;
 
 }// end main
+
+template <class T>
+gsMultiPatch<T> Plate(T Lp, T Wp, T x, T y, T z)
+{
+    gsMultiPatch<T> result, tmp;
+
+    // Web
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(0).embed(3);
+    result.patch(0).coefs().row(0)<< 0,0,0;
+    result.patch(0).coefs().row(1)<< Lp,0,0;
+    result.patch(0).coefs().row(2)<< 0,Wp,0;
+    result.patch(0).coefs().row(3)<< Lp,Wp,0;
+
+    for (size_t p = 0; p!=result.nPatches(); p++)
+    {
+        result.patch(p).coefs().col(0).array() += x;
+        result.patch(p).coefs().col(1).array() += y;
+        result.patch(p).coefs().col(2).array() += z;
+    }
+
+    result.addAutoBoundaries();
+
+    return result;
+}
+
+template <class T>
+gsMultiPatch<T> Strip(T Lb, T Hw, T x, T y, T z)
+{
+    gsMultiPatch<T> result, tmp;
+
+    // Web
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(0).embed(3);
+    result.patch(0).coefs().row(0)<< 0,0,0;
+    result.patch(0).coefs().row(1)<< 0,Lb,0;
+    result.patch(0).coefs().row(2)<< 0,0,Hw;
+    result.patch(0).coefs().row(3)<< 0,Lb,Hw;
+
+    for (size_t p = 0; p!=result.nPatches(); p++)
+    {
+        result.patch(p).coefs().col(0).array() += x;
+        result.patch(p).coefs().col(1).array() += y;
+        result.patch(p).coefs().col(2).array() += z;
+    }
+
+    result.addAutoBoundaries();
+
+    return result;
+}
+
+template <class T>
+gsMultiPatch<T> IBeam(T Lb, T Hw, T Wf, T x, T y, T z)
+{
+    gsMultiPatch<T> result, tmp;
+
+    // Web
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(0).embed(3);
+    result.patch(0).coefs().row(0)<< 0,0,0;
+    result.patch(0).coefs().row(1)<< 0,Lb,0;
+    result.patch(0).coefs().row(2)<< 0,0,Hw/2.;
+    result.patch(0).coefs().row(3)<< 0,Lb,Hw/2.;
+
+    // Flange, left
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(1).embed(3);
+    result.patch(1).coefs().row(0)<< 0,0,Hw/2.;
+    result.patch(1).coefs().row(1)<< Wf/2,0,Hw/2.;
+    result.patch(1).coefs().row(2)<< 0,Lb,Hw;
+    result.patch(1).coefs().row(3)<< Wf/2,Lb,Hw/2.;
+
+    // Flange, right
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(2).embed(3);
+    result.patch(2).coefs().row(0)<< -Wf/2,0,Hw/2.;
+    result.patch(2).coefs().row(1)<< 0,0,Hw/2.;
+    result.patch(2).coefs().row(2)<< -Wf/2,Lb,Hw/2.;
+    result.patch(2).coefs().row(3)<< 0,Lb,Hw/2.;
+
+    // Flange, left
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(3).embed(3);
+    result.patch(3).coefs().row(0)<< 0,0,-Hw/2.;
+    result.patch(3).coefs().row(1)<< Wf/2,0,-Hw/2.;
+    result.patch(3).coefs().row(2)<< 0,Lb,-Hw;
+    result.patch(3).coefs().row(3)<< Wf/2,Lb,-Hw/2.;
+
+    // Flange, right
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(4).embed(3);
+    result.patch(4).coefs().row(0)<< -Wf/2,0,-Hw/2.;
+    result.patch(4).coefs().row(1)<< 0,0,-Hw/2.;
+    result.patch(4).coefs().row(2)<< -Wf/2,Lb,-Hw/2.;
+    result.patch(4).coefs().row(3)<< 0,Lb,-Hw/2.;
+
+    for (size_t p = 0; p!=result.nPatches(); p++)
+    {
+        result.patch(p).coefs().col(0).array() += x;
+        result.patch(p).coefs().col(1).array() += y;
+        result.patch(p).coefs().col(2).array() += z;
+    }
+
+    result.computeTopology();
+
+    // GISMO_ERROR("Interfaces not yet configured");
+
+    // result.addInterface(&result.patch(0),4,&result.patch(1),1);
+    // result.addInterface(&result.patch(0),4,&result.patch(2),2);
+
+    result.addAutoBoundaries();
+
+    return result;
+}
+
+template <class T>
+gsMultiPatch<T> TBeam(T Lb, T Hw, T Wf, T x, T y, T z)
+{
+    gsMultiPatch<T> result, tmp;
+
+    // Web
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(0).embed(3);
+    result.patch(0).coefs().row(0)<< 0,0,0;
+    result.patch(0).coefs().row(1)<< 0,Lb,0;
+    result.patch(0).coefs().row(2)<< 0,0,Hw;
+    result.patch(0).coefs().row(3)<< 0,Lb,Hw;
+
+    // Flange, left
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(1).embed(3);
+    result.patch(1).coefs().row(0)<< 0,0,Hw;
+    result.patch(1).coefs().row(1)<< Wf/2,0,Hw;
+    result.patch(1).coefs().row(2)<< 0,Lb,Hw;
+    result.patch(1).coefs().row(3)<< Wf/2,Lb,Hw;
+
+    // Flange, right
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(2).embed(3);
+    result.patch(2).coefs().row(0)<< -Wf/2,0,Hw;
+    result.patch(2).coefs().row(1)<< 0,0,Hw;
+    result.patch(2).coefs().row(2)<< -Wf/2,Lb,Hw;
+    result.patch(2).coefs().row(3)<< 0,Lb,Hw;
+
+    for (size_t p = 0; p!=result.nPatches(); p++)
+    {
+        result.patch(p).coefs().col(0).array() += x;
+        result.patch(p).coefs().col(1).array() += y;
+        result.patch(p).coefs().col(2).array() += z;
+    }
+
+    result.computeTopology();
+
+    // result.addInterface(&result.patch(0),4,&result.patch(1),1);
+    // result.addInterface(&result.patch(0),4,&result.patch(2),2);
+    // result.addInterface(&result.patch(1),1,&result.patch(2),2);
+
+    result.addAutoBoundaries();
+    gsWrite(result,"result");
+
+    return result;
+}
+
+template <class T>
+gsMultiPatch<T> LBeam(T Lb, T Hw, T Wf, T x, T y, T z)
+{
+    gsMultiPatch<T> result, tmp;
+
+    // Web
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(0).embed(3);
+    result.patch(0).coefs().row(0)<< 0,0,0;
+    result.patch(0).coefs().row(1)<< 0,Lb,0;
+    result.patch(0).coefs().row(2)<< 0,0,Hw;
+    result.patch(0).coefs().row(3)<< 0,Lb,Hw;
+
+    // Flange, left
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(1).embed(3);
+    result.patch(1).coefs().row(0)<< 0,0,Hw;
+    result.patch(1).coefs().row(1)<< Wf,0,Hw;
+    result.patch(1).coefs().row(2)<< 0,Lb,Hw;
+    result.patch(1).coefs().row(3)<< Wf,Lb,Hw;
+
+    for (size_t p = 0; p!=result.nPatches(); p++)
+    {
+        result.patch(p).coefs().col(0).array() += x;
+        result.patch(p).coefs().col(1).array() += y;
+        result.patch(p).coefs().col(2).array() += z;
+    }
+
+    result.addInterface(&result.patch(0),4,&result.patch(1),1);
+
+    result.addAutoBoundaries();
+
+    return result;
+}
+
+template <class T>
+gsMultiPatch<T> PanelT(T Lp, T Wp, T Hw, T Wf, T x, T y, T z)
+
+{
+    gsMultiPatch<T> result, tmp;
+
+    // Base plate, left
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(0).embed(3);
+    result.patch(0).coefs().row(0)<< 0,0,0;
+    result.patch(0).coefs().row(1)<< Wp/2,0,0;
+    result.patch(0).coefs().row(2)<< 0,Lp,0;
+    result.patch(0).coefs().row(3)<< Wp/2,Lp,0;
+
+    // Base plate, right
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(1).embed(3);
+    result.patch(1).coefs().row(0)<< -Wp/2,0,0;
+    result.patch(1).coefs().row(1)<< 0,0,0;
+    result.patch(1).coefs().row(2)<< -Wp/2,Lp,0;
+    result.patch(1).coefs().row(3)<< 0,Lp,0;
+
+    // T-Beam
+    gsMultiPatch<> beam = TBeam(Lp,Hw,Wf);
+
+    for (size_t p=0; p!=beam.nPatches(); p++)
+        result.addPatch(beam.patch(p));
+
+    for (size_t p = 0; p!=result.nPatches(); p++)
+    {
+        result.patch(p).coefs().col(0).array() += x;
+        result.patch(p).coefs().col(1).array() += y;
+        result.patch(p).coefs().col(2).array() += z;
+    }
+
+    // result.addInterface(&result.patch(1),2,&result.patch(0),1);
+    // result.addInterface(&result.patch(2),3,&result.patch(0),1);
+    // result.addInterface(&result.patch(2),4,&result.patch(3),1);
+    // result.addInterface(&result.patch(2),4,&result.patch(4),2);
+
+    result.computeTopology();
+    result.addAutoBoundaries();
+
+    return result;
+}
+
+template <class T>
+gsMultiPatch<T> PanelL(T Lp, T Wp, T Hw, T Wf, T x, T y, T z)
+
+{
+    gsMultiPatch<T> result, tmp;
+
+    // Base plate, right
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(0).embed(3);
+    result.patch(0).coefs().row(0)<< -Wp/2,0,0;
+    result.patch(0).coefs().row(1)<< 0,0,0;
+    result.patch(0).coefs().row(2)<< -Wp/2,Lp,0;
+    result.patch(0).coefs().row(3)<< 0,Lp,0;
+    // Base plate, left
+    result.addPatch(gsNurbsCreator<>::BSplineSquare());
+    result.patch(1).embed(3);
+    result.patch(1).coefs().row(0)<< 0,0,0;
+    result.patch(1).coefs().row(1)<< Wp/2,0,0;
+    result.patch(1).coefs().row(2)<< 0,Lp,0;
+    result.patch(1).coefs().row(3)<< Wp/2,Lp,0;
+
+    // T-Beam
+    // gsMultiPatch<> beam = LBeam(Lp,Hw,Wf);
+    gsMultiPatch<> beam = Strip(Lp,Hw);
+
+    for (size_t p=0; p!=beam.nPatches(); p++)
+        result.addPatch(beam.patch(p));
+
+    for (size_t p = 0; p!=result.nPatches(); p++)
+    {
+        result.patch(p).coefs().col(0).array() += x;
+        result.patch(p).coefs().col(1).array() += y;
+        result.patch(p).coefs().col(2).array() += z;
+    }
+
+    // result.addInterface(&result.patch(1),2,&result.patch(0),1);
+    // result.addInterface(&result.patch(2),3,&result.patch(0),1);
+    // result.addInterface(&result.patch(2),4,&result.patch(3),1);
+
+    result.computeTopology();
+    result.addAutoBoundaries();
+
+    return result;
+}
+
+template <class T>
+gsMultiPatch<T> PanelL2(T Lp, T Wp, T Hw, T Wf, T x, T y, T z)
+
+{
+    gsMultiPatch<T> result, tmp;
+    std::vector<gsMultiPatch<T>> panels(4);
+    panels.at(0) = Plate(Wp/2.,Lp,-Wp/2.,0.,0.);
+    panels.at(1) = Plate(Wf,Lp,0.,0.,0.);
+    panels.at(2) = Plate(Wp/2.-Wf,Lp,Wf,0.,0.);
+    // panels.at(3) = LBeam(Lp,Hw,Wf);
+    panels.at(3) = Strip(Lp,Hw);
+    // for (size_t p = 0; p!=panels[3].nPatches(); p++)
+    //     panels[3].patch(p).coefs().col(0).swap(panels[3].patch(p).coefs().col(1));
+
+    for (typename std::vector<gsMultiPatch<T>>::iterator it = panels.begin(); it!=panels.end(); it++)
+        for (size_t p = 0; p!=it->nPatches(); p++)
+           result.addPatch(it->patch(p));
+
+    for (size_t p = 0; p!=result.nPatches(); p++)
+    {
+        result.patch(p).coefs().col(0).array() += x;
+        result.patch(p).coefs().col(1).array() += y;
+        result.patch(p).coefs().col(2).array() += z;
+    }
+
+    result.computeTopology();
+    result.addAutoBoundaries();
+
+    // result.addPatch(gsNurbsCreator<>::BSplineRectangle(-Wp/2,0.0,0.0,Lp));
+    // result.patch(0).degreeReduce();
+    // result.embed(3);
+
+    // result.addPatch(gsNurbsCreator<>::BSplineRectangle(-Wp/2,0.0,0.0,Lp));
+    // result.patch(0).degreeReduce();
+    // result.embed(3);
+
+
+
+    return result;
+}
+
+
+template <class T>
+gsMultiPatch<T> PlateGirderL(T PanelLength, T PanelWidth, T GirderHeight, T GirderFlangeWidth, T WebFlangeHeight, T WebFlangeWidth, T x, T y, T z)
+
+{
+    gsMultiPatch<T> result, tmp;
+
+    // make sub panels
+    std::vector<gsMultiPatch<T>> panels(14);
+    panels.at(0) = Plate(PanelLength/2.,PanelWidth/2.,                  0.,                 -PanelWidth/2., 0.);
+    panels.at(1) = Plate(PanelLength/2.,WebFlangeWidth,                 0.,                 0.,             0.);
+    panels.at(2) = Plate(PanelLength/2.,PanelWidth/2.-WebFlangeWidth,   0.,                 WebFlangeWidth, 0.);
+    panels.at(3) = Plate(PanelLength/2.,PanelWidth/2.,                  -PanelLength/2.,    -PanelWidth/2., 0.);
+    panels.at(4) = Plate(PanelLength/2.,WebFlangeWidth,                 -PanelLength/2.,    0.,             0.);
+    panels.at(5) = Plate(PanelLength/2.,PanelWidth/2.-WebFlangeWidth,   -PanelLength/2.,    WebFlangeWidth, 0.);
+
+    panels.at(6) = LBeam(PanelLength/2.,WebFlangeHeight,WebFlangeWidth);
+    panels.at(7) = LBeam(PanelLength/2.,WebFlangeHeight,WebFlangeWidth);
+
+    for (size_t p = 0; p!=panels[6].nPatches(); p++)
+        panels[6].patch(p).coefs().col(0).swap(panels[6].patch(p).coefs().col(1));
+    for (size_t p = 0; p!=panels[7].nPatches(); p++)
+    {
+        panels[7].patch(p).coefs().col(0).swap(panels[7].patch(p).coefs().col(1));
+        panels[7].patch(p).coefs().col(0).array() -= PanelLength / 2.;
+    }
+
+    panels.at(8) = TBeam(WebFlangeWidth,              GirderHeight,GirderFlangeWidth,0.,0.,WebFlangeHeight);
+    panels.at(9) = TBeam(PanelWidth/2.-WebFlangeWidth,GirderHeight,GirderFlangeWidth,0.,WebFlangeWidth,WebFlangeHeight);
+    panels.at(10) = TBeam(PanelWidth/2.,               GirderHeight,GirderFlangeWidth,0.,-PanelWidth/2.,WebFlangeHeight);
+
+    panels.at(11) = Strip(WebFlangeWidth,              WebFlangeHeight,0.,0.);
+    panels.at(12) = Strip(PanelWidth/2.-WebFlangeWidth,WebFlangeHeight,0.,WebFlangeWidth);
+    panels.at(13) = Strip(PanelWidth/2.,               WebFlangeHeight,0.,-PanelWidth/2.);
+
+    for (typename std::vector<gsMultiPatch<T>>::iterator it = panels.begin(); it!=panels.end(); it++)
+        for (size_t p = 0; p!=it->nPatches(); p++)
+           result.addPatch(it->patch(p));
+
+    result.computeTopology();
+    result.addAutoBoundaries();
+
+    return result;
+}

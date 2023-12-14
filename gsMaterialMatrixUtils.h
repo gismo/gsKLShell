@@ -101,16 +101,44 @@ enum class MaterialOutput : short_t
     Density = 1,
     VectorN = 2,
     VectorM = 3,
+    CauchyVectorN = 21,
+    CauchyVectorM = 31,
     MatrixA  = 4,
     MatrixB  = 5,
     MatrixC  = 6,
     MatrixD  = 7,
-    Stretch  = 8,       // ONLY ON MID-PLANE
-    PStress  = 9,       // ONLY ON MID-PLANE
-    StretchDir = 10,    // ONLY ON MID-PLANE
-    PStressDir = 11,    // ONLY ON MID-PLANE
-    StretchTransform = 12,  // Transformation matrix from principal stretch axes to contravariant axes, such that E_con = E_p * T
-    PStressTransform = 13,  // Transformation matrix from principal stress axes to covariant axes, such that S_cov = S_p * T
+    PStress  = 81,
+    PStressN = 8,
+    PStressM = 9,
+    PCauchyStressN = 81,
+    PCauchyStressM = 91,
+    PStrainN = 10,
+    PStrainM = 11,
+    Stretch = 12,       // ONLY ON MID-PLANE
+    StretchDir = 13,    // ONLY ON MID-PLANE
+    TensionField = 14,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
+    Theta = 141,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
+    Gamma = 142,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
+    Spec2CovTransform = 15,  // Transformation matrix from spectral to covariant basis
+    Spec2ConTransform = 16,  // Transformation matrix from spectral to contravariant basis
+    Cov2CartTransform = 17,  // Transformation matrix from covariant basis to cartesian basis
+    Con2CartTransform = 18,  // Transformation matrix from contravariant basis to cartesian basis
+    tretchTransform   = 19,  // Transformation matrix from principal stretch axes to contravariant axes, such that E_con = E_p * T
+    PStressTransform  = 20,  // Transformation matrix from principal stress axes to covariant axes, such that S_cov = S_p * T
+    Strain  = 87,
+    StrainN = 88,
+    StrainM = 89,
+    Stress  = 97,
+    StressN = 98,
+    StressM = 99,
+    CauchyStress  = 971,
+    CauchyStressN = 981,
+    CauchyStressM = 991,
+    Thickness = 100,
+    Parameters = 101,
+    Deformation = 102,
+
+    // FINISH VON MISES WITH THE CAUCHY STRESS!!!
 };
 
 

@@ -39,7 +39,12 @@ template <  short_t dim,
 class gsMaterialMatrixComposite : public gsMaterialMatrixBaseDim<dim,T>
 {
 public:
+
+    GISMO_CLONE_FUNCTION(gsMaterialMatrixComposite)
+
     using Base = gsMaterialMatrixBaseDim<dim,T>;
+
+    typedef typename Base::function_ptr function_ptr;
 
     /** @brief Constructor of the assembler object.
 
@@ -63,7 +68,6 @@ public:
                             const std::vector< gsFunctionSet<T> *>              & G,
                             const std::vector< gsFunctionSet<T> *>              & alpha         );
 
-
     enum MatIntegration isMatIntegrated() const {return MatIntegration::Integrated; }
     enum MatIntegration isVecIntegrated() const {return MatIntegration::Integrated; }
 
@@ -86,7 +90,15 @@ public:
     void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
 
     /// See \ref gsMaterialMatrixBase for details
-    void pstretchTransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
+    void parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
+    {GISMO_NO_IMPLEMENTATION;}
+
+    /// See \ref gsMaterialMatrixBase for details
+    void transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
+    {GISMO_NO_IMPLEMENTATION;}
+
+    /// See \ref gsMaterialMatrixBase for details
+    void covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
     {GISMO_NO_IMPLEMENTATION;}
 
     /// See \ref gsMaterialMatrixBase for details
@@ -96,9 +108,12 @@ public:
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
     gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
 
-    void setParameters(const std::vector<gsFunction<T>*> &pars)
-    { GISMO_NO_IMPLEMENTATION; }
-    void info() const;
+    std::ostream &print(std::ostream &os) const override;
+
+    bool initialized() const override
+    {
+        return m_patches!=nullptr;
+    }
 
 public:
     /// Shared pointer for gsMaterialMatrixComposite
@@ -108,14 +123,13 @@ public:
     typedef memory::unique_ptr< gsMaterialMatrixComposite > uPtr;
 
 protected:
-    void _initialize();
-    void _initializeParameters();
+    void _initialize(const index_t nLayers);
     void _defaultOptions();
 
     gsMatrix<T> _transformationMatrix(const gsMatrix<T> & phi, const gsMatrix<T> & u) const;
-    gsMatrix<T> _cart2cov(const gsVector<T> a1, const gsVector<T> a2, const gsVector<T> e1, const gsVector<T> e2) const;
-    gsMatrix<T> _con2cart(const gsVector<T> ac1, const gsVector<T> ac2, const gsVector<T> e1, const gsVector<T> e2) const;
-
+    // NOTE: it could be that these matrices should be transposed!!
+    gsMatrix<T> _cart2cov(const gsVector<T> & a1, const gsVector<T> & a2, const gsVector<T> & e1, const gsVector<T> & e2) const;
+    gsMatrix<T> _con2cart(const gsVector<T> & ac1, const gsVector<T> & ac2, const gsVector<T> & e1, const gsVector<T> & e2) const;
 
 protected:
 
@@ -123,78 +137,25 @@ protected:
     void _computePoints(const index_t patch, const gsMatrix<T> & u, bool basis = true) const;
 
 protected:
+
     // constructor
     using Base::m_patches;
     using Base::m_defpatches;
-    const gsFunction<T> * m_thickness;
-    const gsFunction<T> * m_E11;
-    const gsFunction<T> * m_E22;
-    const gsFunction<T> * m_G12;
-    const gsFunction<T> * m_nu12;
-    const gsFunction<T> * m_nu21;
-    const gsFunction<T> * m_phi;
-    std::vector<gsFunction<T>* > m_pars; // TO DO: change to uPtr
-    const gsFunction<T> * m_rho;
 
     // Composite
     index_t m_nLayers;
-    mutable gsMatrix<T>                 m_Tmat, m_E1mat, m_E2mat, m_G12mat, m_nu12mat, m_nu21mat, m_phiMat, m_rhoMat;
 
-    // Geometric data point
-    using Base::m_map;
-    using Base::m_map_def;
-
-    using Base::m_Acov_ori;
-    using Base::m_Acon_ori;
-    using Base::m_Acov_def;
-    using Base::m_Acon_def;
-    using Base::m_Bcov_ori;
-    using Base::m_Bcon_ori;
-    using Base::m_Bcov_def;
-    using Base::m_Bcon_def;
-    using Base::m_acov_ori;
-    using Base::m_acon_ori;
-    using Base::m_acov_def;
-    using Base::m_acon_def;
-    using Base::m_ncov_ori;
-    using Base::m_ncov_def;
-    using Base::m_Gcov_ori;
-    using Base::m_Gcon_ori;
-    using Base::m_Gcov_def;
-    using Base::m_Gcon_def;
-    using Base::m_Gcov_ori_L;
-    using Base::m_Gcov_def_L;
-    using Base::m_gcov_ori;
-    using Base::m_gcov_def;
-    using Base::m_gcon_ori;
-    using Base::m_gcon_def;
-    using Base::m_Acov_ori_mat;
-    using Base::m_Acon_ori_mat;
-    using Base::m_Acov_def_mat;
-    using Base::m_Acon_def_mat;
-    using Base::m_Bcov_ori_mat;
-    using Base::m_Bcov_def_mat;
-    using Base::m_acov_ori_mat;
-    using Base::m_acon_ori_mat;
-    using Base::m_acov_def_mat;
-    using Base::m_acon_def_mat;
-    using Base::m_ncov_ori_mat;
-    using Base::m_ncov_def_mat;
-
-    using Base::m_stretches;
-    using Base::m_stretchvec;
-
-    using Base::m_J0_sq;
-    using Base::m_J_sq;
+    // Geometric data
+    using Base::m_data;
 
 
     gsOptionList m_options;
 
-    const std::vector<gsFunctionSet<T> * > m_Ts;
-    const std::vector<gsFunctionSet<T> * > m_Gs;
-    const std::vector<gsFunctionSet<T> * > m_As;
-    const std::vector<gsFunctionSet<T> * > m_Rs;
-    mutable std::vector< gsMatrix<T> > m_Gcontainer, m_Tcontainer, m_Acontainer, m_Rcontainer;
+    std::vector< function_ptr > m_Ts;
+    std::vector< function_ptr > m_Gs;
+    std::vector< function_ptr > m_As;
+    std::vector< function_ptr > m_Rs;
+    mutable util::gsThreaded<std::vector< gsMatrix<T> >> m_Gcontainer, m_Tcontainer, m_Acontainer, m_Rcontainer;
 };
 
 } // namespace

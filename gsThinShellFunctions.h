@@ -35,22 +35,34 @@ struct stress_type
 {
     enum type
     {
+        displacement       = -1,
         von_mises          = 0,  /// compute only von Mises stress
         von_mises_membrane = 1,  /// compute only von Mises stress - membrane stresses
         von_mises_flexural = 2,  /// compute only von Mises stress - flexural stresses
-        membrane           = 3,  /// compute normal and shear stresses due to membrane component
-        flexural           = 4,  /// compute normal and shear stresses due to membrane component
-        total              = 5,  /// compute normal and shear stresses due to both components
-        membrane_strain    = 6,  /// compute normal and shear stresses due to both components
-        flexural_strain    = 7,  /// compute normal and shear stresses due to both components
-        principal_stretch  = 8,  /// principal stretches
-        principal_stress   = 9,  /// principal stress membrane
+        membrane           = 3,  /// compute membrane Cauchy stresses
+        membrane_force     = 4,  /// compute membrane Cauchy stresses integrated over the thickness
+        membrane_PK2       = 5,  /// compute membrane PK2 stresses
+        membrane_force_PK2 = 6,  /// compute membrane PK2 stresses integrated over the thickness
+        flexural           = 7,  /// compute flexural Cauchy stresses
+        flexural_PK2       = 8,  /// compute flexural PK2 stresses
+        flexural_moment    = 9,  /// compute flexural Cauchy stresses integrated over the thickness
+        flexural_moment_PK2= 10, /// compute flexural PK2 stresses integrated over the thickness
+        total              = 11, ///
+        membrane_strain    = 12, ///
+        flexural_strain    = 13, ///
+        principal_membrane_strain    = 14,  ///
+        principal_flexural_strain    = 15,  ///
+        principal_stretch  = 16, /// principal stretches
+        principal_stress   = 17,  /// principal stress membrane
+        principal_stress_membrane  = 18,  /// principal stress membrane
+        principal_stress_flexural  = 19,  /// principal stress bending
         principal_stretch_dir1  = 81,  /// principal stretch directions
         principal_stretch_dir2  = 82,  /// principal stretch directions
         principal_stretch_dir3  = 83,  /// principal stretch directions
         principal_stress_dir1  = 91,  /// principal stress directions
         principal_stress_dir2  = 92,  /// principal stress directions
         principal_stress_dir3  = 93,  /// principal stress directions
+        tension_field  = 99,
     };
 };
 
@@ -73,22 +85,26 @@ public:
      * @param      mm         The material matrix
      * @param[in]  patch      The patch index
      * @param[in]  type       The stress type
-     * @param[in]  assembler  The shell assembler
      */
-    gsShellStressFunction(const gsMultiPatch<T> & geometry,
+    gsShellStressFunction(const gsFunctionSet<T> & geometry,
                            const gsFunctionSet<T> & deformed,
-                           gsMaterialMatrixBase<T> * mm,
+                           const gsMaterialMatrixContainer<T> & mm,
                            index_t patch,
-                           stress_type::type type,
-                           const gsExprAssembler<T> & assembler
-                           )
-        : m_patches(geometry),
+                           stress_type::type type)
+        : m_patches(&geometry),
           m_defpatches(&deformed),
-          m_materialMat(mm),
+          m_materialMatrices(mm),
           m_patchID(patch),
-          m_stress_type(type),
-          m_assembler(assembler)
-    {}
+          m_stress_type(type)
+    {
+
+    }
+
+    ~gsShellStressFunction()
+    {
+        // delete m_patches;
+        // delete m_defpatches;
+    }
 
     virtual short_t domainDim() const
     {
@@ -102,6 +118,10 @@ public:
             default:
                 return 0;
                 break;
+            case stress_type::displacement :
+                return 3;
+                break;
+
             case stress_type::membrane :
                 return 3;
                 break;
@@ -110,10 +130,34 @@ public:
                 return 3;
                 break;
 
+            case stress_type::membrane_PK2 :
+                return 3;
+                break;
+
+            case stress_type::flexural_PK2 :
+                return 3;
+                break;
+
+            case stress_type::membrane_force :
+                return 3;
+                break;
+
+            case stress_type::flexural_moment :
+                return 3;
+                break;
+
+            case stress_type::membrane_force_PK2 :
+                return 3;
+                break;
+
+            case stress_type::flexural_moment_PK2 :
+                return 3;
+                break;
+
             // TO BE IMPLEMENTED
             // -------------------------------------
             case stress_type::von_mises :
-                return 1;
+                return 2;
                 break;
 
             case stress_type::von_mises_membrane :
@@ -123,13 +167,15 @@ public:
             case stress_type::von_mises_flexural :
                 return 1;
                 break;
-
-            case stress_type::total :
-                return 1;
-                break;
             // -------------------------------------
 
             case stress_type::membrane_strain :
+                return 3;
+                break;
+            case stress_type::principal_membrane_strain :
+                return 3;
+                break;
+            case stress_type::principal_flexural_strain :
                 return 3;
                 break;
 
@@ -142,6 +188,11 @@ public:
             case stress_type::principal_stress:
                 return 3;
                 break;
+            case stress_type::principal_stress_membrane :
+                return 2;
+                break;
+            case stress_type::principal_stress_flexural :
+                return 2;
                 break;
             case stress_type::principal_stretch_dir1 :
                 return 3;
@@ -160,6 +211,8 @@ public:
                 break;
             case stress_type::principal_stress_dir3 :
                 return 3;
+            case stress_type::tension_field :
+                return 1;
                 break;
             /*
                 DEFAULT includes:
@@ -191,12 +244,11 @@ protected:
     typedef gsExprAssembler<>::space       space;
     typedef gsExprAssembler<>::solution    solution;
 
-    const gsMultiPatch<T> & m_patches;
+    const gsFunctionSet<T> * m_patches;
     const gsFunctionSet<T> * m_defpatches;
-    mutable gsMaterialMatrixBase<T> * m_materialMat;
+    const gsMaterialMatrixContainer<T> & m_materialMatrices;
     index_t m_patchID;
     stress_type::type m_stress_type;
-    mutable gsExprAssembler<> m_assembler;
 
 }; // class definition ends
 
