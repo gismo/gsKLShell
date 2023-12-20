@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <gsKLShell/gsThinShellAssemblerDWR.h>
+#include <gsKLShell/src/gsThinShellAssemblerDWR.h>
 
 namespace gismo
 {

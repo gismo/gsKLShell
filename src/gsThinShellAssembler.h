@@ -1086,7 +1086,7 @@ public:
 #ifdef GISMO_WITH_PYBIND11
 
   /**
-   * @brief Initializes the Python wrapper for the class: gsThinShellAssembler
+   * @brief Initializes the Python wrapper for the class: gsThinShellAssemblerBase
    */
   void pybind11_init_gsThinShellAssemblerBase(pybind11::module &m);
 

@@ -742,14 +742,13 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
 
     void UAT_CHECK(const index_t material, const index_t impl, const bool Compressibility)
     {
-     if (material==4 && impl!=3)
+        if (material==4 && impl!=3)
           CHECK(true);
 
-     real_t Lnum, Snum, Lana, Sana;
-     std::tie(Lnum,Snum) = UAT_numerical(material,impl,Compressibility);
-     
-     std::tie(Lana,Sana) = UAT_analytical(material,impl,Compressibility);
-     CHECK_CLOSE(std::abs(Lnum-Lana)/Lana,0,1e-9);
+        real_t Lnum, Snum, Lana, Sana;
+        std::tie(Lnum,Snum) = UAT_numerical(material,impl,Compressibility);
+        std::tie(Lana,Sana) = UAT_analytical(material,impl,Compressibility);
+        CHECK_CLOSE(std::abs(Lnum-Lana)/Lana,0,1e-9);
     }
 
     gsVector<real_t> Modal_numerical(bool composite)

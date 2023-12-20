@@ -1,4 +1,4 @@
-/** @file gsMaterialMatrix.hpp
+/** @file gsMaterialMatrixNonlinear.hpp
 
     @brief Provides hyperelastic material matrices
 
@@ -25,7 +25,7 @@
 
 #include <gsKLShell/src/gsMaterialMatrixBase.h>
 #include <gsKLShell/src/gsMaterialMatrixLinear.h>
-#include <gsKLShell/src/gsMaterialMatrix.h>
+#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
 #include <gsKLShell/src/gsMaterialMatrixTFT.h>
 
 namespace gismo

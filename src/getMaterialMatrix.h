@@ -17,7 +17,7 @@
 
 #include <gsKLShell/src/gsMaterialMatrixBase.h>
 #include <gsKLShell/src/gsMaterialMatrixUtils.h>
-#include <gsKLShell/src/gsMaterialMatrix.h>
+#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
 #include <gsKLShell/src/gsMaterialMatrixLinear.h>
 #include <gsKLShell/src/gsMaterialMatrixComposite.h>
 #include <gsIO/gsOptionList.h>

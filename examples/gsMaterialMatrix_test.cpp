@@ -14,7 +14,7 @@
 #include <gismo.h>
 #include <gsKLShell/src/getMaterialMatrix.h>
 #include <gsKLShell/src/gsMaterialMatrixLinear.h>
-#include <gsKLShell/src/gsMaterialMatrix.h>
+#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
 #include <gsKLShell/src/gsMaterialMatrixIntegrate.h>
 #include <gsKLShell/src/gsMaterialMatrixEval.h>
 #include <gsKLShell/src/gsThinShellUtils.h>
@@ -189,54 +189,13 @@ int main (int argc, char** argv)
     variable lambdaDirp = A.getCoeff(lambdaDir_p);
     gsInfo<<"Stretch dirs = \n"<<ev.eval(lambdaDirp,pt)<<"\n";
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::CovTransform> trans_p1(materialMatrix,&mp_def,Z0);
+    gsMaterialMatrixEval<real_t,MaterialOutput::Spec2CovTransform> trans_p1(materialMatrix,&mp_def,Z0);
     variable transp1 = A.getCoeff(trans_p1);
-    gsInfo<<"CovTransform = \n"<<ev.eval(transp1,pt)<<"\n";
+    gsInfo<<"Spec2CovTransform = \n"<<ev.eval(transp1,pt)<<"\n";
 
-    gsMaterialMatrixEval<real_t,MaterialOutput::ConTransform> trans_p2(materialMatrix,&mp_def,Z0);
+    gsMaterialMatrixEval<real_t,MaterialOutput::Spec2ConTransform> trans_p2(materialMatrix,&mp_def,Z0);
     variable transp2 = A.getCoeff(trans_p2);
-    gsInfo<<"ConTransform = \n"<<ev.eval(transp2,pt)<<"\n";
-
-    gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","0.5",2);
-    variable m2 = A.getCoeff(mult2t);
-
-    auto Em = 0.5 * ( flat(jac(def).tr()*jac(def)) - flat(jac(map).tr()* jac(map)) );
-    auto Cm = ( flat(jac(def).tr()*jac(def)) ) * reshape(m2,3,3);
-    gsInfo<<"Em = \n"<<ev.eval(Em,pt)<<"\n";
-    gsInfo<<"Sm = \n"<<ev.eval(Em * reshape(mmAp,3,3),pt)<<"\n";
-    gsInfo<<"Cm = \n"<<ev.eval(Cm * reshape(transp2,3,3).tr(),pt)<<"\n";
-
-    gsInfo<<"Em = \n"<<ev.eval(reshape(transp2,3,3) * Em.tr(),pt)<<"\n";
-    gsInfo<<"Em = \n"<<ev.eval(reshape(transp2,3,3).tr() * Em.tr(),pt)<<"\n";
-
-    gsInfo<<"PStressN (transformed) = \n"<<ev.eval(reshape(transp1,3,3) * S0p,pt)<<"\n";
-    gsInfo<<"PStressN (transformed) = \n"<<ev.eval(reshape(transp2,3,3) * S0p,pt)<<"\n";
-
-    gsInfo<<"Em = \n"<<ev.eval(Em,pt)<<"\n";
-    gsInfo<<"PStrain (transformed) = \n"<<ev.eval((Em * reshape(m2,3,3)) * reshape(stretchtransp,3,3).tr(),pt)<<"\n";
-
-    gsInfo<<"PStress               = \n"<<ev.eval(P0p.tr(),pt)<<"\n";
-    gsInfo<<"PStress (transformed) = \n"<<ev.eval(reshape(pstresstransp,3,3) * S0p,pt)<<"\n";
-    gsInfo<<"PStress (transformed) = \n"<<ev.eval(S0p.tr()*reshape(pstresstransp,3,3).tr(),pt)<<"\n";
-
-    gsMatrix<> Tmats;
-    gsMatrix<> Stretches;
-    gsMatrix<> Stresses;
-    gsMatrix<> PStresses;
-    trans_p1.eval_into(pts,Tmats);
-    lambda_p.eval_into(pts,Stretches);
-    S0_p.eval_into(pts,Stresses);
-    P0_p.eval_into(pts,PStresses);
-    for (index_t k=0; k!=pts.cols(); k++)
-    {
-        gsMatrix<> Tmat = Tmats.reshapeCol(k,3,3);
-        gsMatrix<> Stretch = Stretches.reshapeCol(k,3,1);
-        gsMatrix<> Stress = Stresses.reshapeCol(k,3,1);
-        gsMatrix<> PStress = PStresses.reshapeCol(k,3,1);
-
-        gsDebugVar((PStress - Tmat * Stress).norm());
-        gsDebugVar((PStress.transpose() - Stress.transpose() * Tmat.transpose()).norm());
-    }
+    gsInfo<<"Spec2ConTransform = \n"<<ev.eval(transp2,pt)<<"\n";
 
 	return 0;
 }

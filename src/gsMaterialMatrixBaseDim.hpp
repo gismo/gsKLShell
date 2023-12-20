@@ -1,4 +1,4 @@
-/** @file gsMaterialMatrix.hpp
+/** @file gsMaterialMatrixNonlinear.hpp
 
     @brief Provides hyperelastic material matrices
 
@@ -27,7 +27,7 @@
 #include <gsCore/gsGeometry.h>
 
 #include <gsKLShell/src/gsMaterialMatrixLinear.h>
-#include <gsKLShell/src/gsMaterialMatrix.h>
+#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
 
 namespace gismo
 {
@@ -212,7 +212,7 @@ gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::eval3D_pstretch(const index_t patch,
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
             C = tmp.reshapeCol(colIdx,3,3);
             res = this->_evalStretch(C,m_data.mine().m_gcon_ori);
-            result.col(colIdx) = res.second.reshape(3,1);
+            result.col(colIdx) = res.first;
         }
     }
     return result;

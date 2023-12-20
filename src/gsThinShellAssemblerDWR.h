@@ -15,9 +15,9 @@
 
 #pragma once
 
-#include <gsKLShell/gsThinShellAssembler.h>
-#include <gsKLShell/gsMaterialMatrix.h>
-#include <gsKLShell/gsThinShellFunctions.h>
+#include <gsKLShell/src/gsThinShellAssembler.h>
+#include <gsKLShell/src/gsMaterialMatrixBase.h>
+#include <gsKLShell/src/gsThinShellFunctions.h>
 
 namespace gismo
 {
@@ -38,9 +38,17 @@ enum class GoalFunction : short_t
     Buckling            = 200,
 };
 
-template<class T> class gsThinShellAssemblerDWRBase;
-//template <class T> class gsThinShellDWRFunction;
+#ifdef GISMO_WITH_PYBIND11
 
+  /**
+   * @brief Initializes the Python wrapper for the enum: GoalFunction
+   */
+  void pybind11_enum_GoalFunction(pybind11::module &m);
+
+#endif // GISMO_WITH_PYBIND11
+
+
+template<class T> class gsThinShellAssemblerDWRBase;
 
 template <short_t d, class T, bool bending>
 class gsThinShellAssemblerDWR : public gsThinShellAssembler<d,T,bending>,
@@ -109,8 +117,8 @@ public:
     index_t numDofsL() const { return m_assemblerL->numDofs(); }
     index_t numDofsH() const { return m_assemblerH->numDofs(); }
 
-    void setSpaceBasisL(const gsFunctionSet<T> & spaceBasis) { m_assemblerL->setSpaceBasis(spaceBasis); }
-    void setSpaceBasisH(const gsFunctionSet<T> & spaceBasis) { m_assemblerH->setSpaceBasis(spaceBasis); }
+    void setSpaceBasisL(const gsMultiPatch<T> & spaceBasis) { m_assemblerL->setSpaceBasis(spaceBasis); }
+    void setSpaceBasisH(const gsMultiPatch<T> & spaceBasis) { m_assemblerH->setSpaceBasis(spaceBasis); }
 
 
     ////////////////////////////////////////////////////////////////////////////
@@ -429,6 +437,17 @@ protected:
     short_t m_component;
 };
 
+#ifdef GISMO_WITH_PYBIND11
+
+  /**
+   * @brief Initializes the Python wrapper for the class: gsThinShellAssemblerDWR
+   */
+  void pybind11_init_gsThinShellAssemblerDWR2(pybind11::module &m);
+  void pybind11_init_gsThinShellAssemblerDWR3(pybind11::module &m);
+  void pybind11_init_gsThinShellAssemblerDWR3nb(pybind11::module &m);
+
+#endif // GISMO_WITH_PYBIND11
+
 /**
  * @brief      Base class for the gsThinShellAssembler
  *
@@ -469,8 +488,8 @@ public:
     virtual index_t numDofsL() const =0;
     virtual index_t numDofsH() const =0;
 
-    virtual void setSpaceBasisL(const gsFunctionSet<T> & spaceBasis) =0;
-    virtual void setSpaceBasisH(const gsFunctionSet<T> & spaceBasis) =0;
+    virtual void setSpaceBasisL(const gsMultiPatch<T> & spaceBasis) =0;
+    virtual void setSpaceBasisH(const gsMultiPatch<T> & spaceBasis) =0;
 
     virtual ThinShellAssemblerStatus assembleL() =0;
     virtual ThinShellAssemblerStatus assembleH() =0;
@@ -604,132 +623,14 @@ public:
 
 };
 
-// template<short_t d, typename T, bool bending>
-// class gsThinShellDWRFunction : public gsFunctionSet<T>
-// {
-//     typedef gsExprAssembler<>::geometryMap geometryMap;
-//     typedef gsExprAssembler<>::space       space;
-//     typedef gsExprAssembler<>::solution    solution;
+#ifdef GISMO_WITH_PYBIND11
 
-// public:
-//     gsThinShellDWRFunction( const gsFunctionSet<T> & mp,
-//                             const gsFunctionSet<T> & mp_def,
-//                             const gsFunctionSet<T> & dualL,
-//                             const gsFunctionSet<T> & dualH,
-//                             gsMaterialMatrixBase<T> * materialmatrix)
-//     :
-//     m_patches(&mp),
-//     m_deformed(&mp_def),
-//     m_dualL(&dualL),
-//     m_dualH(&dualH),
-//     m_materialMat(materialmatrix)
-//     {
+  /**
+   * @brief Initializes the Python wrapper for the class: gsThinShellAssemblerDWRBase
+   */
+  void pybind11_init_gsThinShellAssemblerDWRBase(pybind11::module &m);
 
-//     }
-
-//     gsThinShellDWRFunction( const gsFunctionSet<T> & mp,
-//                             const gsFunctionSet<T> & dualL,
-//                             const gsFunctionSet<T> & dualH,
-//                             gsMaterialMatrixBase<T> * materialmatrix)
-//     :
-//     m_patches(&mp),
-//     m_deformed(nullptr),
-//     m_dualL(&dualL),
-//     m_dualH(&dualH),
-//     m_materialMat(materialmatrix)
-//     {
-
-//     }
-
-//     void eval_into(const gsMatrix<T>& u, gsMatrix<T>& res) const
-//     {
-//         this->eval_into_impl<d,bending>(u,res);
-//     }
-
-//     short_t domainDim() const { return m_patches.domainDim();}
-
-//     short_t targetDim() const { return 1;}
-
-// private:
-//     template<int _d, bool _bending>
-//     typename std::enable_if<!(_d==3 && _bending), void>::type
-//     eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& res) const
-//     {
-//         gsWarn<<"Neumann boundary conditions left out\n";
-//         gsExprEvaluator<T> ev;
-//         // Geometries
-//         geometryMap Gori = ev.getMap(*m_patches);           // this map is used for integrals
-//         geometryMap Gdef = ev.getMap(*m_deformed);
-
-//         gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_materialMat,m_deformed);
-//         auto S0  = ev.getCoeff(S0f);
-
-//         auto F      = ev.getCoeff(*m_forceFun, Gori);
-
-//         auto zsolL  = ev.getCoeff(*m_dualL);
-//         auto zsolH  = ev.getCoeff(*m_dualH);
-//             // auto m_thick = exprAssembler.getCoeff(*m_thickFun, m_ori);
-
-//         auto N        = S0.tr();
-//         // auto Em_der   = flat( jac(Gdef).tr() * jac(m_space) ) ;
-//         auto Em_der   = flat( jac(Gdef).tr() * (jac(zsolH) - jac(zsolL)) ) ;
-
-//         auto Fext = (zsolH-zsolL).tr() * F;
-//         auto Fint = ( N * Em_der.tr() );
-
-//         auto expr = ( Fext - Fint ) * meas(Gori);
-//     }
-
-//     template<int _d, bool _bending>
-//     typename std::enable_if< (_d==3 && _bending), void>::type
-//     eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& res) const
-//     {
-//         gsWarn<<"Neumann boundary conditions left out\n";
-//         gsExprEvaluator<T> ev;
-//         // Geometries
-//         geometryMap Gori = ev.getMap(m_patches);           // this map is used for integrals
-//         geometryMap Gdef = ev.getMap(deformed);
-
-//         gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> S0f(m_materialMat,m_deformed);
-//         gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> S1f(m_materialMat,m_deformed);
-//         auto S0  = ev.getCoeff(S0f);
-//         auto S1  = ev.getCoeff(S1f);
-
-//         gsFunctionExpr<> mult2t("1","0","0","0","1","0","0","0","2",2);
-//         auto m2 = ev.getCoeff(mult2t);
-
-//         auto F      = ev.getCoeff(*m_forceFun, Gori);
-//         auto zsolL  = ev.getCoeff(dualL);
-//         auto zsolH  = ev.getCoeff(dualH);
-//             // auto m_thick = ev.getCoeff(*m_thickFun, m_ori);
-
-//         Base::homogenizeDirichlet();
-
-//         auto N        = S0.tr();
-//         // auto Em_der   = flat( jac(Gdef).tr() * jac(m_space) ) ;
-//         auto Em_der   = flat( jac(Gdef).tr() * (jac(zsolH) - jac(zsolL)) ) ;
-
-//         auto M        = S1.tr(); // output is a column
-//         // auto Ef_der   = -( deriv2(space,sn(Gdef).normalized().tr() ) + deriv2(Gdef,var1(space,Gdef) ) ) * reshape(m2,3,3);
-//         auto Ef_der   = -( deriv2(zsolH,sn(Gdef).normalized().tr() )
-//                         -  deriv2(zsolL,sn(Gdef).normalized().tr() ) + deriv2(Gdef,var1(zsolH,Gdef) )
-//                                                                      - deriv2(Gdef,var1(zsolL,Gdef) ) ) * reshape(m2,3,3);
-
-//         auto Fext = (zsolH-zsolL).tr() * F;
-//         auto Fint = ( N * Em_der.tr() + M * Ef_der.tr() );
-
-//         auto expr = ( Fext - Fint ) * meas(Gori);
-//     }
-
-// protected:
-//     gsThinShellAssemblerDWRBase<T> * m_assembler;
-//     const gsFunctionSet<T> * m_patches;
-//     const gsFunctionSet<T> * m_deformed;
-//     const gsFunctionSet<T> * m_dualL;
-//     const gsFunctionSet<T> * m_dualH;
-//     mutable gsMaterialMatrixBase<T> * m_materialMat;
-
-// };
+#endif // GISMO_WITH_PYBIND11
 
 
 } // namespace gismo

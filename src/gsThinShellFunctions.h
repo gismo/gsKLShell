@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <gsKLShell/src/gsMaterialMatrix.h>
+#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
 
 #include <gsAssembler/gsExprAssembler.h>
 

@@ -16,7 +16,7 @@
 #pragma once
 
 #include <gsKLShell/src/gsThinShellAssembler.h>
-#include <gsKLShell/src/gsMaterialMatrix.h>
+#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
 #include <gsKLShell/src/gsMaterialMatrixBase.h>
 #include <gsKLShell/src/gsMaterialMatrixIntegrate.h>
 #include <gsKLShell/src/gsMaterialMatrixEval.h>
@@ -1442,8 +1442,6 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMass(const
         else
             m_assembler.assemble(mm0.val()*(m_space.rowSum())*meas(m_ori));
 
-        gsDebugVar(ev.eval(mm0.val(),pt));
-
 /*        // assemble system
         if (!lumped)
         {
@@ -2714,9 +2712,7 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::computePrincipalStretches(const
     gsExprEvaluator<T> evaluator(m_assembler);
 
     for (index_t k = 0; k != u.cols(); ++k)
-    {
         result.col(k) = evaluator.eval(mm0,u.col(k));
-    }
     return result;
 }
 
@@ -2726,7 +2722,7 @@ gsMatrix<T> gsThinShellAssembler<d, T, bending>::computePrincipalStresses(const 
     // gsDebug<<"Warning: Principle Stretch computation of gsThinShellAssembler is depreciated...\n";
     gsMatrix<T> Z(1,1);
     Z.setZero();
-    gsMatrix<T> result(3,u.cols());
+    gsMatrix<T> result(2,u.cols());
     result.setZero();
     gsMatrix<T> zmat(1,1);
     zmat<<z;

@@ -5,7 +5,7 @@
 #include <gsKLShell/src/gsMaterialMatrixXml.hpp>
 #include <gsKLShell/src/gsMaterialMatrixBase.hpp>
 #include <gsKLShell/src/gsMaterialMatrixLinear.hpp>
-#include <gsKLShell/src/gsMaterialMatrix.hpp>
+#include <gsKLShell/src/gsMaterialMatrixNonlinear.hpp>
 
 namespace gismo
 {

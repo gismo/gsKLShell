@@ -24,8 +24,6 @@
 #include <gsKLShell/src/getMaterialMatrix.h>
 #include <gsAssembler/gsAdaptiveRefUtils.h>
 
-#include <gsStructuralAnalysis/gsModalSolver.h>
-
 using namespace gismo;
 
 template<typename T>
@@ -426,25 +424,22 @@ int main(int argc, char *argv[])
         DWR->assembleMassL();
         gsInfo << "done\n";
 
+        gsVector<> eigenvalues;
+        gsMatrix<> eigenvectors;
         // Solve system
         gsInfo << "Solving primal, size =" << DWR->matrixL().rows() << "," << DWR->matrixL().cols() << "... " << std::flush;
-
-        gsModalSolver<real_t> modalL(DWR->matrixL(),DWR->massL());
-        modalL.options().setInt("solver",2);
-        modalL.options().setInt("selectionRule",0);
-        modalL.options().setInt("sortRule",4);
-        modalL.options().setSwitch("verbose",true);
-        modalL.options().setInt("ncvFac",2);
-	    modalL.options().setReal("tolerance",1e-30);
-
 #ifdef gsSpectra_ENABLED
         index_t numL = std::min(DWR->matrixL().cols()-1,10);
-        modalL.computeSparse(numL);
+        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> solverL(DWR->matrixL(),DWR->massL(),numL,2*numL,0.0);
+        solverL.init();
+        solverL.compute(Spectra::SortRule::LargestMagn,1000,1e-30,Spectra::SortRule::SmallestMagn);
 #else
-        modalL.compute();
+        gsEigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  solverL;
+        solverL.compute(DWR->matrixL(),DWR->massL());
 #endif
-
-        if (modeIdx > modalL.values().size()-1)
+        eigenvalues = solverL.eigenvalues();
+        eigenvectors = solverL.eigenvectors();
+        if (modeIdx > eigenvalues.size()-1)
         {
             gsWarn<<"No error computed because mode does not exist (system size)!\n";
             approxs[r] = 0;
@@ -458,9 +453,9 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        solVector = solVectorDualL = modalL.vectors().col(modeIdx);
+        solVector = solVectorDualL = eigenvectors.col(modeIdx);
 
-        eigvalL = dualvalL = modalL.values()(modeIdx,0);
+        eigvalL = dualvalL = eigenvalues(modeIdx,0);
 
         // Mass-normalize primal
         solVector = 1 / (solVector.transpose() * DWR->massL() * solVector) * solVector;
@@ -485,19 +480,20 @@ int main(int argc, char *argv[])
         gsInfo << "done.\n";
 
         gsInfo << "Solving dual (H), size = " << DWR->matrixH().rows() << "," << DWR->matrixH().cols() << "... " << std::flush;
-
-        gsModalSolver<real_t> modalH(DWR->matrixH(),DWR->massH());
-        modalH.options() = modalL.options();
-
 #ifdef gsSpectra_ENABLED
-        index_t numH = std::min(DWR->matrixH().cols()-1,10);
-        modalH.computeSparse(numH);
+        index_t numH = std::min(DWR->matrixL().cols()-1,10);
+        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::ShiftInvert> solverH(DWR->matrixH(),DWR->massH(),numH,2*numL,0.0);
+        solverH.init();
+        solverH.compute(Spectra::SortRule::LargestMagn,1000,1e-30,Spectra::SortRule::SmallestMagn);
 #else
-        modalH.compute();
+        gsEigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  solverH;
+        solverH.compute(DWR->matrixH(),DWR->massH());
 #endif
+        eigenvalues = solverH.eigenvalues();
+        eigenvectors = solverH.eigenvectors();
 
-        solVectorDualH = modalH.vectors().col(modeIdx);
-        dualvalH = modalH.values()(modeIdx,0);
+        solVectorDualH = eigenvectors.col(modeIdx);
+        dualvalH = eigenvalues(modeIdx,0);
 
         // mass-normalize w.r.t. primal
         DWR->constructMultiPatchH(solVectorDualH, dualH);

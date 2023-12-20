@@ -15,11 +15,11 @@
 
 #pragma once
 
-#include <gsKLShell/gsThinShellAssemblerDWR.h>
-#include <gsKLShell/gsMaterialMatrix.h>
-#include <gsKLShell/gsMaterialMatrixBase.h>
-#include <gsKLShell/gsMaterialMatrixIntegrate.h>
-#include <gsKLShell/gsMaterialMatrixEval.h>
+#include <gsKLShell/src/gsThinShellAssemblerDWR.h>
+#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
+#include <gsKLShell/src/gsMaterialMatrixBase.h>
+#include <gsKLShell/src/gsMaterialMatrixIntegrate.h>
+#include <gsKLShell/src/gsMaterialMatrixEval.h>
 
 #include <gsCore/gsFunctionExpr.h>
 #include <gsAssembler/gsExprEvaluator.h>

@@ -1,4 +1,4 @@
-/** @file gsMaterialMatrix.hpp
+/** @file gsMaterialMatrixNonlinear.hpp
 
     @brief Provides hyperelastic material matrices
 
@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include <gsKLShell/src/gsMaterialMatrix.h>
+#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
 #include <gsKLShell/src/gsMaterialMatrixXml.hpp>
 #include <gsCore/gsFunction.h>
 

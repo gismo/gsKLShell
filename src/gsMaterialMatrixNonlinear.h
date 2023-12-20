@@ -1,4 +1,4 @@
-/** @file gsMaterialMatrix.h
+/** @file gsMaterialMatrixNonlinear.h
 
     @brief Provides hyperelastic material matrices
 
@@ -1250,5 +1250,5 @@ private:
 
 
 #ifndef GISMO_BUILD_LIB
-#include GISMO_HPP_HEADER(gsMaterialMatrix.hpp)
+#include GISMO_HPP_HEADER(gsMaterialMatrixNonlinear.hpp)
 #endif

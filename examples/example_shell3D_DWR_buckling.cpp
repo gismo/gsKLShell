@@ -23,8 +23,6 @@
 #include <gsKLShell/src/getMaterialMatrix.h>
 #include <gsAssembler/gsAdaptiveRefUtils.h>
 
-#include <gsStructuralAnalysis/gsBucklingSolver.h>
-
 using namespace gismo;
 
 template <class T>
@@ -53,7 +51,7 @@ int main(int argc, char *argv[])
 
     int testCase = 0;
 
-    real_t Load = 1e0;
+    real_t Load = 1e-4;
 
     int adaptivity = 0;
 
@@ -422,27 +420,27 @@ int main(int argc, char *argv[])
         K_NL = DWR->matrixL();
         gsInfo << "done\n";
 
+        gsVector<> eigenvalues;
+        gsMatrix<> eigenvectors;
+
         // Solve system
         gsInfo << "Solving primal, size =" << DWR->matrixL().rows() << "," << DWR->matrixL().cols() << "... " << std::flush;
 
         Kdiff = K_NL - K_L;
-        gsBucklingSolver<real_t> bucklingL(Kdiff,K_L);
-        bucklingL.options().setInt("solver",3);
-        bucklingL.options().setInt("selectionRule",0);
-        bucklingL.options().setInt("sortRule",4);
-        bucklingL.options().setSwitch("verbose",true);
-        bucklingL.options().setInt("ncvFac",2);
-        bucklingL.options().setReal("tolerance",1e-30);
-        bucklingL.options().setReal("shift",1e-9);
 
 #ifdef gsSpectra_ENABLED
-        index_t numL = std::min(DWR->matrixL().cols()-1,10);
-        bucklingL.computeSparse(numL);
+        index_t numL = std::min(Kdiff.cols()-1,10);
+        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::Buckling> solverL(Kdiff,K_L,numL,2*numL,1e-9);
+        solverL.init();
+        solverL.compute(Spectra::SortRule::LargestMagn,1000,1e-30,Spectra::SortRule::SmallestMagn);
 #else
-        bucklingL.compute();
+        gsEigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  solverL;
+        solverL.compute(Kdiff,K_L);
 #endif
+        eigenvalues = solverL.eigenvalues();
+        eigenvectors = solverL.eigenvectors();
 
-        if (modeIdx > bucklingL.values().size()-1)
+        if (modeIdx > eigenvalues.size()-1)
         {
             gsWarn<<"No error computed because mode does not exist (system size)!\n";
             approxs[r] = 0;
@@ -459,8 +457,8 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        eigvalL = dualvalL = bucklingL.values()(modeIdx,0);
-        solVector = solVectorDualL = bucklingL.vectors().col(modeIdx);
+        eigvalL = dualvalL = eigenvalues(modeIdx,0);
+        solVector = solVectorDualL = eigenvectors.col(modeIdx);
 
         DWR->constructMultiPatchL(solVector, primalL);
 
@@ -490,18 +488,21 @@ int main(int argc, char *argv[])
 
 
         Kdiff = K_NL - K_L;
-        gsBucklingSolver<real_t> bucklingH(Kdiff,K_L);
-        bucklingH.options() = bucklingL.options();
 
 #ifdef gsSpectra_ENABLED
-        index_t numH = std::min(DWR->matrixH().cols()-1,10);
-        bucklingH.computeSparse(numH);
+        index_t numH = std::min(Kdiff.cols()-1,10);
+        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::Buckling> solverH(Kdiff,K_L,numH,2*numH,1e-9);
+        solverH.init();
+        solverH.compute(Spectra::SortRule::LargestMagn,1000,1e-30,Spectra::SortRule::SmallestMagn);
 #else
-        bucklingH.compute();
+        gsEigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  solverH;
+        solverH.compute(Kdiff,K_L);
 #endif
+        eigenvalues = solverH.eigenvalues();
+        eigenvectors = solverH.eigenvectors();
 
-        dualvalH = bucklingH.values()(modeIdx,0);
-        solVector = solVectorDualH = bucklingH.vectors().col(modeIdx);
+        dualvalH = eigenvalues(modeIdx,0);
+        solVector = solVectorDualH = eigenvectors.col(modeIdx);
 
         // mass-normalize w.r.t. primal
         DWR->constructMultiPatchH(solVectorDualH, dualH);

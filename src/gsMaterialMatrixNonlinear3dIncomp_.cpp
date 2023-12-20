@@ -1,7 +1,7 @@
 #include <gsCore/gsTemplateTools.h>
 
-#include <gsKLShell/src/gsMaterialMatrix.h>
-#include <gsKLShell/src/gsMaterialMatrix.hpp>
+#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
+#include <gsKLShell/src/gsMaterialMatrixNonlinear.hpp>
 
 namespace gismo
 {
