@@ -1,18 +1,19 @@
 #include <gsCore/gsTemplateTools.h>
 
-#include <gsKLShell/gsMaterialMatrixBase.h>
-#include <gsKLShell/gsMaterialMatrixBaseDim.h>
+#include <gsKLShell/src/gsMaterialMatrixBase.h>
+#include <gsKLShell/src/gsMaterialMatrixBaseDim.h>
 
-#include <gsKLShell/gsMaterialMatrixLinear.h>
-#include <gsKLShell/gsMaterialMatrix.h>
+#include <gsKLShell/src/gsMaterialMatrixLinear.h>
+#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
 
-#include <gsKLShell/gsThinShellAssembler.h>
+#include <gsKLShell/src/gsThinShellAssembler.h>
+#include <gsKLShell/src/gsThinShellAssemblerDWR.h>
 
 
 namespace gismo
 {
 
-#ifdef GISMO_BUILD_PYBIND11
+#ifdef GISMO_WITH_PYBIND11
 
   namespace py = pybind11;
 
@@ -45,10 +46,19 @@ namespace gismo
     gismo::pybind11_init_gsMaterialMatrixOG3c( m );
 
     gismo::pybind11_init_gsThinShellAssemblerBase( m );
+    gismo::pybind11_enum_gsThinShellAssemblerStatus( m );
 
     gismo::pybind11_init_gsThinShellAssembler2( m );
     gismo::pybind11_init_gsThinShellAssembler3( m );
     gismo::pybind11_init_gsThinShellAssembler3nb( m );
+
+    gismo::pybind11_enum_GoalFunction( m );
+
+    gismo::pybind11_init_gsThinShellAssemblerDWRBase( m );
+
+    gismo::pybind11_init_gsThinShellAssemblerDWR2( m );
+    gismo::pybind11_init_gsThinShellAssemblerDWR3( m );
+    gismo::pybind11_init_gsThinShellAssemblerDWR3nb( m );
   }
 
 #endif

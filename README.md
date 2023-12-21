@@ -11,7 +11,7 @@
 
 Module for the isogeometric Kirchhoff-Love shell element. The module is based on `gismo`'s Expression Assembler `gsExprAssembler`.
 
-|CMake flags|```-DGISMO_KLSHELL=ON``` (default ```OFF```)|
+|CMake flags|```-DGISMO_OPTIONAL="<other submodules>;gsKLShell"```|
 |--:|---|
 |License|[MPL 2.0](https://www.mozilla.org/en-US/MPL/2.0/)|
 |OS support|Linux, Windows, macOS|
@@ -20,7 +20,6 @@ Module for the isogeometric Kirchhoff-Love shell element. The module is based on
 |Status|completed|
 |Developer|[Hugo Verhelst](https://github.com/hverhelst)|
 |Maintainer|[h.m.verhelst@tudelft.nl](mailto:h.m.verhelst@tudelft.nl)|
-|Last checked|09-12-2021|
 
 #### Dependencies
 No dependencies
@@ -28,7 +27,7 @@ No dependencies
 #### Installation
 ```
 cd path/to/build/dir
-cmake . -DGISMO_KLSHELL=ON
+cmake . -DGISMO_OPTIONAL="<other submodules>;gsKLShell"
 make
 ```
 
@@ -41,7 +40,7 @@ make
 * Supports B-spline, NURBS, H-Spline and THB-Spline bases
 * Membrane or shell elements via template parameters
 
-`gsMaterialMatrix`
+`gsMaterialMatrixNonlinear`
 * Linear materials via Saint-Venant Kirchhoff model
 * (In)Compressible non-linear materials: Neo-Hookean, Mooney-Rivlin and Ogden materials.
 * Direct implementation for other material models possible
@@ -54,12 +53,12 @@ make
 The `gsKLShell` module consists of the classes
 * `gsThinShellAssembler`: class that resolves the kinematics of the Kirchhoff-Love shells
 * `gsThinShellAssemblerDWR`: same as the above, but contains extra functions for the Dual Weighted Residual (DWR) method
-* `gsMaterialMatrix`: class that handles the (non-)linear constitutive relations of the shells.
+* `gsMaterialMatrixNonlinear`: class that handles the (non-)linear constitutive relations of the shells.
 * `gsMaterialMatrixLaminate`: class that handles constitutive relations for linear composites.
 
 See the doxygen manuals for more information about the classes. (**to do: add link**)
 
-To use the `gsKLShell` module, one should always define a `gsMaterialMatrix` and a `gsThinShellAssembler`. The `gsMaterialMatrix` object is used to compute the constitutive relations in the `gsThinShellAssembler` and should therefore be defined upon initialisation of this class.
+To use the `gsKLShell` module, one should always define a `gsMaterialMatrixNonlinear` and a `gsThinShellAssembler`. The `gsMaterialMatrixNonlinear` object is used to compute the constitutive relations in the `gsThinShellAssembler` and should therefore be defined upon initialisation of this class.
 
 Additionally, the geometry and the deformed geometry (both `gsMultiPatch`) together with a basis (`gsMultiBasis`) and the boundary conditions (`gsBoundaryConditions`) and a surface force (`gsFunctionExpression`) should be provided in the definition of the class.
 

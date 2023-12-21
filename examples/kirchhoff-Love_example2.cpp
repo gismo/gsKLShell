@@ -14,9 +14,9 @@
 //! [Include namespace]
 
 #include <gismo.h>
-#include <gsKLShell/gsThinShellUtils.h>
-#include <gsKLShell/gsThinShellAssembler.h>
-#include <gsKLShell/getMaterialMatrix.h>
+#include <gsKLShell/src/gsThinShellUtils.h>
+#include <gsKLShell/src/gsThinShellAssembler.h>
+#include <gsKLShell/src/getMaterialMatrix.h>
 
 namespace gismo{
 namespace expr{
@@ -49,7 +49,9 @@ public:
 
     mutable gsMatrix<Scalar> uGrads, vGrads, cJac, cDer2, evEf, result;
     mutable gsVector<Scalar> m_u, m_v, normal, m_uv, m_u_der, n_der, n_der2, tmp; // memomry leaks when gsVector<T,3>, i.e. fixed dimension
+#   define Eigen gsEigen
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+#   undef Eigen
 
     // helper function
     static inline gsVector<Scalar,3> vecFun(index_t pos, Scalar val)
@@ -179,7 +181,9 @@ public:
     /// Unique pointer for gsMaterialMatrixD
     typedef memory::unique_ptr< gsMaterialMatrixD > uPtr;
 
+#   define Eigen gsEigen
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+#   undef Eigen
 
     gsMaterialMatrixD() { }
 
@@ -423,6 +427,8 @@ public:
         geometryMap G = m_assembler.getMap(m_mp); // the last map counts
         geometryMap defG = m_assembler.getMap(m_def);
 
+        gsDebugVar(m_mp);
+
         auto mm = m_assembler.getCoeff(m_mm); // evaluates in the parametric domain, but the class transforms E and nu to physical
 
         auto tt = m_assembler.getCoeff(*m_thick, G); // evaluates in the physical domain
@@ -604,12 +610,12 @@ int main(int argc, char *argv[])
     real_t PoissonRatio = 0.0;
     real_t thickness = 1.0;
 
-    real_t alpha_d = 1e3;
-    real_t alpha_r = 1e0;
+    real_t ALPHA_D = 1e3;
+    real_t ALPHA_R = 1e0;
 
     gsCmdLine cmd("Tutorial on solving a Poisson problem.");
-    cmd.addReal("D", "alphaD","alphaD",alpha_d);
-    cmd.addReal("R", "alphaR","alphaR",alpha_r);
+    cmd.addReal("D", "alphaD","alphaD",ALPHA_D);
+    cmd.addReal("R", "alphaR","alphaR",ALPHA_R);
     cmd.addInt( "e", "degreeElevation",
                 "Number of degree elevation steps to perform before solving (0: equalize degree in all directions)", numElevate );
     cmd.addInt( "r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
@@ -765,7 +771,7 @@ int main(int argc, char *argv[])
         tmp << 0,0,-1e-3;
         gsConstantFunction<> piece1(tmp,3);
         force.addPiece(piece1);
-        tmp << 0,0,-1e-1;
+        tmp << 0,0,-1e-3;
         gsConstantFunction<> piece2(tmp,3);
         force.addPiece(piece2);
 
@@ -905,6 +911,7 @@ int main(int argc, char *argv[])
     typedef gsExprAssembler<>::geometryMap geometryMap;
     typedef gsExprAssembler<>::space       space;
     typedef gsExprAssembler<>::solution    solution;
+    typedef gsExprAssembler<>::element     element;
 
     // Elements used for numerical integration
     A.setIntegrationElements(dbasis);
@@ -998,6 +1005,23 @@ int main(int argc, char *argv[])
     auto g_N = A.getBdrFunction(G);
     // auto g_N = ff;
 
+
+
+    auto mmA = tt.val()*mm;
+    auto mmD = tt.val() * tt.val() * tt.val() / 12.0 * mm;
+
+    auto cart2cov = gismo::expr::cartcov(G);
+    auto con2cartI = gismo::expr::cartcon(G).inv();
+
+    auto mmAcart = (con2cartI * reshape(mmA,3,3) * cart2cov);
+    auto mmDcart = (con2cartI * reshape(mmD,3,3) * cart2cov);
+
+
+    element el   = A.getElement();
+    auto h       = (el.area(G.left()) + el.area(G.right())) / 2;
+    auto alpha_d = ALPHA_D * reshape(mmAcart,9,1).max().val() / h;
+    auto alpha_r = ALPHA_R * reshape(mmDcart,9,1).max().val() / h;
+
     auto du = ((defG.left()-G.left()) - (defG.right()-G.right()));
 
     if (continuity > -1)
@@ -1072,22 +1096,22 @@ int main(int argc, char *argv[])
     // dW^pr / du_r --> first line
     if (continuity > 0)
     A.assembleIfc(dbasis.topology().interfaces(),
-                     alpha_r * dN_lr * var2mod(u.left() ,u.left() ,defG.left() ,usn(defG.right()).tr() )      // left left
+                     alpha_r * dN_lr * var2(u.left() ,u.left() ,defG.left() ,usn(defG.right()).tr() )      // left left
                     ,
                      alpha_r * dN_lr * ( var1(u.left() ,defG.left() ) * var1(u.right(),defG.right()).tr() )// left right
                     ,
                      alpha_r * dN_lr * ( var1(u.right(),defG.right()) * var1(u.left() ,defG.left() ).tr() )// right left
                     ,
-                     alpha_r * dN_lr * var2mod( u.right(),u.right(),defG.right(),usn(defG.left() ).tr() )     // right right
+                     alpha_r * dN_lr * var2( u.right(),u.right(),defG.right(),usn(defG.left() ).tr() )     // right right
                     ,
                     // Symmetry
-                     alpha_r * dN_rl * var2mod(u.right() ,u.right() ,defG.right() ,usn(defG.left()).tr() )      // right right
+                     alpha_r * dN_rl * var2(u.right() ,u.right() ,defG.right() ,usn(defG.left()).tr() )      // right right
                     ,
                      alpha_r * dN_rl * ( var1(u.right() ,defG.right() ) * var1(u.left(),defG.left()).tr() )// right left
                     ,
                      alpha_r * dN_rl * ( var1(u.left(),defG.left()) * var1(u.right() ,defG.right() ).tr() )// left right
                     ,
-                     alpha_r * dN_rl * var2mod( u.left(),u.left(),defG.left(),usn(defG.right() ).tr() )     // left left
+                     alpha_r * dN_rl * var2( u.left(),u.left(),defG.left(),usn(defG.right() ).tr() )     // left left
                      );
 
     if (verbose>1) gsDebugVar(A.matrix().toDense());
@@ -1222,9 +1246,9 @@ int main(int argc, char *argv[])
 
     //! [System assembly]
 
-    Residual<real_t> ResidualFun(mp,dbasis,t,force,materialMat,bc,alpha_d,alpha_r,continuity,verbose);
+    // Residual<real_t> ResidualFun(mp,dbasis,t,force,materialMat,bc,alpha_d,alpha_r,continuity,verbose);
 
-    Test<real_t> TestFun(mp,dbasis,t,force,materialMat,bc,alpha_d,alpha_r,continuity,verbose);
+    // Test<real_t> TestFun(mp,dbasis,t,force,materialMat,bc,alpha_d,alpha_r,continuity,verbose);
 
 
     gsMatrix<> result;
@@ -1232,7 +1256,7 @@ int main(int argc, char *argv[])
     gsMatrix<> zeros(A.numDofs(),1);
     zeros.setZero();
 
-    ResidualFun.jacobian_into(zeros,result);
+    // ResidualFun.jacobian_into(zeros,result);
     // gsDebugVar(result);
     // gsDebugVar(A.matrix().toDense());
 
@@ -1475,8 +1499,8 @@ int main(int argc, char *argv[])
             // w.deriv_into
             // w.gsFunction<real_t>::deriv_into
 
-            ResidualFun.deriv_into(solVector,result);
-            result.resize(ResidualFun.targetDim(),ResidualFun.targetDim());
+            // ResidualFun.deriv_into(solVector,result);
+            // result.resize(ResidualFun.targetDim(),ResidualFun.targetDim());
             // gsDebugVar(result);
 
             // return 0;
@@ -1487,7 +1511,7 @@ int main(int argc, char *argv[])
             // gsDebugVar(A.matrix().toDense());
             updateVector = solver.solve(A.rhs()); // this is the UPDATE
 
-            // gsDebugVar((A.matrix().toDense() - result).lpNorm<Eigen::Infinity>());
+            // gsDebugVar((A.matrix().toDense() - result).lpNorm<gsEigen::Infinity>());
 
 
             // gsDebugVar(A.rhs().transpose());

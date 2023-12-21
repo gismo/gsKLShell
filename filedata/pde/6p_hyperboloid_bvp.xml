@@ -9,7 +9,7 @@
   <!-- Poisson ratio -->
   <Function type="FunctionExpr" id="12" tag="Material" dim="3">0.3</Function>
   <!-- Density -->
-  <Function type="FunctionExpr" id="13" tag="Material" dim="3">0.0</Function>
+  <Function type="FunctionExpr" id="13" tag="Material" dim="3">1.0</Function>
 
   <!-- Mooney-Rivlin -->
     <!-- Ratio -->
@@ -86,13 +86,19 @@
 </Matrix>
 
 <!-- Reference point coordinates -->
-<Matrix rows="2" cols="3" id="50" >
+<!-- <Matrix rows="2" cols="3" id="50" >
   0.0 0.5 1.0
   0.5 0.5 0.5
+</Matrix> -->
+<Matrix rows="3" cols="2" id="50" >
+  0   0.5
+  0   0
+  0   0.25
 </Matrix>
+
 <!-- Reference point patch indices -->
-<Matrix rows="1" cols="3" id="51" >
-  4 4 4
+<Matrix rows="1" cols="2" id="51" >
+  4 4
 </Matrix>
 <!-- Reference values -->
 <Matrix rows="3" cols="1" id="52" >
