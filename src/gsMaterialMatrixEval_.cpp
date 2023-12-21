@@ -1,0 +1,91 @@
+#include <gsCore/gsTemplateTools.h>
+
+#include <gsKLShell/src/gsMaterialMatrixEval.h>
+#include <gsKLShell/src/gsMaterialMatrixEval.hpp>
+
+namespace gismo
+{
+  // Material matrix <dimension, real_t, material model, compressibility>
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Generic>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Density>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::VectorN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::VectorM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::CauchyVectorN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::CauchyVectorM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::MatrixA>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::MatrixB>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::MatrixC>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::MatrixD>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PStress>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PStressDir>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PStressN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PStressM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PCauchyStressN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PCauchyStressM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PStrainN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PStrainM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Stretch>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StretchDir>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::TensionField>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Theta>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Gamma>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Strain>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StrainN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StrainM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Stress>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StressN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StressM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::CauchyStressN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::CauchyStressM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Spec2CovTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Spec2ConTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Cov2CartTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Con2CartTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StretchTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::PStressTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Thickness>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Parameters>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Deformation>;
+
+  // Material matrix <dimension, real_t, material model, compressibility>
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Generic>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Density>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::VectorN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::VectorM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::CauchyVectorN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::CauchyVectorM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::MatrixA>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::MatrixB>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::MatrixC>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::MatrixD>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::PStress>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::PStressDir>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::PStressN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::PStressM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::PCauchyStressN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::PCauchyStressM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::PStrainN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::PStrainM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Stretch>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::StretchDir>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::TensionField>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Theta>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Gamma>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Strain>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::StrainN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::StrainM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Stress>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::StressN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::StressM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::CauchyStressN>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::CauchyStressM>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Spec2CovTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Spec2ConTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Cov2CartTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Con2CartTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::StretchTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::PStressTransform>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Thickness>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Parameters>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Deformation>;
+}

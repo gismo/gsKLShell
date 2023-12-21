@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xml>
+
+ <MaterialMatrix type="Linear2" id="501" TFT="false">
+  <Thickness>
+    <Function type="FunctionExpr" dim="2" index="0">1</Function>
+  </Thickness>
+  <Density>
+    <Function type="FunctionExpr" dim="2" index="0">0</Function>
+  </Density>
+  <Parameters>
+    <Function type="FunctionExpr" dim="2" index="0">1e5</Function> <!-- Youngs Modulus -->
+    <Function type="FunctionExpr" dim="2" index="1">0.3</Function> <!-- Poisson Ratio  -->
+  </Parameters>
+ </MaterialMatrix>
+</xml>
