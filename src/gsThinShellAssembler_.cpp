@@ -27,6 +27,15 @@ namespace gismo
 
   namespace py = pybind11;
 
+  void pybind11_enum_gsThinShellAssemblerStatus(py::module &m)
+  {
+      py::enum_<ThinShellAssemblerStatus>(m, "assemblerStatus")
+          .value("Success"   , ThinShellAssemblerStatus::Success )
+          .value("AssemblyError"     , ThinShellAssemblerStatus::AssemblyError )
+          .value("DimensionError", ThinShellAssemblerStatus::DimensionError)
+          .export_values();
+  }
+
   void pybind11_init_gsThinShellAssemblerBase(py::module &m)
   {
     using Class = gsThinShellAssemblerBase<real_t>;

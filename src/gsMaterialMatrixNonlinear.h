@@ -1224,7 +1224,7 @@ private:
 #ifdef GISMO_WITH_PYBIND11
 
   /**
-   * @brief Initializes the Python wrapper for the class: gsMaterialMatrixLinear
+   * @brief Initializes the Python wrapper for the class: gsMaterialMatrix
    */
   void pybind11_init_gsMaterialMatrixNH2i(pybind11::module &m);
   void pybind11_init_gsMaterialMatrixNH2c(pybind11::module &m);

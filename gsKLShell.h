@@ -46,6 +46,7 @@ namespace gismo
     gismo::pybind11_init_gsMaterialMatrixOG3c( m );
 
     gismo::pybind11_init_gsThinShellAssemblerBase( m );
+    gismo::pybind11_enum_gsThinShellAssemblerStatus( m );
 
     gismo::pybind11_init_gsThinShellAssembler2( m );
     gismo::pybind11_init_gsThinShellAssembler3( m );
