@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     index_t goal = 1;
     index_t component = 9;
     bool nonlinear = false;
-    bool loop = false;
+    bool last = false;
     std::string fn;
 
     real_t E_modulus = 1;
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
     cmd.addSwitch("nl", "Solve nonlinear problem", nonlinear);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
     cmd.addSwitch("write", "Write convergence to file", write);
-    cmd.addSwitch("loop", "Uniform Refinement loop", loop);
+    cmd.addSwitch("last", "Only last refinement", last);
     cmd.addString( "O", "mesherOpt", "Input XML file for mesher options", mesherOptionsFile );
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
     }
 
     // h-refine
-    if (!loop)
+    if (last)
     {
         for (index_t r =0; r < numRefine; ++r)
             mp.uniformRefine();

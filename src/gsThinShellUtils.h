@@ -542,6 +542,7 @@ public:
     void parse(gsExprHelper<Scalar> & evList) const
     {
         grad(_u).parse(evList); //
+        grad(_v).parse(evList); //
 
         _u.parse(evList);
         evList.add(_u);
@@ -553,7 +554,7 @@ public:
 
         _G.parse(evList);
         evList.add(_G);
-        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_DERIV2;
+        _G.data().flags |= NEED_NORMAL | NEED_DERIV | NEED_DERIV2 ;
     }
 
     const gsFeSpace<Scalar> & rowVar() const { return _u.rowVar(); }

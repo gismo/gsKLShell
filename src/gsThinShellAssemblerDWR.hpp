@@ -52,6 +52,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleMass(g
 {
     ThinShellAssemblerStatus status =  assembler->assembleMass(lumped);
     result = assembler->matrix();
+    GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
     return status;
 }
 
@@ -115,6 +116,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::assembleL()
     ThinShellAssemblerStatus status = _assemble(m_assemblerL,result);
     m_matrixL = result.first;
     m_pL = result.second;
+    GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
     return status;
 }
 
@@ -133,6 +135,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assemble(gsThi
 {
     ThinShellAssemblerStatus status = assembler->assemble();
     result = std::make_pair(assembler->matrix(),assembler->rhs());
+    GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
     return status;
 }
 
@@ -141,6 +144,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleMatrix
 {
     ThinShellAssemblerStatus status = assembler->assemble();
     result = assembler->matrix();
+    GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
     return status;
 }
 
@@ -149,6 +153,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleMatrix
 {
     ThinShellAssemblerStatus status = assembler->assembleMatrix(deformed);
     result = assembler->matrix();
+    GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
     return status;
 }
 
@@ -157,6 +162,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assemblePrimal
 {
     ThinShellAssemblerStatus status = assembler->assembleVector(deformed);
     result = assembler->rhs();
+    GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
     return status;
 }
 
@@ -164,6 +170,7 @@ template <short_t d, class T, bool bending>
 ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assemblePrimal(gsThinShellAssemblerBase<T> * assembler, gsVector<T> & result)
 {
     ThinShellAssemblerStatus status = assembler->assemble();
+    GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
     result = assembler->rhs();
     return status;
 }
@@ -2516,7 +2523,6 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
     auto expr   =  A - evPrimalL * Bdiff + (evDualH - evDualL) * Bprimal;
 
     gsExprEvaluator<T> ev(exprAssembler);
-
     if (_elWise == 0)
     {
         m_error = ev.integral(expr * meas(Gori)) - (evDualH - evDualL);

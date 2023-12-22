@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     index_t numRefine = 1;
     index_t numRefineIni = 0;
     index_t numElevate = 1;
-    bool loop = false;
+    bool last = false;
     std::string fn;
 
     real_t E_modulus = 1.0;
@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
 
     index_t modeIdx = 0;
 
-    int testCase = 0;
+    int testCase = 1;
 
     int adaptivity = 0;
 
@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
     cmd.addString("f", "file", "Input XML file", fn);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
     cmd.addSwitch("write", "Write convergence to file", write);
-    cmd.addSwitch("loop", "Uniform Refinemenct loop", loop);
+    cmd.addSwitch("last", "Only last refinement", last);
     cmd.addString( "O", "mesherOpt", "Input XML file for mesher options", mesherOptionsFile );
     cmd.addString( "o", "output", "output directory", dirname );
 
@@ -217,7 +217,7 @@ int main(int argc, char *argv[])
     }
 
     // h-refine
-    if (!loop)
+    if (last)
     {
         for (index_t r =0; r < numRefine; ++r)
             mp.uniformRefine();

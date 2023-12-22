@@ -1005,7 +1005,7 @@ void gsMaterialMatrixBaseDim<dim,T>::_getMetric(index_t k, T z, const gsMatrix<T
     T det_ori = m_data.mine().m_Gcov_ori.determinant();
     T det_def = m_data.mine().m_Gcov_def.determinant();
 
-    if (det_ori==0 && det_def==0)
+    if ((det_ori==0 && det_def==0) || (math::isnan(det_ori) && math::isnan(det_def)))
     {
         gsWarn<<"Jacobian determinant is undefined: J^2 = det(Gcov_def) / det(Gcov_ori) = "<<det_def<<"/"<<det_ori<<"! J^2 is set to 1";
         ratio = 1;
@@ -1027,7 +1027,7 @@ void gsMaterialMatrixBaseDim<dim,T>::_getMetric(const index_t k, const T z) cons
     T det_ori = m_data.mine().m_Gcov_ori.determinant();
     T det_def = m_data.mine().m_Gcov_def.determinant();
 
-    if (det_ori==0 && det_def==0)
+    if ((det_ori==0 && det_def==0) || (math::isnan(det_ori) && math::isnan(det_def)))
     {
         gsWarn<<"Jacobian determinant is undefined: J^2 = det(Gcov_def) / det(Gcov_ori) = "<<det_def<<"/"<<det_ori<<"! J^2 is set to 1";
         ratio = 1;

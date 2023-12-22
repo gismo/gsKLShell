@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
     index_t numRefine = 1;
     index_t numRefineIni = 0;
     index_t numElevate = 1;
-    bool loop = false;
+    bool last = false;
     bool adaptive = false;
     std::string fn;
 
@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
     cmd.addString("f", "file", "Input XML file", fn);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
     cmd.addSwitch("write", "Write convergence to file", write);
-    cmd.addSwitch("loop", "Uniform Refinemenct loop", loop);
+    cmd.addSwitch("last", "Only last refinement", last);
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
         mp.degreeElevate(numElevate);
 
     // h-refine
-    if (!loop)
+    if (last)
     {
         for (index_t r =0; r < numRefine; ++r)
             mp.uniformRefine();
@@ -429,17 +429,22 @@ int main(int argc, char *argv[])
         Kdiff = K_NL - K_L;
 
 #ifdef gsSpectra_ENABLED
-        index_t numL = std::min(Kdiff.cols()-1,10);
-        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::Buckling> solverL(Kdiff,K_L,numL,2*numL,1e-9);
+        index_t numL = std::min(K_L.cols()-1,10);
+        gsSpectraGenSymShiftSolver<gsSparseMatrix<real_t>,Spectra::GEigsMode::ShiftInvert> solverL(K_L,Kdiff,numL,2*numL,0.0);
         solverL.init();
         solverL.compute(Spectra::SortRule::LargestMagn,1000,1e-30,Spectra::SortRule::SmallestMagn);
+
+        if (solverL.info()==Spectra::CompInfo::Successful)         { gsDebug<<"Spectra converged in "<<solverL.num_iterations()<<" iterations and with "<<solverL.num_operations()<<"operations. \n"; }
+        else if (solverL.info()==Spectra::CompInfo::NumericalIssue){ GISMO_ERROR("Spectra did not converge! Error code: NumericalIssue"); }
+        else if (solverL.info()==Spectra::CompInfo::NotConverging) { GISMO_ERROR("Spectra did not converge! Error code: NotConverging"); }
+        else if (solverL.info()==Spectra::CompInfo::NotComputed)   { GISMO_ERROR("Spectra did not converge! Error code: NotComputed");   }
+        else                                                      { GISMO_ERROR("No error code known"); }
 #else
         gsEigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  solverL;
         solverL.compute(Kdiff,K_L);
 #endif
         eigenvalues = solverL.eigenvalues();
         eigenvectors = solverL.eigenvectors();
-
         if (modeIdx > eigenvalues.size()-1)
         {
             gsWarn<<"No error computed because mode does not exist (system size)!\n";
@@ -472,7 +477,6 @@ int main(int argc, char *argv[])
         DWR->constructMultiPatchL(solVectorDualL, dualL);
         Mnorm = DWR->matrixNorm(primalL, dualL,mp_def);
         solVectorDualL *= 1. / Mnorm;
-        gsDebugVar(Mnorm);
         DWR->constructMultiPatchL(solVectorDualL, dualL);
 
         gsInfo << "done.\n";
@@ -490,11 +494,17 @@ int main(int argc, char *argv[])
         Kdiff = K_NL - K_L;
 
 #ifdef gsSpectra_ENABLED
-        index_t numH = std::min(Kdiff.cols()-1,10);
-        gsSpectraGenSymShiftSolver<gsSparseMatrix<>,Spectra::GEigsMode::Buckling> solverH(Kdiff,K_L,numH,2*numH,1e-9);
+        index_t numH = std::min(K_L.cols()-1,10);
+        gsSpectraGenSymShiftSolver<gsSparseMatrix<real_t>,Spectra::GEigsMode::ShiftInvert> solverH(K_L,Kdiff,numH,2*numH,0.0);
         solverH.init();
         solverH.compute(Spectra::SortRule::LargestMagn,1000,1e-30,Spectra::SortRule::SmallestMagn);
-#else
+
+        if (solverH.info()==Spectra::CompInfo::Successful)         { gsDebug<<"Spectra converged in "<<solverH.num_iterations()<<" iterations and with "<<solverH.num_operations()<<"operations. \n"; }
+        else if (solverH.info()==Spectra::CompInfo::NumericalIssue){ GISMO_ERROR("Spectra did not converge! Error code: NumericalIssue"); }
+        else if (solverH.info()==Spectra::CompInfo::NotConverging) { GISMO_ERROR("Spectra did not converge! Error code: NotConverging"); }
+        else if (solverH.info()==Spectra::CompInfo::NotComputed)   { GISMO_ERROR("Spectra did not converge! Error code: NotComputed");   }
+        else                                                      { GISMO_ERROR("No error code known"); }
+#else        
         gsEigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  solverH;
         solverH.compute(Kdiff,K_L);
 #endif
@@ -507,7 +517,6 @@ int main(int argc, char *argv[])
         // mass-normalize w.r.t. primal
         DWR->constructMultiPatchH(solVectorDualH, dualH);
         Mnorm = DWR->matrixNorm(primalL, dualH,mp_def);
-        gsDebugVar(Mnorm);
         solVectorDualH *= 1. / Mnorm;
         DWR->constructMultiPatchH(solVectorDualH, dualH);
         gsInfo << "done.\n";
@@ -536,6 +545,9 @@ int main(int argc, char *argv[])
         exacts_num[r] += exGoal_num[r];
         exacts_num[r] -= numGoal[r];
         approxs[r] = DWR->computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL,mp_def);
+        gsDebugVar(eigvalL);
+        gsDebugVar(dualvalL);
+        gsDebugVar(dualvalH);
 
         estGoal[r] = numGoal[r]+approxs[r];
 
