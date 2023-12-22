@@ -2515,7 +2515,6 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
 
     auto expr   =  A - evPrimalL * Bdiff + (evDualH - evDualL) * Bprimal;
 
-
     gsExprEvaluator<T> ev(exprAssembler);
 
     if (_elWise == 0)

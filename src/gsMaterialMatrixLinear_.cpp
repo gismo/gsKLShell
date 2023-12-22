@@ -24,6 +24,8 @@ namespace gismo
       .def(py::init<gsFunctionSet<real_t>&,gsFunction<real_t>&>())
 
       // Member functions
+      .def("setYoungsModulus",  &Class::setYoungsModulus,   "Sets the Young's Modulus")
+      .def("setPoissonsRatio",  &Class::setPoissonsRatio,   "Sets the Poisson's Ratio")
       ;
     }
 
@@ -37,6 +39,8 @@ namespace gismo
       .def(py::init<gsFunctionSet<real_t>&,gsFunction<real_t>&>())
 
       // Member functions
+      .def("setYoungsModulus",  &Class::setYoungsModulus,   "Sets the Young's Modulus")
+      .def("setPoissonsRatio",  &Class::setPoissonsRatio,   "Sets the Poisson's Ratio")
       ;
     }
 

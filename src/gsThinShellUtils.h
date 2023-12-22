@@ -578,7 +578,7 @@ private:
     {
         grad_expr<U> uGrad = grad_expr<U>(u);
         uGrads = uGrad.eval(k);
-        grad_expr<U> vGrad = grad_expr<V>(v);
+        grad_expr<V> vGrad = grad_expr<V>(v);
         vGrads = vGrad.eval(k);
 
         res.resize(rows(), cols()); // rows()*
