@@ -1,6 +1,6 @@
 /** @file gsMaterialMatrix_test.cpp
 
-    @brief Code for the arc-length method of a shell based on loads
+    @brief Code to showcase material matrix evaluation
 
     This file is part of the G+Smo library.
 
@@ -27,7 +27,7 @@ int main (int argc, char** argv)
     int material = 0;
 	int impl = 1;
 	int Compressibility = 0;
-	gsCmdLine cmd("Thin shell plate example.");
+	gsCmdLine cmd("Test script for evaluation of material matrices.");
 
     cmd.addInt( "M", "Material", "Material law",  material );
     cmd.addInt( "I", "Impl", "Implementation",  impl );
@@ -96,9 +96,6 @@ int main (int argc, char** argv)
     gsExprAssembler<> A(1,1);
     typedef gsExprAssembler<>::geometryMap geometryMap;
     typedef gsExprAssembler<>::variable    variable;
-
-    geometryMap map = A.getMap(mp); // the last map counts
-    geometryMap def = A.getMap(mp_def); // the last map counts
 
     gsExprEvaluator<> ev(A);
 

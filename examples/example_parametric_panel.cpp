@@ -1,6 +1,15 @@
-/** @file example_shell3D.cpp
+/** @file example_example_parametrix_panel.cpp
 
-    @brief Simple 3D examples for the shell class
+    @brief Provides a simple example for multi-patch shell analysis 
+    using the penalty method.
+
+    The example allows the user to set the dimensions alpha and beta 
+    of the panel. The panel is always a square fixed on the sides, with
+    a distributed pressure. The following setups are available:
+    Testcase 0: 1p panel - for testing purposes
+    Testcase 1: 2p panel - alpha is the width of the left patch
+    Testcase 2: 3p panel with stiffener - alpha is the width of the left patch
+                                          beta is the height of the stiffener
 
     This file is part of the G+Smo library.
 
@@ -31,10 +40,6 @@ gsMultiPatch<T> Plate(T Lp, T Wp, T alpha=0.5, T x = 0, T y = 0, T z = 0);
 template <class T>
 gsMultiPatch<T> Panel3(T Lp, T Wp, T Hw, T alpha=0.5, T x = 0, T y = 0, T z = 0);
 
-template <class T>
-gsMultiPatch<T> Panel4(T Lp, T Wp, T Hw, T alpha=0.5, T x = 0, T y = 0, T z = 0);
-
-
 // Choose among various shell examples, default = Thin Plate
 int main(int argc, char *argv[])
 {
@@ -55,20 +60,18 @@ int main(int argc, char *argv[])
     real_t thickness = 1.0;
 
     real_t ifcDirichlet = 1.0;
-    real_t ifcClamped = 1.0;
 
     real_t alpha = 0.5;
     real_t beta = 0.5;
 
-    gsCmdLine cmd("2D shell example.");
+    gsCmdLine cmd("Parametric panel example with penalty coupling.");
     cmd.addReal( "D", "Dir", "Dirichlet penalty scalar",  ifcDirichlet );
-    cmd.addReal( "C", "Cla", "Clamped penalty scalar",  ifcClamped );
     cmd.addReal( "a", "alpha", "Alpha parameter",  alpha );
     cmd.addReal( "b", "beta", "Beta parameter", beta );
     cmd.addInt( "e", "degreeElevation",
                 "Number of degree elevation steps to perform before solving (0: equalize degree in all directions)", numElevate );
     cmd.addInt( "r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
-    cmd.addInt( "t", "testCase", "Test case to run: 0 = square plate with pressure; 1 = Scordelis Lo Roof; 2 = quarter hemisphere; 3 = pinched cylinder",  testCase );
+    cmd.addInt( "t", "testCase", "Test case to run: 0: 1p example, 1: 2p plate, 2: 3p plate with stiffener",  testCase );
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
     cmd.addSwitch("stress", "Create a ParaView visualization file with the stresses", stress);
     cmd.addSwitch("membrane", "Use membrane model (no bending)", membrane);
@@ -97,8 +100,6 @@ int main(int argc, char *argv[])
         coefs.row(4)<< 1.0,0.0,0.0;
         coefs.row(5)<< 1.0,1.0,0.0;
 
-        gsDebugVar(bbasis);
-
         gsTensorBSpline<2,real_t> bspline(bbasis,coefs);
         mp.addPatch(bspline);
 
@@ -116,19 +117,7 @@ int main(int argc, char *argv[])
     }
     else if (testCase == 2 )
     {
-        // mp = Panel3(1.0,1.0,beta,alpha);
-        // PoissonRatio = 0.3;
-        // E_modulus = 1e5;
-        // thickness = 0.01;
-
         mp = Panel3(1.0,1.0,beta,alpha);
-        PoissonRatio = 0.3;
-        E_modulus = 1e5;
-        thickness = 0.01;
-    }
-    else if (testCase == 3 )
-    {
-        mp = Panel4(1.0,1.0,beta,alpha);
         PoissonRatio = 0.3;
         E_modulus = 1e5;
         thickness = 0.01;
@@ -277,53 +266,6 @@ int main(int argc, char *argv[])
         refPoints.col(1)<<1.0,0.5;
         refPoints.col(2)<<0.0,0.5;
     }
-    else if (testCase == 3)
-    {
-        std::vector<index_t> plateIDs{0,1,2};
-        std::vector<index_t> stripIDs{3};
-        for (typename gsBoxTopology::bContainer::iterator bnd = mp.bBegin(); bnd!=mp.bEnd(); bnd++)
-        {
-            std::vector<index_t>::iterator it = std::find_if(plateIDs.begin(), plateIDs.end(), [bnd](const index_t &a) {
-                                           return a == bnd->patch; });
-            if (it!=plateIDs.end())
-                bc.addCondition(bnd->patch,bnd->side(), condition_type::dirichlet, 0, 0, false, -1 );      // stiffener web
-        }
-
-        bc.addCondition(3,boundary::east, condition_type::dirichlet, 0, 0, false, -1 );      // stiffener web
-        bc.addCondition(3,boundary::west, condition_type::dirichlet, 0, 0, false, -1 );      // stiffener web
-
-        gsConstantFunction<> force0(null,3);
-        gsConstantFunction<> force1(tmp,3);
-
-        typedef typename std::vector<gsFunction<real_t>*>       FunctionContainer;
-        FunctionContainer forceContainer(mp.nPatches());
-        // Plates
-        for (typename std::vector<index_t>::iterator it = plateIDs.begin(); it!=plateIDs.end(); it++)
-            forceContainer.at(*it) = &force1;
-        for (typename std::vector<index_t>::iterator it = stripIDs.begin(); it!=stripIDs.end(); it++)
-            forceContainer.at(*it) = &force0;
-        for (size_t p = 0; p != forceContainer.size(); p++)
-            force.addPiece(*forceContainer.at(p));
-
-        FunctionContainer tContainer(mp.nPatches());
-
-        gsFunctionExpr<> tp(std::to_string(thickness), 3);
-        gsFunctionExpr<> ts(std::to_string(thickness), 3);
-        // Plates
-        for (typename std::vector<index_t>::iterator it = plateIDs.begin(); it!=plateIDs.end(); it++)
-            tContainer.at(*it) = &tp;
-        for (typename std::vector<index_t>::iterator it = stripIDs.begin(); it!=stripIDs.end(); it++)
-            tContainer.at(*it) = &ts;
-        for (size_t p = 0; p != tContainer.size(); p++)
-            t.addPiece(*tContainer.at(p));
-
-        // refPatches.resize(mp.nPatches());
-        // refPatches<<0,1,2,3;
-        // refPoints.resize(2,mp.nPatches());
-        // refPoints.col(0)<<0.0,0.5;
-        // refPoints.col(1)<<1.0,0.5;
-        // refPoints.col(2)<<0.0,0.5;
-    }
     else
         GISMO_ERROR("Test case not known");
     //! [Set boundary conditions]
@@ -380,62 +322,6 @@ int main(int argc, char *argv[])
     gsMaterialMatrixContainer<real_t> materialMats(mp.nPatches());
     for (size_t p = 0; p!=mp.nPatches(); p++)
         materialMats.add(materialMatrix);
-
-
-    // gsMaterialMatrixContainer<real_t> materialMatsSingle(mp.nPatches());
-    // gsMaterialMatrixBase<real_t> * mmtmp;
-    // for (size_t p = 0; p!=mp.nPatches(); p++)
-    // {
-    //     parameters.resize(2);
-    //     parameters[0] = const_cast<gsFunction<> *>(&(E.function(p)));
-    //     parameters[1] = const_cast<gsFunction<> *>(&(nu.function(p)));
-    //     options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
-    //     options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
-    //     mmtmp = getMaterialMatrix<3,real_t>(mp,t,parameters,rho,options);
-
-    //     materialMatsSingle.add(mmtmp);
-    // }
-
-
-
-    // gsDebugVar(materialMats);
-    // gsDebugVar(materialMatsSingle);
-
-    // gsMatrix<> z(1,1);
-    // z.setZero();
-    // // gsMaterialMatrixEval2<real_t,MaterialOutput::VectorN> vectorN(materialMats,&mp,z);
-
-    // gsMaterialMatrixEval<real_t,MaterialOutput::Thickness> Thickness(materialMatrix,&mp,z);
-    // gsMaterialMatrixEval<real_t,MaterialOutput::Parameters> Parameters(materialMatrix,&mp,z);
-
-
-    // gsMatrix<> result;
-    // gsVector<> pt(2); pt.setConstant(0.25);
-
-    // for (size_t p = 0; p!=mp.nPatches(); ++p)
-    // {
-    //     gsDebug<<"-----------Patch "<<p<<"\n";
-    //     Thickness.piece(p).eval_into(pt,result);
-    //     gsDebug<<"Thickness: "<<result.transpose()<<"\n";
-
-    //     Parameters.piece(p).eval_into(pt,result);
-    //     gsDebug<<"Parameters: "<<result.transpose()<<"\n";
-    // }
-
-
-    // gsMaterialMatrixEval<real_t,MaterialOutput::Thickness> Thickness2(materialMatsSingle,&mp,z);
-    // gsMaterialMatrixEval<real_t,MaterialOutput::Parameters> Parameters2(materialMatsSingle,&mp,z);
-
-
-    // for (size_t p = 0; p!=mp.nPatches(); ++p)
-    // {
-    //     gsDebug<<"-----------Patch "<<p<<"\n";
-    //     Thickness2.piece(p).eval_into(pt,result);
-    //     gsDebug<<"Thickness: "<<result.transpose()<<"\n";
-
-    //     Parameters2.piece(p).eval_into(pt,result);
-    //     gsDebug<<"Parameters: "<<result.transpose()<<"\n";
-    // }
 
     // Construct the gsThinShellAssembler
     gsThinShellAssemblerBase<real_t>* assembler;
@@ -671,55 +557,6 @@ gsMultiPatch<T> Panel3(T Lp, T Wp, T Hw, T alpha, T x, T y, T z)
 
     // T-Beam
     gsMultiPatch<> beam = Strip(Lp,Hw,Wp*alpha);
-
-    for (size_t p=0; p!=beam.nPatches(); p++)
-        result.addPatch(beam.patch(p));
-
-    for (size_t p = 0; p!=result.nPatches(); p++)
-    {
-        result.patch(p).coefs().col(0).array() += x;
-        result.patch(p).coefs().col(1).array() += y;
-        result.patch(p).coefs().col(2).array() += z;
-    }
-
-    result.computeTopology();
-    result.addAutoBoundaries();
-
-    return result;
-}
-
-template <class T>
-gsMultiPatch<T> Panel4(T Lp, T Wp, T Hw, T alpha, T x, T y, T z)
-
-{
-    gsMultiPatch<T> result, tmp;
-
-    // Base plate, left
-    result.addPatch(gsNurbsCreator<>::BSplineSquare());
-    result.patch(0).embed(3);
-    result.patch(0).coefs().row(0)<< 0,0,0;
-    result.patch(0).coefs().row(1)<< Wp/2,0,0;
-    result.patch(0).coefs().row(2)<< 0,Lp,0;
-    result.patch(0).coefs().row(3)<< Wp/2,Lp,0;
-
-    // Base plate, middle
-    result.addPatch(gsNurbsCreator<>::BSplineSquare());
-    result.patch(1).embed(3);
-    result.patch(1).coefs().row(0)<< Wp/2,0,0;
-    result.patch(1).coefs().row(1)<< Wp*alpha,0,0;
-    result.patch(1).coefs().row(2)<< Wp/2,Lp,0;
-    result.patch(1).coefs().row(3)<< Wp*alpha,Lp,0;
-
-    // Base plate, right
-    result.addPatch(gsNurbsCreator<>::BSplineSquare());
-    result.patch(2).embed(3);
-    result.patch(2).coefs().row(0)<< Wp*alpha,0,0;
-    result.patch(2).coefs().row(1)<< Wp,0,0;
-    result.patch(2).coefs().row(2)<< Wp*alpha,Lp,0;
-    result.patch(2).coefs().row(3)<< Wp,Lp,0;
-
-    // T-Beam
-    gsMultiPatch<> beam = Strip(Lp,Hw,Wp/2);
 
     for (size_t p=0; p!=beam.nPatches(); p++)
         result.addPatch(beam.patch(p));

@@ -1,6 +1,7 @@
-/** @file example_shell3D.cpp
+/** @file example_shell3D_DWR.cpp
 
-    @brief Examples for the surface thin shells including the shell obstacle course
+    @brief Examples of the DWR method for the isogeometric
+    Kirchhoff-Love shell
 
     This file is part of the G+Smo library.
 
@@ -34,16 +35,6 @@ using namespace gismo;
 
 int main(int argc, char *argv[])
 {
-    // Flag for refinemet criterion
-    // (see doxygen documentation of the free function
-    // gsMarkElementsForRef explanation)
-    index_t markstrat = 2;
-    // Parameter for computing adaptive refinement threshold
-    // (see doxygen documentation of the free function
-    // gsMarkElementsForRef explanation)
-    real_t adaptRefParam = 0.9;
-
-
     //! [Parse command line]
     bool plot = false;
     bool write = false;
@@ -60,10 +51,6 @@ int main(int argc, char *argv[])
     real_t PoissonRatio = 0.3;
     real_t thickness = 0.01;
 
-    // real_t E_modulus = 1.0;
-    // real_t PoissonRatio = 0.3;
-    // real_t thickness = 1.0;
-
     int testCase = 0;
 
     int adaptivity = 0;
@@ -75,14 +62,22 @@ int main(int argc, char *argv[])
                 "Number of degree elevation steps to perform before solving (0: equalize degree in all directions)", numElevate );
     cmd.addInt("R", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving", numRefineIni);
     cmd.addInt( "r", "refine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
-    cmd.addInt("t", "testcase",
-                "Test case: 0: Beam - pinned-pinned, 1: Beam - fixed-fixed, 2: beam - fixed-free, 3: plate - fully pinned, 4: plate - fully fixed, 5: circle - fully pinned, 6: 5: circle - fully fixed",
-               testCase);
+    cmd.addInt("t", "testcase", "Test case: 0: plate with manufactured solution, 1: plate with point load", testCase);
 
     cmd.addInt("A", "adaptivity", "Adaptivity scheme: 0) uniform refinement, 1) adaptive refinement, 2) adaptive refinement and coarsening", adaptivity);
 
-    cmd.addInt( "g", "goal", "Goal function to use", goal );
-    cmd.addInt( "c", "comp", "Component", component );
+    cmd.addInt( "g", "goal", "Goal function to use, \n  \
+                    1:  displacement,\n                 \
+                    2:  stretch,\n                      \
+                    3:  membrane strain,\n              \
+                    4:  principal membrane strain,\n    \
+                    5:  membrane stress,\n              \
+                    6:  principal stress,\n             \
+                    7:  membrane force,\n               \
+                    8:  flexural strain,\n              \
+                    9:  flexural stress,\n              \
+                    10: flexural moment,\n", goal );
+    cmd.addInt( "c", "comp", "Component of the goal function: 0: x, 1: y, 2: z, 9: norm", component );
     cmd.addString( "f", "file", "Input XML file", fn );
     cmd.addSwitch("nl", "Solve nonlinear problem", nonlinear);
     cmd.addSwitch("plot", "Create a ParaView visualization file with the solution", plot);
@@ -112,22 +107,6 @@ int main(int argc, char *argv[])
         thickness = 0.01;
         PoissonRatio = 0.3;
 
-    }
-    else if (testCase==2)
-    {
-        L=3;
-        B=1;
-        mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) ); // degree
-        mp.patch(0).coefs().col(0) *= L;
-        mp.patch(0).coefs().col(1) *= B;
-        mp.patch(0).coefs().col(1).array() -= B/2;
-        mp.patch(0).coefs()(0,0) = B;
-        mp.embed(3);
-        mp.addAutoBoundaries();
-
-        E_modulus = 1;
-        thickness = 1;
-        PoissonRatio = 0.3;
     }
     else
         GISMO_ERROR("Testcase "<<testCase<<" unknown");
@@ -159,7 +138,7 @@ int main(int argc, char *argv[])
     if (adaptivity!=0)
     {
         gsTHBSpline<2,real_t> thb;
-        for (index_t k=0; k!=mp.nPatches(); ++k)
+        for (size_t k=0; k!=mp.nPatches(); ++k)
         {
             gsTensorBSpline<2,real_t> *geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k));
             thb = gsTHBSpline<2,real_t>(*geo);
@@ -234,32 +213,6 @@ int main(int argc, char *argv[])
         points.resize(2,1);
         points.col(0) = point;
     }
-    else if (testCase == 2)
-    {
-        std::string nx = "0";
-        std::string ny = "0";
-        std::string nz = "0";
-
-        real_t sigmax = 1e-1;
-        char buffer[2000];
-        sprintf(buffer,"%e ( 1 - y/%e)",sigmax,B/2);
-        sprintf(buffer,"%e ( - y/%e)",sigmax,B/2);
-        nx = buffer;
-
-        neuData = gsFunctionExpr<> (nx,ny,nz,3);
-
-        bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 0 );
-        bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 1 );
-        bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 2 );
-        bc.addCondition(boundary::west, condition_type::clamped, 0, 0, false, 0 );
-        bc.addCondition(boundary::west, condition_type::clamped, 0, 0, false, 1 );
-        bc.addCondition(boundary::west, condition_type::clamped, 0, 0, false, 2 );
-
-        GISMO_ERROR("This does not work, since the computeErrorElwise does not take into account the neumann conditions since we miss a function gsExprEvaluator::integralBdrBcElwise");
-        // bc.addCondition(boundary::east, condition_type::neumann, &neuData );
-        // gsField<> field(mp.patch(0),neuData);
-        // gsWriteParaview(field,"field");
-    }
     else
         GISMO_ERROR("Test case "<<testCase<<" unknown");
 
@@ -310,10 +263,6 @@ int main(int argc, char *argv[])
             u_sol.extract(cc, k);
             mp_ex.patch(k).coefs() += cc;  // defG points to mp_def, therefore updated
         }
-
-        gsExprEvaluator<> ev(A);
-        gsDebugVar(ev.integral((u_sol-function).sqNorm()));
-
     }
     else if (testCase == 1)
     {
@@ -415,7 +364,7 @@ int main(int argc, char *argv[])
         mesher.getOptions();
     }
 
-    real_t cummImprovement, cummImprovementOld;
+    real_t cummImprovement;
     for (index_t r=0; r!=numRefine+1; r++)
     {
 
@@ -564,30 +513,7 @@ int main(int argc, char *argv[])
             gsOptionList mesherOpts;
             fd_mesher.getFirst<gsOptionList>(mesherOpts);
 
-            // gsDebugVar(basisL.basis(0).minDegree());
-            // gsDebugVar(mesherOpts.getInt("Convergence_alpha"));
-            // gsDebugVar(mesherOpts.getInt("Convergence_beta"));
-            // gsDebugVar(math::pow(1/2.,mesherOpts.getInt("Convergence_alpha") * basisL.basis(0).minDegree() + mesherOpts.getInt("Convergence_beta")));
-            // gsDebugVar(exacts[r]);
-
-            // gsDebugVar(exacts[r] * math::pow(1/2.,mesherOpts.getInt("Convergence_alpha") * basisL.basis(0).minDegree() + mesherOpts.getInt("Convergence_beta")));
-
-
-            // gsDebugVar(approxs[r]);
-            // gsDebugVar(exacts[r]);
-            // gsDebugVar(numGoal[r]);
             elErrors = DWR->computeErrorElements(dualL, dualH,true);
-            real_t error = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
-            gsDebugVar(error);
-            // gsDebugVar(*std::min_element(elErrors.begin(),elErrors.end()));
-            // for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
-            // {
-            //     *it = std::abs(*it);
-            // }
-
-            real_t abserror = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
-            gsDebugVar(abserror);
-
 
             // Make container of the boxes
             gsHBoxContainer<2,real_t> markRef, markCrs;
@@ -615,10 +541,6 @@ int main(int argc, char *argv[])
                 }
             }
 
-            gsDebugVar(oldError);
-            gsDebugVar(newError);
-
-
             gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
             const gsField<> elemError_eh( mp.patch(0), err_eh, true );
             gsWriteParaview<>( elemError_eh, "error_elem_ref" + util::to_string(r), 1000, true);
@@ -628,82 +550,16 @@ int main(int argc, char *argv[])
 
             mesher.markRef_into(elErrors,markRef);
             mesher.refine(markRef);
-            // gsDebugVar(markRef);
 
             if (adaptivity>1)
             {
                 mesher.markCrs_into(elErrors,markRef,markCrs);
                 mesher.refine(markRef);
                 mesher.unrefine(markCrs);
-                // gsDebugVar(markCrs);
             }
             mesher.rebuild();
             mp_def = mp;
         }
-        // else if (adaptivity > 0)
-        // {
-        //     gsFileData<> fd_mesher(mesherOptionsFile);
-        //     gsOptionList mesherOpts;
-        //     fd_mesher.getFirst<gsOptionList>(mesherOpts);
-
-        //     // gsDebugVar(basisL.basis(0).minDegree());
-        //     // gsDebugVar(mesherOpts.getInt("Convergence_alpha"));
-        //     // gsDebugVar(mesherOpts.getInt("Convergence_beta"));
-        //     // gsDebugVar(math::pow(1/2.,mesherOpts.getInt("Convergence_alpha") * basisL.basis(0).minDegree() + mesherOpts.getInt("Convergence_beta")));
-        //     // gsDebugVar(exacts[r]);
-
-        //     // gsDebugVar(exacts[r] * math::pow(1/2.,mesherOpts.getInt("Convergence_alpha") * basisL.basis(0).minDegree() + mesherOpts.getInt("Convergence_beta")));
-
-
-        //     // gsDebugVar(approxs[r]);
-        //     // gsDebugVar(exacts[r]);
-        //     // gsDebugVar(numGoal[r]);
-        //     elErrors = DWR->computeErrorElements(dualL, dualH);
-        //     real_t error = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
-        //     gsDebugVar(error);
-        //     // gsDebugVar(*std::min_element(elErrors.begin(),elErrors.end()));
-        //     // for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
-        //     // {
-        //     //     *it = std::abs(*it);
-        //     // }
-
-        //     real_t abserror = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
-        //     gsDebugVar(abserror);
-
-
-        //     // Make container of the boxes
-        //     gsHBoxContainer<2,real_t> markRef, markCrs;
-        //     gsHBoxContainer<2,real_t> elts;
-        //     index_t c = 0;
-        //     real_t newError = 0;
-        //     real_t oldError = 0;
-        //     for (index_t p=0; p < mp.nPieces(); ++p)
-        //     {
-        //     // index_t p=0;
-        //         typename gsBasis<real_t>::domainIter domIt = mp.basis(p).makeDomainIterator();
-        //         gsHDomainIterator<real_t,2> * domHIt = nullptr;
-        //         domHIt = dynamic_cast<gsHDomainIterator<real_t,2> *>(domIt.get());
-        //         GISMO_ENSURE(domHIt!=nullptr,"Domain not loaded");
-        //         for (; domHIt->good(); domHIt->next())
-        //         {
-        //             gsHBox<2,real_t> box(domHIt,p);
-        //             box.setAndProjectError(elErrors[c],mesherOpts.getInt("Convergence_alpha"),mesherOpts.getInt("Convergence_beta"));
-        //             elts.add(box);
-        //             markCrs.add(box);
-        //             oldError += box.error();
-        //             newError += box.projectedErrorCrs();
-        //             c++;
-        //         }
-        //     }
-
-        //     gsDebugVar(oldError);
-        //     gsDebugVar(newError);
-
-        //     mesher.markCrs_into(elErrors,markCrs);
-        //     mesher.unrefine(markCrs);
-        //     mesher.rebuild();
-        //     mp_def = mp;
-        // }
         else if (adaptivity < 0)
         {
             gsFileData<> fd_mesher(mesherOptionsFile);
@@ -711,16 +567,10 @@ int main(int argc, char *argv[])
             fd_mesher.getFirst<gsOptionList>(mesherOpts);
 
             elErrors = DWR->computeErrorElements(dualL, dualH);
-            real_t error = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
-            gsDebugVar(error);
-            gsDebugVar(*std::min_element(elErrors.begin(),elErrors.end()));
             for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
             {
                 *it = std::abs(*it);
             }
-
-            real_t abserror = std::accumulate(elErrors.begin(),elErrors.end(),0.0);
-            gsDebugVar(abserror);
 
             gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
             const gsField<> elemError_eh( mp.patch(0), err_eh, true );
@@ -757,12 +607,9 @@ int main(int argc, char *argv[])
             // --------------- adaptive refinement ---------------
             cummImprovement = 0;
             index_t index = std::rand()%container.size();
-            // gsDebugVar(index);
             gsHBox<2,real_t> refbox = *std::next(container.begin(),index);
             typename gsHBoxContainer<2,real_t>::HContainer hcontainer = gsHBoxUtils<2,real_t>::markAdmissible(refbox,2);
             gsHBoxContainer<2,real_t>refined(hcontainer);
-
-            gsDebugVar(refined);
 
             for (typename gsHBoxContainer<2,real_t>::HIterator hit = refined.begin(); hit!=refined.end(); hit++)
                 for (typename gsHBoxContainer<2,real_t>::Iterator it = hit->begin(); it!=hit->end(); it++)
@@ -780,9 +627,6 @@ int main(int argc, char *argv[])
 
             mesher.rebuild();
             mp_def = mp;
-
-            gsDebugVar(cummImprovement);
-            if (r>0) gsDebugVar(approxs[r]-approxs[r-1]);
         }
 
         delete DWR;

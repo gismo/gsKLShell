@@ -44,11 +44,9 @@ int main(int argc, char *argv[])
     real_t thickness = 1.0;
 
     real_t ifcDirichlet = 1.0;
-    real_t ifcClamped = 1.0;
 
-    gsCmdLine cmd("2D shell example.");
+    gsCmdLine cmd("3D shell example.");
     cmd.addReal( "D", "Dir", "Dirichlet penalty scalar",  ifcDirichlet );
-    cmd.addReal( "C", "Cla", "Clamped penalty scalar",  ifcClamped );
     cmd.addInt( "e", "degreeElevation",
                 "Number of degree elevation steps to perform before solving (0: equalize degree in all directions)", numElevate );
     cmd.addInt( "r", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving",  numRefine );
@@ -337,9 +335,9 @@ int main(int argc, char *argv[])
     {
         for (index_t d = 0; d!=3; d++)
             for (size_t p=0; p!=mp.nPatches(); ++p)
-                bc.addCondition(p, boundary::east, condition_type::dirichlet, 0, 0, false, d);
+                bc.addCondition(p, boundary::west, condition_type::dirichlet, 0, 0, false, d);
         for (size_t p=0; p!=mp.nPatches(); ++p)
-            bc.addCondition(p, boundary::east, condition_type::clamped, 0, 0, false, 2);
+            bc.addCondition(p, boundary::west, condition_type::clamped, 0, 0, false, 2);
 
 
         // Surface forces
@@ -372,14 +370,15 @@ int main(int argc, char *argv[])
         // Point loads
         gsVector<> point(2); point<< 1.0, 1.0 ;
         refPoint = point;
+        refPatch = 0;
     }
     else if (testCase == 6)
     {
         for (index_t d = 0; d!=3; d++)
             for (size_t p=0; p!=mp.nPatches(); ++p)
-                bc.addCondition(p, boundary::east, condition_type::dirichlet, 0, 0, false, d);
+                bc.addCondition(p, boundary::west, condition_type::dirichlet, 0, 0, false, d);
         for (size_t p=0; p!=mp.nPatches(); ++p)
-            bc.addCondition(p, boundary::east, condition_type::clamped, 0, 0, false, 2);
+            bc.addCondition(p, boundary::west, condition_type::clamped, 0, 0, false, 2);
 
         // Point loads
         tmp << 0,0,0;
@@ -424,6 +423,7 @@ int main(int argc, char *argv[])
 
         gsVector<> point(2); point<< 1.0, 1.0 ;
         refPoint = point;
+        refPatch = 0;
     }
     else
         GISMO_ERROR("Test case not known");

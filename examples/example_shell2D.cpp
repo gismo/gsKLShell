@@ -66,8 +66,6 @@ int main(int argc, char *argv[])
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
 
-/*
-
     //! [Read input file]
     gsMultiPatch<> mp;
     gsMultiPatch<> mp_def;
@@ -147,10 +145,6 @@ int main(int argc, char *argv[])
         mp.patch(0).coefs().col(1) *= width;
 
         mp.computeTopology();
-        gsDebugVar(mp);
-        // mp.addInterface(0,boundary::east, 0, boundary::west);
-        // gsDebugVar(mp);
-
     }
 
     // p-refine
@@ -272,21 +266,6 @@ int main(int argc, char *argv[])
     else
         GISMO_ERROR("Test case not known");
     //! [Set boundary conditions]
-
-        typedef gsExprAssembler<>::space       space;
-        gsExprAssembler<> A(1,1);
-        space u = A.getSpace(dbasis, 2, 0); // last argument is the space ID
-        u.setup(bc,dirichlet::l2Projection,0);
-        A.setIntegrationElements(dbasis);
-        A.initSystem();
-        gsDebugVar(A.numDofs());
-        gsDebugVar(u.mapper().freeSize());
-        gsDebugVar(u.mapper().size());
-        gsDebugVar(u.mapper().firstIndex());
-        gsDebugVar(u.mapper().freeSize());
-        gsDebugVar(u.mapper().firstIndex()+u.mapper().freeSize());
-    // return 0;
-
 
     //! [Make material functions]
     // Linear isotropic material model and Neo-Hookean material
@@ -595,7 +574,7 @@ int main(int argc, char *argv[])
     gsWriteParaview<>( tensionField, "TensionField", 10000, true);
 
     delete assembler;
-*/
+
     return EXIT_SUCCESS;
 
 }// end main

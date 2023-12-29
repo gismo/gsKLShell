@@ -1,6 +1,8 @@
-/** @file kirchhoff-Love_example.cpp
+/** @file kirchhoff-Love_example2.cpp
 
-    @brief Solver for kirchhoff-Love shells
+    @brief Solver for kirchhoff-Love shells, test with penalty terms
+
+    THIS FILE IS OLD AND WILL BE REMOVED IN THE FUTURE
 
     This file is part of the G+Smo library.
 
@@ -595,6 +597,8 @@ gsMultiPatch<T> Panel(T Lp, T Wp, T Hw, T Wf, T x = 0, T y = 0, T z = 0);
 
 int main(int argc, char *argv[])
 {
+    gsWarn<<"[v23.12] THIS FILE IS DEPRECATED AND MIGHT BE REMOVED IN FUTURE VERSIONS\n";
+
     //! [Parse command line]
     bool plot = false;
     index_t numRefine  = 1;
@@ -608,7 +612,6 @@ int main(int argc, char *argv[])
 
     real_t E_modulus = 1.0;
     real_t PoissonRatio = 0.0;
-    real_t thickness = 1.0;
 
     real_t ALPHA_D = 1e3;
     real_t ALPHA_R = 1e0;

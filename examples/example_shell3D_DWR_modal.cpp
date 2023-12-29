@@ -1,6 +1,7 @@
-/** @file example_shell3D.cpp
+/** @file example_shell3D_DWR_modal.cpp
 
-    @brief Examples for the surface thin shells including the shell obstacle course
+    @brief Examples of the DWR method for modal analysis
+    with the isogeometric Kirchhoff-Love shell
 
     This file is part of the G+Smo library.
 
@@ -66,8 +67,7 @@ int main(int argc, char *argv[])
     cmd.addInt("R", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving", numRefineIni);
     cmd.addInt("r", "refine", "Maximum number of adaptive refinement steps to perform",
                numRefine);
-    cmd.addInt("t", "testcase",
-                "Test case: 0: Beam - pinned-pinned, 1: Beam - fixed-fixed, 2: beam - fixed-free, 3: plate - fully pinned, 4: plate - fully fixed, 5: circle - fully pinned, 6: 5: circle - fully fixed",
+    cmd.addInt("t", "testcase", "Test case: 0: square, 1: circle, 2: triangle",
                testCase);
     cmd.addInt("A", "adaptivity", "Adaptivity scheme: 0) uniform refinement, 1) adaptive refinement, 2) adaptive refinement and coarsening", adaptivity);
 
@@ -119,38 +119,8 @@ int main(int argc, char *argv[])
         Density = 1e0;
         numElevate -= 1;
     }
-    else if (testCase==3)
-    {
-        gsMultiPatch<> mp_tmp;
-        std::string fn = "planar/weirdShape.xml";
-        gsReadFile<>(fn, mp_tmp);
-        mp.addAutoBoundaries();
-
-        gsKnotVector<> kv1(0,1,8,3);
-        gsKnotVector<> kv2(0,1,0,3);
-        gsTensorBSplineBasis<2,real_t> basis(kv2,kv1);
-        gsMatrix<> coefs;
-        gsQuasiInterpolate<real_t>::localIntpl(basis, mp_tmp.patch(0), coefs);
-        gsTensorBSpline<2,real_t> bspline(kv2,kv1,coefs);
-
-        gsDebugVar(mp_tmp.patch(0).coefs());
-        gsDebugVar(coefs);
-        gsDebugVar(bspline);
-
-        mp.addPatch(bspline);
-        mp.embed(3);
-        mp.degreeElevate(1);
-
-        thickness = 0.01;
-        PoissonRatio = 0.3;
-        E_modulus     = 1e0;
-        Density = 1e0;
-
-        gsTensorBSpline<2,real_t> *geo;
-        gsDebug<<(geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(0)))<<"\n";
-
-        gsDebug<<(geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&bspline))<<"\n";
-    }
+    else
+        GISMO_ERROR("Testcase unknown");
 
     // p-refine
     if (numElevate != 0)
@@ -162,10 +132,10 @@ int main(int argc, char *argv[])
         if (testCase!=1)
         {
             gsTHBSpline<2,real_t> thb;
-            for (index_t k=0; k!=mp.nPatches(); ++k)
+            for (size_t k=0; k!=mp.nPatches(); ++k)
             {
                 gsTensorBSpline<2,real_t> *geo;
-                if (geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k)))
+                if ((geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k))))
                 {
                     thb = gsTHBSpline<2,real_t>(*geo);
                     gsMatrix<> bbox = geo->support();
@@ -186,7 +156,7 @@ int main(int argc, char *argv[])
             gsTHBSpline<2,real_t> thb;
             gsTHBSplineBasis<2,real_t> thbBasis;
             gsMatrix<> coefs;
-            for (index_t k=0; k!=mp.nPatches(); ++k)
+            for (size_t k=0; k!=mp.nPatches(); ++k)
             {
                 if(gsTensorNurbs<2,real_t> *geo = dynamic_cast< gsTensorNurbs<2,real_t> * > (&mp.patch(k)))
                 {
@@ -465,7 +435,6 @@ int main(int argc, char *argv[])
         // mass-normalize w.r.t. primal
         DWR->constructMultiPatchL(solVectorDualL, dualL);
         Mnorm = DWR->matrixNorm(primalL, dualL);
-        gsDebugVar(Mnorm);
         solVectorDualL *= 1. / Mnorm;
         DWR->constructMultiPatchL(solVectorDualL, dualL);
 
@@ -498,7 +467,6 @@ int main(int argc, char *argv[])
         // mass-normalize w.r.t. primal
         DWR->constructMultiPatchH(solVectorDualH, dualH);
         Mnorm = DWR->matrixNorm(primalL, dualH);
-        gsDebugVar(Mnorm);
         solVectorDualH *= 1. / Mnorm;
         DWR->constructMultiPatchH(solVectorDualH, dualH);
 
@@ -569,7 +537,6 @@ int main(int argc, char *argv[])
                 mesher.markCrs_into(elErrors,markRef,markCrs);
                 mesher.refine(markRef);
                 mesher.unrefine(markCrs);
-                // gsDebugVar(markCrs);
             }
             mesher.rebuild();
         }

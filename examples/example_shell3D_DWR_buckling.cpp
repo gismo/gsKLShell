@@ -1,6 +1,7 @@
-/** @file example_shell3D.cpp
+/** @file example_shell3D_DWR_buckling.cpp
 
-    @brief Examples for the surface thin shells including the shell obstacle course
+    @brief Examples of the DWR method for buckling analysis
+    with the isogeometric Kirchhoff-Love shell
 
     This file is part of the G+Smo library.
 
@@ -64,9 +65,7 @@ int main(int argc, char *argv[])
     cmd.addInt("R", "uniformRefine", "Number of Uniform h-refinement steps to perform before solving", numRefineIni);
     cmd.addInt("r", "refine", "Maximum number of adaptive refinement steps to perform",
                numRefine);
-    cmd.addInt("t", "testcase",
-                "Test case: 0: Beam - pinned-pinned, 1: Beam - fixed-fixed, 2: beam - fixed-free, 3: plate - fully pinned, 4: plate - fully fixed, 5: circle - fully pinned, 6: 5: circle - fully fixed",
-               testCase);
+    cmd.addInt("t", "testcase", "Test case: 0: bi-directional, 1: uni-directional", testCase);
 
     cmd.addInt("A", "adaptivity", "Adaptivity scheme: 0) uniform refinement, 1) adaptive refinement, 2) adaptive refinement and coarsening", adaptivity);
 
@@ -132,10 +131,10 @@ int main(int argc, char *argv[])
     if (adaptivity!=0)
     {
         gsTHBSpline<2,real_t> thb;
-        for (index_t k=0; k!=mp.nPatches(); ++k)
+        for (size_t k=0; k!=mp.nPatches(); ++k)
         {
             gsTensorBSpline<2,real_t> *geo;
-            if (geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k)))
+            if ((geo = dynamic_cast< gsTensorBSpline<2,real_t> * > (&mp.patch(k))))
             {
                 thb = gsTHBSpline<2,real_t>(*geo);
                 gsMatrix<> bbox = geo->support();
@@ -188,36 +187,23 @@ int main(int argc, char *argv[])
     gsConstantFunction<> neuDataYm(neuYm,3);
     if (testCase==0)
     {
-        // Load = 1e-10;
-        // gsVector<> point(2);
-        // gsVector<> load (3);
-        // point<< 1.0, 0.5 ; load << Load, 0.0, 0.0 ;
-        // pLoads.addLoad(point, load, 0 );
-        // point<< 0.5, 1.0 ; load << 0.0, Load, 0.0 ;
-        // pLoads.addLoad(point, load, 0 );
-
         neuXp<<Load,0,0;
         neuDataXp.setValue(neuXp,3);
         neuYp<<0,Load,0;
         neuDataYp.setValue(neuYp,3);
 
 
-        // // Clamped-Clamped
-        // bc.addCondition(boundary::east, condition_type::collapsed, 0, 0, false, 0 ); // unknown 0 - x
         bc.addCondition(boundary::east, condition_type::neumann, &neuDataXp);
 
         bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
 
-        // bc.addCondition(boundary::north, condition_type::collapsed, 0, 0, false, 1); // unknown 1 - y
         bc.addCondition(boundary::north, condition_type::neumann, &neuDataYp);
         bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
 
-        // bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false,0 ); // unknown 0 - x
         bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
         bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
 
         bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false, 0); // unknown 0 - x
-        // bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false,1 ); // unknown 1 - y
         bc.addCondition(boundary::west, condition_type::dirichlet, 0, 0, false,2 ); // unknown 2 - z
 
         //   [Analytical solution]
@@ -251,12 +237,6 @@ int main(int argc, char *argv[])
     else if (testCase==1)
     {
         Load = 1e2;
-        // gsVector<> point(2);
-        // gsVector<> load (3);
-        // point<< 1.0, 0.5 ; load << Load, 0.0, 0.0 ;
-        // pLoads.addLoad(point, load, 0 );
-        // point<< 0.5, 1.0 ; load << 0.0, Load, 0.0 ;
-        // pLoads.addLoad(point, load, 0 );
 
         neuXp<<Load,0,0;
         neuDataXp.setValue(neuXp,3);
@@ -264,16 +244,11 @@ int main(int argc, char *argv[])
         neuDataXm.setValue(neuXm,3);
 
 
-        // // Clamped-Clamped
-        // bc.addCondition(boundary::east, condition_type::collapsed, 0, 0, false, 0 ); // unknown 0 - x
         bc.addCondition(boundary::east, condition_type::neumann, &neuDataXm);
         bc.addCondition(boundary::east, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
 
-        // bc.addCondition(boundary::north, condition_type::collapsed, 0, 0, false, 1); // unknown 1 - y
         bc.addCondition(boundary::north, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
 
-        // bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false,0 ); // unknown 0 - x
-        // bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 1); // unknown 1 - y
         bc.addCondition(boundary::south, condition_type::dirichlet, 0, 0, false, 2); // unknown 2 - z
 
         bc.addCondition(boundary::west, condition_type::neumann, &neuDataXp);
@@ -545,9 +520,6 @@ int main(int argc, char *argv[])
         exacts_num[r] += exGoal_num[r];
         exacts_num[r] -= numGoal[r];
         approxs[r] = DWR->computeErrorEig(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL,mp_def);
-        gsDebugVar(eigvalL);
-        gsDebugVar(dualvalL);
-        gsDebugVar(dualvalH);
 
         estGoal[r] = numGoal[r]+approxs[r];
 
