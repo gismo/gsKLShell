@@ -1,12 +1,3 @@
-# To Do
-
-# Changelog
-
-## v21.12:
-  - Compatibility with the new `gsExprAssembler` in `gismo/gsAssembler`
-## v21.6:
-  - Initial version!
-
 # gsKLShell
 
 Module for the isogeometric Kirchhoff-Love shell element. The module is based on `gismo`'s Expression Assembler `gsExprAssembler`.
@@ -56,12 +47,14 @@ make
 The `gsKLShell` module consists of the classes
 * `gsThinShellAssembler`: class that resolves the kinematics of the Kirchhoff-Love shells
 * `gsThinShellAssemblerDWR`: same as the above, but contains extra functions for the Dual Weighted Residual (DWR) method
-* `gsMaterialMatrixNonlinear`: class that handles the (non-)linear constitutive relations of the shells.
-* `gsMaterialMatrixLaminate`: class that handles constitutive relations for linear composites.
+* `gsMaterialMatrixLinear`: class that handles the linear constitutive relations of the shells.
+* `gsMaterialMatrixNonlinear`: class that handles the non-linear constitutive relations of the shells.
+* `gsMaterialMatrixComposite`: class that handles constitutive relations for linear composites.
+* `gsMaterialMatrixTFT`: class that handles tension-field-theory-based constitutive models for membranes.
 
 See the doxygen manuals for more information about the classes. (**to do: add link**)
 
-To use the `gsKLShell` module, one should always define a `gsMaterialMatrixNonlinear` and a `gsThinShellAssembler`. The `gsMaterialMatrixNonlinear` object is used to compute the constitutive relations in the `gsThinShellAssembler` and should therefore be defined upon initialisation of this class.
+To use the `gsKLShell` module, one should always define a `gsMaterialMatrixBase` and a `gsThinShellAssembler`. The `gsMaterialMatrixBase` object is used to compute the constitutive relations in the `gsThinShellAssembler` and should therefore be defined upon initialisation of this class.
 
 Additionally, the geometry and the deformed geometry (both `gsMultiPatch`) together with a basis (`gsMultiBasis`) and the boundary conditions (`gsBoundaryConditions`) and a surface force (`gsFunctionExpression`) should be provided in the definition of the class.
 
