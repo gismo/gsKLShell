@@ -40,7 +40,10 @@ make
 * Supports B-spline, NURBS, H-Spline and THB-Spline bases
 * Membrane or shell elements via template parameters
 
-`gsMaterialMatrixNonlinear`
+`gsThinShellAssemblerDWR`
+* Error estimation via the Dual-Weighted Residual method
+
+`gsMaterialMatrixBase` and derivatives
 * Linear materials via Saint-Venant Kirchhoff model
 * (In)Compressible non-linear materials: Neo-Hookean, Mooney-Rivlin and Ogden materials.
 * Direct implementation for other material models possible
@@ -63,7 +66,3 @@ To use the `gsKLShell` module, one should always define a `gsMaterialMatrixNonli
 Additionally, the geometry and the deformed geometry (both `gsMultiPatch`) together with a basis (`gsMultiBasis`) and the boundary conditions (`gsBoundaryConditions`) and a surface force (`gsFunctionExpression`) should be provided in the definition of the class.
 
 The template parameters of the class are the dimension of the geometry (`dim`) which is 2D (planar) or 3D (surface) and a flag for the computation of bending stiffness term (`bending`) which is only relevant if `dim==3`. Other options that can be set are follower pressures (`setPressure`), elastic foundation stiffness (`setFoundation`) and point loads (`setPointLoads`).
-
-#### Not (yet) supported:
-* Multipatch coupling
-* Error estimation via DWR
