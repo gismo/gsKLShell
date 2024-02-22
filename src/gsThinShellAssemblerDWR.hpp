@@ -1802,7 +1802,7 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeErrorDofs(const gs
 
 template <short_t d, class T, bool bending>
 template<short_t _d, bool _bending, index_t _elWise>
-typename std::enable_if<(_d==3 && _bending), void>::type
+typename std::enable_if<_d==3 && _bending, void>::type
 gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool withLoads,
                                                             // bool withLoads,
                                                             std::string filename, unsigned np, bool parametric, bool mesh)
@@ -2115,7 +2115,7 @@ std::vector<T> gsThinShellAssemblerDWR<d, T, bending>::computeSquaredErrorDofs(c
 
 template <short_t d, class T, bool bending>
 template<short_t _d, bool _bending, index_t _elWise>
-typename std::enable_if<(_d==3 && _bending), void>::type
+typename std::enable_if<_d==3 && _bending, void>::type
 gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool withLoads,
                                                             // bool withLoads,
                                                             std::string filename, unsigned np, bool parametric, bool mesh)
