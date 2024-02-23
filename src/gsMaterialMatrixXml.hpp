@@ -37,7 +37,7 @@ Object getMaterialMatrixFromXml ( gsXmlNode * node)
     tmp = node->first_node("Thickness");
     GISMO_ASSERT(tmp,"Thickness must be assigned!");
     gsFunctionExpr<T> thickness;
-    getFunctionFromXml(tmp->first_node("Function"), thickness);
+    gsXml<gsFunctionExpr<T> >::get_into(tmp->first_node("Function"), thickness);
     result.setThickness(thickness);
 
     tmp = node->first_node("Density");
@@ -45,7 +45,7 @@ Object getMaterialMatrixFromXml ( gsXmlNode * node)
     bool hasDensity = tmp;
     if ( hasDensity )
     {
-        getFunctionFromXml(tmp->first_node("Function"), density);
+        gsXml<gsFunctionExpr<T> >::get_into(tmp->first_node("Function"), density);
         result.setDensity(density);
     }
 
@@ -56,7 +56,7 @@ Object getMaterialMatrixFromXml ( gsXmlNode * node)
             child->next_sibling("Function"))
     {
         const int i = atoi(child->first_attribute("index")->value());
-        getFunctionFromXml(child, fun);
+        gsXml<gsFunctionExpr<T> >::get_into(child, fun);
         result.setParameter(i,fun);
     }
     return result;
