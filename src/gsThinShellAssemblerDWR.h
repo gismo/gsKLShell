@@ -264,7 +264,7 @@ public:
     void setGoal(enum GoalFunction GF, short_t component = 9) { m_goalFunction = GF; m_component = component; }
 
     /// See \ref gsThinShellAssemblerBase for details
-    void constructStress(const gsMultiPatch<T> & deformed, gsPiecewiseFunction<T> & result, stress_type::type type)
+    void constructStress(const gsFunctionSet<T> & deformed, gsPiecewiseFunction<T> & result, stress_type::type type)
     {
         m_assemblerL->constructStress(deformed,result,type);
     }
@@ -360,7 +360,7 @@ protected:
                             std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
 
     template<int _d, bool _bending, int _elWise>
-    typename std::enable_if<(_d==3 && _bending), void>::type
+    typename std::enable_if<(_d==3) && _bending, void>::type
     computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool withLoads,
                         std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
 
@@ -374,7 +374,7 @@ protected:
                             std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
 
     template<int _d, bool _bending, int _elWise>
-    typename std::enable_if<(_d==3 && _bending), void>::type
+    typename std::enable_if<(_d==3) && _bending, void>::type
     computeSquaredError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool withLoads,
                         std::string filename = std::string(), unsigned np=1000, bool parametric=false, bool mesh=false);
 
@@ -609,7 +609,7 @@ public:
     virtual void setGoal(enum GoalFunction GF, short_t component = 9) = 0;
 
     /// See \ref gsThinShellAssemblerBase for details
-    virtual void constructStress(const gsMultiPatch<T> & deformed,
+    virtual void constructStress(const gsFunctionSet<T> & deformed,
                                gsPiecewiseFunction<T> & result,
                                stress_type::type type) = 0;
 

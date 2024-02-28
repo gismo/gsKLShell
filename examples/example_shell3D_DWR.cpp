@@ -364,7 +364,6 @@ int main(int argc, char *argv[])
         mesher.getOptions();
     }
 
-    real_t cummImprovement;
     for (index_t r=0; r!=numRefine+1; r++)
     {
 
@@ -520,8 +519,6 @@ int main(int argc, char *argv[])
 
             gsHBoxContainer<2,real_t> elts;
             index_t c = 0;
-            real_t newError = 0;
-            real_t oldError = 0;
             for (index_t p=0; p < mp.nPieces(); ++p)
             {
             // index_t p=0;
@@ -535,8 +532,6 @@ int main(int argc, char *argv[])
                     box.setAndProjectError(elErrors[c],mesherOpts.getInt("Convergence_alpha"),mesherOpts.getInt("Convergence_beta"));
                     elts.add(box);
                     markRef.add(box);
-                    oldError += box.error();
-                    newError += box.projectedErrorRef();
                     c++;
                 }
             }
@@ -605,22 +600,10 @@ int main(int argc, char *argv[])
             gsWriteParaview(elts,"elts");
 
             // --------------- adaptive refinement ---------------
-            cummImprovement = 0;
             index_t index = std::rand()%container.size();
             gsHBox<2,real_t> refbox = *std::next(container.begin(),index);
             typename gsHBoxContainer<2,real_t>::HContainer hcontainer = gsHBoxUtils<2,real_t>::markAdmissible(refbox,2);
             gsHBoxContainer<2,real_t>refined(hcontainer);
-
-            for (typename gsHBoxContainer<2,real_t>::HIterator hit = refined.begin(); hit!=refined.end(); hit++)
-                for (typename gsHBoxContainer<2,real_t>::Iterator it = hit->begin(); it!=hit->end(); it++)
-                {
-                    auto pred = [it](auto b){return it->isSame(b);};
-                    typename gsHBox<2,real_t>::SortedContainer::iterator found = std::find_if(scontainer.begin(),scontainer.end(),pred);
-                    if (found!=scontainer.end())
-                        cummImprovement += found->error()-found->projectedErrorRef();
-                    else
-                        GISMO_ERROR("Hi");
-                }
 
             mesher.refine(refined);
             gsWriteParaview(refined,"refined");

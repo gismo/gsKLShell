@@ -105,43 +105,43 @@ public:
     virtual void defaultOptions() override;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual void    density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    virtual void    density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual void  thickness_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    virtual void  thickness_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual void parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
+    virtual void parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual gsMatrix<T> eval3D_spec2cov(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
+    virtual gsMatrix<T> eval3D_spec2cov(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual gsMatrix<T> eval3D_spec2con(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
+    virtual gsMatrix<T> eval3D_spec2con(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual gsMatrix<T> eval3D_cov2cart(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
+    virtual gsMatrix<T> eval3D_cov2cart(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual gsMatrix<T> eval3D_con2cart(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
+    virtual gsMatrix<T> eval3D_con2cart(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual gsMatrix<T> eval3D_deformation(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
+    virtual gsMatrix<T> eval3D_deformation(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual gsMatrix<T> eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
+    virtual gsMatrix<T> eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const;
+    virtual gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
     
     /// See \ref gsMaterialMatrixBase for details
-    virtual gsMatrix<T> eval3D_pstretch(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
+    virtual gsMatrix<T> eval3D_pstretch(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual gsMatrix<T> eval3D_pstretchDir(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
+    virtual gsMatrix<T> eval3D_pstretchDir(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual gsMatrix<T> eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
+    virtual gsMatrix<T> eval3D_pstrain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const override;
 
     virtual bool initialized() const override
     {

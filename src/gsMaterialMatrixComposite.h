@@ -40,7 +40,7 @@ class gsMaterialMatrixComposite : public gsMaterialMatrixBaseDim<dim,T>
 {
 public:
 
-    GISMO_CLONE_FUNCTION(gsMaterialMatrixComposite)
+    GISMO_OVERRIDE_CLONE_FUNCTION(gsMaterialMatrixComposite)
 
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 
@@ -68,33 +68,33 @@ public:
                             const std::vector< gsFunctionSet<T> *>              & G,
                             const std::vector< gsFunctionSet<T> *>              & alpha         );
 
-    enum MatIntegration isMatIntegrated() const {return MatIntegration::Integrated; }
-    enum MatIntegration isVecIntegrated() const {return MatIntegration::Integrated; }
+    enum MatIntegration isMatIntegrated() const override {return MatIntegration::Integrated; }
+    enum MatIntegration isVecIntegrated() const override {return MatIntegration::Integrated; }
 
     /// @brief Returns the list of default options for assembly
-    gsOptionList & options() {return m_options;}
-    void setOptions(gsOptionList opt) {m_options.update(opt,gsOptionList::addIfUnknown); }
+    gsOptionList & options() override {return m_options;}
+    void setOptions(gsOptionList opt) override {m_options.update(opt,gsOptionList::addIfUnknown); }
 
     // template COM
-    void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const;
+    void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override;
     // template COM
-    void pstretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+    void pstretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override
     {GISMO_NO_IMPLEMENTATION;}
-    void pstretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+    void pstretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override
     {GISMO_NO_IMPLEMENTATION;}
-    void pstress_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+    void pstress_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override
     {GISMO_NO_IMPLEMENTATION;}
-    void pstressDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+    void pstressDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override
     {GISMO_NO_IMPLEMENTATION;}
 
-    void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const;
-
-    /// See \ref gsMaterialMatrixBase for details
-    void parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
-    {GISMO_NO_IMPLEMENTATION;}
+    void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    void transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
+    void parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override
+    {GISMO_NO_IMPLEMENTATION;}
+
+    /// See \ref gsMaterialMatrixBase for details
+    void transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override
     {GISMO_NO_IMPLEMENTATION;}
 
     /// See \ref gsMaterialMatrixBase for details
@@ -105,8 +105,8 @@ public:
     void pstressTransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
     {GISMO_NO_IMPLEMENTATION;}
 
-    gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
-    gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     std::ostream &print(std::ostream &os) const override;
 

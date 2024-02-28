@@ -625,23 +625,23 @@ public:
         return eval3D_gamma(patch,u,zmat,out);
     }
 
-    virtual void setYoungsModulus(const gsFunction<T> & YoungsModulus)
+    virtual void setYoungsModulus(const gsFunctionSet<T> & YoungsModulus)
     { GISMO_NO_IMPLEMENTATION; }
     virtual const function_ptr getYoungsModulus() const
     { GISMO_NO_IMPLEMENTATION; }
-    virtual void setPoissonsRatio(const gsFunction<T> & PoissonsRatio)
+    virtual void setPoissonsRatio(const gsFunctionSet<T> & PoissonsRatio)
     { GISMO_NO_IMPLEMENTATION; }
     virtual const function_ptr getPoissonsRatio() const
     { GISMO_NO_IMPLEMENTATION; }
-    virtual void setRatio(const gsFunction<T> & Ratio)
+    virtual void setRatio(const gsFunctionSet<T> & Ratio)
     { GISMO_NO_IMPLEMENTATION; }
     virtual const function_ptr getRatio() const
     { GISMO_NO_IMPLEMENTATION; }
-    virtual void setMu(const index_t & i, const gsFunction<T> & Mu_i)
+    virtual void setMu(const index_t & i, const gsFunctionSet<T> & Mu_i)
     { GISMO_NO_IMPLEMENTATION; }
     virtual const function_ptr getMu(const index_t & i) const
     { GISMO_NO_IMPLEMENTATION; }
-    virtual void setAlpha(const index_t & i, const gsFunction<T> & Alpha_i)
+    virtual void setAlpha(const index_t & i, const gsFunctionSet<T> & Alpha_i)
     { GISMO_NO_IMPLEMENTATION; }
     virtual const function_ptr getAlpha(const index_t & i) const
     { GISMO_NO_IMPLEMENTATION; }

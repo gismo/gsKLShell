@@ -55,7 +55,7 @@ public:
     typedef typename gsFunctionSet<T>::Ptr function_ptr;
 
     // Define clone functions
-    GISMO_CLONE_FUNCTION(gsMaterialMatrixTFT)
+    GISMO_OVERRIDE_CLONE_FUNCTION(gsMaterialMatrixTFT)
 
 public:
 
@@ -117,18 +117,18 @@ public:
     // { return m_materialMat; }
 
     /// See \ref gsMaterialMatrixBase for details
-    void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
+    void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override
     { m_materialMat->density_into( patch,u,result ); }
 
     /// See \ref gsMaterialMatrixBase for details
-    void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
+    void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override
     { m_materialMat->thickness_into( patch,u,result ); }
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// Returns the principal stresses stored in the underlying material model where the tension-field is non-slack
     ///
@@ -175,11 +175,11 @@ public:
     { return m_materialMat->eval3D_pstretchDir( patch,u,z ); }
 
     /// See \ref gsMaterialMatrixBase for details
-    void setParameters(const std::vector<gsFunctionSet<T>*> &pars)
+    void setParameters(const std::vector<gsFunctionSet<T>*> &pars) override
     { m_materialMat->setParameters(pars); }
 
     /// See \ref gsMaterialMatrixBase for details
-    void info() const
+    void info() const override
     { m_materialMat->info(); }
 
     /// See \ref gsMaterialMatrixBase for details
