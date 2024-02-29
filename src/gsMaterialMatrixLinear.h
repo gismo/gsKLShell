@@ -42,7 +42,7 @@ public:
 
     typedef T Scalar_t;
 
-    GISMO_CLONE_FUNCTION(gsMaterialMatrixLinear)
+    GISMO_OVERRIDE_CLONE_FUNCTION(gsMaterialMatrixLinear)
 
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 
@@ -176,7 +176,7 @@ public:
     inline enum MatIntegration isVecIntegrated() const override {return MatIntegration::Constant; }
 
     /// See \ref gsMaterialMatrixBase for details
-    void defaultOptions();
+    void defaultOptions() override;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_matrix (const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
@@ -214,23 +214,23 @@ public:
     gsMatrix<T> eval3D_detF (const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// Sets the YoungsModulus
-    void setYoungsModulus(const gsFunctionSet<T> & YoungsModulus) { Base::setParameter(0,YoungsModulus); }
+    void setYoungsModulus(const gsFunctionSet<T> & YoungsModulus) override { Base::setParameter(0,YoungsModulus); }
 
     /// Gets the YoungsModulus
-    const function_ptr getYoungsModulus() const { return Base::getParameter(0); }
+    const function_ptr getYoungsModulus() const override { return Base::getParameter(0); }
 
     /// Sets the Poisson's Ratio
-    void setPoissonsRatio(const gsFunctionSet<T> & PoissonsRatio) { Base::setParameter(1,PoissonsRatio); }
+    void setPoissonsRatio(const gsFunctionSet<T> & PoissonsRatio) override { Base::setParameter(1,PoissonsRatio); }
 
     /// Gets the Poisson's Ratio
-    const function_ptr getPoissonsRatio() const { return Base::getParameter(1); }
+    const function_ptr getPoissonsRatio() const override { return Base::getParameter(1); }
 
     /// See \ref gsMaterialMatrixBase for details
     std::ostream &print(std::ostream &os) const override;
 
-    gsMatrix<T> S(const gsMatrix<T> & strain) const;
+    gsMatrix<T> S(const gsMatrix<T> & strain) const override;
 
-    gsMatrix<T> C(const gsMatrix<T> & strain) const;
+    gsMatrix<T> C(const gsMatrix<T> & strain) const override;
 
     /// Computes the vector S as function of the deformation tensor C=FTF
     gsMatrix<T> S(const gsMatrix<T> & C, const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const;

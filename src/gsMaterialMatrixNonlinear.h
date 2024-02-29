@@ -44,11 +44,11 @@ template <  short_t dim,
             enum Material mat = decodeMat_id<matId>::material,
             enum Implementation imp  = decodeMat_id<matId>::implementation
          >
-class gsMaterialMatrix :    public gsMaterialMatrixBaseDim<dim,T>
+class gsMaterialMatrixNonlinear :    public gsMaterialMatrixBaseDim<dim,T>
 {
 public:
 
-    GISMO_CLONE_FUNCTION(gsMaterialMatrix)
+    GISMO_OVERRIDE_CLONE_FUNCTION(gsMaterialMatrixNonlinear)
 
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 
@@ -60,7 +60,7 @@ public:
      * @param[in]  mp             Original geometry
      * @param[in]  thickness      Thickness function
      */
-    gsMaterialMatrix(   const gsFunctionSet<T> & mp,
+    gsMaterialMatrixNonlinear(   const gsFunctionSet<T> & mp,
                         const gsFunctionSet<T> & thickness);
 
     /**
@@ -70,7 +70,7 @@ public:
      * @param[in]  thickness  Thickness function
      * @param[in]  pars       Vector with parameters (E, nu)
      */
-    gsMaterialMatrix(   const gsFunctionSet<T> & mp,
+    gsMaterialMatrixNonlinear(   const gsFunctionSet<T> & mp,
                         const gsFunctionSet<T> & thickness,
                         const std::vector<gsFunctionSet<T> *> &pars);
 
@@ -80,7 +80,7 @@ public:
      * @param[in]  thickness  Thickness function
      * @param[in]  pars       Vector with parameters (E, nu)
      */
-    gsMaterialMatrix(   const gsFunctionSet<T> & thickness,
+    gsMaterialMatrixNonlinear(   const gsFunctionSet<T> & thickness,
                         const std::vector<gsFunctionSet<T> *> &pars);
 
     /**
@@ -89,7 +89,7 @@ public:
      * @param[in]  thickness  Thickness function
      * @param[in]  pars       Vector with parameters (E, nu)
      */
-    gsMaterialMatrix(   const gsFunctionSet<T> & thickness,
+    gsMaterialMatrixNonlinear(   const gsFunctionSet<T> & thickness,
                         const std::vector<gsFunctionSet<T> *> &pars,
                         const gsFunctionSet<T> & Density);
 
@@ -101,7 +101,7 @@ public:
      * @param[in]  pars       Vector with parameters (E, nu)
      * @param[in]  Density    Density function
      */
-    gsMaterialMatrix(   const gsFunctionSet<T> & mp,
+    gsMaterialMatrixNonlinear(   const gsFunctionSet<T> & mp,
                         const gsFunctionSet<T> & thickness,
                         const std::vector<gsFunctionSet<T> *> &pars,
                         const gsFunctionSet<T> & Density);
@@ -115,20 +115,20 @@ protected:
      * @param[in]  pars       Vector with parameters (E, nu)
      * @param[in]  Density    Density function
      */
-    gsMaterialMatrix(   const gsFunctionSet<T> * mp,
+    gsMaterialMatrixNonlinear(   const gsFunctionSet<T> * mp,
                         const gsFunctionSet<T> * thickness,
                         const std::vector<gsFunctionSet<T> *> &pars,
                         const gsFunctionSet<T> * Density);
 
 public:
     /// Destructor
-    gsMaterialMatrix() { }
+    gsMaterialMatrixNonlinear() { }
 
     /// See \ref gsMaterialMatrixBase for details
-    inline enum MatIntegration isMatIntegrated() const {return MatIntegration::NotIntegrated; }
+    inline enum MatIntegration isMatIntegrated() const override {return MatIntegration::NotIntegrated; }
 
     /// See \ref gsMaterialMatrixBase for details
-    inline enum MatIntegration isVecIntegrated() const {return MatIntegration::NotIntegrated; }
+    inline enum MatIntegration isVecIntegrated() const override {return MatIntegration::NotIntegrated; }
 
     /// See \ref gsMaterialMatrixBase for details
     void defaultOptions() override;
@@ -155,13 +155,13 @@ public:
     gsMatrix<T> eval3D_vector_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> eval3D_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_pstressDir(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const;
+    gsMatrix<T> eval3D_pstressDir(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_CauchyPStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
@@ -179,42 +179,42 @@ public:
     gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
 
     /// Sets the YoungsModulus
-    void setYoungsModulus(const gsFunctionSet<T> & YoungsModulus);
+    void setYoungsModulus(const gsFunctionSet<T> & YoungsModulus) override;
 
     /// Gets the YoungsModulus
-    const function_ptr getYoungsModulus() const ;
+    const function_ptr getYoungsModulus() const override;
 
     /// Sets the Poisson's Ratio
-    void setPoissonsRatio(const gsFunctionSet<T> & PoissonsRatio);
+    void setPoissonsRatio(const gsFunctionSet<T> & PoissonsRatio) override;
     /// Gets the Poisson's Ratio
-    const function_ptr getPoissonsRatio() const ;
+    const function_ptr getPoissonsRatio() const override;
 
     /// Sets the Ratio for the MR material
-    void setRatio(const gsFunctionSet<T> & Ratio) { _setRatio_impl<mat>(Ratio);}
+    void setRatio(const gsFunctionSet<T> & Ratio) override { _setRatio_impl<mat>(Ratio);}
     /// Gets the Ratio for the MR material
-    const function_ptr getRatio() const { return _getRatio_impl<mat>(); }
+    const function_ptr getRatio() const override { return _getRatio_impl<mat>(); }
 
     /// Sets Mu_i
-    void setMu(const index_t & i, const gsFunctionSet<T> & Mu_i) { _setMu_impl<mat>(i,Mu_i); }
+    void setMu(const index_t & i, const gsFunctionSet<T> & Mu_i) override { _setMu_impl<mat>(i,Mu_i); }
 
     /// Gets Mu_i
-    const function_ptr getMu(const index_t & i) const {return _getMu_impl<mat>(i);}
+    const function_ptr getMu(const index_t & i) const override {return _getMu_impl<mat>(i);}
 
     /// Sets Alpha_i
-    void setAlpha(const index_t & i, const gsFunctionSet<T> & Alpha_i) { _setAlpha_impl<mat>(i,Alpha_i); }
+    void setAlpha(const index_t & i, const gsFunctionSet<T> & Alpha_i) override { _setAlpha_impl<mat>(i,Alpha_i); }
 
     /// Gets Alpha_i
-    const function_ptr getAlpha(const index_t & i) const {return _getAlpha_impl<mat>(i);}
+    const function_ptr getAlpha(const index_t & i) const override {return _getAlpha_impl<mat>(i);}
 
     /// See \ref gsMaterialMatrixBase for details
     std::ostream &print(std::ostream &os) const override;
 
 public:
-    /// Shared pointer for gsMaterialMatrix
-    typedef memory::shared_ptr< gsMaterialMatrix > Ptr;
+    /// Shared pointer for gsMaterialMatrixNonlinear
+    typedef memory::shared_ptr< gsMaterialMatrixNonlinear > Ptr;
 
-    /// Unique pointer for gsMaterialMatrix
-    typedef memory::unique_ptr< gsMaterialMatrix > uPtr;
+    /// Unique pointer for gsMaterialMatrixNonlinear
+    typedef memory::unique_ptr< gsMaterialMatrixNonlinear > uPtr;
 
 protected:
     /**
@@ -1224,7 +1224,7 @@ private:
 #ifdef GISMO_WITH_PYBIND11
 
   /**
-   * @brief Initializes the Python wrapper for the class: gsMaterialMatrix
+   * @brief Initializes the Python wrapper for the class: gsMaterialMatrixNonlinear
    */
   void pybind11_init_gsMaterialMatrixNH2i(pybind11::module &m);
   void pybind11_init_gsMaterialMatrixNH2c(pybind11::module &m);

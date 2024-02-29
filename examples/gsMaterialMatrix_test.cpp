@@ -94,7 +94,6 @@ int main (int argc, char** argv)
     gsMatrix<> result;
 
     gsExprAssembler<> A(1,1);
-    typedef gsExprAssembler<>::geometryMap geometryMap;
     typedef gsExprAssembler<>::variable    variable;
 
     gsExprEvaluator<> ev(A);

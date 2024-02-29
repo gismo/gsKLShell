@@ -38,7 +38,6 @@ int main(int argc, char *argv[])
     index_t numRefineIni = 0;
     index_t numElevate = 1;
     bool last = false;
-    bool adaptive = false;
     std::string fn;
 
     real_t E_modulus = 1e6;
@@ -66,8 +65,6 @@ int main(int argc, char *argv[])
     cmd.addInt("r", "refine", "Maximum number of adaptive refinement steps to perform",
                numRefine);
     cmd.addInt("t", "testcase", "Test case: 0: bi-directional, 1: uni-directional", testCase);
-
-    cmd.addInt("A", "adaptivity", "Adaptivity scheme: 0) uniform refinement, 1) adaptive refinement, 2) adaptive refinement and coarsening", adaptivity);
 
     cmd.addReal("L","load", "Load", Load);
 
@@ -213,7 +210,7 @@ int main(int argc, char *argv[])
         real_t b = bbox(1,1)-bbox(1,0);
         real_t r = b/a; // ratio of the plate CHECK
         real_t pi = 3.141592653589793238462;
-        GISMO_ASSERT(r==1,"Only for ratio==1");
+        GISMO_ENSURE(r==1,"Only for ratio==1");
         for (index_t m=1; m!=10; m++)
         {
             for (index_t n=1; n!=10; n++)
@@ -261,7 +258,7 @@ int main(int argc, char *argv[])
         real_t b = bbox(1,1)-bbox(1,0);
         real_t r = b/a; // ratio of the plate CHECK
         real_t pi = 3.141592653589793238462;
-        GISMO_ASSERT(r==1,"Only for ratio==1");
+        GISMO_ENSURE(r==1,"Only for ratio==1");
         for (index_t m=1; m!=10; m++)
         {
             for (index_t n=1; n!=10; n++)

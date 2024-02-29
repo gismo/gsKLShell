@@ -1,4 +1,4 @@
-/** @file gsMaterialMatrixNonlinear.hpp
+/** @file gsMaterialMatrixBase.hpp
 
     @brief Provides hyperelastic material matrices
 
@@ -57,71 +57,71 @@ namespace gismo
 //         return mm->print(os);
 
 //     // CompressibleNH2
-//     if ( const gsMaterialMatrix<2,T,11,true> * mm =
-//          dynamic_cast<const gsMaterialMatrix<2,T,11,true> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<2,T,11,true> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<2,T,11,true> *>( this ) )
 //         return mm->print(os);
 //     // CompressibleNH3
-//     if ( const gsMaterialMatrix<3,T,11,true> * mm =
-//          dynamic_cast<const gsMaterialMatrix<3,T,11,true> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<3,T,11,true> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<3,T,11,true> *>( this ) )
 //         return mm->print(os);
 //     // IncompressibleNH2
-//     if ( const gsMaterialMatrix<2,T,11,false> * mm =
-//          dynamic_cast<const gsMaterialMatrix<2,T,11,false> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<2,T,11,false> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<2,T,11,false> *>( this ) )
 //         return mm->print(os);
 //     // IncompressibleNH3
-//     if ( const gsMaterialMatrix<3,T,11,false> * mm =
-//          dynamic_cast<const gsMaterialMatrix<3,T,11,false> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<3,T,11,false> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<3,T,11,false> *>( this ) )
 //         return mm->print(os);
 
 //     // CompressibleNHe2
-//     if ( const gsMaterialMatrix<2,T,12,true> * mm =
-//          dynamic_cast<const gsMaterialMatrix<2,T,12,true> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<2,T,12,true> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<2,T,12,true> *>( this ) )
 //         return mm->print(os);
 //     // CompressibleNHe3
-//     if ( const gsMaterialMatrix<3,T,12,true> * mm =
-//          dynamic_cast<const gsMaterialMatrix<3,T,12,true> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<3,T,12,true> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<3,T,12,true> *>( this ) )
 //         return mm->print(os);
 //     // IncompressibleNHe2
-//     if ( const gsMaterialMatrix<2,T,12,false> * mm =
-//          dynamic_cast<const gsMaterialMatrix<2,T,12,false> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<2,T,12,false> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<2,T,12,false> *>( this ) )
 //         return mm->print(os);
 //     // IncompressibleNHe3
-//     if ( const gsMaterialMatrix<3,T,12,false> * mm =
-//          dynamic_cast<const gsMaterialMatrix<3,T,12,false> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<3,T,12,false> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<3,T,12,false> *>( this ) )
 //         return mm->print(os);
 
 //     // CompressibleMR2
-//     if ( const gsMaterialMatrix<2,T,13,true> * mm =
-//          dynamic_cast<const gsMaterialMatrix<2,T,13,true> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<2,T,13,true> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<2,T,13,true> *>( this ) )
 //         return mm->print(os);
 //     // CompressibleMR3
-//     if ( const gsMaterialMatrix<3,T,13,true> * mm =
-//          dynamic_cast<const gsMaterialMatrix<3,T,13,true> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<3,T,13,true> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<3,T,13,true> *>( this ) )
 //         return mm->print(os);
 //     // IncompressibleMR2
-//     if ( const gsMaterialMatrix<2,T,13,false> * mm =
-//          dynamic_cast<const gsMaterialMatrix<2,T,13,false> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<2,T,13,false> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<2,T,13,false> *>( this ) )
 //         return mm->print(os);
 //     // IncompressibleMR3
-//     if ( const gsMaterialMatrix<3,T,13,false> * mm =
-//          dynamic_cast<const gsMaterialMatrix<3,T,13,false> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<3,T,13,false> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<3,T,13,false> *>( this ) )
 //         return mm->print(os);
 
 //     // CompressibleOG2
-//     if ( const gsMaterialMatrix<2,T,34,true> * mm =
-//          dynamic_cast<const gsMaterialMatrix<2,T,34,true> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<2,T,34,true> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<2,T,34,true> *>( this ) )
 //         return mm->print(os);
 //     // CompressibleOG3
-//     if ( const gsMaterialMatrix<3,T,34,true> * mm =
-//          dynamic_cast<const gsMaterialMatrix<3,T,34,true> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<3,T,34,true> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<3,T,34,true> *>( this ) )
 //         return mm->print(os);
 //     // IncompressibleOG2
-//     if ( const gsMaterialMatrix<2,T,34,false> * mm =
-//          dynamic_cast<const gsMaterialMatrix<2,T,34,false> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<2,T,34,false> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<2,T,34,false> *>( this ) )
 //         return mm->print(os);
 //     // IncompressibleOG3
-//     if ( const gsMaterialMatrix<3,T,34,false> * mm =
-//          dynamic_cast<const gsMaterialMatrix<3,T,34,false> *>( this ) )
+//     if ( const gsMaterialMatrixNonlinear<3,T,34,false> * mm =
+//          dynamic_cast<const gsMaterialMatrixNonlinear<3,T,34,false> *>( this ) )
 //         return mm->print(os);
 
 //     os<<"gsMaterialMatrixBase (type not understood).\n";
@@ -228,40 +228,40 @@ public:
             return gsXml< gsMaterialMatrixLinear<3,T> >::get(node);
 
         if ( s == "CompressibleNH2"    )
-            return gsXml< gsMaterialMatrix<2,T,11,true> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<2,T,11,true> >::get(node);
         if ( s == "CompressibleNH3"    )
-            return gsXml< gsMaterialMatrix<3,T,11,true> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<3,T,11,true> >::get(node);
         if ( s == "IncompressibleNH2"  )
-            return gsXml< gsMaterialMatrix<2,T,11,false> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<2,T,11,false> >::get(node);
         if ( s == "IncompressibleNH3"  )
-            return gsXml< gsMaterialMatrix<3,T,11,false> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<3,T,11,false> >::get(node);
 
         if ( s == "CompressibleNHe2"    )
-            return gsXml< gsMaterialMatrix<2,T,12,true> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<2,T,12,true> >::get(node);
         if ( s == "CompressibleNHe3"    )
-            return gsXml< gsMaterialMatrix<3,T,12,true> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<3,T,12,true> >::get(node);
         if ( s == "IncompressibleNHe2"  )
-            return gsXml< gsMaterialMatrix<2,T,12,false> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<2,T,12,false> >::get(node);
         if ( s == "IncompressibleNHe3"  )
-            return gsXml< gsMaterialMatrix<3,T,12,false> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<3,T,12,false> >::get(node);
 
         if ( s == "CompressibleMR2"    )
-            return gsXml< gsMaterialMatrix<2,T,13,true> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<2,T,13,true> >::get(node);
         if ( s == "CompressibleMR3"    )
-            return gsXml< gsMaterialMatrix<3,T,13,true> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<3,T,13,true> >::get(node);
         if ( s == "IncompressibleMR2"  )
-            return gsXml< gsMaterialMatrix<2,T,13,false> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<2,T,13,false> >::get(node);
         if ( s == "IncompressibleMR3"  )
-            return gsXml< gsMaterialMatrix<3,T,13,false> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<3,T,13,false> >::get(node);
 
         if ( s == "CompressibleOG2"    )
-            return gsXml< gsMaterialMatrix<2,T,34,true> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<2,T,34,true> >::get(node);
         if ( s == "CompressibleOG3"    )
-            return gsXml< gsMaterialMatrix<3,T,34,true> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<3,T,34,true> >::get(node);
         if ( s == "IncompressibleOG2"  )
-            return gsXml< gsMaterialMatrix<2,T,34,false> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<2,T,34,false> >::get(node);
         if ( s == "IncompressibleOG3"  )
-            return gsXml< gsMaterialMatrix<3,T,34,false> >::get(node);
+            return gsXml< gsMaterialMatrixNonlinear<3,T,34,false> >::get(node);
 
         gsWarn<<"gsMaterialMatrixBase: get<MaterialMatrixBase<T>>: No known MaterialMatrix \""<<s<<"\". Error.\n";
         return NULL;
@@ -299,72 +299,72 @@ public:
             return gsXml< gsMaterialMatrixLinear<3,T> >::put(*mm,data);
 
         // CompressibleNH2
-        if ( const gsMaterialMatrix<2,T,11,true> * mm =
-             dynamic_cast<const gsMaterialMatrix<2,T,11,true> *>( obj ) )
-            return gsXml< gsMaterialMatrix<2,T,11,true> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<2,T,11,true> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<2,T,11,true> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<2,T,11,true> >::put(*mm,data);
         // CompressibleNH3
-        if ( const gsMaterialMatrix<3,T,11,true> * mm =
-             dynamic_cast<const gsMaterialMatrix<3,T,11,true> *>( obj ) )
-            return gsXml< gsMaterialMatrix<3,T,11,true> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<3,T,11,true> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<3,T,11,true> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<3,T,11,true> >::put(*mm,data);
         // IncompressibleNH2
-        if ( const gsMaterialMatrix<2,T,11,false> * mm =
-             dynamic_cast<const gsMaterialMatrix<2,T,11,false> *>( obj ) )
-            return gsXml< gsMaterialMatrix<2,T,11,false> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<2,T,11,false> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<2,T,11,false> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<2,T,11,false> >::put(*mm,data);
         // IncompressibleNH3
-        if ( const gsMaterialMatrix<3,T,11,false> * mm =
-             dynamic_cast<const gsMaterialMatrix<3,T,11,false> *>( obj ) )
-            return gsXml< gsMaterialMatrix<3,T,11,false> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<3,T,11,false> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<3,T,11,false> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<3,T,11,false> >::put(*mm,data);
 
         // CompressibleNHe2
-        if ( const gsMaterialMatrix<2,T,12,true> * mm =
-             dynamic_cast<const gsMaterialMatrix<2,T,12,true> *>( obj ) )
-            return gsXml< gsMaterialMatrix<2,T,12,true> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<2,T,12,true> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<2,T,12,true> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<2,T,12,true> >::put(*mm,data);
         // CompressibleNHe3
-        if ( const gsMaterialMatrix<3,T,12,true> * mm =
-             dynamic_cast<const gsMaterialMatrix<3,T,12,true> *>( obj ) )
-            return gsXml< gsMaterialMatrix<3,T,12,true> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<3,T,12,true> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<3,T,12,true> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<3,T,12,true> >::put(*mm,data);
         // IncompressibleNHe2
-        if ( const gsMaterialMatrix<2,T,12,false> * mm =
-             dynamic_cast<const gsMaterialMatrix<2,T,12,false> *>( obj ) )
-            return gsXml< gsMaterialMatrix<2,T,12,false> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<2,T,12,false> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<2,T,12,false> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<2,T,12,false> >::put(*mm,data);
         // IncompressibleNHe3
-        if ( const gsMaterialMatrix<3,T,12,false> * mm =
-             dynamic_cast<const gsMaterialMatrix<3,T,12,false> *>( obj ) )
-            return gsXml< gsMaterialMatrix<3,T,12,false> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<3,T,12,false> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<3,T,12,false> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<3,T,12,false> >::put(*mm,data);
 
         // CompressibleMR2
-        if ( const gsMaterialMatrix<2,T,13,true> * mm =
-             dynamic_cast<const gsMaterialMatrix<2,T,13,true> *>( obj ) )
-            return gsXml< gsMaterialMatrix<2,T,13,true> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<2,T,13,true> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<2,T,13,true> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<2,T,13,true> >::put(*mm,data);
         // CompressibleMR3
-        if ( const gsMaterialMatrix<3,T,13,true> * mm =
-             dynamic_cast<const gsMaterialMatrix<3,T,13,true> *>( obj ) )
-            return gsXml< gsMaterialMatrix<3,T,13,true> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<3,T,13,true> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<3,T,13,true> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<3,T,13,true> >::put(*mm,data);
         // IncompressibleMR2
-        if ( const gsMaterialMatrix<2,T,13,false> * mm =
-             dynamic_cast<const gsMaterialMatrix<2,T,13,false> *>( obj ) )
-            return gsXml< gsMaterialMatrix<2,T,13,false> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<2,T,13,false> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<2,T,13,false> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<2,T,13,false> >::put(*mm,data);
         // IncompressibleMR3
-        if ( const gsMaterialMatrix<3,T,13,false> * mm =
-             dynamic_cast<const gsMaterialMatrix<3,T,13,false> *>( obj ) )
-            return gsXml< gsMaterialMatrix<3,T,13,false> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<3,T,13,false> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<3,T,13,false> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<3,T,13,false> >::put(*mm,data);
 
         // CompressibleOG2
-        if ( const gsMaterialMatrix<2,T,34,true> * mm =
-             dynamic_cast<const gsMaterialMatrix<2,T,34,true> *>( obj ) )
-            return gsXml< gsMaterialMatrix<2,T,34,true> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<2,T,34,true> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<2,T,34,true> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<2,T,34,true> >::put(*mm,data);
         // CompressibleOG3
-        if ( const gsMaterialMatrix<3,T,34,true> * mm =
-             dynamic_cast<const gsMaterialMatrix<3,T,34,true> *>( obj ) )
-            return gsXml< gsMaterialMatrix<3,T,34,true> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<3,T,34,true> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<3,T,34,true> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<3,T,34,true> >::put(*mm,data);
         // IncompressibleOG2
-        if ( const gsMaterialMatrix<2,T,34,false> * mm =
-             dynamic_cast<const gsMaterialMatrix<2,T,34,false> *>( obj ) )
-            return gsXml< gsMaterialMatrix<2,T,34,false> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<2,T,34,false> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<2,T,34,false> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<2,T,34,false> >::put(*mm,data);
         // IncompressibleOG3
-        if ( const gsMaterialMatrix<3,T,34,false> * mm =
-             dynamic_cast<const gsMaterialMatrix<3,T,34,false> *>( obj ) )
-            return gsXml< gsMaterialMatrix<3,T,34,false> >::put(*mm,data);
+        if ( const gsMaterialMatrixNonlinear<3,T,34,false> * mm =
+             dynamic_cast<const gsMaterialMatrixNonlinear<3,T,34,false> *>( obj ) )
+            return gsXml< gsMaterialMatrixNonlinear<3,T,34,false> >::put(*mm,data);
 
         gsWarn<<"gsMaterialMatrixBase: put<MaterialMatrixBase<T>>: No known MaterialMatrix "<< obj <<"Error.\n";
         return NULL;

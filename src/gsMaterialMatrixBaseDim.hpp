@@ -682,7 +682,7 @@ gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getGcov_def(index_t k, T z) const
 template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getGcon_def(index_t k, T z) const
 {
-    gsMatrix<T> Gcov_def = _getGcon_def(k,z);
+    gsMatrix<T> Gcov_def = _getGcov_def(k,z);
     return Gcov_def.inverse();
 }
 
