@@ -1,0 +1,89 @@
+namespace gismo {
+/**
+
+\page linear_shell Tutorial: Linear Kirchhoff-Love shell analysis
+
+This example solves a linear shell problem using the \ref gsThinShellAssembler. The goals of the tutorial are the following:
+- Construct a \ref gsMaterialMatrixBase object, given material parameters
+- Construct a \ref gsThinShellAssembler object, given boundary conditions
+- Solve a linear problem and export the solutions
+
+\subsection linear_shell_Preliminaries Preliminaries
+Like every example in G+Smo, we start our file with some includes. In this case, we include the \c gsThinShellAssembler.h file containing the assembler for the Kirchhoff-Love shell, and the \c getMaterialMatrix.h used for getting the material matrix.
+
+\snippet linear_shell.cpp Includes
+
+The command line options for this file are relatively easy. One can control the number of mesh refinements and degree elevations, and specify a plot flag if needed.
+
+\snippet linear_shell.cpp Parse command line
+
+\subsection linear_shell_Geometry Geometry and basis
+The problem at hand will be the Scordelis-Lo Roof problem from the shell obstactle course, see <a href="https://doi.org/10.1016/j.cma.2009.08.013">this paper</a>. The geometry is stored in a file, hence it is read into the original geometry \a ori via \ref gsReadFile.
+
+\snippet linear_shell.cpp Read geometry
+
+For the analysis, we will use the geometry defined in the basis that we want for analysis. This is not essential, but it makes it easier to construct the geometry later using the \ref gsThinShellAssembler class
+
+\snippet linear_shell.cpp Initialize geometry
+
+The basis is simply obtained using \ref gsMultiBasis
+
+\snippet linear_shell.cpp Construct basis
+
+\subsection linear_shell_BCs Boundary conditions and loads
+The boundary conditions of the problem are assigned via \ref gsBoundaryConditions. On the east and west boundary of the geometry, the \f$y\f$ and \f$z\f$ displacements are fixed, and to make the problem well-defined, the south-west corner is fixed in \f$x\f$. The boundary conditions are defined by first specifying the side (\ref boxSide), then the type of condition (\ref condition_type), then the function (\c nullptr here), the unknown (always 0, since displacements are the only unknown field), whether the condition is applied in the parametric domain (always \c false) and finally the component of the solution field (-1 for all, 0 for \f$x\f$, 1 for \f$y\f$ and 2 for \f$z\f$):
+
+\snippet linear_shell.cpp Set boundary conditions
+
+The surface load on the shell is provided by a \ref gsFunctionSet, which in this case is a derived \ref gsFunctionExpr.
+
+\snippet linear_shell.cpp Set surface force
+
+\subsection linear_shell_Material Material definition
+The material law used in \ref gsThinShellAssembler is specified using a separate class, derived from \ref gsMaterialMatrixBase. The family of this class includes several material models, and can be evaluated in every point (including a thickness coordinate) using \ref gsMaterialMatrixEval or it can be integrated using \ref gsMaterialMatrixIntegrate. Depending on the options specified to the latter classes, different constitutive quantities can be obtaied, including the normal force and bending moment.
+
+To define a meterial matrix, we can use the \ref getMaterialMatrix function. This functions needs the undeformed geometry, the thickness, a set of parameters and some options:
+
+\snippet linear_shell.cpp Define the material matrix class
+
+In case of \c "Material" 0, a \ref gsMaterialMatrixLinear is provided, which only takes the Young's Modulus (\f$E\f$) and the Poisson's ratio (\f$\nu\f$). For the linear material matrix, thickness integration is simply done by multiplying with the thickness moments. For hyperelastic material models (see \ref gsMaterialMatrixNonlinear), more parameters can be required, and through-thickness integration is done numerically. We refer to the page \ref klShell_Materialmatrix for more details on material matrices.
+
+\subsection linear_shell_Assembler Assembling and solving the linear problem
+When the geometry, the basis, the boundary conditions and forces and the material are specified, the \ref gsThinShellAssembler is simply constructed as follows:
+
+\snippet linear_shell.cpp Define the assembler
+
+Here, the first template parameter is the physical dimension, the second is the real type and the third is a boolean specifying whether bending stiffness contributions should be assembled.
+
+Assemlbly of the linear stiffness matrix and external load vector is simply performed by calling
+
+\snippet linear_shell.cpp Assemble linear part
+
+Having the stiffness matrix and force vector assembled, the linear shell problem can be solved accordingly. This is done with a simple \ref gsSparseSolver:
+
+\snippet linear_shell.cpp Solve linear problem
+
+\subsection linear_shell_Export Exporting the solution
+Solving the linear problem gives the displacements of the control points of the geometry. To construct the displacement field, these control points form a solution field using the same basis as used for analysis. To construct the deformed geometry, their values need to be added to the control points of the original geometry. For ease of use, these functions are available in the \ref gsThinShellAssembler:
+
+\snippet linear_shell.cpp Construct solution and deformed geometry
+
+Using the displacement field and the deformed geometry, one can make some evaluations like with any other \ref gsFunction, \ref gsGeometry or \ref gsMultiPatch, for example to print the displacements in a point:
+
+\snippet linear_shell.cpp Evaluate solution
+
+In addition, the solutions can be exported to Paraview using \ref gsField:
+
+\snippet linear_shell.cpp Export visualization in ParaView
+
+
+\section linear_shell_Annotated Annotated source file
+
+Here is the full file \c linear_shell.cpp. Clicking on a function
+or class name will lead you to its reference documentation.
+
+\include linear_shell.cpp
+
+*/
+
+}

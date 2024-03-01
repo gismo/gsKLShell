@@ -1,0 +1,66 @@
+namespace gismo {
+/**
+
+\page nonlinear_shell Tutorial: Non-Linear Kirchhoff-Love shell analysis
+
+This example solves a non-linear shell problem using the \ref gsThinShellAssembler. The goals of the tutorial are the following:
+- Solve a geometrically non-linear problem and export the solutions
+
+For detailed information about the construction of \ref gsThinShellAssembler and \ref gsMaterialMatrixBase, please consult the tutorial \ref linear_shell.
+
+\subsection nonlinear_shell_Geometry Geometry and basis
+For the non-linear problem, we consider the paraboloid geometry, stored in the file below. Like for the \ref linear_shell, the geometry is loaded using \ref gsReadFile.
+
+\snippet nonlinear_shell.cpp Read geometry
+
+The geometry and basis refinement are the same as for \ref linear_shell.
+
+\subsection nonlinear_shell_BCs Boundary conditions and loads
+For this problem, we fix all four corners of the paraboloid, hence the boundary conditions are defined as:
+
+\snippet nonlinear_shell.cpp Set boundary conditions
+
+In addition, a point load is applied using the \ref gsPointLoads class. This point load is defined using a parametric point, and a load in the physical space:
+
+\snippet nonlinear_shell.cpp Loads
+
+\subsection nonlinear_shell_Assembler Configuration of the assembler
+The configuration of the material matrix and the shell assembler is the same as in \ref linear_shell. The only differences are that we now use a Neo-Hookean material (by passing another value to \c "Material"):
+
+\snippet nonlinear_shell.cpp Define the material matrix class
+
+And that the point loads need to be registered in the assembler, i.e.
+
+\snippet nonlinear_shell.cpp Define the assembler
+
+\subsection nonlinear_shell_Jacobian Jacobian and Residual
+For the non-linear problem, we need the tangential stiffness matrix (i.e. the Jacobian) and the residual vector. Both operators depend on the deformed configuration, through the solution vector. A convenient way of defining these operators is through an \c std::function, as is also done in the \ref gsStructuralAnalysis module:
+
+\snippet nonlinear_shell.cpp Define nonlinear residual functions
+
+Inside the functions, it can be seen that the assembler first constructs a multi-patch object of the deformed configuration, based on the solution vector, and then it assembles the Jacobian and the residual vector by passing the deformation. The resulting operators are given as arguments, and the functions return \c true if the assembly is succesful.
+
+In principle, the \ref gsThinShellAssembler always takes the geometric non-linearity into account when assembled with a deformed object as input. The same holds for the material non-linearity, since they are evaluated on the current deformation.
+
+\subsection nonlinear_shell_Solve Solving the problem
+To initialize the non-linear solve, a linear solve is performed first:
+
+\snippet nonlinear_shell.cpp Solve linear problem
+
+Afterwards, Newton-Raphson iterations are performed. The functions \c Residual and \c Jacobian are called inside \ref GISMO_ENSURE macros, guarding succesful assembly. The iterative update is performed on the solution vector, which is converted inside the \c Jacobian and \c Residual to a multi-patch.
+
+\snippet nonlinear_shell.cpp Solve nonlinear problem
+
+\subsection nonlinear_shell_Export Exporting the solution
+Finally, exporting of the solution is similar to \ref linear_shell.
+
+\section nonlinear_shell_Annotated Annotated source file
+
+Here is the full file \c nonlinear_shell.cpp. Clicking on a function
+or class name will lead you to its reference documentation.
+
+\include nonlinear_shell.cpp
+
+*/
+
+}

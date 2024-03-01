@@ -4,9 +4,9 @@ namespace gismo
 /** \defgroup KLShell Kirchhoff-Love shell module
 \ingroup Modules
 
-This module is about solving elasticity problems on thin shells using the Kirchhoff-Love shell formulations. References for this implementation include the original work by Kiendl et. al. (2009) [1], the PhD thesis of Josef Kiendl (2011) [2], the PhD thesis of Anmol Goyal (2015) [3], the MSc thesis of Hugo Verhelst (2019) [4]. Anmol contributed to the first Kirchhoff-Love implementation of G+Smo and Hugo to the current one.
+This module is about solving elasticity problems on thin shells using the Kirchhoff-Love shell formulations. References for this implementation include the original work by Kiendl et. al. (2009) [I], the PhD thesis of Josef Kiendl (2011) [II], the PhD thesis of Anmol Goyal (2015) [III], the MSc thesis of Hugo Verhelst (2019) [IV]. Anmol contributed to the first Kirchhoff-Love implementation of G+Smo and Hugo to the current one.
 
-\section equations Governing Equations
+\subsection klShell_Equations Governing Equations
 
 The variational formulation for the Kirchhoff-Love shell is:
 \f{eqnarray*}{
@@ -25,7 +25,7 @@ In this equation, the primed (\f$\cdot^\prime\f$) expressions again denote the f
 
 From the above equations, a system of equations can be assembled, which will later be done by the \ref gsExprAssembler . In case of a lineararized system, only the single-primed expressions are non-zero, together with the term containing the external load.
 
-The expressions for the strains, normal foce and bending moment are as follows (see sec. 3.2 and 3.3 of [3]):
+The expressions for the strains, normal foce and bending moment are as follows (see sec. 3.2 and 3.3 of [III]):
 \f{align*}{
     \varepsilon_{\alpha\beta} &= \frac{\partial\mathbf{c}}{\partial\theta_\alpha}\cdot\frac{\partial\mathbf{c}}{\partial\theta_\beta} - \frac{\partial\mathbf{C}}{\partial\theta_\alpha}\cdot\frac{\partial\mathbf{C}}{\partial\theta_\beta}\\
     \varepsilon^\prime_{\alpha\beta} &= \frac{1}{2}\frac{\partial\mathbf{v}}{\partial\theta_\alpha}\cdot\frac{\partial\mathbf{c}}{\partial\theta_\beta} + \frac{1}{2}\frac{\partial\mathbf{c}}{\partial\theta_\alpha}\cdot\frac{\partial\mathbf{v}}{\partial\theta_\beta} \\
@@ -44,20 +44,20 @@ The expressions for the strains, normal foce and bending moment are as follows (
     m_{\alpha\beta}^\prime &= \mathcal{C}^{\alpha\beta\gamma\delta} \kappa_{\alpha\beta}^{\prime}
 \f}
 
-Here, \f$ t\f$ is the thickness of the shell and \f$ \mathcal{C}^{\alpha\beta\gamma\delta}\f$ is the material tensor (see [3] eq. 3.15).
+Here, \f$ t\f$ is the thickness of the shell and \f$ \mathcal{C}^{\alpha\beta\gamma\delta}\f$ is the material tensor (see [III] eq. 3.15).
 
-\section Implementation Implementation
+\subsection klShell_Implementation Implementation
 The Kirchhoff-Love shell is implemented in the gsThinShellAssembler class and the constitutive relations are included in separate classes based on gsMaterialMatrixBase.
 
-\subsection assembler The gsThinShellAssembler
-The gsThinShellAssembler is a class that implements the \subpage kirchhoff-Love_example and adds advanced functionalities. That is, the class uses the gsExprAssembler to assemble matrices and vectors for shell modelling. Key features of the class are:
+\subsection klShell_Assembler The gsThinShellAssembler
+The gsThinShellAssembler is a class that implements the \ref kirchhoff-Love_example and adds advanced functionalities. That is, the class uses the gsExprAssembler to assemble matrices and vectors for shell modelling. Key features of the class are:
 - Geometric nonlinearities, loading nonlinearities and material nonlinearities (via the gsMaterialMatrixBase),
 - Distributed loads, point loads and follower loads (nonlinear)
 - Multipatch modelling by accepting the gsMappedBasis and gsMappedSpline
 
 The expressions for the assembly of the system of equations are partially coming from gsExpressions (e.g. the jac_expr, the grad_expr) and shell-specific expressions are implemented in the \ref gsThinShellUtils.h. Furthermore, \ref gsThinShellFunctions.h contains a helper-class for plotting the stress field within the shell.
 
-\subsection assembler The gsMaterialMatrixBase
+\subsection klShell_Materialmatrix The gsMaterialMatrixBase
 The material relations are handled in separate classes, derived from gsMaterialMatrixBase. The material matrix generally behaves as a gsFunctionSet with implemented evaluation functions. The quantities that can be computed using material matrices are the thickness, the density, the (membrane/bending) stress, the force/moment through-thickness and principal stretches or stresses. Helper classes are employed to evaluate the stress or material tensor at a point or to find the integral over the thickness. The constitutive relations currently implemented are:
 - Linear materials (Saint-Venant Kirchhoff) in gsMaterialMatrixLinear
 - Linear laminates in gsMaterialMatrixComposite
@@ -69,17 +69,17 @@ To evaluate (the integral of) any material quantity, the following classes can b
 
 Helper functions for defining material matrices are provided in \ref getMaterialMatrix.h, which constructs a pointer to a material matrix based on a gsOptionsList
 
-\section ExampleUse Use of the classes
+\subsection klShell_ExampleUse Use of the classes
 Typically, the aforementioned classes are used by first defining a gsMaterialMatrix and passing this to a gsThinShellAssembler.
 
 ~~~~~
-/// Define the material matrix options
+// Define the material matrix options
 options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
 options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
-/// Construct a material matrix pointer, for a matrix with geometric dimension DIM and T as a double type
+// Construct a material matrix pointer, for a matrix with geometric dimension DIM and T as a double type
 gsMaterialMatrixBase<T> * materialMatrix = getMaterialMatrix<DIM,T>(mp,t,parameters,rho,options);
 
-/// Construct a gsThinShellAssembler class with geometric dimension DIM, T as double type and the flag BENDING to specify whether bending stiffness should be taken into account. The
+// Construct a gsThinShellAssembler class with geometric dimension DIM, T as double type and the flag BENDING to specify whether bending stiffness should be taken into account. The
 gsThinShellAssemblerBase<real_t>* assembler;
 assembler = new gsThinShellAssembler<DIM,T, BENDING>(
         geom,
@@ -88,7 +88,7 @@ assembler = new gsThinShellAssembler<DIM,T, BENDING>(
         force,
         materialMatrix);
 
-/// Call assembly routines:
+// Call assembly routines:
 assembler->assemble();
     // Stiffness matrix
 gsSparseMatrix<T> K = assember->matrix();
@@ -108,24 +108,49 @@ assembler->assembleVector(deformed_geometry);
 gsVector<T>       R = assember->rhs();
 
 ~~~~~
-\section Examples Examples
+
+\subsection klShell_Tutorials Tutorials
+
+In the folder \c gsKLShell/tutorials, some tutorials are provided, explaining the use of the \ref gsKLShell module. The tutorials can be compiled using the target \c gsKLShell-tutorials. The available tutorials are:
+1. \ref linear_shell
+2. \ref nonlinear_shell
+
+\subsection klShell_Examples Examples
 Few examples are provided in this module
-- \subpage example_shell2D : simple 2D elasticity including nonlinear materials
-- \subpage example_shell3D : 3D shell examples including nonlinear materials
-- \subpage gsMaterialMatrix_test : simple file to demonstrate evaluation of material matrices
+- \ref example_shell2D : simple 2D elasticity including nonlinear materials
+- \ref example_shell3D : 3D shell examples including nonlinear materials
+- \ref gsMaterialMatrix_test : simple file to demonstrate evaluation of material matrices
 
-\section References References
-[1] J. Kiendl, K.-U. Bletzinger, J. Linhard, and R. Wüchner, “Isogeometric shell analysis with Kirchhoff–Love elements,” Comput. Methods Appl. Mech. Eng., vol. 198, no. 49–52, pp. 3902–3914, Nov. 2009.
 
-[2] J. Kiendl, “Isogeometric analysis and shape optimal design of shell structures,” Technische Universität München, 2011.
 
-[3] A. Goyal, “Isogeometric Shell Discretizations for Flexible Multibody Dynamics,” Technische Universität Kaiserslautern, 2015.
+\subsection klShell_References References
+[I] J. Kiendl, K.-U. Bletzinger, J. Linhard, and R. Wüchner, "Isogeometric shell analysis with Kirchhoff–Love elements," Comput. Methods Appl. Mech. Eng., vol. 198, no. 49–52, pp. 3902–3914, Nov. 2009.
 
-[4] H. M. Verhelst, “Modelling Wrinkling Behaviour of Large Floating Thin Offshore Structures: An application of Isogeometric Structural Analysis for Post-Buckling Analyses,” Delft University of Technology, 2019.
+[II] J. Kiendl, "Isogeometric analysis and shape optimal design of shell structures," Technische Universität München, 2011.
 
-[5] A. J. Herrema, E. L. Johnson, D. Proserpio, M. C. H. Wu, J. Kiendl, and M.-C. Hsu, “Penalty coupling of non-matching isogeometric Kirchhoff–Love shell patches with application to composite wind turbine blades,” Comput. Methods Appl. Mech. Eng., vol. 346, pp. 810–840, Apr. 2019.
+[III] A. Goyal, "Isogeometric Shell Discretizations for Flexible Multibody Dynamics," Technische Universität Kaiserslautern, 2015.
 
-\section Contact Contact
+[IV] H. M. Verhelst, "Modelling Wrinkling Behaviour of Large Floating Thin Offshore Structures: An application of Isogeometric Structural Analysis for Post-Buckling Analyses," Delft University of Technology, 2019.
+
+\subsection klShell_Publications Publications
+
+[8] H. M. Verhelst, "Isogeometric Analysis of Wrinkling.", PhD Thesis, TU Delft, 2024
+
+[7] H.M. Verhelst, A. Mantzaflaris, M. Möller, J.H. Den Besten, "Goal-Adaptive Meshing of Isogeometric Kirchhoff-Love Shells", Engineering with Computers, 2024
+
+[6] H.M. Verhelst, J.H. Den Besten, M. Möller, "An adaptive parallel arc-length method", Computers & Structures, 2024
+
+[5] H.M. Verhelst, P. Weinmüller, A. Mantzaflaris, T. Takacs, D. Toshniwal, "A comparison of smooth basis constructions for isogeometric analysis", Computer Methods in Applied Mechanics and Engineering, 2024
+
+[4] A. Farahat, H.M. Verhelst, J. Kiendl, M. Kapl, "Isogeometric analysis for multi-patch structured Kirchhoff–Love shells", Computer Methods in Applied Mechanics and Engineering, 2023
+
+[3] H.M. Verhelst, M. Möller, J.H. Den Besten, A. Mantzaflaris, M.L. Kaminski, "Stretch-based hyperelastic material formulations for isogeometric Kirchhoff–Love shells with application to wrinkling", Computer-Aided Design. 2021 Oct 1;139:103075.
+
+[2] H.M. Verhelst, M. Möller, J.H. Den Besten, F.J. Vermolen, M.L. Kaminski, "Equilibrium Path Analysis Including Bifurcations with an Arc-Length Method Avoiding A Priori Perturbations", Numerical Mathematics and Advanced Applications ENUMATH 2019: European Conference, Egmond aan Zee, The Netherlands, September 30-October 4. Cham: Springer International Publishing, 2020.
+
+[1] H.M. Verhelst, "Modelling Wrinkling Behaviour of Large Floating Thin Offshore Structures: An application of Isogeometric Structural Analysis for Post-Buckling Analyses.", MSc. Thesis, TU Delft, 2019.
+
+\subsection klShell_Contact Contact
 Author: Hugo Verhelst -- h.m.verhelst@tudelft.nl
 
 */
