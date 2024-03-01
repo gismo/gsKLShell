@@ -50,6 +50,9 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
                                         m_forceFun(&surface_force),
                                         m_materialMatrices(materialMatrices)
 {
+    // surface forces defined in the parametric domain (ONLY WORKS FOR 3D)
+    m_parametricForce = (surface_force.domainDim()==2 && d==3);
+
     this->_defaultOptions();
     this->_getOptions();
     this->_initialize();
@@ -74,6 +77,9 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
     GISMO_ASSERT(materialMatrix->initialized(),"Material matrix is incomplete!");
     for (size_t p=0; p!=m_patches.nPatches(); p++)
         m_materialMatrices.set(p,materialMatrix);
+
+    // surface forces defined in the parametric domain (ONLY WORKS FOR 3D)
+    m_parametricForce = (surface_force.domainDim()==2 && d==3);
 
     this->_defaultOptions();
     this->_getOptions();
@@ -1442,6 +1448,8 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMass(const
         else
             m_assembler.assemble(mm0.val()*(m_space.rowSum())*meas(m_ori));
 
+        m_mass = m_assembler.matrix();
+
 /*        // assemble system
         if (!lumped)
         {
@@ -1545,8 +1553,8 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
 
     space       m_space = m_assembler.trialSpace(0);
 
-    auto m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
-
+    auto m_physforce = m_assembler.getCoeff(*m_forceFun,m_ori); // force defined in physical domain
+    auto m_parforce  = m_assembler.getCoeff(*m_forceFun); // force defined in parametric domain
 
     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) );
     auto m_Ef_der   = -( deriv2(m_space,sn(m_def).normalized().tr() ) + deriv2(m_def,var1(m_space,m_def) ) ) * reshape(m_m2,3,3);
@@ -1573,9 +1581,12 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
                 +
                 m_M_der * m_Ef_der.tr()
             ) * meas(m_ori)
-            ,
-            m_space * m_force * meas(m_ori)
             );
+
+        if (m_parametricForce)  // Assemble the force defined in the parameter domain
+            m_assembler.assemble(m_space * m_parforce  * meas(m_ori));
+        else                    // Assemble the force defined in the physical domain
+            m_assembler.assemble(m_space * m_physforce * meas(m_ori));
 
         this->_assembleWeakBCs<true>();
         this->_assembleWeakBCs<false>();
@@ -1622,7 +1633,8 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     auto mmA = m_assembler.getCoeff(m_mmA);
 
     space       m_space = m_assembler.trialSpace(0);
-    auto m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
+    auto m_physforce = m_assembler.getCoeff(*m_forceFun,m_ori); // force defined in physical domain
+    auto m_parforce  = m_assembler.getCoeff(*m_forceFun); // force defined in parametric domain
 
     auto jacG       = jac(m_def);
     auto m_Em_der   = flat( jacG.tr() * jac(m_space) ) ; //[checked]
@@ -1645,9 +1657,12 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
             (
                 m_N_der * m_Em_der.tr()
             ) * meas(m_ori)
-            ,
-            m_space * m_force * meas(m_ori)
             );
+
+        if (m_parametricForce)  // Assemble the force defined in the parameter domain
+            m_assembler.assemble(m_space * m_parforce  * meas(m_ori));
+        else                    // Assemble the force defined in the physical domain
+            m_assembler.assemble(m_space * m_physforce * meas(m_ori));
 
         this->_assembleWeakBCs<true>();
         this->_assembleWeakBCs<false>();
@@ -1983,7 +1998,8 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     auto m_m2 = m_assembler.getCoeff(mult2t);
 
     space m_space       = m_assembler.trialSpace(0);
-    auto m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
+    auto m_physforce = m_assembler.getCoeff(*m_forceFun,m_ori); // force defined in physical domain
+    auto m_parforce  = m_assembler.getCoeff(*m_forceFun); // force defined in parametric domain
 
 
     if (homogenize) this->homogenizeDirichlet();
@@ -2000,10 +2016,19 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
         if (m_foundInd) this->_assembleFoundation<false>(*m_foundFun,deformed);
         if (m_pressInd) this->_assemblePressure<false>(*m_pressFun,deformed);
 
-            // Assemble vector
-        m_assembler.assemble(m_space * m_force * meas(m_ori) -
-                                ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
-                            );
+        // Assemble vector
+        ////// External force
+        if (m_parametricForce)  // Assemble the force defined in the parameter domain
+            m_assembler.assemble(m_space * m_parforce  * meas(m_ori));
+        else                    // Assemble the force defined in the physical domain
+            m_assembler.assemble(m_space * m_physforce * meas(m_ori));
+
+        ////// Internal force
+        m_assembler.assemble(
+            (
+                 - ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
+            )
+            );
 
         this->_assembleWeakBCs<false>(deformed);
         this->_assembleWeakIfc<false>(deformed);
@@ -2045,7 +2070,8 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     auto S0  = m_assembler.getCoeff(m_S0);
 
     space m_space       = m_assembler.trialSpace(0);
-    auto m_force = m_assembler.getCoeff(*m_forceFun, m_ori);
+    auto m_physforce = m_assembler.getCoeff(*m_forceFun,m_ori); // force defined in physical domain
+    auto m_parforce  = m_assembler.getCoeff(*m_forceFun); // force defined in parametric domain
 
     if (homogenize) this->homogenizeDirichlet();
     else            this->_assembleDirichlet();
@@ -2059,9 +2085,18 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
         if (m_pressInd) this->_assemblePressure<false>(*m_pressFun,deformed);
 
         // Assemble vector
-        m_assembler.assemble(m_space * m_force * meas(m_ori) -
-                    ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
-                    );
+        ////// External force
+        if (m_parametricForce)  // Assemble the force defined in the parameter domain
+            m_assembler.assemble(m_space * m_parforce  * meas(m_ori));
+        else                    // Assemble the force defined in the physical domain
+            m_assembler.assemble(m_space * m_physforce * meas(m_ori));
+
+        ////// Internal force
+        m_assembler.assemble(
+            (
+                - ( ( m_N * m_Em_der.tr() ) * meas(m_ori) ).tr()
+            )
+            );
 
         this->_assembleWeakBCs<false>(deformed);
         this->_assembleWeakIfc<false>(deformed);

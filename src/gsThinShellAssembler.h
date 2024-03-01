@@ -671,6 +671,7 @@ protected:
     gsSparseMatrix<T> m_mass;
 
     const gsFunction<T> * m_forceFun;
+    bool m_parametricForce;
     const gsFunction<T> * m_foundFun;
     const gsFunction<T> * m_pressFun;
 
