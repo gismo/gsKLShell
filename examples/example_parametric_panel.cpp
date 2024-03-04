@@ -21,13 +21,7 @@
 */
 
 #include <gismo.h>
-
-#include <gsKLShell/src/gsThinShellAssembler.h>
-#include <gsKLShell/src/gsMaterialMatrixContainer.h>
-#include <gsKLShell/src/gsMaterialMatrixEval.h>
-#include <gsKLShell/src/gsMaterialMatrixIntegrate.h>
-#include <gsKLShell/src/getMaterialMatrix.h>
-#include <gsCore/gsPiecewiseFunction.h>
+#include <gsKLShell/gsKLShell.h>
 
 using namespace gismo;
 

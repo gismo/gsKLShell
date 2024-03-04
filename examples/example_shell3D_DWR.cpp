@@ -15,21 +15,7 @@
 #include <iostream>
 #include <fstream>
 #include <gismo.h>
-
-#include <gsKLShell/src/gsThinShellAssembler.h>
-#include <gsKLShell/src/gsThinShellAssemblerDWR.h>
-#include <gsKLShell/src/gsThinShellUtils.h>
-#include <gsKLShell/src/getMaterialMatrix.h>
-#include <gsAssembler/gsAdaptiveRefUtils.h>
-
-#include <gsHSplines/gsHBox.h>
-#include <gsHSplines/gsHBoxContainer.h>
-
-#include <gsAssembler/gsAdaptiveMeshing.h>
-#include <gsAssembler/gsAdaptiveMeshingUtils.h>
-
-
-//#include <gsThinShell/gsNewtonIterator.h>
+#include <gsKLShell/gsKLShell.h>
 
 using namespace gismo;
 
@@ -190,7 +176,7 @@ int main(int argc, char *argv[])
         char buffer[2000];
         // sprintf(buffer,"-%e^3*%e*%e*pi^4*sin(pi*x)*sin(pi*y)/(3*%e^2 - 3)",thickness,E_modulus,ampl,PoissonRatio);
         // // sprintf(buffer,"-2*%e^3*%e*%e/(3*%e^2 - 3)",thickness,E_modulus,ampl,PoissonRatio);
-        sprintf(buffer,"-6*%e*%e^3*%e*(x^4 - 2*x^3 + 12*(-1/2 + y)^2*x^2 + (-12*y^2 + 12*y - 2)*x + y^4 - 2*y^3 + 3*y^2 - 2*y + 1/3)/(3*%e^2 - 3)",ampl,thickness,E_modulus,PoissonRatio);
+        snprintf(buffer,2000,"-6*%e*%e^3*%e*(x^4 - 2*x^3 + 12*(-1/2 + y)^2*x^2 + (-12*y^2 + 12*y - 2)*x + y^4 - 2*y^3 + 3*y^2 - 2*y + 1/3)/(3*%e^2 - 3)",ampl,thickness,E_modulus,PoissonRatio);
         fz = buffer;
 
         points.resize(2,0);
@@ -227,7 +213,7 @@ int main(int argc, char *argv[])
         std::string uy = "0";
         // sprintf(buffer,"%e*sin(pi*x)*sin(pi*y)",ampl);
         // // sprintf(buffer,"%e*x*(x - 1)*y*(y - 1)",ampl);
-        sprintf(buffer,"%e*x^2*(x - 1)^2*y^2*(y - 1)^2",ampl);
+        snprintf(buffer,2000,"%e*x^2*(x - 1)^2*y^2*(y - 1)^2",ampl);
         std::string uz = buffer;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////

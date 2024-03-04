@@ -13,17 +13,12 @@
 */
 
 #include <gismo.h>
+#include <gsKLShell/gsKLShell.h>
 #include <typeinfo>
 
 #ifdef gsSpectra_ENABLED
 #include <gsSpectra/gsSpectra.h>
 #endif
-
-#include <gsKLShell/src/gsThinShellAssembler.h>
-#include <gsKLShell/src/gsThinShellAssemblerDWR.h>
-#include <gsKLShell/src/gsThinShellUtils.h>
-#include <gsKLShell/src/getMaterialMatrix.h>
-#include <gsAssembler/gsAdaptiveRefUtils.h>
 
 using namespace gismo;
 
