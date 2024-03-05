@@ -13,17 +13,12 @@
 */
 
 #include <gismo.h>
+#include <gsKLShell/gsKLShell.h>
 #include <typeinfo>
 
 #ifdef gsSpectra_ENABLED
 #include <gsSpectra/gsSpectra.h>
 #endif
-
-#include <gsKLShell/src/gsThinShellAssembler.h>
-#include <gsKLShell/src/gsThinShellAssemblerDWR.h>
-#include <gsKLShell/src/gsThinShellUtils.h>
-#include <gsKLShell/src/getMaterialMatrix.h>
-#include <gsAssembler/gsAdaptiveRefUtils.h>
 
 using namespace gismo;
 
@@ -98,8 +93,18 @@ int main(int argc, char *argv[])
     }
     else if (testCase==1)
     {
-        std::string fn = "planar/unitcircle.xml";
-        gsReadFile<>(fn, mp);
+        gsKnotVector<> kv(0,1,0,3);
+        gsVector<> weights(9);
+        weights<<1,0.707106781186548,1,0.707106781186548,1,0.707106781186548,1,0.707106781186548,1;
+        gsMatrix<> coefs(9,3);
+        coefs.col(0)<<0,1,1,-1,0,1,-1,-1,0;
+        coefs.col(1)<<-1,-1,0,-1,0,1,0,1,1;
+        coefs.col(2).setZero();
+
+        gsTensorNurbs<2,real_t> nurbs(kv,kv,coefs,weights);
+        mp.addPatch(nurbs);
+
+        gsInfo<<mp.patch(0).coefs();
         thickness = 0.01;
         PoissonRatio = 0.3;
         E_modulus     = 1e0;

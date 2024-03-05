@@ -12,9 +12,9 @@
         H.M. Verhelst   (2019-..., TU Delft)
 */
 
-#include<gsCore/gsFunctionSet.h>
-
 #pragma once
+
+#include<gsCore/gsFunctionSet.h>
 
 namespace gismo
 {

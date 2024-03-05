@@ -16,9 +16,7 @@
 //! [Include namespace]
 
 #include <gismo.h>
-#include <gsKLShell/src/gsThinShellUtils.h>
-#include <gsKLShell/src/gsThinShellAssembler.h>
-#include <gsKLShell/src/getMaterialMatrix.h>
+#include <gsKLShell/gsKLShell.h>
 
 namespace gismo{
 namespace expr{

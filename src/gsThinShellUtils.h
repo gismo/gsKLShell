@@ -13,6 +13,8 @@
         A. Mantzaflaris (2019-..., Inria)
 */
 
+#pragma once
+
 //! [Include namespace]
 #include <gsCore/gsLinearAlgebra.h>
 #include <gsCore/gsBasis.h>
