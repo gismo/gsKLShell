@@ -14,8 +14,7 @@
 #include <gismo.h>
 
 //! [Includes]
-#include <gsKLShell/src/gsThinShellAssembler.h>
-#include <gsKLShell/src/getMaterialMatrix.h>
+#include <gsKLShell/gsKLShell.h>
 //! [Includes]
 
 using namespace gismo;
