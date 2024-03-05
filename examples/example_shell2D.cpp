@@ -12,14 +12,7 @@
 */
 
 #include <gismo.h>
-
-#include <gsKLShell/src/gsThinShellAssembler.h>
-#include <gsKLShell/src/getMaterialMatrix.h>
-#include <gsKLShell/src/gsMaterialMatrixEval.h>
-#include <gsKLShell/src/gsMaterialMatrixIntegrate.h>
-
-#include <gsKLShell/src/gsMaterialMatrixTFT.h>
-#include <gsKLShell/src/gsMaterialMatrixLinear.h>
+#include <gsKLShell/gsKLShell.h>
 
 using namespace gismo;
 
@@ -186,7 +179,7 @@ int main(int argc, char *argv[])
     {
         real_t sigmax = 1e-1;
         char buffer[2000];
-        sprintf(buffer,"%e ( 1 - y/%e)",sigmax,width);
+        snprintf(buffer,2000,"%e ( 1 - y/%e)",sigmax,width);
         fx = buffer;
     }
     else if (testCase == 3)

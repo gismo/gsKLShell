@@ -37,8 +37,7 @@
  **/
 
 #include "gismo_unittest.h"       // Brings in G+Smo and the UnitTest++ framework
-#include <gsKLShell/src/gsThinShellAssembler.h>
-#include <gsKLShell/src/getMaterialMatrix.h>
+#include <gsKLShell/gsKLShell.h>
 
 SUITE(gsThinShellAssembler_test)                 // The suite should have the same name as the file
 {

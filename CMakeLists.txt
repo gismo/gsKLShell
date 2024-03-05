@@ -18,7 +18,7 @@ aux_cpp_directory        (${CMAKE_CURRENT_SOURCE_DIR}/src ${PROJECT_NAME}_CPP)
 aux_tmpl_header_directory(${CMAKE_CURRENT_SOURCE_DIR}/src ${PROJECT_NAME}_HPP)
 
 if( (NOT GISMO_BUILD_LIB) )
-  aux_instance_directory (${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_NAME}_INS)
+  aux_instance_directory (${CMAKE_CURRENT_SOURCE_DIR}/src ${PROJECT_NAME}_INS)
   if(${PROJECT_NAME}_INS)
     LIST( REMOVE_ITEM ${PROJECT_NAME}_CPP ${${PROJECT_NAME}_INS})
   endif()

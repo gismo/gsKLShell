@@ -11,15 +11,8 @@
     Author(s): H.M.Verhelst (2019 - ..., TU Delft)
 */
 
-#include <gismo.h>
-
-#include <gsKLShell/src/gsThinShellAssembler.h>
-#include <gsKLShell/src/getMaterialMatrix.h>
-#include <gsKLShell/src/gsMaterialMatrixEval.h>
-#include <gsKLShell/src/gsMaterialMatrixIntegrate.h>
-#include <gsKLShell/src/gsMaterialMatrixTFT.h>
-
 #include "gismo_unittest.h"       // Brings in G+Smo and the UnitTest++ framework
+#include <gsKLShell/gsKLShell.h>
 
 using namespace gismo;
 
@@ -162,7 +155,7 @@ private:
     const gsMatrix<T> m_z;
 };   
 
-SUITE(gsMaterialMatrix_test)                 // The suite should have the same name as the file
+SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the same name as the file
 {
     void MM_CHECK(const index_t material, const index_t impl, const bool Compressibility);
 
