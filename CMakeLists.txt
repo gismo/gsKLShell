@@ -55,9 +55,8 @@ else()
   add_subdirectory(tutorials EXCLUDE_FROM_ALL)
 endif(GISMO_BUILD_EXAMPLES)
 
-# add unittests
-if(GISMO_BUILD_UNITTESTS)
-  add_subdirectory(unittests)
-else()
-  add_subdirectory(unittests EXCLUDE_FROM_ALL)
-endif(GISMO_BUILD_UNITTESTS)
+aux_gs_cpp_directory(${PROJECT_SOURCE_DIR}/unittests unittests_SRCS)
+set(gismo_UNITTESTS ${gismo_UNITTESTS} ${unittests_SRCS}
+  CACHE INTERNAL "gismo list of unittests")
+
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin/)
