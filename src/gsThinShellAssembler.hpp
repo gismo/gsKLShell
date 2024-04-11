@@ -39,7 +39,7 @@ template<short_t d, class T, bool bending>
 gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> & patches,
                                                           const gsMultiBasis<T> & basis,
                                                           const gsBoundaryConditions<T> & bconditions,
-                                                          const gsFunction<T> & surface_force,
+                                                          const gsFunctionSet<T> & surface_force,
                                                           const gsMaterialMatrixContainer<T> & materialMatrices
                                                           )
                                         :
@@ -62,7 +62,7 @@ template<short_t d, class T, bool bending>
 gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> & patches,
                                                           const gsMultiBasis<T> & basis,
                                                           const gsBoundaryConditions<T> & bconditions,
-                                                          const gsFunction<T> & surface_force,
+                                                          const gsFunctionSet<T> & surface_force,
                                                           gsMaterialMatrixBase<T> * materialMatrix
                                                           )
                                         :

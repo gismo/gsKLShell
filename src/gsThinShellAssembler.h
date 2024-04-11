@@ -92,7 +92,7 @@ public:
     gsThinShellAssembler(const gsMultiPatch<T> & patches,
                         const gsMultiBasis<T> & basis,
                         const gsBoundaryConditions<T> & bconditions,
-                        const gsFunction<T> & surface_force,
+                        const gsFunctionSet<T> & surface_force,
                         const gsMaterialMatrixContainer<T> & materialmatrices);
 
     /**
@@ -107,7 +107,7 @@ public:
     gsThinShellAssembler(const gsMultiPatch<T> & patches,
                         const gsMultiBasis<T> & basis,
                         const gsBoundaryConditions<T> & bconditions,
-                        const gsFunction<T> & surface_force,
+                        const gsFunctionSet<T> & surface_force,
                         gsMaterialMatrixBase<T> * materialmatrix);
 
     /**
@@ -670,7 +670,7 @@ protected:
 
     gsSparseMatrix<T> m_mass;
 
-    const gsFunction<T> * m_forceFun;
+    const gsFunctionSet<T> * m_forceFun;
     bool m_parametricForce;
     const gsFunction<T> * m_foundFun;
     const gsFunction<T> * m_pressFun;
