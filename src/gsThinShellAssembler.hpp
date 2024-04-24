@@ -407,6 +407,7 @@ void gsThinShellAssembler<d, T, bending>::_assemblePressure(const gsFunction<T> 
     _assemblePressure_impl<d,_matrix>(pressFun,deformed);
 }
 
+// assembles eq 3.26 from http://resolver.tudelft.nl/uuid:56c0cc91-643d-4817-9702-93fedce5fd78
 template <short_t d, class T, bool bending>
 template <short_t _d, bool matrix>
 typename std::enable_if<(_d==3) && matrix, void>::type
@@ -426,6 +427,7 @@ gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> 
                         );
 }
 
+// assembles eq 3.25 from http://resolver.tudelft.nl/uuid:56c0cc91-643d-4817-9702-93fedce5fd78
 template <short_t d, class T, bool bending>
 template <short_t _d, bool _matrix>
 typename std::enable_if<(_d==3) && !_matrix, void>::type
@@ -469,6 +471,7 @@ gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T
     // No matrix contribution for the linear case
 }
 
+// assembles eq 3.27 from http://resolver.tudelft.nl/uuid:56c0cc91-643d-4817-9702-93fedce5fd78
 template <short_t d, class T, bool bending>
 template <short_t _d, bool _matrix>
 typename std::enable_if<(_d==3) && !_matrix, void>::type
@@ -502,6 +505,7 @@ void gsThinShellAssembler<d, T, bending>::_assembleFoundation(const gsFunction<T
     _assembleFoundation_impl<d,_matrix>(foundFun,deformed);
 }
 
+// assembles eq 3.28 from http://resolver.tudelft.nl/uuid:56c0cc91-643d-4817-9702-93fedce5fd78
 template <short_t d, class T, bool bending>
 template <short_t _d, bool matrix>
 typename std::enable_if<(_d==3) && matrix, void>::type
