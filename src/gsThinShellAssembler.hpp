@@ -468,15 +468,6 @@ template <short_t _d, bool _matrix>
 typename std::enable_if<(_d==3) && _matrix, void>::type
 gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & foundFun)
 {
-    // No matrix contribution for the linear case
-}
-
-// assembles eq 3.27 from http://resolver.tudelft.nl/uuid:56c0cc91-643d-4817-9702-93fedce5fd78
-template <short_t d, class T, bool bending>
-template <short_t _d, bool _matrix>
-typename std::enable_if<(_d==3) && !_matrix, void>::type
-gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & foundFun)
-{
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
     space m_space = m_assembler.trialSpace(0); // last argument is the space ID
@@ -487,6 +478,15 @@ gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T
     m_assembler.assemble(
         m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori)
         );
+}
+
+// assembles eq 3.27 from http://resolver.tudelft.nl/uuid:56c0cc91-643d-4817-9702-93fedce5fd78
+template <short_t d, class T, bool bending>
+template <short_t _d, bool _matrix>
+typename std::enable_if<(_d==3) && !_matrix, void>::type
+gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & foundFun)
+{
+    // No rhs contribution for the linear case
 }
 
 template <short_t d, class T, bool bending>
@@ -1732,10 +1732,6 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
     space       m_space = m_assembler.trialSpace(0);
 
     this->homogenizeDirichlet();
-
-    gsVector<T> pt(2);
-    pt.setConstant(0.25);
-    gsExprEvaluator<T> ev(m_assembler);
 
     auto m_N        = S0.tr();
     auto m_Em_der   = flat( jac(m_def).tr() * jac(m_space) ) ; //[checked]
