@@ -8,7 +8,7 @@ Module for the isogeometric Kirchhoff-Love shell element. The module is based on
 |OS support|Linux, Windows, macOS|
 |Build status| [CDash](link) |
 |Repository|[gismo/gismo](https://github.com/gismo/gismo)|
-|Status|completed|
+|Status|[![ci](https://github.com/gismo/gsKLShell/actions/workflows/ci.yml/badge.svg)](https://github.com/gismo/gsKLShell/actions/workflows/ci.yml)|
 |Developer|[Hugo Verhelst](https://github.com/hverhelst)|
 |Maintainer|[h.m.verhelst@tudelft.nl](mailto:h.m.verhelst@tudelft.nl)|
 
