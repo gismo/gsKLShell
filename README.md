@@ -6,9 +6,8 @@ Module for the isogeometric Kirchhoff-Love shell element. The module is based on
 |--:|---|
 |License|[MPL 2.0](https://www.mozilla.org/en-US/MPL/2.0/)|
 |OS support|Linux, Windows, macOS|
-|Build status| [CDash](link) |
+|Build status|[![ci](https://github.com/gismo/gsKLShell/actions/workflows/ci.yml/badge.svg)](https://github.com/gismo/gsKLShell/actions/workflows/ci.yml)|
 |Repository|[gismo/gismo](https://github.com/gismo/gismo)|
-|Status|[![ci](https://github.com/gismo/gsKLShell/actions/workflows/ci.yml/badge.svg)](https://github.com/gismo/gsKLShell/actions/workflows/ci.yml)|
 |Developer|[Hugo Verhelst](https://github.com/hverhelst)|
 |Maintainer|[h.m.verhelst@tudelft.nl](mailto:h.m.verhelst@tudelft.nl)|
 
