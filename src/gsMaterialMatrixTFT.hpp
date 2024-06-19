@@ -503,7 +503,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
         if (!_check_theta_full(theta,C,N,E) || (theta_interval(0)==0 && theta_interval(1)==0))
         {
             // Take the whole interval and evaluate 50 points
-            gsVector<T> theta_vec = gsVector<T>::LinSpaced(51,0,M_PI);
+            gsVector<T> theta_vec = gsVector<T>::LinSpaced(51,0,EIGEN_PI);
             gsVector<T> f_vec(theta_vec.size());
             // Compute f for each point
             T t;
@@ -557,7 +557,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
                 // gsDebugVar(E);
                 // gsDebugVar(N);
                 // gsDebugVar(C);
-                // gsVector<T> x = gsVector<T>::LinSpaced(1000,-M_PI,M_PI);
+                // gsVector<T> x = gsVector<T>::LinSpaced(1000,-EIGEN_PI,EIGEN_PI);
                 // for (index_t XX=0; XX!=x.size(); XX++)
                 // {
                 //     T t = x(XX);
@@ -987,7 +987,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
 //     gsMatrix<T> Cs = m_materialMat->eval3D_matrix(patch,u,z,MaterialOutput::MatrixA);
 //     gsMatrix<T> Ns = m_materialMat->eval3D_stress(patch,u,z,MaterialOutput::VectorN);
 
-//     gsVector<T> x = gsVector<T>::LinSpaced(10,-0.5 * M_PI,0.5 * M_PI);
+//     gsVector<T> x = gsVector<T>::LinSpaced(10,-0.5 * EIGEN_PI,0.5 * EIGEN_PI);
 
 //     for (index_t k = 0; k!=u.cols(); k++)
 //     {
@@ -1018,7 +1018,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
 //             gamma = - ( n1_vec.transpose() * N ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
 
 //             gsVector<> res(2);
-//             res.at(0) = std::fmod(theta,M_PI);
+//             res.at(0) = std::fmod(theta,EIGEN_PI);
 //             res.at(1) = gamma;
 
 //             if (res(1) > 0)
