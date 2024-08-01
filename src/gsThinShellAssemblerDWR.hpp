@@ -1717,7 +1717,7 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeError_impl( const gsMultiPat
                                                                 bool withLoads,
                                                                 std::string filename,
                                                                 unsigned np,
-                                                                bool parametric,
+                                                                bool /*parametric*/,
                                                                 bool mesh)
 {
     gsExprAssembler<T> exprAssembler = m_assemblerH->assembler();
@@ -1805,7 +1805,7 @@ template<short_t _d, bool _bending, index_t _elWise>
 typename std::enable_if<(_d==3) && _bending, void>::type
 gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool withLoads,
                                                             // bool withLoads,
-                                                            std::string filename, unsigned np, bool parametric, bool mesh)
+                                                            std::string filename, unsigned np, bool /*parametric*/, bool mesh)
 
 {
     gsExprAssembler<T> exprAssembler = m_assemblerH->assembler();
@@ -1914,7 +1914,7 @@ gsThinShellAssemblerDWR<d, T, bending>::computeError_impl(  const gsMultiPatch<T
                                                             bool withLoads,
                                                             std::string filename,
                                                             unsigned np,
-                                                            bool parametric,
+                                                            bool /*parametric*/,
                                                             bool mesh)
 {
     gsExprAssembler<T> exprAssembler = m_assemblerH->assembler();
@@ -2030,7 +2030,7 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl( const gsM
                                                                 bool withLoads,
                                                                 std::string filename,
                                                                 unsigned np,
-                                                                bool parametric,
+                                                                bool /*parametric*/,
                                                                 bool mesh)
 {
     gsExprAssembler<T> exprAssembler = m_assemblerH->assembler();
@@ -2118,7 +2118,7 @@ template<short_t _d, bool _bending, index_t _elWise>
 typename std::enable_if<(_d==3) && _bending, void>::type
 gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl(const gsMultiPatch<T> & dualL, const gsMultiPatch<T> & dualH, const gsMultiPatch<T> & deformed, bool withLoads,
                                                             // bool withLoads,
-                                                            std::string filename, unsigned np, bool parametric, bool mesh)
+                                                            std::string filename, unsigned np, bool /*parametric*/, bool mesh)
 
 {
     gsExprAssembler<T> exprAssembler = m_assemblerH->assembler();
@@ -2226,7 +2226,7 @@ gsThinShellAssemblerDWR<d, T, bending>::computeSquaredError_impl(  const gsMulti
                                                             bool withLoads,
                                                             std::string filename,
                                                             unsigned np,
-                                                            bool parametric,
+                                                            bool /*parametric*/,
                                                             bool mesh)
 {
     gsExprAssembler<T> exprAssembler = m_assemblerH->assembler();
@@ -2383,7 +2383,7 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
                                                                                 const gsMultiPatch<T> & deformed,
                                                                                 std::string filename,
                                                                                 unsigned np,
-                                                                                bool parametric,
+                                                                                bool /*parametric*/,
                                                                                 bool mesh)
 {
     // Everything is evaluated in the lower basis L
@@ -2635,7 +2635,7 @@ void gsThinShellAssemblerDWR<d, T, bending>::computeErrorEig_impl(    const T ev
                                                                                 const gsMultiPatch<T> & primal,
                                                                                 std::string filename,
                                                                                 unsigned np,
-                                                                                bool parametric,
+                                                                                bool /*parametric*/,
                                                                                 bool mesh)
 {
     // Everything is evaluated in the lower basis L

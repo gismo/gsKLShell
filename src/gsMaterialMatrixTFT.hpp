@@ -46,7 +46,7 @@ std::ostream & gsMaterialMatrixTFT<dim,T,linear>::print(std::ostream &os) const
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput /*out*/) const
 {
     // GISMO_ASSERT(out==MaterialOutput::MatrixA,"Tension Field Theory only works for membrane models, hence only outputs the A matrix");
     // Input: u in-plane points
@@ -159,7 +159,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_strain(const index_t patch
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput /*out*/) const
 {
     // Input: u in-plane points
     //        z matrix with, per point, a column with z integration points
@@ -203,7 +203,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput /*out*/) const
 {
     // Input: u in-plane points
     //        z matrix with, per point, a column with z integration points
@@ -302,13 +302,13 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t
 // }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput /*out*/) const
 {
     return this->_compute_TF(patch,u,z);
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_theta(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_theta(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput /*out*/) const
 {
     gsMatrix<T> result(1,u.cols());
     result.setZero();
@@ -340,7 +340,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_theta(const index_t patch,
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_gamma(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_gamma(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput /*out*/) const
 {
     gsMatrix<T> result(1,u.cols());
     result.setZero();
@@ -375,7 +375,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_gamma(const index_t patch,
 template <short_t dim, class T, bool linear >
 template <bool _linear>
 typename std::enable_if<_linear, gsMatrix<T> >::type
-gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput /*out*/) const
 {
     gsMatrix<T> result = m_materialMat->eval3D_matrix(patch,u,z,MaterialOutput::MatrixA);
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
@@ -585,7 +585,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
 }
 
 template <short_t dim, class T, bool linear >
-T gsMaterialMatrixTFT<dim,T,linear>::_compute_gamma(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const
+T gsMaterialMatrixTFT<dim,T,linear>::_compute_gamma(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & /*E*/) const
 {
     T n1 = math::cos(theta);
     T n2 = math::sin(theta);
@@ -599,7 +599,7 @@ T gsMaterialMatrixTFT<dim,T,linear>::_compute_gamma(const T & theta, const gsMat
 }
 
 template <short_t dim, class T, bool linear >
-bool gsMaterialMatrixTFT<dim,T,linear>::_check_theta_full(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const
+bool gsMaterialMatrixTFT<dim,T,linear>::_check_theta_full(const T & theta, const gsMatrix<T> & /*C*/, const gsVector<T> & N, const gsVector<T> & E) const
 {
     T n1 = math::cos(theta);
     T n2 = math::sin(theta);
@@ -615,7 +615,7 @@ bool gsMaterialMatrixTFT<dim,T,linear>::_check_theta_full(const T & theta, const
 }
 
 template <short_t dim, class T, bool linear >
-bool gsMaterialMatrixTFT<dim,T,linear>::_check_theta_gamma(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const
+bool gsMaterialMatrixTFT<dim,T,linear>::_check_theta_gamma(const T & theta, const gsMatrix<T> & /*C*/, const gsVector<T> & N, const gsVector<T> & /*E*/) const
 {
     T n1 = math::cos(theta);
     T n2 = math::sin(theta);
@@ -1198,7 +1198,7 @@ public:
      *
      * @return     True when converged
      */
-    bool findRootBisection(T & f, const T & A, const T & B, T & x, const T & t = 1e-12, const index_t & itmax = 1000)
+    bool findRootBisection(T & /*f*/, const T & A, const T & B, T & x, const T & t = 1e-12, const index_t & itmax = 1000)
     {
         T a = A;
         T b = B;

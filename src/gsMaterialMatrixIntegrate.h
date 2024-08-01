@@ -108,7 +108,7 @@ public:
     }
 
     /// Implementation of eval_into, see \ref gsFunction
-    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    void eval_into(const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
 protected:
@@ -418,7 +418,7 @@ private:
                               _out==MaterialOutput::MatrixA         || _out==MaterialOutput::MatrixB        ||
                               _out==MaterialOutput::MatrixC         || _out==MaterialOutput::MatrixD        ||
                               _out==MaterialOutput::PStressN        || _out==MaterialOutput::PStressM  )
-                                                            , gsMatrix<T>>::type eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
+                                                            , gsMatrix<T>>::type eval3D_impl(const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*Z*/) const
     { GISMO_NO_IMPLEMENTATION};
 
 protected:

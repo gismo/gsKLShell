@@ -115,6 +115,8 @@ gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::eval3D_spec2con(const index_t patch,
 template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::eval3D_cov2cart(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
 {
+    this->_computePoints(patch,u);
+
     gsMatrix<T> result(9, u.cols());
     gsMatrix<T> tmp, covbasis,cartbasis(3,3);
     cartbasis.setIdentity();
@@ -136,6 +138,8 @@ gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::eval3D_cov2cart(const index_t patch,
 template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::eval3D_con2cart(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
 {
+    this->_computePoints(patch,u);
+
     gsMatrix<T> result(9, u.cols());
     gsMatrix<T> tmp, conbasis,cartbasis(3,3);
     cartbasis.setIdentity();
@@ -293,7 +297,7 @@ gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::eval3D_strain(const index_t patch, c
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput /*out*/) const
 {
     gsMatrix<T> Spmat = this->eval3D_pstress(patch,u,z,MaterialOutput::Generic);
     gsMatrix<T> Epmat = this->eval3D_pstrain(patch,u,z);
@@ -648,14 +652,14 @@ gsMaterialMatrixBaseDim<dim,T>::_computeMetricUndeformed_impl(const index_t patc
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getAcov_def(index_t k, T z) const
+gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getAcov_def(index_t k, T /*z*/) const
 {
     GISMO_ENSURE(m_data.mine().m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
     return m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2);
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getAcon_def(index_t k, T z) const
+gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getAcon_def(index_t k, T /*z*/) const
 {
     GISMO_ENSURE(m_data.mine().m_Acon_def_mat.cols()!=0,"Is the metric initialized?");
     return m_data.mine().m_Acon_def_mat.reshapeCol(k,2,2);
@@ -687,14 +691,14 @@ gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getGcon_def(index_t k, T z) const
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getacov_def(index_t k, T z) const
+gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getacov_def(index_t k, T /*z*/) const
 {
     GISMO_ENSURE(m_data.mine().m_acov_def_mat.cols()!=0,"Is the basis initialized?");
     return m_data.mine().m_acov_def_mat.reshapeCol(k,3,2);
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getacon_def(index_t k, T z) const
+gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getacon_def(index_t k, T /*z*/) const
 {
     GISMO_ENSURE(m_data.mine().m_acon_def_mat.cols()!=0,"Is the basis initialized?");
     return m_data.mine().m_acon_def_mat.reshapeCol(k,3,2);
@@ -722,14 +726,14 @@ gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getgcon_def(index_t k, T z) const
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getAcov_ori(index_t k, T z) const
+gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getAcov_ori(index_t k, T /*z*/) const
 {
     GISMO_ENSURE(m_data.mine().m_Acov_ori_mat.cols()!=0,"Is the metric initialized?");
     return m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2);
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getAcon_ori(index_t k, T z) const
+gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getAcon_ori(index_t k, T /*z*/) const
 {
     GISMO_ENSURE(m_data.mine().m_Acon_ori_mat.cols()!=0,"Is the metric initialized?");
     return m_data.mine().m_Acon_ori_mat.reshapeCol(k,2,2);
@@ -761,14 +765,14 @@ gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getGcon_ori(index_t k, T z) const
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getacov_ori(index_t k, T z) const
+gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getacov_ori(index_t k, T /*z*/) const
 {
     GISMO_ENSURE(m_data.mine().m_acov_ori_mat.cols()!=0,"Is the basis initialized?");
     return m_data.mine().m_acov_ori_mat.reshapeCol(k,3,2);
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getacon_ori(index_t k, T z) const
+gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getacon_ori(index_t k, T /*z*/) const
 {
     GISMO_ENSURE(m_data.mine().m_acon_ori_mat.cols()!=0,"Is the basis initialized?");
     return m_data.mine().m_acon_ori_mat.reshapeCol(k,3,2);
@@ -800,7 +804,7 @@ gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::_getgcon_ori(index_t k, T z) const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, gsMatrix<T>>::type
-gsMaterialMatrixBaseDim<dim,T>::_getBcov_def_impl(index_t k, T z) const
+gsMaterialMatrixBaseDim<dim,T>::_getBcov_def_impl(index_t /*k*/, T /*z*/) const
 {
     GISMO_NO_IMPLEMENTATION;
 }
@@ -808,7 +812,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getBcov_def_impl(index_t k, T z) const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, gsMatrix<T>>::type
-gsMaterialMatrixBaseDim<dim,T>::_getBcov_def_impl(index_t k, T z) const
+gsMaterialMatrixBaseDim<dim,T>::_getBcov_def_impl(index_t k, T) const
 {
     GISMO_ENSURE(m_data.mine().m_Bcov_def_mat.cols()!=0,"Is the metric initialized?");
     return m_data.mine().m_Bcov_def_mat.reshapeCol(k,2,2);
@@ -817,7 +821,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getBcov_def_impl(index_t k, T z) const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, gsMatrix<T>>::type
-gsMaterialMatrixBaseDim<dim,T>::_getncov_def_impl(index_t k, T z) const
+gsMaterialMatrixBaseDim<dim,T>::_getncov_def_impl(index_t /*k*/, T /*z*/) const
 {
     GISMO_NO_IMPLEMENTATION;
 }
@@ -825,7 +829,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getncov_def_impl(index_t k, T z) const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, gsMatrix<T>>::type
-gsMaterialMatrixBaseDim<dim,T>::_getncov_def_impl(index_t k, T z) const
+gsMaterialMatrixBaseDim<dim,T>::_getncov_def_impl(index_t k, T) const
 {
     GISMO_ENSURE(m_data.mine().m_ncov_def_mat.cols()!=0,"Is the basis initialized?");
     return m_data.mine().m_ncov_def_mat.reshapeCol(k,3,2);
@@ -898,7 +902,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getgcov_def_impl(index_t k, T z) const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, gsMatrix<T>>::type
-gsMaterialMatrixBaseDim<dim,T>::_getBcov_ori_impl(index_t k, T z) const
+gsMaterialMatrixBaseDim<dim,T>::_getBcov_ori_impl(index_t /*k*/, T /*z*/) const
 {
     GISMO_NO_IMPLEMENTATION;
 }
@@ -906,7 +910,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getBcov_ori_impl(index_t k, T z) const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, gsMatrix<T>>::type
-gsMaterialMatrixBaseDim<dim,T>::_getBcov_ori_impl(index_t k, T z) const
+gsMaterialMatrixBaseDim<dim,T>::_getBcov_ori_impl(index_t k, T) const
 {
     GISMO_ENSURE(m_data.mine().m_Bcov_ori_mat.cols()!=0,"Is the metric initialized?");
     return m_data.mine().m_Bcov_ori_mat.reshapeCol(k,2,2);
@@ -915,7 +919,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getBcov_ori_impl(index_t k, T z) const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, gsMatrix<T>>::type
-gsMaterialMatrixBaseDim<dim,T>::_getncov_ori_impl(index_t k, T z) const
+gsMaterialMatrixBaseDim<dim,T>::_getncov_ori_impl(index_t /*k*/, T /*z*/) const
 {
     GISMO_NO_IMPLEMENTATION;
 }
@@ -923,7 +927,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getncov_ori_impl(index_t k, T z) const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==3, gsMatrix<T>>::type
-gsMaterialMatrixBaseDim<dim,T>::_getncov_ori_impl(index_t k, T z) const
+gsMaterialMatrixBaseDim<dim,T>::_getncov_ori_impl(index_t k, T) const
 {
     GISMO_ENSURE(m_data.mine().m_ncov_ori_mat.cols()!=0,"Is the basis initialized?");
     return m_data.mine().m_ncov_ori_mat.reshapeCol(k,3,2);
@@ -1138,7 +1142,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T z) const
+gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T /*z*/) const
 {
     GISMO_ENSURE(m_data.mine().m_Acov_def_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_Acon_def_mat.cols()!=0,"Is the metric initialized?");
@@ -1269,7 +1273,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const
 template <short_t dim, class T>
 template <short_t _dim>
 typename std::enable_if<_dim==2, void>::type
-gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const T z) const
+gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const T /*z*/) const
 {
     GISMO_ENSURE(m_data.mine().m_Acov_ori_mat.cols()!=0,"Is the metric initialized?");
     GISMO_ENSURE(m_data.mine().m_Acon_ori_mat.cols()!=0,"Is the metric initialized?");

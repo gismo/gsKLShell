@@ -46,7 +46,7 @@ m_z(z)
 template <class T, enum MaterialOutput out>
 gsMaterialMatrixEvalSingle<T,out>::gsMaterialMatrixEvalSingle(    index_t patch,
                                                         gsMaterialMatrixBase<T> * materialMatrix,
-                                                        const gsFunctionSet<T> * undeformed,
+                                                        const gsFunctionSet<T> * /*undeformed*/,
                                                         const gsFunctionSet<T> * deformed,
                                                         const gsMatrix<T> z
                                                    )

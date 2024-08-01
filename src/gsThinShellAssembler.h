@@ -266,7 +266,7 @@ private:
     /// Implementation of assembleMatrix for planar geometries (2D)
     template<short_t _d, bool _bending>
     typename std::enable_if<!(_d==3 && _bending), ThinShellAssemblerStatus>::type
-    assembleMatrix_impl(const gsFunctionSet<T> & deformed, const gsFunctionSet<T> & previous, gsMatrix<T> & update)
+    assembleMatrix_impl(const gsFunctionSet<T> & /*deformed*/, const gsFunctionSet<T> & /*previous*/, gsMatrix<T> & /*update*/)
     { GISMO_NO_IMPLEMENTATION; }
 
 public:

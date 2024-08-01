@@ -188,7 +188,6 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
             for (index_t k = 0; k != u.cols(); ++k)
                 result.col(k) = ev.eval(E_m.tr(),u.col(k),m_patchID);
             break;
-
         case stress_type::flexural_strain :
             for (index_t k = 0; k != u.cols(); ++k)
                 result.col(k) = ev.eval(E_f.tr(),u.col(k),m_patchID);
@@ -201,7 +200,6 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
             for (index_t k = 0; k != u.cols(); ++k)
                 result.col(k) = ev.eval(Ep1,u.col(k),m_patchID);
             break;
-
         case stress_type::principal_stretch :
             for (index_t k = 0; k != u.cols(); ++k)
                 result.col(k) = ev.eval(lambda,u.col(k),m_patchID);
@@ -209,7 +207,7 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
         case stress_type::principal_stress :
             for (index_t k = 0; k != u.cols(); ++k)
                 result.col(k) = ev.eval(Sp,u.col(k));
-
+            break;
         case stress_type::principal_stress_membrane :
             for (index_t k = 0; k != u.cols(); ++k)
                 result.col(k) = ev.eval(Sp0,u.col(k),m_patchID);

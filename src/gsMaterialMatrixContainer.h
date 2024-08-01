@@ -52,12 +52,12 @@ public:
         // To do: initialize with null pointers
     }
 
-    gsMaterialMatrixContainer(const gsMaterialMatrixContainer & other)
-    {
-        // for (index_t k=0; k!=other.m_container.size(); k++)
-        //     add(memory::make_unique(other.m_container.at(k)));
-        m_container = give(other.m_container);
-    }
+    // gsMaterialMatrixContainer(const gsMaterialMatrixContainer & other)
+    // {
+    //     // for (index_t k=0; k!=other.m_container.size(); k++)
+    //     //     add(memory::make_unique(other.m_container.at(k)));
+    //     m_container = give(other.m_container);
+    // }
 
     ~gsMaterialMatrixContainer()
     {
@@ -171,8 +171,8 @@ public:
 
     }
 
-    static gsXmlNode * put (const Object & obj,
-                            gsXmlTree & data)
+    static gsXmlNode * put (const Object & /* obj */,
+                            gsXmlTree & /* data */)
     {
         GISMO_ERROR("Writing gsMaterialMatrixContainer to Xml is not implemented");
         // gsWarn<<"Writing gsMaterialMatrixContainer to Xml is not implemented\n";

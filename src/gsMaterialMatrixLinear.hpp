@@ -153,12 +153,6 @@ gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear(
 }
 
 template <short_t dim, class T>
-gsMaterialMatrixLinear<dim,T>::gsMaterialMatrixLinear( const gsMaterialMatrixLinear<dim,T> & other)
-{
-    *this =(other);
-}
-
-template <short_t dim, class T>
 std::ostream & gsMaterialMatrixLinear<dim,T>::print(std::ostream &os) const
 {
     os  <<"---------------------------------------------------------------------\n"
@@ -187,7 +181,7 @@ void gsMaterialMatrixLinear<dim,T>::_initialize()
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput /*out*/) const
 {
     // gsInfo<<"TO DO: evaluate moments using thickness";
     // Input: u in-plane points
@@ -227,7 +221,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix(const index_t patch, co
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput /*out*/) const
 {
     // gsInfo<<"TO DO: evaluate moments using thickness";
     // Input: u in-plane points
@@ -264,7 +258,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_matrix_C(const gsMatrix<T> & C
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_dmatrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_dmatrix(const index_t /*patch*/, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput /*out*/) const
 {
     return gsMatrix<T>::Zero(27,u.cols()*z.rows());
 }
@@ -505,7 +499,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_stress(const index_t patch, co
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_detF(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_detF(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput /*out*/) const
 {
     this->_computePoints(patch,u);
     gsMatrix<T> result(1, u.cols() * z.rows());
@@ -602,7 +596,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::C(const gsMatrix<T> &) const
 }
 
 template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const T z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const T /*z*/, enum MaterialOutput out) const
 {
     gsMatrix<T> strain;
     if      (   out == MaterialOutput::VectorN          ||

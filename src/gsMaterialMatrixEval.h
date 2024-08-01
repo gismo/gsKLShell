@@ -110,7 +110,7 @@ public:
     }
 
     /// Implementation of eval_into, see \ref gsFunction
-    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    void eval_into(const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
 protected:

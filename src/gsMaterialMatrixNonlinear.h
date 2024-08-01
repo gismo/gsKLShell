@@ -141,15 +141,18 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_matrix;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_matrix_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_dmatrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_dmatrix;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_vector;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_vector_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out = MaterialOutput::Generic) const override;
@@ -168,6 +171,7 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
+    using Base::eval3D_stress;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_stress_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out = MaterialOutput::Generic) const;
@@ -177,6 +181,7 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
+    using Base::eval3D_CauchyStress;
 
     /// Sets the YoungsModulus
     void setYoungsModulus(const gsFunctionSet<T> & YoungsModulus) override;
@@ -689,13 +694,13 @@ private:
     /// Specialization for incompressible Cijkl(i,j,k,l) for OG materials implemented analytically (not implemented)
     template<enum Material _mat, enum Implementation _imp>
     constexpr typename std::enable_if<_mat==Material::OG && _imp==Implementation::Analytical, T>::type
-    _Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
+    _Cijkl_impl(const index_t /*i*/, const index_t /*j*/, const index_t /*k*/, const index_t /*l*/) const
     {GISMO_NO_IMPLEMENTATION};
 
     /// Specialization for incompressible Cijkl(i,j,k,l) for Extended NH materials implemented analytically (not implemented)
     template<enum Material _mat, enum Implementation _imp>
     constexpr typename std::enable_if<_mat==Material::NH_ext && _imp==Implementation::Analytical, T>::type
-    _Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
+    _Cijkl_impl(const index_t /*i*/, const index_t /*j*/, const index_t /*k*/, const index_t /*l*/) const
     {GISMO_NO_IMPLEMENTATION};
 
     /// Specialization for incompressible Cijkl(i,j,k,l) for all materials implemented spectrally
@@ -745,7 +750,7 @@ private:
     /// Specialization for compressible Cijkl3D(i,j,k,l,c,cinv) for OG materials implemented analytically (not implemented)
     template<enum Material _mat, enum Implementation _imp>
     constexpr typename std::enable_if<_mat==Material::OG && _imp==Implementation::Analytical, T>::type
-    _Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
+    _Cijkl3D_impl(const index_t /*i*/, const index_t /*j*/, const index_t /*k*/, const index_t /*l*/, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
     {GISMO_NO_IMPLEMENTATION};
 
     /// Specialization for compressible Cijkl3D(i,j,k,l,c,cinv) for Extended NH materials implemented analytically
@@ -782,13 +787,13 @@ private:
     /// Specialization for incompressible Sij(i,j) for OG materials implemented analytically (not implemented)
     template<enum Material _mat, enum Implementation _imp>
     constexpr typename std::enable_if<_mat==Material::OG && _imp==Implementation::Analytical, T>::type
-    _Sij_impl(const index_t i, const index_t j) const
+    _Sij_impl(const index_t /*i*/, const index_t /*j*/) const
     {GISMO_NO_IMPLEMENTATION};
 
     /// Specialization for incompressible Sij(i,j) for Extended NH materials implemented analytically (not implemented)
     template<enum Material _mat, enum Implementation _imp>
     constexpr typename std::enable_if<_mat==Material::NH_ext && _imp==Implementation::Analytical, T>::type
-    _Sij_impl(const index_t i, const index_t j) const
+    _Sij_impl(const index_t /*i*/, const index_t /*j*/) const
     {GISMO_NO_IMPLEMENTATION};
 
     /// Specialization for incompressible Sij(i,j) for all materials implemented spectrally
@@ -805,7 +810,7 @@ private:
     /// Specialization for compressible Sij(i,j,c,cinv) for SvK materials implemented analytically
     template<enum Material _mat, enum Implementation _imp>
     constexpr typename std::enable_if<_mat==Material::SvK && _imp==Implementation::Analytical, T>::type
-    _Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
+    _Sij_impl(const index_t /*i*/, const index_t /*j*/, const gsMatrix<T> & /*c*/, const gsMatrix<T> & /*cinv*/) const
     {GISMO_NO_IMPLEMENTATION};
 
     /// Specialization for compressible Sij(i,j,c,cinv) for NH materials implemented analytically
@@ -821,7 +826,7 @@ private:
     /// Specialization for compressible Sij(i,j,c,cinv) for OG materials implemented analytically (not implemented)
     template<enum Material _mat, enum Implementation _imp>
     constexpr typename std::enable_if<_mat==Material::OG && _imp==Implementation::Analytical, T>::type
-    _Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
+    _Sij_impl(const index_t /*i*/, const index_t /*j*/, const gsMatrix<T> & /*c*/, const gsMatrix<T> & /*cinv*/) const
     {GISMO_NO_IMPLEMENTATION};
 
     /// Specialization for compressible Sij(i,j,c,cinv) for Extended NH materials implemented analytically
@@ -945,7 +950,7 @@ private:
     constexpr typename std::enable_if<_mat==Material::MR, T>::type _dPsi_impl(const index_t i, const index_t j) const;
     // other
     template<enum Material _mat>
-    constexpr typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR), T>::type _dPsi_impl(const index_t i, const index_t j) const
+    constexpr typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR), T>::type _dPsi_impl(const index_t /*i*/, const index_t /*j*/) const
     {GISMO_NO_IMPLEMENTATION};
     // add other
 
@@ -962,7 +967,7 @@ private:
     constexpr typename std::enable_if<_mat==Material::NH_ext, T>::type _dPsi_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
     // other
     template<enum Material _mat>
-    constexpr typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR || _mat==Material::NH_ext), T>::type _dPsi_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
+    constexpr typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR || _mat==Material::NH_ext), T>::type _dPsi_impl(const index_t /*i*/, const index_t /*j*/, const gsMatrix<T> & /*c*/, const gsMatrix<T> & /*cinv*/) const
     {GISMO_NO_IMPLEMENTATION};
 
     /// Implementation of _d2Psi(i,j) for NH materials
@@ -974,7 +979,7 @@ private:
     constexpr typename std::enable_if<_mat==Material::MR, T>::type _d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
     // other
     template<enum Material _mat>
-    constexpr typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR), T>::type _d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l) const
+    constexpr typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR), T>::type _d2Psi_impl(const index_t /*i*/, const index_t /*j*/, const index_t /*k*/, const index_t /*l*/) const
     {GISMO_NO_IMPLEMENTATION};
 
     /// Implementation of _d2Psi(i,j,c,cinv) for NH materials
@@ -990,7 +995,7 @@ private:
     constexpr typename std::enable_if<_mat==Material::NH_ext, T>::type _d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
     // other
     template<enum Material _mat>
-    constexpr typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR || _mat==Material::NH_ext), T>::type _d2Psi_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const
+    constexpr typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR || _mat==Material::NH_ext), T>::type _d2Psi_impl(const index_t /*i*/, const index_t /*j*/, const index_t /*k*/, const index_t /*l*/, const gsMatrix<T> & /*c*/, const gsMatrix<T> & /*cinv*/) const
     {GISMO_NO_IMPLEMENTATION};
 protected:
     ///////////////////////////////////////////////////////
@@ -1107,7 +1112,7 @@ private:
 
     /// Specialization of _dPsi_da(a) for incompressible Extended NH materials (not implemented)
     template<enum Material _mat, bool _com>
-    constexpr typename std::enable_if<!_com && (_mat==Material::NH_ext), T>::type _dPsi_da_impl(const index_t a) const
+    constexpr typename std::enable_if<!_com && (_mat==Material::NH_ext), T>::type _dPsi_da_impl(const index_t /*a*/) const
     {GISMO_NO_IMPLEMENTATION};
 
     // other
@@ -1118,7 +1123,7 @@ private:
                                 || _mat==Material::OG
                                 || _mat==Material::NH_ext
                               )
-                                                                , T>::type _dPsi_da_impl(const index_t a) const
+                                                                , T>::type _dPsi_da_impl(const index_t /*a*/) const
     {GISMO_NO_IMPLEMENTATION}
 
     // ----------------------------------------------------------------------------------
@@ -1153,7 +1158,7 @@ private:
 
     /// Specialization of _d2Psi_dab(a,b) for incompressible Extended NH materials (not implemented)
     template<enum Material _mat, bool _com>
-    constexpr typename std::enable_if<!_com && (_mat==Material::NH_ext), T>::type _d2Psi_dab_impl(const index_t a, const index_t b) const
+    constexpr typename std::enable_if<!_com && (_mat==Material::NH_ext), T>::type _d2Psi_dab_impl(const index_t /*a*/, const index_t /*b*/) const
     {GISMO_NO_IMPLEMENTATION};
 
     // other
@@ -1164,7 +1169,7 @@ private:
                                 || _mat==Material::OG
                                 || _mat==Material::NH_ext
                               )
-                                                                , T>::type _d2Psi_dab_impl(const index_t a, const index_t b) const
+                                                                , T>::type _d2Psi_dab_impl(const index_t /*a*/, const index_t /*b*/) const
     {GISMO_NO_IMPLEMENTATION}
 
     // ----------------------------------------------------------------------------------
