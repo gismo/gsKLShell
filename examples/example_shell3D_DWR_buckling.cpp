@@ -321,9 +321,6 @@ int main(int argc, char *argv[])
     gsSparseMatrix<> K_L, K_NL, Kdiff;
     gsVector<> rhs;
 
-    // DWR assembler
-    gsThinShellAssemblerDWRBase<real_t> * DWR;
-
     gsParaviewCollection collection("solution");
     gsParaviewCollection errors("error_elem_ref");
 
@@ -362,6 +359,8 @@ int main(int argc, char *argv[])
         // -----------------------------------------------------------------------------------------
         // ----------------------------DWR method---------------------------------------------------
         // -----------------------------------------------------------------------------------------
+        // DWR assembler
+        gsThinShellAssemblerDWRBase<real_t> * DWR;
         DWR = new gsThinShellAssemblerDWR<3, real_t, true>(mp, basisL, basisH, bc, force, materialMatrix);
         DWR->setPointLoads(pLoads);
         DWR->setGoal(GoalFunction::Buckling);
@@ -555,6 +554,8 @@ int main(int argc, char *argv[])
             mesher.rebuild();
         }
         mp_def = mp;
+
+        delete DWR;
     }
 
     if (plot)
@@ -613,7 +614,6 @@ int main(int argc, char *argv[])
     }
 
     delete materialMatrix;
-    delete DWR;
     return EXIT_SUCCESS;
 
 } // end main

@@ -344,9 +344,6 @@ int main(int argc, char *argv[])
     gsSparseMatrix<> K_L, K_NL;
     gsVector<> rhs;
 
-    // DWR assembler
-    gsThinShellAssemblerDWRBase<real_t> * DWR;
-
     gsFileManager::mkdir(dirname);
 
     gsParaviewCollection collection(dirname + "/" + "solution");
@@ -388,6 +385,8 @@ int main(int argc, char *argv[])
         // -----------------------------------------------------------------------------------------
         // ----------------------------DWR method---------------------------------------------------
         // -----------------------------------------------------------------------------------------
+        // DWR assembler
+        gsThinShellAssemblerDWRBase<real_t> * DWR;
         DWR = new gsThinShellAssemblerDWR<3, real_t, true>(mp, basisL, basisH, bc, force, materialMatrix);
         DWR->setGoal(GoalFunction::Modal);
 
@@ -544,6 +543,8 @@ int main(int argc, char *argv[])
             mesher.rebuild();
         }
         mp_def = mp;
+
+        delete DWR;
     }
 
     if (plot)
@@ -599,7 +600,6 @@ int main(int argc, char *argv[])
         gsWriteParaview<>( fieldPL, "primalL", 1000);
     }
 
-    delete DWR;
     return EXIT_SUCCESS;
 
 } // end main

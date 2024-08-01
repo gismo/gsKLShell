@@ -502,7 +502,8 @@ template <enum Material _mat, bool _comp>
 constexpr typename std::enable_if<!(!_comp && _mat==Material::NH), T>::type
 gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::dCijkl_dCmn_impl(const index_t /*i*/, const index_t /*j*/, const index_t /*k*/, const index_t /*l*/, const index_t /*m*/, const index_t /*n*/) const
 {
-    GISMO_NO_IMPLEMENTATION;
+    gsInfo<<"WARNING: constexpr without implementation is called!\n";
+    return math::limits::quiet_NaN();
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
