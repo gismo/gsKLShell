@@ -23,11 +23,7 @@
 
 #pragma once
 
-#include <gsKLShell/src/gsMaterialMatrixBaseDim.h>
 #include <gsCore/gsGeometry.h>
-
-#include <gsKLShell/src/gsMaterialMatrixLinear.h>
-#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
 
 namespace gismo
 {
@@ -1054,12 +1050,12 @@ void gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed(const gsMatrix<T> & C) c
     Gcon_def.setZero();
     Gcov_def(0,0) = C(0,0);
     Gcov_def(1,1) = C(1,0);
-    Gcov_def(0,1) = 
+    Gcov_def(0,1) =
     Gcov_def(1,0) = C(2,0);
     Gcov_def(2,2) =
     Gcon_def(2,2) = 1.0;
     Gcon_def.block(0,0,2,2) = Gcov_def.block(0,0,2,2).inverse();
-    
+
     m_data.mine().m_Gcov_def = Gcov_def;
     m_data.mine().m_Gcon_def = Gcon_def;
     // CLear other members on the deformed geometry
@@ -1160,7 +1156,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T
     // Get metric information
     Acov_def = m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2);
     Acon_def = m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2);
-    
+
     // Compute full metric
     Gcov_def.setZero();
     Gcov_def.block(0,0,2,2)= Acov_def;;
@@ -1289,7 +1285,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const
     // Get metric information
     Acov_ori = m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2);
     Acon_ori = m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2);
-    
+
     // Compute full metric
     Gcov_ori.setZero();
     Gcov_ori.block(0,0,2,2)= Acov_ori;;

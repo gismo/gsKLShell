@@ -17,6 +17,7 @@
 
 #include <gsCore/gsFuncData.h>
 #include <gsUtils/gsThreaded.h>
+#include <gsKLShell/src/gsMaterialMatrixBase.h>
 
 namespace gismo
 {
@@ -45,8 +46,8 @@ public:
 
     // enum {Linear=0}; // If true (1), this property entails that S = C *˙E
 
-    gsMaterialMatrixBaseDim() 
-    : 
+    gsMaterialMatrixBaseDim()
+    :
     Base(nullptr,nullptr,nullptr,nullptr)
     {
         this->defaultOptions();

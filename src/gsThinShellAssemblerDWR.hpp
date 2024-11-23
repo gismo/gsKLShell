@@ -34,6 +34,21 @@ gsThinShellAssemblerDWR<d, T, bending>::gsThinShellAssemblerDWR(
                                                                 const gsMultiBasis<T> & basisH,
                                                                 const gsBoundaryConditions<T> & bconditions,
                                                                 const gsFunction<T> & surface_force,
+                                                                typename gsMaterialMatrixBase<T>::uPtr & materialmatrix
+                                                            )
+:
+gsThinShellAssemblerDWR(patches,basisL,basisH,bconditions,surface_force,materialmatrix.get())
+{
+
+}
+
+template <short_t d, class T, bool bending>
+gsThinShellAssemblerDWR<d, T, bending>::gsThinShellAssemblerDWR(
+                                                                const gsMultiPatch<T> & patches,
+                                                                const gsMultiBasis<T> & basisL,
+                                                                const gsMultiBasis<T> & basisH,
+                                                                const gsBoundaryConditions<T> & bconditions,
+                                                                const gsFunction<T> & surface_force,
                                                                 gsMaterialMatrixBase<T> * materialmatrix
                                                             )
                                                             :

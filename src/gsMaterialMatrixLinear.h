@@ -15,11 +15,9 @@
 
 #pragma once
 
-#include <gsKLShell/src/gsMaterialMatrixBase.h>
 #include <gsKLShell/src/gsMaterialMatrixBaseDim.h>
 #include <gsKLShell/src/gsMaterialMatrixUtils.h>
 #include <gsIO/gsOptionList.h>
-#include <gsCore/gsFuncData.h>
 
 namespace gismo
 {

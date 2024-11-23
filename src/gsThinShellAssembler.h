@@ -109,6 +109,11 @@ public:
                         const gsBoundaryConditions<T> & bconditions,
                         const gsFunction<T> & surface_force,
                         gsMaterialMatrixBase<T> * materialmatrix);
+    gsThinShellAssembler(const gsMultiPatch<T> & patches,
+                        const gsMultiBasis<T> & basis,
+                        const gsBoundaryConditions<T> & bconditions,
+                        const gsFunction<T> & surface_force,
+                        typename gsMaterialMatrixBase<T>::uPtr & materialmatrix);
 
     /**
      * @brief      Constructor for te shell assembler

@@ -19,14 +19,7 @@
 #include <gsKLShell/src/gsMaterialMatrixUtils.h>
 #include <gsCore/gsFunction.h>
 
-using namespace gismo;
-
-template <typename T>
-T mod(const T x, const T y)
-{
-    return x - math::floor(x/y)*y;
-}
-
+template <typename T> T mod(const T x, const T y);
 template <typename T> class objective;
 
 namespace gismo
@@ -594,7 +587,7 @@ T gsMaterialMatrixTFT<dim,T,linear>::_compute_gamma(const T & theta, const gsMat
     gsVector<T,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
     gsVector<T,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
     gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
-    
+
     return - ( n1_vec.transpose() * N ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
 }
 
@@ -607,7 +600,7 @@ bool gsMaterialMatrixTFT<dim,T,linear>::_check_theta_full(const T & theta, const
     T m2 = math::cos(theta);
     gsVector<T,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
     gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
-    
+
     bool check = true;
     check &= ((n1_vec.transpose() * N).value() < 0); // Li et al eq. 63 / eq. 55
     check &= ((n4_vec.transpose() * E).value() > 0); // Li et al eq. 58
@@ -631,7 +624,7 @@ gsVector<T> gsMaterialMatrixTFT<dim,T,linear>::_theta_interval(const gsMatrix<T>
     GISMO_ASSERT(N.rows()==3,"N must be a 3x1 vector");
     GISMO_ASSERT(E.rows()==3,"E must be a 3x1 vector");
     gsVector<T> result(2);
- 
+
     objective<T> obj(C,N);
 
     // See Lu et al., Finite Element Analysis of Membrane Wrinkling, 2001, International Journal for numerical methods in engineering
@@ -643,10 +636,10 @@ gsVector<T> gsMaterialMatrixTFT<dim,T,linear>::_theta_interval(const gsMatrix<T>
     T sin_E0 = E12/R_E;
     T cos_E0 = (E22-E11)/(2*R_E);
     std::complex<T> sin_Esqrt = E12*E12-E11*E22;
-    std::complex<T> sin_E1_C = -math::sqrt(sin_Esqrt)/R_E; 
+    std::complex<T> sin_E1_C = -math::sqrt(sin_Esqrt)/R_E;
     T sin_E1 = sin_E1_C.real();
     T cos_E1 = -(E11+E22)/(2*R_E);
-    std::complex<T> sin_E2_C = math::sqrt(sin_Esqrt)/R_E; 
+    std::complex<T> sin_E2_C = math::sqrt(sin_Esqrt)/R_E;
     T sin_E2 = sin_E2_C.real();
     T cos_E2 = -(E11+E22)/(2*R_E);
 
@@ -664,10 +657,10 @@ gsVector<T> gsMaterialMatrixTFT<dim,T,linear>::_theta_interval(const gsMatrix<T>
     T cos_N0 = (N11-N22)/(R_N);
     std::complex<T> sin_Nsqrt = N12*N12-N11*N22;
     // if (sin_Nsqrt < 0) gsDebugVar("Oops");
-    std::complex<T> sin_N1_C = math::sqrt(sin_Nsqrt)/R_N; 
+    std::complex<T> sin_N1_C = math::sqrt(sin_Nsqrt)/R_N;
     T sin_N1 = sin_N1_C.real();
     T cos_N1 = -(N11+N22)/(2*R_N);
-    std::complex<T> sin_N2_C = -math::sqrt(sin_Nsqrt)/R_N; 
+    std::complex<T> sin_N2_C = -math::sqrt(sin_Nsqrt)/R_N;
     T sin_N2 = sin_N2_C.real();
     T cos_N2 = -(N11+N22)/(2*R_N);
 
@@ -1084,6 +1077,14 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
 // }// namespace internal
 
 } // end namespace
+
+using namespace gismo;
+
+template <typename T>
+T mod(const T x, const T y)
+{
+    return x - math::floor(x/y)*y;
+}
 
 template <typename T>
 class objective : public gsFunction<T>

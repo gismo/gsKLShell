@@ -15,7 +15,6 @@
 
 #pragma once
 
-#include <gsKLShell/src/gsMaterialMatrixBase.h>
 #include <gsKLShell/src/gsMaterialMatrixBaseDim.h>
 #include <gsKLShell/src/gsMaterialMatrixUtils.h>
 
@@ -58,6 +57,16 @@ public:
     GISMO_OVERRIDE_CLONE_FUNCTION(gsMaterialMatrixTFT)
 
 public:
+
+    // /**
+    //  * @brief      Constructs a TFT material matrix using a reference to another material matrix
+    //  *
+    //  * @param      materialMatrix  The original material matrix
+    //  */
+    // gsMaterialMatrixTFT(typename gsMaterialMatrixBase<T>::uPtr materialMatrix)
+    // :
+    // gsMaterialMatrixTFT(memory::make_shared(materialMatrix->clone().release()))
+    // {}
 
     /**
      * @brief      Constructs a TFT material matrix using a reference to another material matrix

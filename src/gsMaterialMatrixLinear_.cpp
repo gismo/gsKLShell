@@ -3,8 +3,6 @@
 #include <gsKLShell/src/gsMaterialMatrixLinear.h>
 #include <gsKLShell/src/gsMaterialMatrixLinear.hpp>
 
-#include <gsKLShell/src/gsMaterialMatrixXml.hpp>
-
 namespace gismo
 {
   CLASS_TEMPLATE_INST gsMaterialMatrixLinear<2,real_t>;

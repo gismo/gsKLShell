@@ -20,6 +20,109 @@
 
 namespace gismo
 {
+
+template <class T, enum MaterialOutput out>
+gsMaterialMatrixEval<T,out>::gsMaterialMatrixEval(  const gsMaterialMatrixContainer<T> & materialMatrices,
+                                                    const gsFunctionSet<T> * deformed,
+                                                    const gsMatrix<T> z)
+:
+m_materialMatrices(materialMatrices),
+m_deformed(deformed),
+m_z(z)
+{
+    for (index_t p = 0; p!=deformed->nPieces(); ++p)
+        GISMO_ASSERT(materialMatrices.piece(p)->initialized(),"Material matrix "<<p<<" is incomplete!");
+
+    this->_makePieces();
+}
+
+template <class T, enum MaterialOutput out>
+gsMaterialMatrixEval<T,out>::gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * materialMatrix,
+                                                    const gsFunctionSet<T> * deformed,
+                                                    const gsMatrix<T> z)
+:
+m_materialMatrices(deformed->nPieces()),
+m_deformed(deformed),
+m_z(z)
+{
+    GISMO_ASSERT(materialMatrix->initialized(),"Material matrix is incomplete!");
+    for (index_t p = 0; p!=deformed->nPieces(); ++p)
+        m_materialMatrices.set(p,materialMatrix);
+    this->_makePieces();
+}
+
+template <class T, enum MaterialOutput out>
+gsMaterialMatrixEval<T,out>::gsMaterialMatrixEval(  typename gsMaterialMatrixBase<T>::uPtr & materialMatrix,
+                                                    const gsFunctionSet<T> * deformed,
+                                                    const gsMatrix<T> z)
+
+:
+gsMaterialMatrixEval(materialMatrix.get(),deformed,z)
+{}
+
+template <class T, enum MaterialOutput out>
+gsMaterialMatrixEval<T,out>::gsMaterialMatrixEval(  const gsMaterialMatrixContainer<T> & materialMatrices,
+                                                    const gsFunctionSet<T> * undeformed,
+                                                    const gsFunctionSet<T> * deformed,
+                                                    const gsMatrix<T> z)
+:
+m_materialMatrices(materialMatrices),
+m_deformed(deformed),
+m_z(z)
+{
+    for (index_t p = 0; p!=deformed->nPieces(); ++p)
+        GISMO_ASSERT(materialMatrices.piece(p)->initialized(),"Material matrix "<<p<<" is incomplete!");
+
+    this->_makePieces(undeformed);
+}
+
+template <class T, enum MaterialOutput out>
+gsMaterialMatrixEval<T,out>::gsMaterialMatrixEval(  gsMaterialMatrixBase<T> * materialMatrix,
+                                                    const gsFunctionSet<T> * undeformed,
+                                                    const gsFunctionSet<T> * deformed,
+                                                    const gsMatrix<T> z)
+:
+m_materialMatrices(deformed->nPieces()),
+m_deformed(deformed),
+m_z(z)
+{
+    GISMO_ASSERT(materialMatrix->initialized(),"Material matrix is incomplete!");
+    for (index_t p = 0; p!=deformed->nPieces(); ++p)
+        m_materialMatrices.set(p,materialMatrix);
+    this->_makePieces(undeformed);
+}
+
+template <class T, enum MaterialOutput out>
+gsMaterialMatrixEval<T,out>::gsMaterialMatrixEval(  typename gsMaterialMatrixBase<T>::uPtr & materialMatrix,
+                                                    const gsFunctionSet<T> * undeformed,
+                                                    const gsFunctionSet<T> * deformed,
+                                                    const gsMatrix<T> z)
+:
+gsMaterialMatrixEval(materialMatrix.get(),undeformed,deformed,z)
+{}
+
+template <class T, enum MaterialOutput out>
+gsMaterialMatrixEval<T,out>::~gsMaterialMatrixEval()
+{
+    freeAll(m_pieces);
+}
+
+template <class T, enum MaterialOutput out>
+void gsMaterialMatrixEval<T, out>::_makePieces()
+{
+    m_pieces.resize(m_deformed->nPieces());
+    for (size_t p = 0; p != m_pieces.size(); ++p)
+        m_pieces.at(p) = new gsMaterialMatrixEvalSingle<T, out>(p, m_materialMatrices.piece(p), m_deformed, m_z);
+}
+
+template <class T, enum MaterialOutput out>
+void gsMaterialMatrixEval<T, out>::_makePieces(const gsFunctionSet<T> * undeformed)
+{
+    m_pieces.resize(m_deformed->nPieces());
+    for (size_t p = 0; p != m_pieces.size(); ++p)
+        m_pieces.at(p) = new gsMaterialMatrixEvalSingle<T, out>(p, m_materialMatrices.piece(p), undeformed, m_deformed, m_z);
+}
+
 template <class T, enum MaterialOutput out>
 gsMaterialMatrixEvalSingle<T,out>::gsMaterialMatrixEvalSingle(    index_t patch,
                                                         gsMaterialMatrixBase<T> * materialMatrix,

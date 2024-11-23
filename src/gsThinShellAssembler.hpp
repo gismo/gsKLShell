@@ -16,7 +16,6 @@
 #pragma once
 
 #include <gsKLShell/src/gsThinShellAssembler.h>
-#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
 #include <gsKLShell/src/gsMaterialMatrixBase.h>
 #include <gsKLShell/src/gsMaterialMatrixIntegrate.h>
 #include <gsKLShell/src/gsMaterialMatrixEval.h>
@@ -25,10 +24,6 @@
 
 #include <gsCore/gsFunctionExpr.h>
 #include <gsCore/gsPiecewiseFunction.h>
-
-#include <gsIO/gsWriteParaview.h>
-
-#include <gsMSplines/gsWeightMapper.h>
 
 #include <unordered_set>
 
@@ -53,6 +48,19 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
     this->_defaultOptions();
     this->_getOptions();
     this->_initialize();
+}
+
+template<short_t d, class T, bool bending>
+gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> & patches,
+                                                          const gsMultiBasis<T> & basis,
+                                                          const gsBoundaryConditions<T> & bconditions,
+                                                          const gsFunction<T> & surface_force,
+                                                          typename gsMaterialMatrixBase<T>::uPtr & materialMatrix
+                                                          )
+:
+gsThinShellAssembler<d, T, bending>(patches,basis,bconditions,surface_force,materialMatrix.get())
+{
+
 }
 
 template<short_t d, class T, bool bending>
@@ -231,7 +239,7 @@ void gsThinShellAssembler<d, T, bending>::_initialize()
     m_assembler.setIntegrationElements(m_basis);
     GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
     m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
-    
+
     GISMO_ASSERT(m_bcs.hasGeoMap(),"No geometry map was assigned to the boundary conditions. Use bc.setGeoMap to assign one!");
 
     // Initialize the geometry maps

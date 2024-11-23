@@ -21,64 +21,9 @@
 
 #pragma once
 
-#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
-#include <gsKLShell/src/gsMaterialMatrixXml.hpp>
 #include <gsCore/gsFunction.h>
 
-using namespace gismo;
-
-template <short_t d, typename T>
-class Cfun : public gsFunction<T>
-{
-public:
-    Cfun(const gsMaterialMatrixBase<T> * materialMat, index_t patch, const gsVector<T> & u, const T & z)
-    :
-    m_materialMat(materialMat),
-    m_patchID(patch),
-    m_points(u),
-    m_z(z)
-    {
-
-    }
-
-    Cfun(const gsMaterialMatrixBase<T> * materialMat, index_t patch, const gsVector<T> & u)
-    :
-    m_materialMat(materialMat),
-    m_patchID(patch),
-    m_points(u)
-    {
-        m_z.resize(1,1);
-        m_z.setZero();
-    }
-
-    void eval_into(const gsMatrix<T>& C, gsMatrix<T>& result) const
-    {
-        result.resize(targetDim(),C.cols());
-        gsMatrix<T> Ctmp;
-        for (index_t k=0; k!=C.cols(); k++)
-        {
-            Ctmp = C.col(k);
-            Ctmp(2,0) *= 0.5;
-            result.col(k) = m_materialMat->eval3D_matrix_C(Ctmp,m_patchID,m_points,m_z,MaterialOutput::MatrixA);
-        }
-    }
-
-    short_t domainDim() const
-    {
-        return 3;
-    }
-
-    short_t targetDim() const
-    {
-        return 9;
-    }
-
-private:
-    const gsMaterialMatrixBase<T> * m_materialMat;
-    mutable index_t m_patchID;
-    mutable gsVector<T> m_points;
-    mutable T m_z;
-};
+template <short_t d, typename T> class Cfun;
 
 namespace gismo
 {
@@ -2814,143 +2759,60 @@ gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_Cabcd_impl(const index_t a
 //         GISMO_ERROR("Material model not implemented.");
 // }
 
-namespace internal
-{
-
-/// @brief get a Neo-Hookean Material Matrix from XML data
-///
-/// \ingroup KLShell
-template<short_t d, class T, bool comp>
-class gsXml< gsMaterialMatrixNonlinear<d,T,11,comp> >
-{
-private:
-    gsXml() { }
-    typedef gsMaterialMatrixNonlinear<d,T,11,comp> Object;
-
-public:
-    GSXML_COMMON_FUNCTIONS(gsMaterialMatrixNonlinear<TMPLA4(d,T,11,comp)>);
-    static std::string tag ()  { return "MaterialMatrix"; }
-    static std::string type ()
-    {
-        std::string comp_str = ((comp) ? "Compressible" : "Incompressible");
-        return comp_str + "NH" +  to_string(d);
-    }
-
-    GSXML_GET_POINTER(Object);
-
-    static void get_into(gsXmlNode * node,Object & obj)
-    {
-        obj = getMaterialMatrixFromXml< Object >( node );
-    }
-
-    static gsXmlNode * put (const Object & obj,
-                            gsXmlTree & data)
-    {
-        return putMaterialMatrixToXml< Object >( obj,data );
-    }
-};
-
-/// @brief get a Extended Neo-Hookean Material Matrix from XML data
-///
-/// \ingroup KLShell
-template<short_t d, class T, bool comp>
-class gsXml< gsMaterialMatrixNonlinear<d,T,12,comp> >
-{
-private:
-    gsXml() { }
-    typedef gsMaterialMatrixNonlinear<d,T,12,comp> Object;
-
-public:
-    GSXML_COMMON_FUNCTIONS(gsMaterialMatrixNonlinear<TMPLA4(d,T,12,comp)>);
-    static std::string tag ()  { return "MaterialMatrix"; }
-    static std::string type ()
-    {
-        std::string comp_str = ((comp) ? "Compressible" : "Incompressible");
-        return comp_str + "NHe" +  to_string(d);
-    }
-
-    GSXML_GET_POINTER(Object);
-
-    static void get_into(gsXmlNode * node,Object & obj)
-    {
-        obj = getMaterialMatrixFromXml< Object >( node );
-    }
-
-    static gsXmlNode * put (const Object & obj,
-                            gsXmlTree & data)
-    {
-        return putMaterialMatrixToXml< Object >( obj,data );
-    }
-};
-
-/// @brief get a Mooney-Rivlin Material Matrix from XML data
-///
-/// \ingroup KLShell
-template<short_t d, class T, bool comp>
-class gsXml< gsMaterialMatrixNonlinear<d,T,13,comp> >
-{
-private:
-    gsXml() { }
-    typedef gsMaterialMatrixNonlinear<d,T,13,comp> Object;
-
-public:
-    GSXML_COMMON_FUNCTIONS(gsMaterialMatrixNonlinear<TMPLA4(d,T,13,comp)>);
-    static std::string tag ()  { return "MaterialMatrix"; }
-    static std::string type ()
-    {
-        std::string comp_str = ((comp) ? "Compressible" : "Incompressible");
-        return comp_str + "MR" +  to_string(d);
-    }
-
-    GSXML_GET_POINTER(Object);
-
-    static void get_into(gsXmlNode * node,Object & obj)
-    {
-        obj = getMaterialMatrixFromXml< Object >( node );
-    }
-
-    static gsXmlNode * put (const Object & obj,
-                            gsXmlTree & data)
-    {
-        return putMaterialMatrixToXml< Object >( obj,data );
-    }
-};
-
-/// @brief get an Ogden Material Matrix from XML data
-///
-/// \ingroup KLShell
-template<short_t d, class T, bool comp>
-class gsXml< gsMaterialMatrixNonlinear<d,T,34,comp> >
-{
-private:
-    gsXml() { }
-    typedef gsMaterialMatrixNonlinear<d,T,34,comp> Object;
-
-public:
-    GSXML_COMMON_FUNCTIONS(gsMaterialMatrixNonlinear<TMPLA4(d,T,34,comp)>);
-    static std::string tag ()  { return "MaterialMatrix"; }
-    static std::string type ()
-    {
-        std::string comp_str = ((comp) ? "Compressible" : "Incompressible");
-        return comp_str + "OG" +  to_string(d);
-    }
-
-    GSXML_GET_POINTER(Object);
-
-    static void get_into(gsXmlNode * node,Object & obj)
-    {
-        obj = getMaterialMatrixFromXml< Object >( node );
-    }
-
-    static gsXmlNode * put (const Object & obj,
-                            gsXmlTree & data)
-    {
-        return putMaterialMatrixToXml< Object >( obj,data );
-    }
-};
-
-}// namespace internal
-
-
-
 } // end namespace
+
+using namespace gismo;
+
+
+template <short_t d, typename T>
+class Cfun : public gsFunction<T>
+{
+public:
+    Cfun(const gsMaterialMatrixBase<T> * materialMat, index_t patch, const gsVector<T> & u, const T & z)
+    :
+    m_materialMat(materialMat),
+    m_patchID(patch),
+    m_points(u),
+    m_z(z)
+    {
+
+    }
+
+    Cfun(const gsMaterialMatrixBase<T> * materialMat, index_t patch, const gsVector<T> & u)
+    :
+    m_materialMat(materialMat),
+    m_patchID(patch),
+    m_points(u)
+    {
+        m_z.resize(1,1);
+        m_z.setZero();
+    }
+
+    void eval_into(const gsMatrix<T>& C, gsMatrix<T>& result) const
+    {
+        result.resize(targetDim(),C.cols());
+        gsMatrix<T> Ctmp;
+        for (index_t k=0; k!=C.cols(); k++)
+        {
+            Ctmp = C.col(k);
+            Ctmp(2,0) *= 0.5;
+            result.col(k) = m_materialMat->eval3D_matrix_C(Ctmp,m_patchID,m_points,m_z,MaterialOutput::MatrixA);
+        }
+    }
+
+    short_t domainDim() const
+    {
+        return 3;
+    }
+
+    short_t targetDim() const
+    {
+        return 9;
+    }
+
+private:
+    const gsMaterialMatrixBase<T> * m_materialMat;
+    mutable index_t m_patchID;
+    mutable gsVector<T> m_points;
+    mutable T m_z;
+};
