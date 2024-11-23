@@ -25,6 +25,28 @@ namespace gismo
   // OG
   CLASS_TEMPLATE_INST gsMaterialMatrixNonlinear<3,real_t,34,true>;
 
+  // ////////////////////////////////////////////////////////////////
+  // // 3D compressible
+  // // NH
+  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<3,real_t,11,true>>;
+  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<3,real_t,21,true>>;
+  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<3,real_t,31,true>>;
+
+  // // NH_ext
+  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<3,real_t,12,true>>;
+  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<3,real_t,22,true>>;
+  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<3,real_t,32,true>>;
+
+  // // MR
+  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<3,real_t,13,true>>;
+  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<3,real_t,23,true>>;
+  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<3,real_t,33,true>>;
+
+  // // OG
+  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<3,real_t,34,true>>;
+  // ////////////////////////////////////////////////////////////////
+
+
   #ifdef GISMO_WITH_PYBIND11
 
     namespace py = pybind11;

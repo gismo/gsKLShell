@@ -1,9 +1,9 @@
 /** @file example_example_parametrix_panel.cpp
 
-    @brief Provides a simple example for multi-patch shell analysis 
+    @brief Provides a simple example for multi-patch shell analysis
     using the penalty method.
 
-    The example allows the user to set the dimensions alpha and beta 
+    The example allows the user to set the dimensions alpha and beta
     of the panel. The panel is always a square fixed on the sides, with
     a distributed pressure. The following setups are available:
     Testcase 0: 1p panel - for testing purposes
@@ -296,12 +296,12 @@ int main(int argc, char *argv[])
 
     //! [Make assembler]
     std::vector<gsFunctionSet<>*> parameters;
-    gsMaterialMatrixBase<real_t>* materialMatrix;
+    gsMaterialMatrixBase<real_t>::uPtr materialMatrix;
     gsOptionList options;
     // Make gsMaterialMatrix depending on the user-defined choices
     if (composite)
     {
-        materialMatrix = new gsMaterialMatrixComposite<3,real_t>(mp,Ts,Gs,Phis);
+        materialMatrix = gsMaterialMatrixBase<real_t>::uPtr(new gsMaterialMatrixComposite<3,real_t>(mp,Ts,Gs,Phis));
     }
     else
     {
@@ -315,7 +315,7 @@ int main(int argc, char *argv[])
 
     gsMaterialMatrixContainer<real_t> materialMats(mp.nPatches());
     for (size_t p = 0; p!=mp.nPatches(); p++)
-        materialMats.add(materialMatrix);
+        materialMats.add(*materialMatrix);
 
     // Construct the gsThinShellAssembler
     gsThinShellAssemblerBase<real_t>* assembler;
@@ -461,7 +461,6 @@ int main(int argc, char *argv[])
     gsInfo<<"Total ellapsed solution time (incl. assembly): \t"<<totaltime<<" s\n";
 
     delete assembler;
-    delete materialMatrix;
     return EXIT_SUCCESS;
 
 }// end main

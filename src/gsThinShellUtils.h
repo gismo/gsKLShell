@@ -61,7 +61,7 @@ public:
 
     index_t rows() const { return _dim; }
     index_t cols() const { return  1; }
-    void parse(gsExprHelper<Scalar> & evList) const
+    void parse(gsExprHelper<Scalar> & /*evList*/) const
     {  }
 
     const gsFeSpace<Scalar> & rowVar() const {return gsNullExpr<Scalar>::get();}
@@ -149,13 +149,13 @@ private:
     typename util::enable_if< util::is_same<U,gsFeSpace<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k)  const
     {
-        const index_t A = _u.cardinality()/_u.dim(); // _u.data().actives.rows()
-        res.resize(_u.cardinality(), cols()); // rows()*
+        const index_t A = u.cardinality()/u.dim(); // u.data().actives.rows()
+        res.resize(u.cardinality(), cols()); // rows()*
 
         normal = _G.data().normal(k);// not normalized to unit length
         normal.normalize();
 
-        bGrads = _u.data().values[1].col(k);
+        bGrads = u.data().values[1].col(k);
         cJac = _G.data().values[1].reshapeCol(k, _G.data().dim.first, _G.data().dim.second).transpose();
         const Scalar measure = (cJac.col3d(0).cross( cJac.col3d(1) )).norm();
 
@@ -190,8 +190,8 @@ private:
     typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value, const gsMatrix<Scalar> & >::type
     eval_impl(const U & u, const index_t k)  const
     {
-        GISMO_ASSERT(1==_u.data().actives.cols(), "Single actives expected");
-        grad_expr<gsFeSolution<Scalar>> sGrad =  grad_expr<gsFeSolution<Scalar>>(_u);
+        GISMO_ASSERT(1==u.data().actives.cols(), "Single actives expected");
+        grad_expr<gsFeSolution<Scalar>> sGrad =  grad_expr<gsFeSolution<Scalar>>(u);
         bGrads = sGrad.eval(k);
 
         return make_vector(k);
@@ -218,21 +218,21 @@ private:
     typename util::enable_if< util::is_same<U,gsGeometryMap<Scalar> >::value, index_t >::type
     cols_impl(const U & u)  const
     {
-        return _u.data().dim.second;
+        return u.data().dim.second;
     }
 
     template<class U> inline
     typename util::enable_if<util::is_same<U,gsFeSpace<Scalar> >::value || util::is_same<U,gsFeSolution<Scalar> >::value, index_t >::type
     cols_impl(const U & u) const
     {
-        return _u.dim();
+        return u.dim();
     }
 
     template<class U> inline
     typename util::enable_if<util::is_same<U,gsFeVariable<Scalar> >::value, index_t >::type
     cols_impl(const U & u) const
     {
-        return _u.source().targetDim();
+        return u.source().targetDim();
     }
 
 };
@@ -730,8 +730,8 @@ private:
     {
         GISMO_ASSERT(_G.data().dim.second==3,"Domain dimension should be 3, is "<<_G.data().dim.second);
 
-        const index_t A = _u.cardinality()/_u.dim();
-        res.resize(_u.cardinality(), cols()); // rows()*
+        const index_t A = u.cardinality()/u.dim();
+        res.resize(u.cardinality(), cols()); // rows()*
         res.setZero();
         cJac = _G.data().jacobian(k);
         cJac.colwise().normalize();
@@ -929,8 +929,8 @@ private:
     eval_impl(const U & u, const index_t k)  const
     {
         GISMO_ASSERT(_G.data().dim.second==3,"Domain dimension should be 3, is "<<_G.data().dim.second);
-        const index_t A = _u.cardinality()/_u.dim(); // _u.data().actives.rows()
-        res.resize(_u.cardinality(), cols()); // rows()*
+        const index_t A = u.cardinality()/u.dim(); // u.data().actives.rows()
+        res.resize(u.cardinality(), cols()); // rows()*
 
         tangent_expr<Scalar> tan_expr = tangent_expr<Scalar>(_G);
         tangent = tan_expr.eval(k);
@@ -1318,7 +1318,7 @@ private:
         */
 
         // evaluate the geometry map of U
-        tmp =_u.data().values[2].reshapeCol(k, cols(), _u.data().dim.second );
+        tmp =u.data().values[2].reshapeCol(k, cols(), u.data().dim.second );
         vEv = _v.eval(k);
         res = vEv * tmp.transpose();
         return res;
@@ -1386,7 +1386,7 @@ private:
             So we simply evaluate for every active basis function v_k the product hess(c).v_k
         */
 
-        hess_expr<gsFeSolution<Scalar>> sHess = hess_expr<gsFeSolution<Scalar>>(_u); // NOTE: This does not parse automatically!
+        hess_expr<gsFeSolution<Scalar>> sHess = hess_expr<gsFeSolution<Scalar>>(u); // NOTE: This does not parse automatically!
         tmp = sHess.eval(k);  //.transpose();
         vEv = _v.eval(k);
         res = vEv * tmp;
@@ -1398,7 +1398,7 @@ private:
                                 util::is_same<U,gsFeVariable<Scalar>  >::value, index_t >::type
     cols_impl(const U & u)  const
     {
-        return _u.targetDim();
+        return u.targetDim();
     }
 
     template<class U> inline
@@ -1406,7 +1406,7 @@ private:
                                 util::is_same<U,gsFeSolution<Scalar> >::value, index_t >::type
     cols_impl(const U & u) const
     {
-        return _u.dim();
+        return u.dim();
     }
 };
 
@@ -1492,7 +1492,7 @@ public:
                 The geometry map has components c=[c1,c2,c3]
             */
             // evaluate the geometry map of U
-            res = _u.data().values[2].reshapeCol(k, cols(), _u.data().dim.second );
+            res = u.data().values[2].reshapeCol(k, cols(), u.data().dim.second );
             return res;
         }
 
@@ -1500,6 +1500,7 @@ public:
         typename util::enable_if< util::is_same<U,gsFeVariable<Scalar> >::value, const gsMatrix<Scalar> & >::type
         eval_impl(const U & u, const index_t k)  const
         {
+            GISMO_UNUSED(k); //should this use k??
             /*
                 Here, we compute the hessian of the geometry map.
                 The hessian of the geometry map c has the form: hess(c)
@@ -1510,9 +1511,9 @@ public:
                 The geometry map has components c=[c1,c2,c3]
             */
             // evaluate the geometry map of U
-            tmp =  _u.data().values[2];
+            tmp = u.data().values[2];
             res.resize(rows(),cols());
-            for (index_t comp = 0; comp != _u.source().targetDim(); comp++)
+            for (index_t comp = 0; comp != u.source().targetDim(); comp++)
                 res.col(comp) = tmp.block(comp*rows(),0,rows(),1); //star,length
             return res;
         }
@@ -1579,14 +1580,14 @@ public:
         typename util::enable_if< util::is_same<U,gsFeVariable<Scalar> >::value || util::is_same<U,gsGeometryMap<Scalar> >::value || util::is_same<U,gsFeSpace<Scalar> >::value, index_t >::type
         rows_impl(const U & u)  const
         {
-            return _u.source().domainDim() * ( _u.source().domainDim() + 1 ) / 2;
+            return u.source().domainDim() * ( u.source().domainDim() + 1 ) / 2;
         }
 
         template<class U> inline
         typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value, index_t >::type
         rows_impl(const U & u) const
         {
-            return _u.parDim() * ( _u.parDim() + 1 ) / 2;
+            return u.parDim() * ( u.parDim() + 1 ) / 2;
         }
 
         ////////////
@@ -1601,7 +1602,7 @@ public:
         typename util::enable_if< util::is_same<U,gsFeSolution<Scalar> >::value || util::is_same<U,gsFeSpace<Scalar> >::value, index_t >::type
         cols_impl(const U & u) const
         {
-            return _u.dim();
+            return u.dim();
         }
 
 };

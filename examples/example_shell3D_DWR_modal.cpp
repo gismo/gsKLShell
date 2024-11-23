@@ -312,7 +312,7 @@ int main(int argc, char *argv[])
     std::vector<gsFunctionSet<> *> parameters(2);
     parameters[0] = &E;
     parameters[1] = &nu;
-    gsMaterialMatrixBase<real_t> *materialMatrix;
+    gsMaterialMatrixBase<real_t>::uPtr materialMatrix;
     gsOptionList options;
     options.addInt("Material", "Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden", 0);
     options.addInt("Implementation", "Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral", 1);
@@ -343,9 +343,6 @@ int main(int argc, char *argv[])
     // matrices
     gsSparseMatrix<> K_L, K_NL;
     gsVector<> rhs;
-
-    // DWR assembler
-    gsThinShellAssemblerDWRBase<real_t> * DWR;
 
     gsFileManager::mkdir(dirname);
 
@@ -388,6 +385,8 @@ int main(int argc, char *argv[])
         // -----------------------------------------------------------------------------------------
         // ----------------------------DWR method---------------------------------------------------
         // -----------------------------------------------------------------------------------------
+        // DWR assembler
+        gsThinShellAssemblerDWRBase<real_t> * DWR;
         DWR = new gsThinShellAssemblerDWR<3, real_t, true>(mp, basisL, basisH, bc, force, materialMatrix);
         DWR->setGoal(GoalFunction::Modal);
 
@@ -544,6 +543,8 @@ int main(int argc, char *argv[])
             mesher.rebuild();
         }
         mp_def = mp;
+
+        delete DWR;
     }
 
     if (plot)
@@ -599,7 +600,6 @@ int main(int argc, char *argv[])
         gsWriteParaview<>( fieldPL, "primalL", 1000);
     }
 
-    delete DWR;
     return EXIT_SUCCESS;
 
 } // end main

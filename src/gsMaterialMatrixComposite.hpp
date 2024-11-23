@@ -129,7 +129,7 @@ void gsMaterialMatrixComposite<dim,T>::_initialize(const index_t nLayers)
 }
 
 template <short_t dim, class T >
-void gsMaterialMatrixComposite<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool basis) const
+void gsMaterialMatrixComposite<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u, bool /*basis*/) const
 {
     this->_computeMetricUndeformed(patch,u);
 
@@ -188,7 +188,7 @@ void gsMaterialMatrixComposite<dim,T>::thickness_into(const index_t patch, const
 }
 
 template <short_t dim, class T >
-gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & /*z*/, enum MaterialOutput out) const
 {
     // Input: u in-plane points
     //        z matrix with, per point, a column with z integration points
