@@ -10,8 +10,7 @@ namespace gismo
 
 namespace internal
 {
-    CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixBase<real_t>>;
-    CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixContainer<real_t>>;
+
 } // end namespace internal
 
 

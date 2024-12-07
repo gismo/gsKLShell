@@ -144,7 +144,7 @@ public:
      *
      * @return     Return MatIntegration enumeration
      */
-    virtual inline enum MatIntegration isMatIntegrated() const {return MatIntegration::NotIntegrated; }
+    virtual enum MatIntegration isMatIntegrated() const {return MatIntegration::NotIntegrated; }
 
     /**
      * @brief      Specifies how the vector is integrated
@@ -157,14 +157,14 @@ public:
      *
      * @return     Return MatIntegration enumeration
      */
-    virtual inline enum MatIntegration isVecIntegrated() const {return MatIntegration::NotIntegrated; }
+    virtual enum MatIntegration isVecIntegrated() const {return MatIntegration::NotIntegrated; }
 
     /**
      * @brief      Returns the options
      *
      * @return     \ref gsOptionList
      */
-    virtual inline void defaultOptions()
+    virtual void defaultOptions()
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -172,13 +172,13 @@ public:
      *
      * @return     \ref gsOptionList
      */
-    virtual inline gsOptionList & options() { return m_options; }
+    virtual gsOptionList & options() { return m_options; }
     /**
      * @brief      Sets the options
      *
      * @param[in]  opt   @ref gsOptionList
      */
-    virtual inline void setOptions(gsOptionList opt) {m_options.update(opt,gsOptionList::addIfUnknown); }
+    virtual void setOptions(gsOptionList opt) {m_options.update(opt,gsOptionList::addIfUnknown); }
 
     /**
      * @brief      Evaluates the density multiplied by the thickness of the shell (scalar)
@@ -187,7 +187,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The result
      */
-    virtual inline void    density_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
+    virtual void    density_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
     /**
      * @brief      Evaluates the stretches in the shell (3x1 vector)
@@ -196,7 +196,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The result
      */
-    virtual inline void    pstretch_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
+    virtual void    pstretch_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
     /**
      * @brief      Evaluates the directions of the stretches in the shell (3x1 vector per direction)
@@ -205,7 +205,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The result
      */
-    virtual inline void    pstretchDir_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
+    virtual void    pstretchDir_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
         /**
      * @brief      Evaluates the priciple stresses in the shell (3x1 vector)
@@ -214,7 +214,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The result
      */
-    virtual inline void    pstress_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
+    virtual void    pstress_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
     /**
      * @brief      Evaluates the directions of the priciple stresses in the shell (3x1 vector per direction)
@@ -223,7 +223,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The result
      */
-    virtual inline void    pstressDir_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
+    virtual void    pstressDir_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
     /**
      * @brief      Evaluates the thickness of the shell (scalar)
@@ -232,7 +232,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The result
      */
-    virtual inline void  thickness_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
+    virtual void  thickness_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -242,7 +242,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The result
      */
-    virtual inline void  parameters_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
+    virtual void  parameters_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -252,7 +252,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The result
      */
-    virtual inline void  transform_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
+    virtual void  transform_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -267,7 +267,7 @@ public:
      * @return     Matrix with the result (deformation tensor) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T>  eval3D_spec2cov(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
+    virtual gsMatrix<T>  eval3D_spec2cov(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -281,7 +281,7 @@ public:
      * @return     Matrix with the result (deformation tensor) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T>  eval3D_spec2con(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
+    virtual gsMatrix<T>  eval3D_spec2con(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -296,7 +296,7 @@ public:
      * @return     Matrix with the result (deformation tensor) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T> eval3D_cov2cart(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
+    virtual gsMatrix<T> eval3D_cov2cart(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -310,7 +310,7 @@ public:
      * @return     Matrix with the result (deformation tensor) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T> eval3D_con2cart(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
+    virtual gsMatrix<T> eval3D_con2cart(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -323,7 +323,7 @@ public:
      * @return     Matrix with the result (deformation tensor) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T> eval3D_pstretchTransform(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+    virtual gsMatrix<T> eval3D_pstretchTransform(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
     { return eval3D_spec2con(patch,u,z); }
 
     /**
@@ -336,7 +336,7 @@ public:
      * @return     Matrix with the result (deformation tensor) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T> eval3D_pstressTransform(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+    virtual gsMatrix<T> eval3D_pstressTransform(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
     { return eval3D_spec2cov(patch,u,z); }
 
     /**
@@ -350,7 +350,7 @@ public:
      * @return     Matrix with the result (deformation tensor) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T>  eval3D_deformation(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
+    virtual gsMatrix<T>  eval3D_deformation(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -364,17 +364,17 @@ public:
      * @return     Matrix with the result (matrix) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T>  eval3D_matrix(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    virtual gsMatrix<T>  eval3D_matrix(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
-    virtual inline gsMatrix<T>  eval3D_matrix(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    virtual gsMatrix<T>  eval3D_matrix(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
     {
         gsMatrix<T> zmat(1,1);
         zmat<<z;
         return eval3D_matrix(patch,u,zmat,out);
     }
 
-    virtual inline gsMatrix<T>  eval3D_matrix_C(const gsMatrix<T> & /*Cmat*/, const index_t /*patch*/, const gsVector<T>& /*u*/, const T /*z*/, enum MaterialOutput /*out*/) const
+    virtual gsMatrix<T>  eval3D_matrix_C(const gsMatrix<T> & /*Cmat*/, const index_t /*patch*/, const gsVector<T>& /*u*/, const T /*z*/, enum MaterialOutput /*out*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -395,13 +395,13 @@ public:
      *             dCd11 = dC.reshapeCol(2,3,3);
      *
      */
-    virtual inline gsMatrix<T>  eval3D_dmatrix(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    virtual gsMatrix<T>  eval3D_dmatrix(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
     {
         GISMO_NO_IMPLEMENTATION;
         // return gsMatrix<T>::Zero(27,u.cols()*z.rows());
     }
 
-    virtual inline gsMatrix<T>  eval3D_dmatrix(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    virtual gsMatrix<T>  eval3D_dmatrix(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
     {
         gsMatrix<T> zmat(1,1);
         zmat<<z;
@@ -419,15 +419,15 @@ public:
      * @return     Matrix with the result (vector) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T>  eval3D_vector(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    virtual gsMatrix<T>  eval3D_vector(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
     { GISMO_NO_IMPLEMENTATION; }
-    virtual inline gsMatrix<T>  eval3D_vector(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    virtual gsMatrix<T>  eval3D_vector(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
     {
         gsMatrix<T> zmat(1,1);
         zmat<<z;
         return eval3D_vector(patch,u,zmat,out);
     }
-    virtual inline gsMatrix<T>  eval3D_vector_C(const gsMatrix<T> & /*C*/, const index_t /*patch*/, const gsVector<T>& /*u*/, const T /*z*/, enum MaterialOutput /*out*/) const
+    virtual gsMatrix<T>  eval3D_vector_C(const gsMatrix<T> & /*C*/, const index_t /*patch*/, const gsVector<T>& /*u*/, const T /*z*/, enum MaterialOutput /*out*/) const
     { GISMO_NO_IMPLEMENTATION; }
     /**
      * @brief      Evaluates the Cauchy Stress vector on \a patch on in-plane points \a u with height \a z
@@ -442,7 +442,7 @@ public:
      * @return     Matrix with the result (vector) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T>  eval3D_CauchyVector(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    virtual gsMatrix<T>  eval3D_CauchyVector(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
     {
         GISMO_NO_IMPLEMENTATION;
     }
@@ -457,9 +457,9 @@ public:
      * @return     Matrix with the result (principal stress) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T> eval3D_pstress(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    virtual gsMatrix<T> eval3D_pstress(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
     { GISMO_NO_IMPLEMENTATION; }
-    virtual inline gsMatrix<T> eval3D_CauchyPStress(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    virtual gsMatrix<T> eval3D_CauchyPStress(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
     { GISMO_NO_IMPLEMENTATION; }
     /**
      * @brief      Evaluates the principal stress directions on \a patch on in-plane points \a u with height \a z
@@ -472,7 +472,7 @@ public:
      * @return     Matrix with the result (principal stress directions) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T> eval3D_pstressDir(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    virtual gsMatrix<T> eval3D_pstressDir(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -486,7 +486,7 @@ public:
      * @return     Matrix with the result (principal stretch) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T> eval3D_pstretch(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
+    virtual gsMatrix<T> eval3D_pstretch(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
     { GISMO_NO_IMPLEMENTATION; }
     /**
      * @brief      Evaluates the principal stretch directions on \a patch on in-plane points \a u with height \a z
@@ -499,7 +499,7 @@ public:
      * @return     Matrix with the result (principal stretch directions) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T> eval3D_pstretchDir(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
+    virtual gsMatrix<T> eval3D_pstretchDir(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
 
@@ -514,7 +514,7 @@ public:
      * @return     Matrix with the result (principal strain) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T> eval3D_pstrain(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
+    virtual gsMatrix<T> eval3D_pstrain(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -527,9 +527,9 @@ public:
      *
      * @return     { description_of_the_return_value }
      */
-    virtual inline gsMatrix<T> eval3D_strain(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
+    virtual gsMatrix<T> eval3D_strain(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/) const
     { GISMO_NO_IMPLEMENTATION; }
-    virtual inline gsMatrix<T> eval3D_strain(const index_t patch, const gsVector<T>& u, const T & z) const
+    virtual gsMatrix<T> eval3D_strain(const index_t patch, const gsVector<T>& u, const T & z) const
     {
         gsMatrix<T> zmat(1,1);
         zmat<<z;
@@ -546,9 +546,9 @@ public:
      *
      * @return     { description_of_the_return_value }
      */
-    virtual inline gsMatrix<T> eval3D_stress(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    virtual gsMatrix<T> eval3D_stress(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
     { GISMO_NO_IMPLEMENTATION; }
-    virtual inline gsMatrix<T> eval3D_stress(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    virtual gsMatrix<T> eval3D_stress(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
     {
         gsMatrix<T> zmat(1,1);
         zmat<<z;
@@ -565,7 +565,7 @@ public:
      *
      * @return     { description_of_the_return_value }
      */
-    virtual inline gsMatrix<T> eval3D_detF(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    virtual gsMatrix<T> eval3D_detF(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
     /**
@@ -578,9 +578,9 @@ public:
      *
      * @return     { description_of_the_return_value }
      */
-    virtual inline gsMatrix<T> eval3D_CauchyStress(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    virtual gsMatrix<T> eval3D_CauchyStress(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
     { GISMO_NO_IMPLEMENTATION; }
-    virtual inline gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    virtual gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
     {
         gsMatrix<T> zmat(1,1);
         zmat<<z;
@@ -598,27 +598,27 @@ public:
      * @return     Matrix with the result (principal strain) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
-    virtual inline gsMatrix<T> eval3D_tensionfield(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    virtual gsMatrix<T> eval3D_tensionfield(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
     { GISMO_NO_IMPLEMENTATION; }
-    virtual inline gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    virtual gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
     {
         gsMatrix<T> zmat(1,1);
         zmat<<z;
         return eval3D_tensionfield(patch,u,zmat,out);
     }
 
-    virtual inline gsMatrix<T> eval3D_theta(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    virtual gsMatrix<T> eval3D_theta(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
     { GISMO_NO_IMPLEMENTATION; }
-    virtual inline gsMatrix<T> eval3D_theta(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    virtual gsMatrix<T> eval3D_theta(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
     {
         gsMatrix<T> zmat(1,1);
         zmat<<z;
         return eval3D_theta(patch,u,zmat,out);
     }
 
-    virtual inline gsMatrix<T> eval3D_gamma(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    virtual gsMatrix<T> eval3D_gamma(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
     { GISMO_NO_IMPLEMENTATION; }
-    virtual inline gsMatrix<T> eval3D_gamma(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    virtual gsMatrix<T> eval3D_gamma(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
     {
         gsMatrix<T> zmat(1,1);
         zmat<<z;
@@ -647,7 +647,7 @@ public:
     { GISMO_NO_IMPLEMENTATION; }
 
     /// Sets the thickness
-    virtual inline void setThickness(const function_ptr & thickness) { m_thickness = thickness; }
+    virtual void setThickness(const function_ptr & thickness) { m_thickness = thickness; }
 
     /// Sets the thickness
     virtual void setThickness(const gsFunctionSet<T> & thickness)
@@ -657,13 +657,13 @@ public:
     }
 
     /// Returns true if a thickness is assigned
-    virtual inline bool hasThickness() const { return m_thickness!=nullptr; }
+    virtual bool hasThickness() const { return m_thickness!=nullptr; }
 
     /// Gets the Density
     virtual const function_ptr getThickness() const {return m_thickness;}
 
     /// Sets the density
-    virtual inline void setDensity(function_ptr Density) { m_density = Density; }
+    virtual void setDensity(function_ptr Density) { m_density = Density; }
     /// Sets the density
     virtual void setDensity(const gsFunctionSet<T> & Density)
     {
@@ -671,7 +671,7 @@ public:
         m_density = fun;
     }
     /// Returns true if a density is assigned
-    virtual inline bool hasDensity() const { return m_density!=nullptr; }
+    virtual bool hasDensity() const { return m_density!=nullptr; }
 
     /// Gets the Density
     virtual const function_ptr getDensity()  const {return m_density;}
@@ -681,7 +681,7 @@ public:
      *
      * @param[in]  pars  Function pointers for the parameters in a container
      */
-    virtual inline void setParameters(const std::vector<function_ptr> &pars)
+    virtual void setParameters(const std::vector<function_ptr> &pars)
     {
         m_pars = pars;
     }
@@ -691,7 +691,7 @@ public:
      *
      * @param[in]  pars  Function pointers for the parameters in a container
      */
-    virtual inline void setParameter(const index_t i, const function_ptr &par)
+    virtual void setParameter(const index_t i, const function_ptr &par)
     {
         m_pars[i] = par;
     }
@@ -701,7 +701,7 @@ public:
      *
      * @param[in]  pars  Function pointers for the parameters in a container
      */
-    virtual inline void setParameters(const std::vector<gsFunctionSet<T> *> &pars)
+    virtual void setParameters(const std::vector<gsFunctionSet<T> *> &pars)
     {
         m_pars.resize(pars.size());
         for (size_t k = 0; k!=pars.size(); k++)
@@ -713,7 +713,7 @@ public:
      *
      * @param[in]  pars  Function pointers for the parameters in a container
      */
-    virtual inline void setParameter(const index_t i, const gsFunctionSet<T> &par)
+    virtual void setParameter(const index_t i, const gsFunctionSet<T> &par)
     {
         if ((index_t)m_pars.size() < i+1)
             m_pars.resize(i+1);
@@ -727,7 +727,7 @@ public:
      *
      * @return     The parameter.
      */
-    virtual inline const function_ptr getParameter(const index_t i)  const
+    virtual const function_ptr getParameter(const index_t i)  const
     {
         GISMO_ASSERT(i < (index_t)m_pars.size(),"Parameter "<<i<<" is unavailable");
         return m_pars[i] ;
@@ -737,10 +737,10 @@ public:
      * @brief      Gets the number of parameters
      *
      */
-    virtual inline index_t numParameters() const { return m_pars.size(); }
+    virtual index_t numParameters() const { return m_pars.size(); }
 
     /// See \ref gsMaterialMatrixBase for details
-    virtual inline void resetParameters()
+    virtual void resetParameters()
     {
         m_pars.clear();
         m_pars.resize(0);
@@ -749,7 +749,7 @@ public:
     /**
      * @brief      Prints info
      */
-    virtual inline void info() const
+    virtual void info() const
     { GISMO_NO_IMPLEMENTATION; }
 
     /// Prints the object as a string.
@@ -760,15 +760,15 @@ public:
     }
 
     /// Returns this
-    virtual inline const gsMaterialMatrixBase<T> * material() const { return this; }
+    virtual const gsMaterialMatrixBase<T> * material() const { return this; }
     /// Returns this
-    virtual inline gsMaterialMatrixBase<T> * material() { return this; }
+    virtual gsMaterialMatrixBase<T> * material() { return this; }
 
     // TODO: Change from single letter to better description
-    virtual inline gsMatrix<T> S(const gsMatrix<T> & /*strain*/) const
+    virtual gsMatrix<T> S(const gsMatrix<T> & /*strain*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
-    virtual inline gsMatrix<T> C(const gsMatrix<T> & /*strain*/) const
+    virtual gsMatrix<T> C(const gsMatrix<T> & /*strain*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
     virtual void setUndeformed(const gsFunctionSet<T> * undeformed)
