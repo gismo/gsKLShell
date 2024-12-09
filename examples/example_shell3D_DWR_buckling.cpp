@@ -265,7 +265,7 @@ int main(int argc, char *argv[])
             }
         }
         std::sort(gammas_an.begin(),gammas_an.end());
-        
+
         gammas_num = std::vector<real_t>{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
         lambda_an = gammas_an[modeIdx] / (Load);
@@ -283,7 +283,7 @@ int main(int argc, char *argv[])
     std::vector<gsFunctionSet<> *> parameters(2);
     parameters[0] = &E;
     parameters[1] = &nu;
-    gsMaterialMatrixBase<real_t> *materialMatrix;
+    gsMaterialMatrixBase<real_t>::uPtr materialMatrix;
     gsOptionList options;
     options.addInt("Material", "Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden", 0);
     options.addInt("Implementation", "Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral", 1);
@@ -320,9 +320,6 @@ int main(int argc, char *argv[])
     // matrices
     gsSparseMatrix<> K_L, K_NL, Kdiff;
     gsVector<> rhs;
-
-    // DWR assembler
-    gsThinShellAssemblerDWRBase<real_t> * DWR;
 
     gsParaviewCollection collection("solution");
     gsParaviewCollection errors("error_elem_ref");
@@ -362,6 +359,8 @@ int main(int argc, char *argv[])
         // -----------------------------------------------------------------------------------------
         // ----------------------------DWR method---------------------------------------------------
         // -----------------------------------------------------------------------------------------
+        // DWR assembler
+        gsThinShellAssemblerDWRBase<real_t> * DWR;
         DWR = new gsThinShellAssemblerDWR<3, real_t, true>(mp, basisL, basisH, bc, force, materialMatrix);
         DWR->setPointLoads(pLoads);
         DWR->setGoal(GoalFunction::Buckling);
@@ -471,7 +470,7 @@ int main(int argc, char *argv[])
         else if (solverH.info()==Spectra::CompInfo::NotConverging) { GISMO_ERROR("Spectra did not converge! Error code: NotConverging"); }
         else if (solverH.info()==Spectra::CompInfo::NotComputed)   { GISMO_ERROR("Spectra did not converge! Error code: NotComputed");   }
         else                                                      { GISMO_ERROR("No error code known"); }
-#else        
+#else
         gsEigen::GeneralizedSelfAdjointEigenSolver< typename gsMatrix<>::Base >  solverH;
         solverH.compute(Kdiff,K_L);
 #endif
@@ -555,6 +554,8 @@ int main(int argc, char *argv[])
             mesher.rebuild();
         }
         mp_def = mp;
+
+        delete DWR;
     }
 
     if (plot)
@@ -612,8 +613,6 @@ int main(int argc, char *argv[])
         gsWriteParaview<>( fieldPL, "primalL", 1000);
     }
 
-    delete materialMatrix;
-    delete DWR;
     return EXIT_SUCCESS;
 
 } // end main

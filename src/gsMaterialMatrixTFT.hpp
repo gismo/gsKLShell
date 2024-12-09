@@ -19,14 +19,7 @@
 #include <gsKLShell/src/gsMaterialMatrixUtils.h>
 #include <gsCore/gsFunction.h>
 
-using namespace gismo;
-
-template <typename T>
-T mod(const T x, const T y)
-{
-    return x - math::floor(x/y)*y;
-}
-
+template <typename T> T mod(const T x, const T y);
 template <typename T> class objective;
 
 namespace gismo
@@ -46,7 +39,7 @@ std::ostream & gsMaterialMatrixTFT<dim,T,linear>::print(std::ostream &os) const
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput /*out*/) const
 {
     // GISMO_ASSERT(out==MaterialOutput::MatrixA,"Tension Field Theory only works for membrane models, hence only outputs the A matrix");
     // Input: u in-plane points
@@ -159,7 +152,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_strain(const index_t patch
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput /*out*/) const
 {
     // Input: u in-plane points
     //        z matrix with, per point, a column with z integration points
@@ -203,7 +196,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput /*out*/) const
 {
     // Input: u in-plane points
     //        z matrix with, per point, a column with z integration points
@@ -302,13 +295,13 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t
 // }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput /*out*/) const
 {
     return this->_compute_TF(patch,u,z);
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_theta(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_theta(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput /*out*/) const
 {
     gsMatrix<T> result(1,u.cols());
     result.setZero();
@@ -340,7 +333,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_theta(const index_t patch,
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_gamma(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_gamma(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput /*out*/) const
 {
     gsMatrix<T> result(1,u.cols());
     result.setZero();
@@ -375,7 +368,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_gamma(const index_t patch,
 template <short_t dim, class T, bool linear >
 template <bool _linear>
 typename std::enable_if<_linear, gsMatrix<T> >::type
-gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
+gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput /*out*/) const
 {
     gsMatrix<T> result = m_materialMat->eval3D_matrix(patch,u,z,MaterialOutput::MatrixA);
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
@@ -585,7 +578,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
 }
 
 template <short_t dim, class T, bool linear >
-T gsMaterialMatrixTFT<dim,T,linear>::_compute_gamma(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const
+T gsMaterialMatrixTFT<dim,T,linear>::_compute_gamma(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & /*E*/) const
 {
     T n1 = math::cos(theta);
     T n2 = math::sin(theta);
@@ -594,12 +587,12 @@ T gsMaterialMatrixTFT<dim,T,linear>::_compute_gamma(const T & theta, const gsMat
     gsVector<T,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
     gsVector<T,3> n2_vec; n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
     gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
-    
+
     return - ( n1_vec.transpose() * N ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
 }
 
 template <short_t dim, class T, bool linear >
-bool gsMaterialMatrixTFT<dim,T,linear>::_check_theta_full(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const
+bool gsMaterialMatrixTFT<dim,T,linear>::_check_theta_full(const T & theta, const gsMatrix<T> & /*C*/, const gsVector<T> & N, const gsVector<T> & E) const
 {
     T n1 = math::cos(theta);
     T n2 = math::sin(theta);
@@ -607,7 +600,7 @@ bool gsMaterialMatrixTFT<dim,T,linear>::_check_theta_full(const T & theta, const
     T m2 = math::cos(theta);
     gsVector<T,3> n1_vec; n1_vec<<n1*n1, n2*n2, 2*n1*n2;
     gsVector<T,3> n4_vec; n4_vec<<m1*m1, m2*m2, 2*m1*m2;
-    
+
     bool check = true;
     check &= ((n1_vec.transpose() * N).value() < 0); // Li et al eq. 63 / eq. 55
     check &= ((n4_vec.transpose() * E).value() > 0); // Li et al eq. 58
@@ -615,7 +608,7 @@ bool gsMaterialMatrixTFT<dim,T,linear>::_check_theta_full(const T & theta, const
 }
 
 template <short_t dim, class T, bool linear >
-bool gsMaterialMatrixTFT<dim,T,linear>::_check_theta_gamma(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const
+bool gsMaterialMatrixTFT<dim,T,linear>::_check_theta_gamma(const T & theta, const gsMatrix<T> & /*C*/, const gsVector<T> & N, const gsVector<T> & /*E*/) const
 {
     T n1 = math::cos(theta);
     T n2 = math::sin(theta);
@@ -631,7 +624,7 @@ gsVector<T> gsMaterialMatrixTFT<dim,T,linear>::_theta_interval(const gsMatrix<T>
     GISMO_ASSERT(N.rows()==3,"N must be a 3x1 vector");
     GISMO_ASSERT(E.rows()==3,"E must be a 3x1 vector");
     gsVector<T> result(2);
- 
+
     objective<T> obj(C,N);
 
     // See Lu et al., Finite Element Analysis of Membrane Wrinkling, 2001, International Journal for numerical methods in engineering
@@ -643,10 +636,10 @@ gsVector<T> gsMaterialMatrixTFT<dim,T,linear>::_theta_interval(const gsMatrix<T>
     T sin_E0 = E12/R_E;
     T cos_E0 = (E22-E11)/(2*R_E);
     std::complex<T> sin_Esqrt = E12*E12-E11*E22;
-    std::complex<T> sin_E1_C = -math::sqrt(sin_Esqrt)/R_E; 
+    std::complex<T> sin_E1_C = -math::sqrt(sin_Esqrt)/R_E;
     T sin_E1 = sin_E1_C.real();
     T cos_E1 = -(E11+E22)/(2*R_E);
-    std::complex<T> sin_E2_C = math::sqrt(sin_Esqrt)/R_E; 
+    std::complex<T> sin_E2_C = math::sqrt(sin_Esqrt)/R_E;
     T sin_E2 = sin_E2_C.real();
     T cos_E2 = -(E11+E22)/(2*R_E);
 
@@ -664,10 +657,10 @@ gsVector<T> gsMaterialMatrixTFT<dim,T,linear>::_theta_interval(const gsMatrix<T>
     T cos_N0 = (N11-N22)/(R_N);
     std::complex<T> sin_Nsqrt = N12*N12-N11*N22;
     // if (sin_Nsqrt < 0) gsDebugVar("Oops");
-    std::complex<T> sin_N1_C = math::sqrt(sin_Nsqrt)/R_N; 
+    std::complex<T> sin_N1_C = math::sqrt(sin_Nsqrt)/R_N;
     T sin_N1 = sin_N1_C.real();
     T cos_N1 = -(N11+N22)/(2*R_N);
-    std::complex<T> sin_N2_C = -math::sqrt(sin_Nsqrt)/R_N; 
+    std::complex<T> sin_N2_C = -math::sqrt(sin_Nsqrt)/R_N;
     T sin_N2 = sin_N2_C.real();
     T cos_N2 = -(N11+N22)/(2*R_N);
 
@@ -950,140 +943,15 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
     result += gamma * dCN1;
     return result;
 }
-
-
-// template <short_t dim, class T, bool linear >
-// gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
-// {
-//     gsMatrix<T> result(1,u.cols());
-//     gsMatrix<T> E, Evec;
-//     gsVector<T> value(1),init(1);
-//     gsVector<T,3> n1_vec, n2_vec;
-//     T n1, n2, m1, m2;
-
-//     index_t iter;
-
-//     T theta;
-//     T gamma;
-
-//     struct
-//     {
-//         bool operator()(const gsVector<T> & a, const gsVector<T> & b) const
-//         {
-//             gsDebugVar(a);
-//             gsDebugVar(b);
-//             GISMO_ASSERT(a.size()==b.size(),"Sizes must agree!");
-//             return std::lexicographical_compare(  a.begin(), a.end(),b.begin(), b.end());
-//         };
-//     }
-//     lexcomp;
-
-//     real_t comp_tol = 1e-5;
-//     auto comp = [&comp_tol](const gsVector<T> & a, const gsVector<T> & b)
-//     {
-//         return std::pow((a(0)-b(0)),2) + std::pow((a(1)-b(1)),2) < comp_tol;
-//     };
-
-//     gsMatrix<T> Cs = m_materialMat->eval3D_matrix(patch,u,z,MaterialOutput::MatrixA);
-//     gsMatrix<T> Ns = m_materialMat->eval3D_stress(patch,u,z,MaterialOutput::VectorN);
-
-//     gsVector<T> x = gsVector<T>::LinSpaced(10,-0.5 * EIGEN_PI,0.5 * EIGEN_PI);
-
-//     for (index_t k = 0; k!=u.cols(); k++)
-//     {
-//         init.setZero();
-//         value.setZero();
-
-//         gsAsMatrix<T> C = Cs.reshapeCol(k,3,3);
-//         gsAsMatrix<T> N = Ns.reshapeCol(k,3,1);
-
-//         std::vector<gsVector<T>> results; results.reserve(x.size());
-//         for (index_t t=0; t!=x.size(); t++)
-//         {
-//             init.at(0) = x.at(t);
-
-//             objective<T> obj(C,N);
-//             iter = obj.newtonRaphson(value,init,false,1e-12,1000);
-//             GISMO_ASSERT(iter!=-1,"Newton iterations did not converge");
-
-//             theta = init.at(0);
-//             n1 = math::cos(theta);
-//             n2 = math::sin(theta);
-//             m1 = -math::sin(theta);
-//             m2 = math::cos(theta);
-
-//             n1_vec<<n1*n1, n2*n2, 2*n1*n2;
-//             n2_vec<<m1*n1, m2*n2, m1*n2+m2*n1;
-
-//             gamma = - ( n1_vec.transpose() * N ).value() / ( n1_vec.transpose() * C * n1_vec ).value();
-
-//             gsVector<> res(2);
-//             res.at(0) = std::fmod(theta,EIGEN_PI);
-//             res.at(1) = gamma;
-
-//             if (res(1) > 0)
-//             {
-//                 results.push_back(res);
-//             }
-//         }
-
-//         for (auto it = results.begin(); it!=results.end(); it++)
-//             gsDebugVar(*it);
-
-//         std::sort(results.begin(), results.end(),lexcomp);
-
-//         auto last = std::unique(results.begin(), results.end(),comp);
-//         results.erase(last, results.end());
-
-//         GISMO_ASSERT(results.size()>=1,"No suitable theta found");
-
-//         theta = results.at(0)(0);
-
-//         result(0,k) = theta;
-//     }
-
-// }
-
-// namespace internal
-// {
-
-// /// @brief get a Linear Material Matrix from XML data
-// ///
-// /// \ingroup KLShell
-// template<short_t d, class T> // implemented for template linear=false
-// class gsXml< gsMaterialMatrixTFT<d,T,false> >
-// {
-// private:
-//     gsXml() { }
-//     typedef gsMaterialMatrixTFT<d,T,false> Object;
-
-// public:
-//     GSXML_COMMON_FUNCTIONS(gsMaterialMatrixTFT<TMPLA3(d,T,false)>);
-//     static std::string tag ()  { return "MaterialMatrix"; }
-//     static std::string type () { return "Linear" +  to_string(d); }
-
-//     GSXML_GET_POINTER(Object)
-
-//     static void get_into(gsXmlNode * node, Object & obj)
-//     {
-//         gsMaterialMatrixBase<T> * base = gsXml< gsMaterialMatrixBase<T> >::get(node);
-//         obj = Object(base);
-//     }
-
-//     static gsXmlNode * put (const Object & obj,
-//                             gsXmlTree & data)
-//     {
-//         gsXml< gsMaterialMatrixBase<T> >::put(node,data);
-
-//         return putMaterialMatrixToXml< Object >( obj,data );
-//         // GISMO_NO_IMPLEMENTATION;
-//         // return putGeometryToXml(obj,data);
-//     }
-// };
-
-// }// namespace internal
-
 } // end namespace
+
+using namespace gismo;
+
+template <typename T>
+T mod(const T x, const T y)
+{
+    return x - math::floor(x/y)*y;
+}
 
 template <typename T>
 class objective : public gsFunction<T>
@@ -1198,7 +1066,7 @@ public:
      *
      * @return     True when converged
      */
-    bool findRootBisection(T & f, const T & A, const T & B, T & x, const T & t = 1e-12, const index_t & itmax = 1000)
+    bool findRootBisection(T & /*f*/, const T & A, const T & B, T & x, const T & t = 1e-12, const index_t & itmax = 1000)
     {
         T a = A;
         T b = B;

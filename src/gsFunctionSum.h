@@ -23,6 +23,12 @@ template<class T> class gsFunctionPieceSum;
 template<class T>
 class gsFunctionSum : public gsFunctionSet<T>
 {
+    /// Shared pointer for gsFunctionSum
+    typedef memory::shared_ptr< gsFunctionSum<T> > Ptr;
+
+    /// Unique pointer for gsFunctionExpr
+    typedef memory::unique_ptr< gsFunctionSum<T> > uPtr;
+
 public:
     gsFunctionSum()
     :
@@ -102,6 +108,8 @@ class gsFunctionPieceSum :  public gsFunction<T>
 
     /// Auto pointer for gsFunctionExpr
     typedef memory::unique_ptr< gsFunctionPieceSum<T> > uPtr;
+
+    using Base = gsFunction<T>;
 
 public:
     gsFunctionPieceSum(const gsFunctionSum<T> * geom, const index_t index)
@@ -186,6 +194,7 @@ public:
             }
         }
     }
+    using Base::evalAllDers_into;
 
     GISMO_CLONE_FUNCTION(gsFunctionPieceSum)
 

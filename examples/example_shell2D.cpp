@@ -12,7 +12,11 @@
 */
 
 #include <gismo.h>
-#include <gsKLShell/gsKLShell.h>
+// #include <gsKLShell/gsKLShell.h>
+#include <gsKLShell/src/gsMaterialMatrixLinear.h>
+#include <gsKLShell/src/gsMaterialMatrixTFT.h>
+#include <gsKLShell/src/getMaterialMatrix.h>
+#include <gsKLShell/src/gsThinShellAssembler.h>
 
 using namespace gismo;
 
@@ -339,15 +343,15 @@ int main(int argc, char *argv[])
     //! [Make material functions]
 
     //! [Make assembler]
-    gsMaterialMatrixBase<real_t>* materialMatrix;
-    gsMaterialMatrixBase<real_t>* materialMatrixTFT;
+    gsMaterialMatrixBase<real_t>::uPtr materialMatrix;
+    gsMaterialMatrixBase<real_t>::uPtr materialMatrixTFT;
     gsOptionList options;
     // Make gsMaterialMatrix depending on the user-defined choices
     if      (material==0) //Linear
     {
         if (composite) // Composite
         {
-            materialMatrix = new gsMaterialMatrixComposite<2,real_t>(mp,Ts,Gs,Phis);
+            materialMatrix = gsMaterialMatrixBase<real_t>::uPtr(new gsMaterialMatrixComposite<2,real_t>(mp,Ts,Gs,Phis));
         }
         else
         {
@@ -365,8 +369,11 @@ int main(int argc, char *argv[])
     }
 
     materialMatrix->options().setInt("TensionField",0);
-    materialMatrixTFT = new gsMaterialMatrixTFT<2,real_t,false>(materialMatrix);
+    // materialMatrixTFT = memory::make_unique(new gsMaterialMatrixTFT<2,real_t,false>(materialMatrix));
+    gsMaterialMatrixTFT<2,real_t,false> materialMatrixTFT2(materialMatrix.get());
     // materialMatrixTFT->options().setReal("SlackMultiplier",1e-1);
+
+    gsMaterialMatrixLinear<2,real_t> materialMatrixLinear2(mp,t,E,nu,rho);
 
     // Construct the gsThinShellAssembler
     gsThinShellAssemblerBase<real_t>* assembler;

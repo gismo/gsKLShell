@@ -15,7 +15,6 @@
 
 #pragma once
 
-#include <gsKLShell/src/gsMaterialMatrixBase.h>
 #include <gsKLShell/src/gsMaterialMatrixBaseDim.h>
 #include <gsKLShell/src/gsMaterialMatrixUtils.h>
 
@@ -58,6 +57,16 @@ public:
     GISMO_OVERRIDE_CLONE_FUNCTION(gsMaterialMatrixTFT)
 
 public:
+
+    // /**
+    //  * @brief      Constructs a TFT material matrix using a reference to another material matrix
+    //  *
+    //  * @param      materialMatrix  The original material matrix
+    //  */
+    // gsMaterialMatrixTFT(typename gsMaterialMatrixBase<T>::uPtr materialMatrix)
+    // :
+    // gsMaterialMatrixTFT(memory::make_shared(materialMatrix->clone().release()))
+    // {}
 
     /**
      * @brief      Constructs a TFT material matrix using a reference to another material matrix
@@ -126,9 +135,11 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_matrix;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_vector;
 
     /// Returns the principal stresses stored in the underlying material model where the tension-field is non-slack
     ///
@@ -146,12 +157,15 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const override;
+    using Base::eval3D_strain;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
+    using Base::eval3D_stress;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
+    using Base::eval3D_CauchyStress;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_CauchyPStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override
@@ -159,12 +173,15 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_tensionfield;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_theta(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_theta;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_gamma(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_gamma;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_pstretch(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const override
@@ -177,6 +194,7 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     void setParameters(const std::vector<gsFunctionSet<T>*> &pars) override
     { m_materialMat->setParameters(pars); }
+    using Base::setParameters;
 
     /// See \ref gsMaterialMatrixBase for details
     void info() const override

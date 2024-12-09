@@ -29,65 +29,33 @@ class gsMaterialMatrixIntegrate : public gsFunction<T>
 public:
     /// Constructor
     gsMaterialMatrixIntegrate(  const gsMaterialMatrixContainer<T> & materialMatrices,
-                            const gsFunctionSet<T> * deformed)
-    :
-    m_materialMatrices(materialMatrices),
-    m_deformed(deformed)
-    {
-        for (index_t p = 0; p!=m_materialMatrices.size(); p++)
-        {
-            GISMO_ASSERT(materialMatrices.piece(p)!=nullptr,"Material matrix "<<p<<" is incomplete!");
-            GISMO_ASSERT(materialMatrices.piece(p)!=NULL,"Material matrix "<<p<<" is incomplete!");
-            GISMO_ASSERT(materialMatrices.piece(p)->initialized(),"Material matrix "<<p<<" is incomplete!");
-        }
-
-        this->_makePieces(deformed);
-    }
+                                const gsFunctionSet<T> * deformed);
 
     /// Constructor
     gsMaterialMatrixIntegrate(  gsMaterialMatrixBase<T> * materialMatrix,
-                            const gsFunctionSet<T> * deformed)
-    :
-    m_materialMatrices(deformed->nPieces()),
-    m_deformed(deformed)
-    {
-        GISMO_ASSERT(materialMatrix->initialized(),"Material matrix is incomplete!");
-        for (index_t p = 0; p!=deformed->nPieces(); ++p)
-            m_materialMatrices.set(p,materialMatrix);
-        this->_makePieces(deformed);
-    }
+                                const gsFunctionSet<T> * deformed);
+
+    /// Constructor
+    gsMaterialMatrixIntegrate(  typename gsMaterialMatrixBase<T>::uPtr & materialMatrix,
+                                const gsFunctionSet<T> * deformed);
 
     /// Constructor
     gsMaterialMatrixIntegrate(  const gsMaterialMatrixContainer<T> & materialMatrices,
-                            const gsFunctionSet<T> * undeformed,
-                            const gsFunctionSet<T> * deformed)
-    :
-    m_materialMatrices(materialMatrices),
-    m_deformed(deformed)
-    {
-        this->_makePieces(undeformed,deformed);
-    }
+                                const gsFunctionSet<T> * undeformed,
+                                const gsFunctionSet<T> * deformed);
 
     /// Constructor
     gsMaterialMatrixIntegrate(  gsMaterialMatrixBase<T> * materialMatrix,
                             const gsFunctionSet<T> * undeformed,
-                            const gsFunctionSet<T> * deformed)
-    :
-    m_materialMatrices(deformed->nPieces()),
-    m_deformed(deformed)
-    {
-        for (index_t p = 0; p!=deformed->nPieces(); ++p)
-        {
-            m_materialMatrices.set(p,materialMatrix);
-            this->_makePieces(undeformed,deformed);
-        }
-    }
+                            const gsFunctionSet<T> * deformed);
+
+    /// Constructor
+    gsMaterialMatrixIntegrate(  typename gsMaterialMatrixBase<T>::uPtr & materialMatrix,
+                            const gsFunctionSet<T> * undeformed,
+                            const gsFunctionSet<T> * deformed);
 
     /// Destructor
-    ~gsMaterialMatrixIntegrate()
-    {
-        freeAll(m_pieces);
-    }
+    ~gsMaterialMatrixIntegrate();
 
     /// Domain dimension, always 2 for shells
     short_t domainDim() const {return 2;}
@@ -108,23 +76,13 @@ public:
     }
 
     /// Implementation of eval_into, see \ref gsFunction
-    void eval_into(const gsMatrix<T>& u, gsMatrix<T>& result) const
+    void eval_into(const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
 protected:
-    void _makePieces(const gsFunctionSet<T> * deformed)
-    {
-        m_pieces.resize(deformed->nPieces());
-        for (size_t p = 0; p!=m_pieces.size(); ++p)
-            m_pieces.at(p) = new gsMaterialMatrixIntegrateSingle<T,out>(p,m_materialMatrices.piece(p),deformed);
-    }
+    void _makePieces(const gsFunctionSet<T> * deformed);
 
-    void _makePieces(const gsFunctionSet<T> * undeformed, const gsFunctionSet<T> * deformed)
-    {
-        m_pieces.resize(m_deformed->nPieces());
-        for (size_t p = 0; p!=m_pieces.size(); ++p)
-            m_pieces.at(p) = new gsMaterialMatrixIntegrateSingle<T,out>(p,m_materialMatrices.piece(p),undeformed,deformed);
-    }
+    void _makePieces(const gsFunctionSet<T> * undeformed, const gsFunctionSet<T> * deformed);
 
 protected:
     gsMaterialMatrixContainer<T> m_materialMatrices;
@@ -418,7 +376,7 @@ private:
                               _out==MaterialOutput::MatrixA         || _out==MaterialOutput::MatrixB        ||
                               _out==MaterialOutput::MatrixC         || _out==MaterialOutput::MatrixD        ||
                               _out==MaterialOutput::PStressN        || _out==MaterialOutput::PStressM  )
-                                                            , gsMatrix<T>>::type eval3D_impl(const gsMatrix<T>& u, const gsMatrix<T>& Z) const
+                                                            , gsMatrix<T>>::type eval3D_impl(const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*Z*/) const
     { GISMO_NO_IMPLEMENTATION};
 
 protected:
