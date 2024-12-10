@@ -18,8 +18,6 @@
 #include <gsKLShell/src/gsThinShellUtils.h>
 #include <gsKLShell/src/gsMaterialMatrixEval.h>
 #include <gsKLShell/src/gsMaterialMatrixIntegrate.h>
-#include <gsKLShell/src/gsMaterialMatrixLinear.h>
-#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
 
 #include <gsAssembler/gsExprAssembler.h>
 

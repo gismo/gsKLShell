@@ -16,7 +16,6 @@
 #pragma once
 
 #include <gsKLShell/src/gsThinShellAssembler.h>
-#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
 #include <gsKLShell/src/gsMaterialMatrixBase.h>
 #include <gsKLShell/src/gsMaterialMatrixIntegrate.h>
 #include <gsKLShell/src/gsMaterialMatrixEval.h>
@@ -25,10 +24,6 @@
 
 #include <gsCore/gsFunctionExpr.h>
 #include <gsCore/gsPiecewiseFunction.h>
-
-#include <gsIO/gsWriteParaview.h>
-
-#include <gsMSplines/gsWeightMapper.h>
 
 #include <unordered_set>
 
@@ -56,6 +51,19 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
     this->_defaultOptions();
     this->_getOptions();
     this->_initialize();
+}
+
+template<short_t d, class T, bool bending>
+gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> & patches,
+                                                          const gsMultiBasis<T> & basis,
+                                                          const gsBoundaryConditions<T> & bconditions,
+                                                          const gsFunctionSet<T> & surface_force,
+                                                          typename gsMaterialMatrixBase<T>::uPtr & materialMatrix
+                                                          )
+:
+gsThinShellAssembler<d, T, bending>(patches,basis,bconditions,surface_force,materialMatrix.get())
+{
+
 }
 
 template<short_t d, class T, bool bending>
@@ -237,7 +245,7 @@ void gsThinShellAssembler<d, T, bending>::_initialize()
     m_assembler.setIntegrationElements(m_basis);
     GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
     m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
-    
+
     GISMO_ASSERT(m_bcs.hasGeoMap(),"No geometry map was assigned to the boundary conditions. Use bc.setGeoMap to assign one!");
 
     // Initialize the geometry maps
@@ -450,7 +458,7 @@ gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> 
 template <short_t d, class T, bool bending>
 template <short_t _d, bool _matrix>
 typename std::enable_if<!(_d==3), void>::type
-gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> & , const gsFunctionSet<T> & )
+gsThinShellAssembler<d, T, bending>::_assemblePressure_impl(const gsFunction<T> & /*presFun*/, const gsFunctionSet<T> & /*deformed*/)
 {
     // Since pressure works out-of-plane, this function has no effect
 }
@@ -484,7 +492,7 @@ gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T
 template <short_t d, class T, bool bending>
 template <short_t _d, bool _matrix>
 typename std::enable_if<(_d==3) && !_matrix, void>::type
-gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & foundFun)
+gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & /* foundFun */)
 {
     // No rhs contribution for the linear case
 }
@@ -509,7 +517,7 @@ void gsThinShellAssembler<d, T, bending>::_assembleFoundation(const gsFunction<T
 template <short_t d, class T, bool bending>
 template <short_t _d, bool matrix>
 typename std::enable_if<(_d==3) && matrix, void>::type
-gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & foundFun, const gsFunctionSet<T> & deformed)
+gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & foundFun, const gsFunctionSet<T> & /*deformed*/)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
@@ -2466,7 +2474,7 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assemble(const gsM
 }
 
 template <short_t d, class T, bool bending>
-gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::_constructSolution(const gsMatrix<T> & solVector, const gsMultiPatch<T> & undeformed) const
+gsMultiPatch<T> gsThinShellAssembler<d, T, bending>::_constructSolution(const gsMatrix<T> & solVector, const gsMultiPatch<T> & /*undeformed*/) const
 {
     gsMultiPatch<T> mp = m_patches;
     gsMultiPatch<T> displacement = constructDisplacement(solVector);
@@ -2821,7 +2829,7 @@ void gsThinShellAssembler<d, T, bending>::constructStress(
 // }
 
 template<short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & fun, gsMatrix<T>& result)
+void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & /*fun*/, gsMatrix<T>& /*result*/)
 {
     // /// todo: make a projection with BCs?
     // /// todo: test
@@ -2924,7 +2932,7 @@ void gsThinShellAssembler<d, T, bending>::_ifcTest(const T tol)
 }
 
 template<short_t d, class T, bool bending>
-bool gsThinShellAssembler<d, T, bending>::_isInPlane(const boundaryInterface & ifc, const T tol)
+bool gsThinShellAssembler<d, T, bending>::_isInPlane(const boundaryInterface & /*ifc*/, const T tol)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
     gsExprEvaluator<T> ev(m_assembler);

@@ -456,12 +456,12 @@ int main(int argc, char *argv[])
 
     //! [Make assembler]
     std::vector<gsFunctionSet<>*> parameters;
-    gsMaterialMatrixBase<real_t>* materialMatrix;
+    gsMaterialMatrixBase<real_t>::uPtr materialMatrix;
     gsOptionList options;
     // Make gsMaterialMatrix depending on the user-defined choices
     if (composite)
     {
-        materialMatrix = new gsMaterialMatrixComposite<3,real_t>(mp,Ts,Gs,Phis);
+        materialMatrix = memory::make_unique(new gsMaterialMatrixComposite<3,real_t>(mp,Ts,Gs,Phis));
     }
     else
     {
@@ -475,7 +475,7 @@ int main(int argc, char *argv[])
 
     gsMaterialMatrixContainer<real_t> materialMats(mp.nPatches());
     for (size_t p = 0; p!=mp.nPatches(); p++)
-        materialMats.add(materialMatrix);
+        materialMats.add(materialMatrix.get());
 
     // Construct the gsThinShellAssembler
     gsThinShellAssemblerBase<real_t>* assembler;
@@ -637,7 +637,6 @@ int main(int argc, char *argv[])
     gsInfo<<"Total ellapsed solution time (incl. assembly): \t"<<totaltime<<" s\n";
 
     delete assembler;
-    delete materialMatrix;
     return EXIT_SUCCESS;
 
 }// end main

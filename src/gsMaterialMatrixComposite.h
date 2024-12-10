@@ -78,35 +78,37 @@ public:
     // template COM
     void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override;
     // template COM
-    void pstretch_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override
+    void pstretch_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const override
     {GISMO_NO_IMPLEMENTATION;}
-    void pstretchDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override
+    void pstretchDir_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const override
     {GISMO_NO_IMPLEMENTATION;}
-    void pstress_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override
+    void pstress_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const override
     {GISMO_NO_IMPLEMENTATION;}
-    void pstressDir_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override
+    void pstressDir_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const override
     {GISMO_NO_IMPLEMENTATION;}
 
     void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
-    void parameters_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override
+    void parameters_into(const index_t /*patch*/, const gsMatrix<T> & /*u*/, gsMatrix<T>& /*result*/) const override
     {GISMO_NO_IMPLEMENTATION;}
 
     /// See \ref gsMaterialMatrixBase for details
-    void transform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override
+    void transform_into(const index_t /*patch*/, const gsMatrix<T> & /*u*/, gsMatrix<T>& /*result*/) const override
     {GISMO_NO_IMPLEMENTATION;}
 
     /// See \ref gsMaterialMatrixBase for details
-    void covtransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
+    void covtransform_into(const index_t /*patch*/, const gsMatrix<T> & /*u*/, gsMatrix<T>& /*result*/) const
     {GISMO_NO_IMPLEMENTATION;}
 
     /// See \ref gsMaterialMatrixBase for details
-    void pstressTransform_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const
+    void pstressTransform_into(const index_t /*patch*/, const gsMatrix<T> & /*u*/, gsMatrix<T>& /*result*/) const
     {GISMO_NO_IMPLEMENTATION;}
 
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_matrix;
     gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_vector;
 
     std::ostream &print(std::ostream &os) const override;
 

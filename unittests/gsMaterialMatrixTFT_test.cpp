@@ -45,7 +45,7 @@ public:
 
             gsMatrix<T> C = m_mm->eval3D_matrix_C(Cmat,m_patch,m_u.col(0),m_z(0,0),MaterialOutput::Generic);
             gsMatrix<T> S = m_mm->eval3D_vector_C(Cmat,m_patch,m_u.col(0),m_z(0,0),MaterialOutput::Generic);
-            
+
             gsMatrix<T> THETA = m_mmTFT->eval_theta(C,S,E);
 
             T n1 = math::cos(THETA(0,0));
@@ -71,7 +71,7 @@ private:
     const index_t m_patch;
     const gsMatrix<T> m_u;
     const gsMatrix<T> m_z;
-};   
+};
 
 
 template<class T>
@@ -111,7 +111,7 @@ private:
     const index_t m_patch;
     const gsMatrix<T> m_u;
     const gsMatrix<T> m_z;
-};   
+};
 
 template<class T>
 class Cfun : public gsFunction<T>
@@ -153,7 +153,7 @@ private:
     const index_t m_patch;
     const gsMatrix<T> m_u;
     const gsMatrix<T> m_z;
-};   
+};
 
 SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the same name as the file
 {
@@ -359,15 +359,15 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
             parameters[7] = &alpha3fun;
         }
 
-        gsMaterialMatrixBase<real_t> * materialMatrix;
-        gsMaterialMatrixBase<real_t> * materialMatrixTFT;
+        gsMaterialMatrixBase<real_t>::uPtr materialMatrix;
+        gsMaterialMatrixBase<real_t>::uPtr materialMatrixTFT;
         gsOptionList options;
         if      (material==0)
         {
             options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
             options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
             materialMatrix = getMaterialMatrix<2,real_t>(mp,t,parameters,options);
-            materialMatrixTFT = new gsMaterialMatrixTFT<2,real_t,true>(materialMatrix);
+            materialMatrixTFT = memory::make_unique(new gsMaterialMatrixTFT<2,real_t,true>(*materialMatrix));
         }
         else
         {
@@ -375,7 +375,7 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
             options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",Compressibility);
             options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",impl);
             materialMatrix = getMaterialMatrix<2,real_t>(mp,t,parameters,options);
-            materialMatrixTFT = new gsMaterialMatrixTFT<2,real_t,false>(materialMatrix);
+            materialMatrixTFT = memory::make_unique(new gsMaterialMatrixTFT<2,real_t,false>(*materialMatrix));
         }
 
         gsVector<> testpt(2);
@@ -436,14 +436,14 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         CHECK_MATRIX_CLOSE(e,strain_MM,1e-3);
 
         /// MATRIX
-        Sfun<real_t> Sfun(gori,materialMatrix,0,pt,z);
+        Sfun<real_t> Sfun(gori,materialMatrix.get(),0,pt,z);
         Sfun.deriv_into(e,resss);
         gsMatrix<> C_FD = resss.reshape(3,3); // Finite Differences
         gsMatrix<> C_MM = materialMatrix->eval3D_matrix(0,pt,z,MaterialOutput::Generic).reshape(3,3); // implemented
         CHECK_MATRIX_CLOSE(C_FD,C_MM,1e-3);
 
         /// dMATRIX
-        Cfun<real_t> Cfun(gori,materialMatrix,0,pt,z);
+        Cfun<real_t> Cfun(gori,materialMatrix.get(),0,pt,z);
         Cfun.deriv_into(e,resss);
         gsMatrix<> dC_FD = resss.reshape(9,3);
         gsMatrix<> dC_MM = materialMatrix->eval3D_dmatrix(0,pt,z,MaterialOutput::Generic).reshape(9,3);
@@ -451,7 +451,7 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         CHECK_MATRIX_CLOSE(dC_FD,dC_MM,1e-3);
 
         /// STRESS TFT
-        STFTfun<real_t> STFT(gori,materialMatrix,0,pt,z);
+        STFTfun<real_t> STFT(gori,materialMatrix.get(),0,pt,z);
         STFT.eval_into(e,resss);
         gsMatrix<> STFT_test = resss;
         gsMatrix<> STFT_MM   = vecTFT.piece(0).eval(pt).reshape(3,1);
@@ -462,9 +462,6 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         gsMatrix<> CTFT_FD = resss.reshape(3,3);
         gsMatrix<> CTFT_MM = matTFT.piece(0).eval(pt).reshape(3,3);
         CHECK_MATRIX_CLOSE(CTFT_FD,CTFT_MM,1e-3);
-
-        delete materialMatrix;
-        delete materialMatrixTFT;
     }
 
 

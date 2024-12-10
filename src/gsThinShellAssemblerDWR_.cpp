@@ -4,20 +4,9 @@
 #include <gsKLShell/src/gsThinShellAssemblerDWR.h>
 #include <gsKLShell/src/gsThinShellAssemblerDWR.hpp>
 
-#include <gsKLShell/src/gsThinShellFunctions.h>
-#include <gsKLShell/src/gsThinShellFunctions.hpp>
-
-#include <gsKLShell/src/gsFunctionSum.h>
-
-
 namespace gismo
 {
-  CLASS_TEMPLATE_INST gsFunctionSum<real_t>;
-
-  CLASS_TEMPLATE_INST gsShellStressFunction<real_t>;
-
   // Shell assembler <dimension, real_t, bending terms>
-
   CLASS_TEMPLATE_INST gsThinShellAssemblerDWRBase<real_t>;
   CLASS_TEMPLATE_INST gsThinShellAssemblerDWR<2,real_t,false>;
   CLASS_TEMPLATE_INST gsThinShellAssemblerDWR<3,real_t,false>;

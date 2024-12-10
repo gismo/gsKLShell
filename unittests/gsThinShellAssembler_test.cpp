@@ -2,7 +2,7 @@
 
     @brief Provides unittests for the gsThinShellAssembler class
 
-    * Balloon: unit-test based on a hyperelastic balloon inflated by a follower pressure. 
+    * Balloon: unit-test based on a hyperelastic balloon inflated by a follower pressure.
                This test allows to test the follower pressure as well as the hyperelastic material models (incompressible)
 
     * UAT:     unit-test based on a uni-axial tension test
@@ -288,7 +288,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         parameters[0] = &E;
         parameters[1] = &nu;
         parameters[2] = &ratio;
-        gsMaterialMatrixBase<real_t>* materialMatrix;
+        gsMaterialMatrixBase<real_t>::uPtr materialMatrix;
 
         if (material==4)
         {
@@ -396,7 +396,6 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         result.first = P;
         result.second = r;
 
-        delete materialMatrix;
         delete assembler;
 
         return result;
@@ -404,6 +403,8 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
 
     real_t balloon_analytical(const index_t material, const index_t impl, const real_t r)
     {
+        GISMO_UNUSED(impl);
+
         real_t Pan;
         real_t R = 10.;
 
@@ -550,7 +551,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         parameters[0] = &E;
         parameters[1] = &nu;
         parameters[2] = &ratio;
-        gsMaterialMatrixBase<real_t>* materialMatrix;
+        gsMaterialMatrixBase<real_t>::uPtr materialMatrix;
 
         if (material==4)
         {
@@ -661,7 +662,6 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         result.first = L;
         result.second = S;
 
-        delete materialMatrix;
         delete assembler;
 
         return result;
@@ -669,6 +669,8 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
 
     std::pair<real_t,real_t> UAT_analytical(const index_t material, const index_t impl, const bool Compressibility)
     {
+        GISMO_UNUSED(impl);
+
         real_t PoissonRatio;
         real_t Ratio = 7.0;
 
@@ -846,13 +848,13 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         Ts[0] = Ts[1] = Ts[2] = Ts[3] = Ts[4] = &thicks;
 
         std::vector<gsFunctionSet<>*> parameters;
-        gsMaterialMatrixBase<real_t>* materialMatrix;
+        gsMaterialMatrixBase<real_t>::uPtr materialMatrix;
 
         gsOptionList options;
 
         if (composite)
         {
-            materialMatrix = new gsMaterialMatrixComposite<3,real_t>(mp,Ts,Gs,Phis,Rs);
+            materialMatrix = memory::make_unique(new gsMaterialMatrixComposite<3,real_t>(mp,Ts,Gs,Phis,Rs));
         }
         else
         {
@@ -884,7 +886,6 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         values = values.cwiseSqrt();
         values = values.col(0).head(10);
 
-        delete materialMatrix;
         delete assembler;
 
         return values;
@@ -914,7 +915,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
     void Modal_CHECK(const bool composite)
     {
      gsVector<real_t> num = Modal_numerical(composite);
-     
+
      gsVector<real_t> ana = Modal_analytical();
 
      gsVector<real_t> relError = (num - ana).array()/ana.array();

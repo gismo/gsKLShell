@@ -13,11 +13,9 @@
 namespace gismo
 {
   CLASS_TEMPLATE_INST gsFunctionSum<real_t>;
-
   CLASS_TEMPLATE_INST gsShellStressFunction<real_t>;
 
   // Shell assembler <dimension, real_t, bending terms>
-
   CLASS_TEMPLATE_INST gsThinShellAssemblerBase<real_t>;
   CLASS_TEMPLATE_INST gsThinShellAssembler<2,real_t,false>;
   CLASS_TEMPLATE_INST gsThinShellAssembler<3,real_t,false>;
@@ -76,7 +74,7 @@ namespace gismo
           "Assembles the nonlinear vector",
           py::arg("solVector"),
           py::arg("homogenize") = true)
-    
+
     .def("assembleMass", &Class::assembleMass, "Assembles the mass matrix",
           py::arg("lumped") = false)
 

@@ -68,6 +68,14 @@ public:
     // empty constructor
     gsThinShellAssemblerDWR() {};
 
+    gsThinShellAssemblerDWR(
+                                const gsMultiPatch<T> & patches,
+                                const gsMultiBasis<T> & basisL,
+                                const gsMultiBasis<T> & basisH,
+                                const gsBoundaryConditions<T> & bconditions,
+                                const gsFunction<T> & surface_force,
+                                typename gsMaterialMatrixBase<T>::uPtr & materialmatrix
+                            );
 
     gsThinShellAssemblerDWR(
                                 const gsMultiPatch<T> & patches,

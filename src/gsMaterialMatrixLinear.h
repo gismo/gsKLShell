@@ -15,11 +15,9 @@
 
 #pragma once
 
-#include <gsKLShell/src/gsMaterialMatrixBase.h>
 #include <gsKLShell/src/gsMaterialMatrixBaseDim.h>
 #include <gsKLShell/src/gsMaterialMatrixUtils.h>
 #include <gsIO/gsOptionList.h>
-#include <gsCore/gsFuncData.h>
 
 namespace gismo
 {
@@ -167,8 +165,6 @@ protected:
                         const gsFunctionSet<T> * Density);
 public:
 
-    gsMaterialMatrixLinear( const gsMaterialMatrixLinear<dim,T> & other);
-
     /// See \ref gsMaterialMatrixBase for details
     inline enum MatIntegration isMatIntegrated() const override {return MatIntegration::Constant; }
 
@@ -180,12 +176,15 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_matrix (const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_matrix;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_dmatrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_dmatrix;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_vector (const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_vector;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_CauchyVector (const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
@@ -206,9 +205,11 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
+    using Base::eval3D_stress;
 
     /// See \ref gsMaterialMatrixBase for details
-    gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
+    virtual gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
+    using Base::eval3D_CauchyStress;
 
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_detF (const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;

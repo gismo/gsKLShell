@@ -17,6 +17,7 @@
 
 #include <gsCore/gsFuncData.h>
 #include <gsUtils/gsThreaded.h>
+#include <gsKLShell/src/gsMaterialMatrixBase.h>
 
 namespace gismo
 {
@@ -45,8 +46,8 @@ public:
 
     // enum {Linear=0}; // If true (1), this property entails that S = C *˙E
 
-    gsMaterialMatrixBaseDim() 
-    : 
+    gsMaterialMatrixBaseDim()
+    :
     Base(nullptr,nullptr,nullptr,nullptr)
     {
         this->defaultOptions();
@@ -130,10 +131,12 @@ public:
 
     /// See \ref gsMaterialMatrixBase for details
     virtual gsMatrix<T> eval3D_strain(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const override;
+    using Base::eval3D_strain;
 
     /// See \ref gsMaterialMatrixBase for details
     virtual gsMatrix<T> eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
-    
+    using Base::eval3D_tensionfield;
+
     /// See \ref gsMaterialMatrixBase for details
     virtual gsMatrix<T> eval3D_pstretch(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const override;
 

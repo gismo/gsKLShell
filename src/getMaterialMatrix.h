@@ -114,13 +114,14 @@ gsMatrix<T> gsCompositeMatrixRaw(   const T G11,
  *
  */
 template<short_t d, class T>
-gsMaterialMatrixBase<T> * getMaterialMatrix(
-                                const gsMultiPatch<T>               & mp,
-                                const gsFunctionSet<T>                 & thickness,
-                                const std::vector<gsFunctionSet<T> *>  & parameters,
-                                const gsFunctionSet<T>                 & rho,
-                                const gsOptionList                  & options
-                                )
+typename gsMaterialMatrixBase<T>::uPtr
+getMaterialMatrix(
+                    const gsMultiPatch<T>               & mp,
+                    const gsFunctionSet<T>                 & thickness,
+                    const std::vector<gsFunctionSet<T> *>  & parameters,
+                    const gsFunctionSet<T>                 & rho,
+                    const gsOptionList                  & options
+                    )
 {
     index_t material        = options.askInt("Material",0); // SvK by default
     bool compressibility    = options.askSwitch("Compressibility",false);
@@ -134,7 +135,7 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         if (impl==Implementation::Composite)
             GISMO_ERROR("Construct composite material models using the constructor of gsMaterialMatrixComposite directly.");
         else
-            return new gsMaterialMatrixLinear<d,T>(mp,thickness,*parameters.at(0),*parameters.at(1),rho);
+            return memory::make_unique(new gsMaterialMatrixLinear<d,T>(mp,thickness,*parameters.at(0),*parameters.at(1),rho));
     }
     else
     {
@@ -144,33 +145,33 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         else if ((mat==Material::NH) && (impl==Implementation::Analytical) && (!compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters,rho));
         }
         else if ((mat==Material::NH) && (impl==Implementation::Generalized) && (!compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH, Implementation::Generalized>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters,rho));
         }
         else if ((mat==Material::NH) && (impl==Implementation::Spectral) && (!compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH, Implementation::Spectral>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters,rho));
         }
         //--------------------------------------NH Compressible--------------------------------------------------
         else if ((mat==Material::NH) && (impl==Implementation::Analytical) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho));
         }
         else if ((mat==Material::NH) && (impl==Implementation::Generalized) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH, Implementation::Generalized>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho));
         }
         else if ((mat==Material::NH) && (impl==Implementation::Spectral) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH, Implementation::Spectral>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho));
         }
         //
         //--------------------------------------NH_ext Incompressible--------------------------------------------------
@@ -182,50 +183,50 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         else if ((mat==Material::NH_ext) && (impl==Implementation::Analytical) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH_ext, Implementation::Analytical>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho));
         }
         else if ((mat==Material::NH_ext) && (impl==Implementation::Generalized) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH_ext, Implementation::Generalized>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho));
         }
         else if ((mat==Material::NH_ext) && (impl==Implementation::Spectral) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH_ext, Implementation::Spectral>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho));
         }
         //
         //--------------------------------------MR Incompressible--------------------------------------------------
         else if ((mat==Material::MR) && (impl==Implementation::Analytical) && (!compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::MR, Implementation::Analytical>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters,rho));
         }
         else if ((mat==Material::MR) && (impl==Implementation::Generalized) && (!compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::MR, Implementation::Generalized>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters,rho));
         }
         else if ((mat==Material::MR) && (impl==Implementation::Spectral) && (!compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::MR, Implementation::Spectral>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters,rho));
         }
         //---------------------------------------MR Compressible-------------------------------------------------
         else if      ((mat==Material::MR) && (impl==Implementation::Analytical) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::MR, Implementation::Analytical>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho));
         }
         else if ((mat==Material::MR) && (impl==Implementation::Generalized) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::MR, Implementation::Generalized>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho));
         }
         else if ((mat==Material::MR) && (impl==Implementation::Spectral) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::MR, Implementation::Spectral>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho));
         }
         //
         //--------------------------------------OG Incompressible--------------------------------------------------
@@ -240,7 +241,7 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         else if ((mat==Material::OG) && (impl==Implementation::Spectral) && (!compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::OG, Implementation::Spectral>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters,rho));
         }
         //---------------------------------------OG Compressible-------------------------------------------------
         else if      ((mat==Material::OG) && (impl==Implementation::Analytical) && (compressibility))
@@ -254,7 +255,7 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         else if ((mat==Material::OG) && (impl==Implementation::Spectral) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::OG, Implementation::Spectral>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters,rho));
         }
         else
             return NULL;
@@ -278,7 +279,8 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
  *
  */
 template<short_t d, class T>
-gsMaterialMatrixBase<T> * getMaterialMatrix(
+typename gsMaterialMatrixBase<T>::uPtr
+getMaterialMatrix(
                                 const gsMultiPatch<T>               & mp,
                                 const gsFunctionSet<T>                 & thickness,
                                 const std::vector<gsFunctionSet<T> *>  & parameters,
@@ -297,7 +299,7 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         if (impl==Implementation::Composite)
                 GISMO_ERROR("Construct composite material models using the constructor of gsMaterialMatrixComposite directly.");
         else
-                return new gsMaterialMatrixLinear<d,T>(mp,thickness,*parameters.at(0),*parameters.at(1));
+                return memory::make_unique(new gsMaterialMatrixLinear<d,T>(mp,thickness,*parameters.at(0),*parameters.at(1)));
     }
     else
     {
@@ -307,33 +309,33 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         else if ((mat==Material::NH) && (impl==Implementation::Analytical) && (!compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters));
         }
         else if ((mat==Material::NH) && (impl==Implementation::Generalized) && (!compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH, Implementation::Generalized>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters));
         }
         else if ((mat==Material::NH) && (impl==Implementation::Spectral) && (!compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH, Implementation::Spectral>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters));
         }
         //--------------------------------------NH Compressible--------------------------------------------------
         else if ((mat==Material::NH) && (impl==Implementation::Analytical) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH, Implementation::Analytical>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters));
         }
         else if ((mat==Material::NH) && (impl==Implementation::Generalized) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH, Implementation::Generalized>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters));
         }
         else if ((mat==Material::NH) && (impl==Implementation::Spectral) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH, Implementation::Spectral>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters));
         }
         //
         //--------------------------------------NH_ext Incompressible--------------------------------------------------
@@ -345,50 +347,50 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         else if ((mat==Material::NH_ext) && (impl==Implementation::Analytical) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH_ext, Implementation::Analytical>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters));
         }
         else if ((mat==Material::NH_ext) && (impl==Implementation::Generalized) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH_ext, Implementation::Generalized>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters));
         }
         else if ((mat==Material::NH_ext) && (impl==Implementation::Spectral) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::NH_ext, Implementation::Spectral>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters));
         }
         //
         //--------------------------------------MR Incompressible--------------------------------------------------
         else if ((mat==Material::MR) && (impl==Implementation::Analytical) && (!compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::MR, Implementation::Analytical>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters));
         }
         else if ((mat==Material::MR) && (impl==Implementation::Generalized) && (!compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::MR, Implementation::Generalized>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters));
         }
         else if ((mat==Material::MR) && (impl==Implementation::Spectral) && (!compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::MR, Implementation::Spectral>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters));
         }
         //---------------------------------------MR Compressible-------------------------------------------------
         else if      ((mat==Material::MR) && (impl==Implementation::Analytical) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::MR, Implementation::Analytical>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters));
         }
         else if ((mat==Material::MR) && (impl==Implementation::Generalized) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::MR, Implementation::Generalized>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters));
         }
         else if ((mat==Material::MR) && (impl==Implementation::Spectral) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::MR, Implementation::Spectral>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters));
         }
         //
         //--------------------------------------OG Incompressible--------------------------------------------------
@@ -403,7 +405,7 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         else if ((mat==Material::OG) && (impl==Implementation::Spectral) && (!compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::OG, Implementation::Spectral>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,false>(mp,thickness,parameters));
         }
         //---------------------------------------OG Compressible-------------------------------------------------
         else if      ((mat==Material::OG) && (impl==Implementation::Analytical) && (compressibility))
@@ -417,7 +419,7 @@ gsMaterialMatrixBase<T> * getMaterialMatrix(
         else if ((mat==Material::OG) && (impl==Implementation::Spectral) && (compressibility))
         {
             constexpr index_t id = encodeMat_id<Material::OG, Implementation::Spectral>::id;
-            return new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters);
+            return memory::make_unique(new gsMaterialMatrixNonlinear<d,real_t,id,true>(mp,thickness,parameters));
         }
         else
             return NULL;
