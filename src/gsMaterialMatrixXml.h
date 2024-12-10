@@ -15,9 +15,6 @@
 
 #include <gsIO/gsXml.h>
 
-#include <string>
-#include <cstring>
-
 namespace gismo
 {
 namespace internal
@@ -34,5 +31,4 @@ gsXmlNode * putMaterialMatrixToXml ( Object const & obj, gsXmlTree & data);
 
 #ifndef GISMO_BUILD_LIB
 #include GISMO_HPP_HEADER(gsMaterialMatrixXml.hpp)
-//#include GISMO_HPP_HEADER(gsXmlGenericUtils.hpp)
 #endif

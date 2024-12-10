@@ -16,6 +16,7 @@
 
 // #include <gsKLShell/src/gsMaterialMatrixUtils.h>
 // #include <gsKLShell/src/gsMaterialMatrixContainer.h>
+#include <gsKLShell/src/gsMaterialMatrixXml.hpp>
 
 using namespace gismo;
 
@@ -88,6 +89,66 @@ template <class T>
 void gsMaterialMatrixContainer<T>::clear()
 {
     m_container.clear();
+}
+
+
+namespace internal
+{
+/// @brief get a MaterialMatrixContainer from XML data
+///
+/// \ingroup KLShell
+template<class T>
+class gsXml< gsMaterialMatrixContainer<T> >
+{
+private:
+    gsXml() { }
+    typedef gsMaterialMatrixContainer<T> Object;
+
+public:
+    GSXML_COMMON_FUNCTIONS(gsMaterialMatrixContainer<T>);
+    static std::string tag ()  { return "MaterialMatrixContainer"; }
+    static std::string type () { return ""; }
+
+    GSXML_GET_POINTER(Object);
+
+    static void get_into(gsXmlNode * node,Object & obj)
+    {
+        const int size = atoi(node->first_attribute("size")->value());
+
+        // Read material inventory
+        int count = countByTag("MaterialMatrix", node);
+        std::vector<typename gsMaterialMatrixBase<T>::Ptr> mat(count);
+        for (gsXmlNode * child = node->first_node("MaterialMatrix"); child; child =
+                child->next_sibling("MaterialMatrix"))
+        {
+            const int i = atoi(child->first_attribute("index")->value());
+            mat[i] = memory::make_shared(gsXml<gsMaterialMatrixBase<T>>::get(child));
+        }
+
+        obj = gsMaterialMatrixContainer<T>(size);
+        for (gsXmlNode * child = node->first_node("group"); child;
+                child = child->next_sibling("group"))
+        {
+            const int mIndex = atoi(child->first_attribute("material")->value());
+            std::istringstream group_str;
+            group_str.str( child->value() );
+
+            for(int patch; ( gsGetInt(group_str,patch)); )
+                obj.set(patch,mat[mIndex]);
+        }
+
+    }
+
+    static gsXmlNode * put (const Object & /* obj */,
+                            gsXmlTree & /* data */)
+    {
+        GISMO_ERROR("Writing gsMaterialMatrixContainer to Xml is not implemented");
+        // gsWarn<<"Writing gsMaterialMatrixContainer to Xml is not implemented\n";
+        // gsXmlNode * result;
+        // return result;
+        // return putMaterialMatrixToXml< Object >( obj,data );
+    }
+};
 }
 
 } // end namespace

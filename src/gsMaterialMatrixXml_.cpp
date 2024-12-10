@@ -7,9 +7,9 @@ namespace gismo
 {
 
 // Explicit instantiation
-
 namespace internal
 {
+    CLASS_TEMPLATE_INST gsXml< gsMaterialMatrixBase<real_t> >;
 
 } // end namespace internal
 

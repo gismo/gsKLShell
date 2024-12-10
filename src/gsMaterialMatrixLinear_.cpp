@@ -8,6 +8,12 @@ namespace gismo
   CLASS_TEMPLATE_INST gsMaterialMatrixLinear<2,real_t>;
   CLASS_TEMPLATE_INST gsMaterialMatrixLinear<3,real_t>;
 
+namespace internal
+{
+  CLASS_TEMPLATE_INST gsXml< gsMaterialMatrixLinear<2,real_t> >;
+  CLASS_TEMPLATE_INST gsXml< gsMaterialMatrixLinear<3,real_t> >;
+}
+
   #ifdef GISMO_WITH_PYBIND11
 
   namespace py = pybind11;

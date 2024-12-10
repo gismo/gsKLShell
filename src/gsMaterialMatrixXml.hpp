@@ -82,7 +82,7 @@ public:
             else if (   ( s == "CompressibleNH2"    ) ||
                         ( s == "IncompressibleNH2"  ) ||
                         ( s == "CompressibleNHe2"   ) ||
-                        ( s == "IncompressibleNHe2" ) ||
+                        // ( s == "IncompressibleNHe2" ) ||
                         ( s == "CompressibleMR2"    ) ||
                         ( s == "IncompressibleMR2"  ) ||
                         ( s == "CompressibleOG2"    ) ||
@@ -91,7 +91,7 @@ public:
             else if (   ( s == "CompressibleNH3"    ) ||
                         ( s == "IncompressibleNH3"  ) ||
                         ( s == "CompressibleNHe3"   ) ||
-                        ( s == "IncompressibleNHe3" ) ||
+                        // ( s == "IncompressibleNHe3" ) ||
                         ( s == "CompressibleMR3"    ) ||
                         ( s == "IncompressibleMR3"  ) ||
                         ( s == "CompressibleOG3"    ) ||
@@ -138,10 +138,10 @@ public:
             return gsXml< gsMaterialMatrixNonlinear<2,T,12,true> >::get(node);
         if ( s == "CompressibleNHe3"    )
             return gsXml< gsMaterialMatrixNonlinear<3,T,12,true> >::get(node);
-        if ( s == "IncompressibleNHe2"  )
-            return gsXml< gsMaterialMatrixNonlinear<2,T,12,false> >::get(node);
-        if ( s == "IncompressibleNHe3"  )
-            return gsXml< gsMaterialMatrixNonlinear<3,T,12,false> >::get(node);
+        // if ( s == "IncompressibleNHe2"  )
+        //     return gsXml< gsMaterialMatrixNonlinear<2,T,12,false> >::get(node);
+        // if ( s == "IncompressibleNHe3"  )
+        //     return gsXml< gsMaterialMatrixNonlinear<3,T,12,false> >::get(node);
 
         if ( s == "CompressibleMR2"    )
             return gsXml< gsMaterialMatrixNonlinear<2,T,13,true> >::get(node);
@@ -221,14 +221,14 @@ public:
         if ( const gsMaterialMatrixNonlinear<3,T,12,true> * mm =
              dynamic_cast<const gsMaterialMatrixNonlinear<3,T,12,true> *>( obj ) )
             return gsXml< gsMaterialMatrixNonlinear<3,T,12,true> >::put(*mm,data);
-        // IncompressibleNHe2
-        if ( const gsMaterialMatrixNonlinear<2,T,12,false> * mm =
-             dynamic_cast<const gsMaterialMatrixNonlinear<2,T,12,false> *>( obj ) )
-            return gsXml< gsMaterialMatrixNonlinear<2,T,12,false> >::put(*mm,data);
-        // IncompressibleNHe3
-        if ( const gsMaterialMatrixNonlinear<3,T,12,false> * mm =
-             dynamic_cast<const gsMaterialMatrixNonlinear<3,T,12,false> *>( obj ) )
-            return gsXml< gsMaterialMatrixNonlinear<3,T,12,false> >::put(*mm,data);
+        // // IncompressibleNHe2
+        // if ( const gsMaterialMatrixNonlinear<2,T,12,false> * mm =
+        //      dynamic_cast<const gsMaterialMatrixNonlinear<2,T,12,false> *>( obj ) )
+        //     return gsXml< gsMaterialMatrixNonlinear<2,T,12,false> >::put(*mm,data);
+        // // IncompressibleNHe3
+        // if ( const gsMaterialMatrixNonlinear<3,T,12,false> * mm =
+        //      dynamic_cast<const gsMaterialMatrixNonlinear<3,T,12,false> *>( obj ) )
+        //     return gsXml< gsMaterialMatrixNonlinear<3,T,12,false> >::put(*mm,data);
 
         // CompressibleMR2
         if ( const gsMaterialMatrixNonlinear<2,T,13,true> * mm =
@@ -344,235 +344,6 @@ gsXmlNode * putMaterialMatrixToXml ( Object const & obj, gsXmlTree & data)
 
     return mm;
 }
-
-/// @brief get a Linear Material Matrix from XML data
-///
-/// \ingroup KLShell
-template<short_t d, class T>
-class gsXml< gsMaterialMatrixLinear<d,T> >
-{
-private:
-    gsXml() { }
-    typedef gsMaterialMatrixLinear<d,T> Object;
-
-public:
-    GSXML_COMMON_FUNCTIONS(gsMaterialMatrixLinear<TMPLA2(d,T)>);
-    static std::string tag ()  { return "MaterialMatrix"; }
-    static std::string type () { return "Linear" +  to_string(d); }
-
-    GSXML_GET_POINTER(Object);
-
-    // static Object * get(gsXmlNode * node)
-    // {
-    //     Object result;
-    //     get_into(node, result);
-    //     return result.clone().release();
-    // }
-
-    static void get_into(gsXmlNode * node,Object & obj)
-    {
-        obj = getMaterialMatrixFromXml< Object >( node );
-    }
-
-    static gsXmlNode * put (const Object & obj,
-                            gsXmlTree & data)
-    {
-        return putMaterialMatrixToXml< Object >( obj,data );
-        // GISMO_NO_IMPLEMENTATION;
-        // return putGeometryToXml(obj,data);
-    }
-};
-
-
-/// @brief get a Neo-Hookean Material Matrix from XML data
-///
-/// \ingroup KLShell
-template<short_t d, class T, bool comp>
-class gsXml< gsMaterialMatrixNonlinear<d,T,11,comp> >
-{
-private:
-    gsXml() { }
-    typedef gsMaterialMatrixNonlinear<d,T,11,comp> Object;
-
-public:
-    GSXML_COMMON_FUNCTIONS(gsMaterialMatrixNonlinear<TMPLA4(d,T,11,comp)>);
-    static std::string tag ()  { return "MaterialMatrix"; }
-    static std::string type ()
-    {
-        std::string comp_str = ((comp) ? "Compressible" : "Incompressible");
-        return comp_str + "NH" +  to_string(d);
-    }
-
-    GSXML_GET_POINTER(Object);
-
-    static void get_into(gsXmlNode * node,Object & obj)
-    {
-        obj = getMaterialMatrixFromXml< Object >( node );
-    }
-
-    static gsXmlNode * put (const Object & obj,
-                            gsXmlTree & data)
-    {
-        return putMaterialMatrixToXml< Object >( obj,data );
-    }
-};
-
-/// @brief get a Extended Neo-Hookean Material Matrix from XML data
-///
-/// \ingroup KLShell
-template<short_t d, class T, bool comp>
-class gsXml< gsMaterialMatrixNonlinear<d,T,12,comp> >
-{
-private:
-    gsXml() { }
-    typedef gsMaterialMatrixNonlinear<d,T,12,comp> Object;
-
-public:
-    GSXML_COMMON_FUNCTIONS(gsMaterialMatrixNonlinear<TMPLA4(d,T,12,comp)>);
-    static std::string tag ()  { return "MaterialMatrix"; }
-    static std::string type ()
-    {
-        std::string comp_str = ((comp) ? "Compressible" : "Incompressible");
-        return comp_str + "NHe" +  to_string(d);
-    }
-
-    GSXML_GET_POINTER(Object);
-
-    static void get_into(gsXmlNode * node,Object & obj)
-    {
-        obj = getMaterialMatrixFromXml< Object >( node );
-    }
-
-    static gsXmlNode * put (const Object & obj,
-                            gsXmlTree & data)
-    {
-        return putMaterialMatrixToXml< Object >( obj,data );
-    }
-};
-
-/// @brief get a Mooney-Rivlin Material Matrix from XML data
-///
-/// \ingroup KLShell
-template<short_t d, class T, bool comp>
-class gsXml< gsMaterialMatrixNonlinear<d,T,13,comp> >
-{
-private:
-    gsXml() { }
-    typedef gsMaterialMatrixNonlinear<d,T,13,comp> Object;
-
-public:
-    GSXML_COMMON_FUNCTIONS(gsMaterialMatrixNonlinear<TMPLA4(d,T,13,comp)>);
-    static std::string tag ()  { return "MaterialMatrix"; }
-    static std::string type ()
-    {
-        std::string comp_str = ((comp) ? "Compressible" : "Incompressible");
-        return comp_str + "MR" +  to_string(d);
-    }
-
-    GSXML_GET_POINTER(Object);
-
-    static void get_into(gsXmlNode * node,Object & obj)
-    {
-        obj = getMaterialMatrixFromXml< Object >( node );
-    }
-
-    static gsXmlNode * put (const Object & obj,
-                            gsXmlTree & data)
-    {
-        return putMaterialMatrixToXml< Object >( obj,data );
-    }
-};
-
-/// @brief get an Ogden Material Matrix from XML data
-///
-/// \ingroup KLShell
-template<short_t d, class T, bool comp>
-class gsXml< gsMaterialMatrixNonlinear<d,T,34,comp> >
-{
-private:
-    gsXml() { }
-    typedef gsMaterialMatrixNonlinear<d,T,34,comp> Object;
-
-public:
-    GSXML_COMMON_FUNCTIONS(gsMaterialMatrixNonlinear<TMPLA4(d,T,34,comp)>);
-    static std::string tag ()  { return "MaterialMatrix"; }
-    static std::string type ()
-    {
-        std::string comp_str = ((comp) ? "Compressible" : "Incompressible");
-        return comp_str + "OG" +  to_string(d);
-    }
-
-    GSXML_GET_POINTER(Object);
-
-    static void get_into(gsXmlNode * node,Object & obj)
-    {
-        obj = getMaterialMatrixFromXml< Object >( node );
-    }
-
-    static gsXmlNode * put (const Object & obj,
-                            gsXmlTree & data)
-    {
-        return putMaterialMatrixToXml< Object >( obj,data );
-    }
-};
-
-
-
-/// @brief get a MaterialMatrixContainer from XML data
-///
-/// \ingroup KLShell
-template<class T>
-class gsXml< gsMaterialMatrixContainer<T> >
-{
-private:
-    gsXml() { }
-    typedef gsMaterialMatrixContainer<T> Object;
-
-public:
-    GSXML_COMMON_FUNCTIONS(gsMaterialMatrixContainer<T>);
-    static std::string tag ()  { return "MaterialMatrixContainer"; }
-    static std::string type () { return ""; }
-
-    GSXML_GET_POINTER(Object);
-
-    static void get_into(gsXmlNode * node,Object & obj)
-    {
-        const int size = atoi(node->first_attribute("size")->value());
-
-        // Read material inventory
-        int count = countByTag("MaterialMatrix", node);
-        std::vector<typename gsMaterialMatrixBase<T>::Ptr> mat(count);
-        for (gsXmlNode * child = node->first_node("MaterialMatrix"); child; child =
-                child->next_sibling("MaterialMatrix"))
-        {
-            const int i = atoi(child->first_attribute("index")->value());
-            mat[i] = memory::make_shared(gsXml<gsMaterialMatrixBase<T>>::get(child));
-        }
-
-        obj = gsMaterialMatrixContainer<T>(size);
-        for (gsXmlNode * child = node->first_node("group"); child;
-                child = child->next_sibling("group"))
-        {
-            const int mIndex = atoi(child->first_attribute("material")->value());
-            std::istringstream group_str;
-            group_str.str( child->value() );
-
-            for(int patch; ( gsGetInt(group_str,patch)); )
-                obj.set(patch,mat[mIndex]);
-        }
-
-    }
-
-    static gsXmlNode * put (const Object & /* obj */,
-                            gsXmlTree & /* data */)
-    {
-        GISMO_ERROR("Writing gsMaterialMatrixContainer to Xml is not implemented");
-        // gsWarn<<"Writing gsMaterialMatrixContainer to Xml is not implemented\n";
-        // gsXmlNode * result;
-        // return result;
-        // return putMaterialMatrixToXml< Object >( obj,data );
-    }
-};
 
 }// end namespace internal
 

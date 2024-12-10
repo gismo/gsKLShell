@@ -25,27 +25,29 @@ namespace gismo
   // OG
   CLASS_TEMPLATE_INST gsMaterialMatrixNonlinear<2,real_t,34,false>;
 
-  // ////////////////////////////////////////////////////////////////
-  // // 2D incompressible
-  // // NH
-  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,11,false>>;
-  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,21,false>>;
-  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,31,false>>;
+namespace internal
+{
+  ////////////////////////////////////////////////////////////////
+  // 2D incompressible
+  // NH
+  CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,11,false>>;
+  CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,21,false>>;
+  CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,31,false>>;
 
-  // // NH_ext
-  // // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,12,false>>;
-  // // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,22,false>>;
-  // // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,32,false>>;
+  // NH_ext
+  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,12,false>>;
+  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,22,false>>;
+  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,32,false>>;
 
-  // // MR
-  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,13,false>>;
-  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,23,false>>;
-  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,33,false>>;
+  // MR
+  CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,13,false>>;
+  CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,23,false>>;
+  CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,33,false>>;
 
-  // // OG
-  // CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,34,false>>;
-  // ////////////////////////////////////////////////////////////////
-
+  // OG
+  CLASS_TEMPLATE_INST gsXml<gsMaterialMatrixNonlinear<2,real_t,34,false>>;
+  ////////////////////////////////////////////////////////////////
+}
 
   #ifdef GISMO_WITH_PYBIND11
 

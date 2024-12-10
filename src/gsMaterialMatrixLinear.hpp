@@ -21,6 +21,8 @@
 
 #pragma once
 
+#include <gsKLShell/src/gsMaterialMatrixXml.hpp>
+
 namespace gismo
 {
 
@@ -644,7 +646,43 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const T /*z*/, enum MaterialOutput
 namespace internal
 {
 
+/// @brief get a Linear Material Matrix from XML data
+///
+/// \ingroup KLShell
+template<short_t d, class T>
+class gsXml< gsMaterialMatrixLinear<d,T> >
+{
+private:
+    gsXml() { }
+    typedef gsMaterialMatrixLinear<d,T> Object;
 
+public:
+    GSXML_COMMON_FUNCTIONS(gsMaterialMatrixLinear<TMPLA2(d,T)>);
+    static std::string tag ()  { return "MaterialMatrix"; }
+    static std::string type () { return "Linear" +  to_string(d); }
+
+    GSXML_GET_POINTER(Object);
+
+    // static Object * get(gsXmlNode * node)
+    // {
+    //     Object result;
+    //     get_into(node, result);
+    //     return result.clone().release();
+    // }
+
+    static void get_into(gsXmlNode * node,Object & obj)
+    {
+        obj = getMaterialMatrixFromXml< Object >( node );
+    }
+
+    static gsXmlNode * put (const Object & obj,
+                            gsXmlTree & data)
+    {
+        return putMaterialMatrixToXml< Object >( obj,data );
+        // GISMO_NO_IMPLEMENTATION;
+        // return putGeometryToXml(obj,data);
+    }
+};
 
 }// namespace internal
 
