@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
     gsOptionList options;
     options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",1);
     options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
-    gsMaterialMatrixBase<real_t> * materialMatrix = getMaterialMatrix<3,real_t>(ori,t,parameters,options);
+    gsMaterialMatrixBase<real_t>::uPtr materialMatrix = getMaterialMatrix<3,real_t>(ori,t,parameters,options);
     //! [Define the material matrix class]
 
     //! [Define the assembler]

@@ -489,8 +489,8 @@ int main(int argc, char *argv[])
             std::string fileName = dirname + "/" + "solution" + util::to_string(r);
             gsWriteParaview<>(VMStress, fileName, 5000, true);
             fileName = "solution" + util::to_string(r) + "0";
-            collection.addTimestep(fileName,r,".vts");
-            collection.addTimestep(fileName,r,"_mesh.vtp");
+            collection.addPart(fileName+".vts",r,"Solution");
+            collection.addPart(fileName+"_mesh.vtp",r,"Mesh");
         }
 
         exacts[r] = 0;
@@ -507,8 +507,8 @@ int main(int argc, char *argv[])
         efficiencies[r] = approxs[r]/exacts[r];
 
         elErrors = DWR->computeErrorEigElements(eigvalL, dualvalL, dualvalH, dualL, dualH, primalL,dirname + "/" + "errors" + util::to_string(r),10000,true,true);
-        errors.addTimestep("errors" + util::to_string(r) + "0",r,".vts");
-        errors.addTimestep("errors" + util::to_string(r) + "0",r,"_mesh.vtp");
+        errors.addPart("errors" + util::to_string(r) + "0"+".vts",r,"Solution");
+        errors.addPart("errors" + util::to_string(r) + "0"+"_mesh.vtp",r,"Mesh");
         // for (std::vector<real_t>::iterator it = elErrors.begin(); it != elErrors.end(); it++)
         // {
         //     *it = std::abs(*it);
@@ -517,7 +517,7 @@ int main(int argc, char *argv[])
         gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
         const gsField<> elemError_eh( mp.patch(0), err_eh, true );
         gsWriteParaview<>( elemError_eh, dirname + "/" + "error_elem_ref" + util::to_string(r), 1000, true);
-        errors_elem.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
+        errors_elem.addPart("error_elem_ref" + util::to_string(r) + "0"+".vts",r,"Solution");
         if (adaptivity==0)
         {
             mp.uniformRefine();

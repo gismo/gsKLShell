@@ -451,8 +451,8 @@ int main(int argc, char *argv[])
             std::string fileName = "solution" + util::to_string(r);
             gsWriteParaview<>(Def, fileName, 5000, true);
             fileName = "solution" + util::to_string(r) + "0";
-            collection.addTimestep(fileName,r,".vts");
-            collection.addTimestep(fileName,r,"_mesh.vtp");
+            collection.addPart(fileName+".vts",r,"Solution");
+            collection.addPart(fileName+"_mesh.vtp",r,"Mesh");
         }
 
         real_t numError;
@@ -461,7 +461,7 @@ int main(int argc, char *argv[])
             std::string fileName = "indicator" + util::to_string(r);
             numError = DWR->computeError(dualL,dualH,false,fileName,5000,false,false);
             fileName = "indicator" + util::to_string(r) + "0";
-            indicator.addTimestep(fileName,r,".vts");
+            indicator.addPart(fileName+".vts",r,"Solution");
         }
         else
             numError = DWR->computeError(dualL,dualH);
@@ -525,8 +525,8 @@ int main(int argc, char *argv[])
             gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
             const gsField<> elemError_eh( mp.patch(0), err_eh, true );
             gsWriteParaview<>( elemError_eh, "error_elem_ref" + util::to_string(r), 1000, true);
-            errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
-            errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,"_mesh.vtp");
+            errors.addPart("error_elem_ref" + util::to_string(r) + "0"+".vts",r,"Solution");
+            errors.addPart("error_elem_ref" + util::to_string(r) + "0"+"_mesh.vtp",r,"Mesh");
 
 
             mesher.markRef_into(elErrors,markRef);
@@ -556,8 +556,8 @@ int main(int argc, char *argv[])
             gsElementErrorPlotter<real_t> err_eh(mp.basis(0),elErrors);
             const gsField<> elemError_eh( mp.patch(0), err_eh, true );
             gsWriteParaview<>( elemError_eh, "error_elem_ref" + util::to_string(r), 1000, true);
-            errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,".vts");
-            errors.addTimestep("error_elem_ref" + util::to_string(r) + "0",r,"_mesh.vtp");
+            errors.addPart("error_elem_ref" + util::to_string(r) + "0"+".vts",r,"Solution");
+            errors.addPart("error_elem_ref" + util::to_string(r) + "0"+"_mesh.vtp",r,"Mesh");
 
             std::vector<bool> elMarked( elErrors.size() );
             gsHBoxContainer<2,real_t> markRef, markCrs;
