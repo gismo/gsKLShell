@@ -70,7 +70,7 @@ template<short_t d, class T, bool bending>
 gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> & patches,
                                                           const gsMultiBasis<T> & basis,
                                                           const gsBoundaryConditions<T> & bconditions,
-                                                          const gsFunction<T> & surface_force,
+                                                          const gsFunctionSet<T> & surface_force,
                                                           gsMaterialMatrixBase<T> * materialMatrix
                                                           )
                                         :
@@ -474,7 +474,7 @@ void gsThinShellAssembler<d, T, bending>::_assembleFoundation(const gsFunction<T
 template <short_t d, class T, bool bending>
 template <short_t _d, bool _matrix>
 typename std::enable_if<(_d==3) && _matrix, void>::type
-gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & /*foundFun*/)
+gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & foundFun)
 {
     geometryMap m_ori   = m_assembler.getMap(m_patches);
 
@@ -492,7 +492,7 @@ gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T
 template <short_t d, class T, bool bending>
 template <short_t _d, bool _matrix>
 typename std::enable_if<(_d==3) && !_matrix, void>::type
-gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & foundFun)
+gsThinShellAssembler<d, T, bending>::_assembleFoundation_impl(const gsFunction<T> & /* foundFun */)
 {
     // No rhs contribution for the linear case
 }
