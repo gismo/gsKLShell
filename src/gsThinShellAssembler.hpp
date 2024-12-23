@@ -46,7 +46,7 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
                                         m_materialMatrices(materialMatrices)
 {
     // surface forces defined in the parametric domain (ONLY WORKS FOR 3D)
-    m_parametricForce = (surface_force.domainDim()==2 && d==3);
+    m_parametricForce = (surface_force.domainDim()==2 && (d==2||d==3));
 
     this->_defaultOptions();
     this->_getOptions();
@@ -87,7 +87,7 @@ gsThinShellAssembler<d, T, bending>::gsThinShellAssembler(const gsMultiPatch<T> 
         m_materialMatrices.set(p,materialMatrix);
 
     // surface forces defined in the parametric domain (ONLY WORKS FOR 3D)
-    m_parametricForce = (surface_force.domainDim()==2 && d==3);
+    m_parametricForce = (surface_force.domainDim()==2 && (d==2||d==3));
 
     this->_defaultOptions();
     this->_getOptions();
@@ -109,6 +109,7 @@ gsThinShellAssembler<d, T, bending>& gsThinShellAssembler<d, T, bending>::operat
         m_bcs=other.m_bcs;
         m_ddofs=other.m_ddofs;
         m_mass=other.m_mass;
+        m_parametricForce=other.m_parametricForce;
         m_forceFun=other.m_forceFun;
         m_foundFun=other.m_foundFun;
         m_pressFun=other.m_pressFun;
@@ -156,6 +157,7 @@ gsThinShellAssembler<d, T, bending>& gsThinShellAssembler<d, T, bending>::operat
     m_bcs=give(other.m_bcs);
     m_ddofs=give(other.m_ddofs);
     m_mass=give(other.m_mass);
+    m_parametricForce=give(other.m_parametricForce);
     m_forceFun=give(other.m_forceFun);
     m_foundFun=give(other.m_foundFun);
     m_pressFun=give(other.m_pressFun);
@@ -1645,7 +1647,7 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     auto mmA = m_assembler.getCoeff(m_mmA);
 
     space       m_space = m_assembler.trialSpace(0);
-    auto m_physforce = m_assembler.getCoeff(*m_forceFun,m_ori); // force defined in physical domain
+    GISMO_ASSERT(m_parametricForce,"The force must be defined in the parametric domain for 2D problems");
     auto m_parforce  = m_assembler.getCoeff(*m_forceFun); // force defined in parametric domain
 
     auto jacG       = jac(m_def);
@@ -1671,10 +1673,7 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
             ) * meas(m_ori)
             );
 
-        if (m_parametricForce)  // Assemble the force defined in the parameter domain
-            m_assembler.assemble(m_space * m_parforce  * meas(m_ori));
-        else                    // Assemble the force defined in the physical domain
-            m_assembler.assemble(m_space * m_physforce * meas(m_ori));
+        m_assembler.assemble(m_space * m_parforce  * meas(m_ori));
 
         this->_assembleWeakBCs<true>();
         this->_assembleWeakBCs<false>();
