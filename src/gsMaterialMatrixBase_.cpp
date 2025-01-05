@@ -2,7 +2,7 @@
 
 #include <gsKLShell/src/gsMaterialMatrixBase.h>
 #include <gsKLShell/src/gsMaterialMatrixBase.hpp>
-
+#include <gsKLShell/src/gsMaterialMatrixBaseDim.h>
 namespace gismo
 {
   CLASS_TEMPLATE_INST gsMaterialMatrixBase<real_t>;
