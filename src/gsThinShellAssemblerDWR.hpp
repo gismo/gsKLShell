@@ -22,6 +22,7 @@
 #include <gsKLShell/src/gsMaterialMatrixEval.h>
 
 #include <gsCore/gsFunctionExpr.h>
+#include <gsCore/gsConstantFunction.h>
 #include <gsAssembler/gsExprEvaluator.h>
 
 namespace gismo

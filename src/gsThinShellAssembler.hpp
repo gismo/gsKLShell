@@ -23,6 +23,7 @@
 #include <gsPde/gsBoundaryConditions.h>
 
 #include <gsCore/gsFunctionExpr.h>
+#include <gsCore/gsConstantFunction.h>
 #include <gsCore/gsPiecewiseFunction.h>
 
 #include <unordered_set>
