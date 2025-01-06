@@ -1,15 +1,17 @@
+![GitHub commits since latest release](https://img.shields.io/github/commits-since/gismo/gsKLShell/latest?color=008A00)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/gismo/gsKLShell?color=008A00)
+
 # gsKLShell
 
 Module for the isogeometric Kirchhoff-Love shell element. The module is based on `gismo`'s Expression Assembler `gsExprAssembler`.
 
 |CMake flags|```-DGISMO_OPTIONAL="<other submodules>;gsKLShell"```|
 |--:|---|
-|License|[MPL 2.0](https://www.mozilla.org/en-US/MPL/2.0/)|
+|License|![GitHub License](https://img.shields.io/github/license/gismo/gismo?color=008A00)|
 |OS support|Linux, Windows, macOS|
 |Build status|[![ci](https://github.com/gismo/gsKLShell/actions/workflows/ci.yml/badge.svg)](https://github.com/gismo/gsKLShell/actions/workflows/ci.yml)|
 |Repository|[gismo/gismo](https://github.com/gismo/gismo)|
-|Developer|[Hugo Verhelst](https://github.com/hverhelst)|
-|Maintainer|[h.m.verhelst@tudelft.nl](mailto:h.m.verhelst@tudelft.nl)|
+|Developers/maintainers| [![Static Badge](https://img.shields.io/badge/@hverhelst-008A00)](https://github.com/hverhelst) [![Static Badge](https://img.shields.io/badge/@Crazy--Rich--Meghan-008A00)](https://github.com/Crazy-Rich-Meghan)|
 
 #### Dependencies
 No dependencies
