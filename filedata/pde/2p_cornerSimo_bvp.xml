@@ -13,7 +13,11 @@
 
 <!-- Boundary conditions and loads -->
 <boundaryConditions id="20" multipatch="1">
-  <Function type="FunctionExpr" dim="3" index="0">0</Function>
+  <Function type="FunctionExpr" dim="3" index="0">
+  <c>0</c>
+  <c>0</c>
+  <c>0</c>
+  </Function>
   <Function type="FunctionExpr" dim="3" index="1">
     <c>0.0495</c> <!-- 1.485/30-->
     <c>0</c>
