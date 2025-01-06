@@ -10,7 +10,6 @@ Module for the isogeometric Kirchhoff-Love shell element. The module is based on
 |License|![GitHub License](https://img.shields.io/github/license/gismo/gismo?color=008A00)|
 |OS support|Linux, Windows, macOS|
 |Build status|[![ci](https://github.com/gismo/gsKLShell/actions/workflows/ci.yml/badge.svg)](https://github.com/gismo/gsKLShell/actions/workflows/ci.yml)|
-|Repository|[gismo/gismo](https://github.com/gismo/gismo)|
 |Developers/maintainers| [![Static Badge](https://img.shields.io/badge/@hverhelst-008A00)](https://github.com/hverhelst) [![Static Badge](https://img.shields.io/badge/@Crazy--Rich--Meghan-008A00)](https://github.com/Crazy-Rich-Meghan)|
 
 #### Dependencies
