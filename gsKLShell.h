@@ -24,9 +24,7 @@ namespace gismo
 {
 #ifdef GISMO_WITH_PYBIND11
 
-  namespace py = pybind11;
-
-  void pybind11_init_gsKLShell(py::module &m);
+  void pybind11_init_gsKLShell(pybind11::module &m);
 
 #endif
 }
