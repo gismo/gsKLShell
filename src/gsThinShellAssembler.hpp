@@ -1648,7 +1648,7 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
     auto mmA = m_assembler.getCoeff(m_mmA);
 
     space       m_space = m_assembler.trialSpace(0);
-    GISMO_ASSERT(m_parametricForce,"The force must be defined in the parametric domain for 2D problems");
+    auto m_physforce = m_assembler.getCoeff(*m_forceFun,m_ori); // force defined in physical domain
     auto m_parforce  = m_assembler.getCoeff(*m_forceFun); // force defined in parametric domain
 
     auto jacG       = jac(m_def);
@@ -1674,7 +1674,10 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
             ) * meas(m_ori)
             );
 
-        m_assembler.assemble(m_space * m_parforce  * meas(m_ori));
+        if (m_parametricForce)  // Assemble the force defined in the parameter domain
+            m_assembler.assemble(m_space * m_parforce  * meas(m_ori));
+        else                    // Assemble the force defined in the physical domain
+            m_assembler.assemble(m_space * m_physforce * meas(m_ori));
 
         this->_assembleWeakBCs<true>();
         this->_assembleWeakBCs<false>();
