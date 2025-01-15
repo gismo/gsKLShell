@@ -486,7 +486,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
                 converged = obj.findRootBisection(f,theta_interval(0),theta_interval(1),theta,1e-6);
                 if (!converged)
                 {
-                    obj.newtonRaphson(zeros,arg,false,1e-12,100,1);
+                    obj.newtonRaphson(zeros,arg,false,1e-8,1000,1);
                     theta = arg(0);
                     f = obj.eval(theta);
                 }
@@ -522,7 +522,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval_theta(const gsMatrix<T> & Cs
                     converged = obj.findRootBisection(f,intervals[i].first,intervals[i].second,theta,1e-6);
                     if (!converged)
                     {
-                        obj.newtonRaphson(zeros,arg,false,1e-12,100,1);
+                        obj.newtonRaphson(zeros,arg,false,1e-8,1000,1);
                         theta = arg(0);
                         f = obj.eval(theta);
                     }
