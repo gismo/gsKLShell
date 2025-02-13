@@ -12,11 +12,7 @@
 */
 
 #include <gismo.h>
-// #include <gsKLShell/gsKLShell.h>
-#include <gsKLShell/src/gsMaterialMatrixLinear.h>
-#include <gsKLShell/src/gsMaterialMatrixTFT.h>
-#include <gsKLShell/src/getMaterialMatrix.h>
-#include <gsKLShell/src/gsThinShellAssembler.h>
+#include <gsKLShell/gsKLShell.h>
 
 using namespace gismo;
 

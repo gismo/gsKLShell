@@ -2832,7 +2832,7 @@ void gsThinShellAssembler<d, T, bending>::constructStress(
 // }
 
 template<short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & /*fun*/, gsMatrix<T>& /*result*/)
+void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunctionSet<T> & /*fun*/, gsMatrix<T>& /*result*/)
 {
     // /// todo: make a projection with BCs?
     // /// todo: test
@@ -2860,7 +2860,7 @@ void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & /
 }
 
 template<short_t d, class T, bool bending>
-void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & fun, gsMultiPatch<T>& mp)
+void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunctionSet<T> & fun, gsMultiPatch<T>& mp)
 {
     /// todo: make a projection with BCs?
     /// todo: test
@@ -2885,7 +2885,7 @@ void gsThinShellAssembler<d, T, bending>::projectL2_into(const gsFunction<T> & f
 
 
 template<short_t d, class T, bool bending>
-gsMatrix<T> gsThinShellAssembler<d, T, bending>::projectL2(const gsFunction<T> & fun)
+gsMatrix<T> gsThinShellAssembler<d, T, bending>::projectL2(const gsFunctionSet<T> & fun)
 {
     /// todo: make a projection with BCs?
     /// todo: test

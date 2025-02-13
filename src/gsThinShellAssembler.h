@@ -454,13 +454,13 @@ public:
     gsMatrix<T> computePrincipalStresses(const gsMatrix<T> & points, const gsFunctionSet<T> & deformed, const T z=0);
 
     /// See \ref gsThinShellAssemblerBase for details
-    void projectL2_into(const gsFunction<T> &fun, gsMatrix<T> & result);
+    void projectL2_into(const gsFunctionSet<T> &fun, gsMatrix<T> & result);
 
     /// See \ref gsThinShellAssemblerBase for details
-    void projectL2_into(const gsFunction<T> &fun, gsMultiPatch<T> & result);
+    void projectL2_into(const gsFunctionSet<T> &fun, gsMultiPatch<T> & result);
 
     /// See \ref gsThinShellAssemblerBase for details
-    gsMatrix<T> projectL2(const gsFunction<T> &fun);
+    gsMatrix<T> projectL2(const gsFunctionSet<T> &fun);
 
     /// See \ref gsThinShellAssemblerBase for details
     void plotSolution(std::string string, const gsMatrix<T> & solVector);
@@ -1072,13 +1072,13 @@ public:
     virtual T interfaceErrorMeanCurvature(const gsFunctionSet<T> & deformed, const ifContainer & iFaces) = 0;
 
     /// Projects function \a fun on the basis and geometry stored in the class and returns the coefficients in \a result
-    virtual void projectL2_into(const gsFunction<T> &fun, gsMatrix<T> & result) = 0;
+    virtual void projectL2_into(const gsFunctionSet<T> &fun, gsMatrix<T> & result) = 0;
 
     /// Projects function \a fun on the basis and geometry stored in the class and returns a multipatch in \a result
-    virtual void projectL2_into(const gsFunction<T> &fun, gsMultiPatch<T> & result) = 0;
+    virtual void projectL2_into(const gsFunctionSet<T> &fun, gsMultiPatch<T> & result) = 0;
 
     /// Projects function \a fun on the basis and geometry stored in the class and returns the coefficients as a matrix
-    virtual gsMatrix<T> projectL2(const gsFunction<T> &fun) = 0;
+    virtual gsMatrix<T> projectL2(const gsFunctionSet<T> &fun) = 0;
 
     virtual void plotSolution(std::string string, const gsMatrix<T> & solVector) = 0;
 

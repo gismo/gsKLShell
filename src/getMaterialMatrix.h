@@ -15,11 +15,11 @@
 
 #pragma once
 
-#include <gsKLShell/src/gsMaterialMatrixBase.h>
-#include <gsKLShell/src/gsMaterialMatrixUtils.h>
-#include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
-#include <gsKLShell/src/gsMaterialMatrixLinear.h>
-#include <gsKLShell/src/gsMaterialMatrixComposite.h>
+#include <gsKLShell/gsMaterialMatrixBase.h>
+#include <gsKLShell/gsMaterialMatrixUtils.h>
+#include <gsKLShell/gsMaterialMatrixNonlinear.h>
+#include <gsKLShell/gsMaterialMatrixLinear.h>
+#include <gsKLShell/gsMaterialMatrixComposite.h>
 #include <gsIO/gsOptionList.h>
 
 namespace gismo
