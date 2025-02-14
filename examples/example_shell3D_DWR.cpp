@@ -466,10 +466,11 @@ int main(int argc, char *argv[])
         else
             numError = DWR->computeError(dualL,dualH);
 
-        typename gsBasis<real_t>::domainIter domIt = basisL.basis(0).makeDomainIterator();
-        real_t diam = domIt->getMinCellLength();
-        for (; domIt->good(); domIt->next())
-            diam = domIt->getMinCellLength() < diam ? domIt->getMinCellLength() : diam;
+        typename gsBasis<real_t>::domainIter domIt    = basisL.basis(0).domain()->beginAll();
+        typename gsBasis<real_t>::domainIter domItEnd = basisL.basis(0).domain()->endAll();
+        real_t diam = domIt.getMinCellLength();
+        for (; domIt<domItEnd; ++domIt)
+            diam = domIt.getMinCellLength() < diam ? domIt.getMinCellLength() : diam;
 
         exacts[r] = 0;
         numGoal[r] = DWR->computeGoal(mp_def)+DWR->computeGoal(bContainer,mp_def)+DWR->computeGoal(points,mp_def);
@@ -507,13 +508,13 @@ int main(int argc, char *argv[])
             index_t c = 0;
             for (index_t p=0; p < mp.nPieces(); ++p)
             {
-            // index_t p=0;
-                typename gsBasis<real_t>::domainIter domIt = mp.basis(p).makeDomainIterator();
-                gsHDomainIterator<real_t,2> * domHIt = nullptr;
-                domHIt = dynamic_cast<gsHDomainIterator<real_t,2> *>(domIt.get());
-                GISMO_ENSURE(domHIt!=nullptr,"Domain not loaded");
-                for (; domHIt->good(); domHIt->next())
+                // index_t p=0;
+                typename gsBasis<real_t>::domainIter domIt    = mp.basis(p).domain()->beginAll();
+                typename gsBasis<real_t>::domainIter domItEnd = mp.basis(p).domain()->endAll();
+                for (; domIt<domItEnd; ++domIt)
                 {
+                    GISMO_ASSERT((dynamic_cast<gsHDomainIterator<real_t,2> *>(domIt.get())),"Domain not loaded");
+                    gsHDomainIterator<real_t,2> * domHIt = static_cast<gsHDomainIterator<real_t,2> *>(domIt.get());
                     gsHBox<2,real_t> box(domHIt,p);
                     box.setAndProjectError(elErrors[c],mesherOpts.getInt("Convergence_alpha"),mesherOpts.getInt("Convergence_beta"));
                     elts.add(box);
@@ -568,12 +569,12 @@ int main(int argc, char *argv[])
             for (index_t p=0; p < mp.nPieces(); ++p)
             {
             // index_t p=0;
-                typename gsBasis<real_t>::domainIter domIt = mp.basis(p).makeDomainIterator();
-                gsHDomainIterator<real_t,2> * domHIt = nullptr;
-                domHIt = dynamic_cast<gsHDomainIterator<real_t,2> *>(domIt.get());
-                GISMO_ENSURE(domHIt!=nullptr,"Domain not loaded");
-                for (; domHIt->good(); domHIt->next())
+                typename gsBasis<real_t>::domainIter domIt    = mp.basis(p).domain()->beginAll();
+                typename gsBasis<real_t>::domainIter domItEnd = mp.basis(p).domain()->endAll();
+                for (; domIt<domItEnd; ++domIt)
                 {
+                    GISMO_ASSERT((dynamic_cast<gsHDomainIterator<real_t,2> *>(domIt.get())),"Domain not loaded");
+                    gsHDomainIterator<real_t,2> * domHIt = static_cast<gsHDomainIterator<real_t,2> *>(domIt.get());
                     gsHBox<2,real_t> box(domHIt,p);
                     box.setAndProjectError(elErrors[c],mesherOpts.getInt("Convergence_alpha"),mesherOpts.getInt("Convergence_beta"));
                     elts.add(box);
