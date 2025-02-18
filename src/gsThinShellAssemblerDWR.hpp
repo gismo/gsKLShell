@@ -1236,7 +1236,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1252,7 +1252,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1271,7 +1271,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1287,7 +1287,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1306,7 +1306,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1322,7 +1322,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1341,7 +1341,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1357,7 +1357,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1376,7 +1376,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1392,7 +1392,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1411,7 +1411,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1427,7 +1427,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1446,7 +1446,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1463,7 +1463,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1482,7 +1482,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1498,7 +1498,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1517,7 +1517,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1533,7 +1533,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1552,7 +1552,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -1569,7 +1569,7 @@ ThinShellAssemblerStatus gsThinShellAssemblerDWR<d, T, bending>::_assembleDual(c
             for (index_t k = 0; k!=points.cols(); k++)
             {
                 tmp = ev.eval(expr,points.col(k));
-                exprAssembler.integrationElements().basis(pIndex).active_into( points.col(k), actives );
+                exprAssembler.trialSpace(0).source().basis(pIndex).active_into( points.col(k), actives );
                 for (index_t j = 0; j< space.dim(); ++j)
                 {
                     space.mapper().localToGlobal(actives, pIndex, globalActives,j);
@@ -3685,19 +3685,20 @@ void gsThinShellAssemblerDWR<d, T, bending>::_applyLoadsToElWiseError(const gsMu
             for (unsigned patchInd=0; patchInd < m_assemblerH->getBasis().nBases(); ++patchInd)
             {
                 // Initialize domain element iterator
-                typename gsBasis<T>::domainIter domIt =
-                    m_assemblerH->getBasis().piece(patchInd).makeDomainIterator();
+                typename gsBasis<T>::domainIter domIt    = m_assemblerH->getBasis().piece(patchInd).domain()->beginAll();
+                typename gsBasis<T>::domainIter domItEnd = m_assemblerH->getBasis().piece(patchInd).domain()->endAll();
 
-#ifdef _OPENMP
+#               ifdef _OPENMP
                 c = patch_cnt + tid;
-                patch_cnt += domIt->numElements();// a bit costy
-                for ( domIt->next(tid); domIt->good(); domIt->next(nt) )
-#else
-                for (; domIt->good(); domIt->next() )
-#endif
+                patch_cnt += m_assemblerH->getBasis().piece(patchInd).domain()->numElements();// a bit costy
+                domIt += tid;
+                for ( ; domIt<domItEnd; domIt+=nt )
+#               else
+                for (; domIt<domItEnd; ++domIt )
+#               endif
                 {
-                    bool test = !(((((forcePoint - domIt->lowerCorner()).array() >= 0) &&
-                                    (domIt->upperCorner() - forcePoint).array() >= 0)   ).array() == 0).any();
+                    bool test = !(((((forcePoint - domIt.lowerCorner()).array() >= 0) &&
+                                    (domIt.upperCorner() - forcePoint).array() >= 0)   ).array() == 0).any();
                     if (test)
                         elements_private.push_back(c);
                     #ifdef _OPENMP
