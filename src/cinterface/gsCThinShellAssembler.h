@@ -34,6 +34,7 @@ extern "C"
     GISMO_EXPORT void gsThinShellAssembler_rhs_into( gsCThinShellAssemblerBase * assembler_ptr, gsCMatrix * rhs_ptr );
 
     GISMO_EXPORT gsCMultiPatch * gsThinShellAssembler_constructSolution( gsCThinShellAssemblerBase * assembler_ptr, gsCMatrix * solVector_ptr);
+    GISMO_EXPORT gsCMultiPatch * gsThinShellAssembler_constructDisplacement( gsCThinShellAssemblerBase * assembler_ptr, gsCMatrix * solVector_ptr);
 
 
 #ifdef __cplusplus

@@ -120,8 +120,7 @@ GISMO_EXPORT int gsThinShellAssembler_assembleVector( gsCThinShellAssemblerBase 
 GISMO_EXPORT void gsThinShellAssembler_matrix_into( gsCThinShellAssemblerBase * assembler_ptr, gsCSparseMatrix * mat_ptr )
 {
     auto * assembler = RICAST_TSA(assembler_ptr);
-    *RICAST_SM( mat_ptr ) = assembler->matrix(); // THIS LINE IS PROBLEMATIC
-    // mat_ptr = RICAST_CSM(new gismo::gsSparseMatrix<double>(assembler->matrix()));
+    *RICAST_SM( mat_ptr ) = assembler->matrix();
 }
 
 GISMO_EXPORT void gsThinShellAssembler_rhs_into( gsCThinShellAssemblerBase * assembler_ptr, gsCMatrix * rhs_ptr )
@@ -134,6 +133,13 @@ GISMO_EXPORT gsCMultiPatch * gsThinShellAssembler_constructSolution( gsCThinShel
     auto * assembler = RICAST_TSA(assembler_ptr);
     auto * solVector = RICAST_M(solVector_ptr);
     return RICAST_CMP(new gismo::gsMultiPatch<double>(assembler->constructSolution(*solVector)));
+}
+
+GISMO_EXPORT gsCMultiPatch * gsThinShellAssembler_constructDisplacement( gsCThinShellAssemblerBase * assembler_ptr, gsCMatrix * solVector_ptr)
+{
+    auto * assembler = RICAST_TSA(assembler_ptr);
+    auto * solVector = RICAST_M(solVector_ptr);
+    return RICAST_CMP(new gismo::gsMultiPatch<double>(assembler->constructDisplacement(*solVector)));
 }
 
 #ifdef __cplusplus
