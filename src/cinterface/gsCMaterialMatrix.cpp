@@ -14,16 +14,18 @@
 
 #define RICAST_CMM reinterpret_cast<gsCMaterialMatrixBase *>
 
+using namespace gismo;
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
 GISMO_EXPORT void gsMaterialMatrixBase_delete(gsCMaterialMatrixBase * ptr)
-{ delete reinterpret_cast<gismo::gsMaterialMatrixBase<double>*>(ptr); }
+{ delete reinterpret_cast<gsMaterialMatrixBase<double>*>(ptr); }
 
 GISMO_EXPORT void gsMaterialMatrixBase_print(gsCMaterialMatrixBase * ptr)
-{ reinterpret_cast<gismo::gsMaterialMatrixBase<double>*>(ptr)->print(gsInfo); }
+{ reinterpret_cast<gsMaterialMatrixBase<double>*>(ptr)->print(gsInfo); }
 
 GISMO_EXPORT gsCMaterialMatrixBase * gsMaterialMatrixLinear2_create(gsCFunctionSet * mp_ptr,
                                                                    gsCFunctionSet * t_ptr,
@@ -36,7 +38,7 @@ GISMO_EXPORT gsCMaterialMatrixBase * gsMaterialMatrixLinear2_create(gsCFunctionS
     auto * E   = RICAST_F(E_ptr);
     auto * nu  = RICAST_F(nu_ptr);
     auto * rho = RICAST_F(rho_ptr);
-    return (RICAST_CMM(new gismo::gsMaterialMatrixLinear<2,double>(*mp,*t,*E,*nu,*rho)));
+    return (RICAST_CMM(new gsMaterialMatrixLinear<2,double>(*mp,*t,*E,*nu,*rho)));
 }
 
 GISMO_EXPORT gsCMaterialMatrixBase * gsMaterialMatrixLinear2const_create( gsCFunctionSet * mp_ptr,
@@ -47,7 +49,7 @@ GISMO_EXPORT gsCMaterialMatrixBase * gsMaterialMatrixLinear2const_create( gsCFun
     gsConstantFunction<double> Efun(t,2);
     gsConstantFunction<double> nfun(t,2);
     gsConstantFunction<double> rfun(t,2);
-    return (RICAST_CMM(new gismo::gsMaterialMatrixLinear<2,double>(*mp,tfun,Efun,nfun,rfun)));
+    return (RICAST_CMM(new gsMaterialMatrixLinear<2,double>(*mp,tfun,Efun,nfun,rfun)));
 }
 
 
@@ -62,7 +64,7 @@ GISMO_EXPORT gsCMaterialMatrixBase * gsMaterialMatrixLinear3_create(gsCFunctionS
     auto * E   = RICAST_F(E_ptr);
     auto * nu  = RICAST_F(nu_ptr);
     auto * rho = RICAST_F(rho_ptr);
-    return (RICAST_CMM(new gismo::gsMaterialMatrixLinear<3,double>(*mp,*t,*E,*nu,*rho)));
+    return (RICAST_CMM(new gsMaterialMatrixLinear<3,double>(*mp,*t,*E,*nu,*rho)));
 }
 
 GISMO_EXPORT gsCMaterialMatrixBase * gsMaterialMatrixLinear3const_create( gsCFunctionSet * mp_ptr,
@@ -73,7 +75,7 @@ GISMO_EXPORT gsCMaterialMatrixBase * gsMaterialMatrixLinear3const_create( gsCFun
     gsConstantFunction<double> Efun(t,3);
     gsConstantFunction<double> nfun(t,3);
     gsConstantFunction<double> rfun(t,3);
-    return (RICAST_CMM(new gismo::gsMaterialMatrixLinear<3,double>(*mp,tfun,Efun,nfun,rfun)));
+    return (RICAST_CMM(new gsMaterialMatrixLinear<3,double>(*mp,tfun,Efun,nfun,rfun)));
 }
 
 #ifdef __cplusplus

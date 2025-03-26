@@ -14,10 +14,12 @@
 #include <gsKLShell/cinterface/gsCMaterialMatrix.h>
 #include <gsKLShell/cinterface/gsCThinShellAssembler.h>
 
-#define RICAST_MM  reinterpret_cast<gismo::gsMaterialMatrixBase<double> *>
-#define RICAST_TSA  reinterpret_cast<gismo::gsThinShellAssemblerBase<double> *>
+#define RICAST_MM  reinterpret_cast<gsMaterialMatrixBase<double> *>
+#define RICAST_TSA  reinterpret_cast<gsThinShellAssemblerBase<double> *>
 #define RICAST_CMM  reinterpret_cast<gsCMaterialMatrixBase *>
 #define RICAST_CTSA reinterpret_cast<gsCThinShellAssemblerBase *>
+
+using namespace gismo;
 
 #ifdef __cplusplus
 extern "C"
@@ -25,10 +27,10 @@ extern "C"
 #endif
 
 GISMO_EXPORT void gsThinShellAssemblerBase_delete(gsCThinShellAssemblerBase * ptr)
-{ delete reinterpret_cast<gismo::gsThinShellAssemblerBase<double>*>(ptr); }
+{ delete reinterpret_cast<gsThinShellAssemblerBase<double>*>(ptr); }
 
 // GISMO_EXPORT void gsThinShellAssemblerBase_print(gsCThinShellAssemblerBase * ptr)
-// { reinterpret_cast<gismo::gsThinShellAssemblerBase<double>*>(ptr)->print(gsInfo); }
+// { reinterpret_cast<gsThinShellAssemblerBase<double>*>(ptr)->print(gsInfo); }
 
 
 GISMO_EXPORT gsCThinShellAssemblerBase * gsThinShellAssembler2_create( gsCMultiPatch * mp_ptr,
@@ -42,7 +44,7 @@ GISMO_EXPORT gsCThinShellAssemblerBase * gsThinShellAssembler2_create( gsCMultiP
     auto * bc   = RICAST_BC(bc_ptr);
     auto * force= RICAST_F(force_ptr);
     auto * mm   = RICAST_MM(mm_ptr);
-    return (RICAST_CTSA(new gismo::gsThinShellAssembler<2,double,false>(*mp,*mb,*bc,*force,mm)));
+    return (RICAST_CTSA(new gsThinShellAssembler<2,double,false>(*mp,*mb,*bc,*force,mm)));
 }
 
 GISMO_EXPORT gsCThinShellAssemblerBase * gsThinShellAssembler3_bending_create( gsCMultiPatch * mp_ptr,
@@ -56,7 +58,7 @@ GISMO_EXPORT gsCThinShellAssemblerBase * gsThinShellAssembler3_bending_create( g
     auto * bc   = RICAST_BC(bc_ptr);
     auto * force= RICAST_F(force_ptr);
     auto * mm   = RICAST_MM(mm_ptr);
-    return (RICAST_CTSA(new gismo::gsThinShellAssembler<3,double,true>(*mp,*mb,*bc,*force,mm)));
+    return (RICAST_CTSA(new gsThinShellAssembler<3,double,true>(*mp,*mb,*bc,*force,mm)));
 }
 
 GISMO_EXPORT gsCThinShellAssemblerBase * gsThinShellAssembler3_nobending_create( gsCMultiPatch * mp_ptr,
@@ -70,18 +72,18 @@ GISMO_EXPORT gsCThinShellAssemblerBase * gsThinShellAssembler3_nobending_create(
     auto * bc   = RICAST_BC(bc_ptr);
     auto * force= RICAST_F(force_ptr);
     auto * mm   = RICAST_MM(mm_ptr);
-    return (RICAST_CTSA(new gismo::gsThinShellAssembler<3,double,false>(*mp,*mb,*bc,*force,mm)));
+    return (RICAST_CTSA(new gsThinShellAssembler<3,double,false>(*mp,*mb,*bc,*force,mm)));
 }
 
 GISMO_EXPORT int gsThinShellAssembler_assemble( gsCThinShellAssemblerBase * assembler_ptr)
 {
     auto * assembler = RICAST_TSA(assembler_ptr);
     auto status = assembler->assemble();
-    if (status==gismo::ThinShellAssemblerStatus::Success)
+    if (status==ThinShellAssemblerStatus::Success)
         return 0;
-    else if (status==gismo::ThinShellAssemblerStatus::AssemblyError)
+    else if (status==ThinShellAssemblerStatus::AssemblyError)
         return 1;
-    else if (status==gismo::ThinShellAssemblerStatus::DimensionError)
+    else if (status==ThinShellAssemblerStatus::DimensionError)
         return 2;
     else
         return 99;
@@ -92,11 +94,11 @@ GISMO_EXPORT int gsThinShellAssembler_assembleMatrix( gsCThinShellAssemblerBase 
     auto * assembler = RICAST_TSA(assembler_ptr);
     auto * deformed = RICAST_F(deformed_ptr);
     auto status = assembler->assembleMatrix(*deformed);
-    if (status==gismo::ThinShellAssemblerStatus::Success)
+    if (status==ThinShellAssemblerStatus::Success)
         return 0;
-    else if (status==gismo::ThinShellAssemblerStatus::AssemblyError)
+    else if (status==ThinShellAssemblerStatus::AssemblyError)
         return 1;
-    else if (status==gismo::ThinShellAssemblerStatus::DimensionError)
+    else if (status==ThinShellAssemblerStatus::DimensionError)
         return 2;
     else
         return 99;
@@ -107,11 +109,11 @@ GISMO_EXPORT int gsThinShellAssembler_assembleVector( gsCThinShellAssemblerBase 
     auto * assembler = RICAST_TSA(assembler_ptr);
     auto * deformed = RICAST_F(deformed_ptr);
     auto status = assembler->assembleVector(*deformed);
-    if (status==gismo::ThinShellAssemblerStatus::Success)
+    if (status==ThinShellAssemblerStatus::Success)
         return 0;
-    else if (status==gismo::ThinShellAssemblerStatus::AssemblyError)
+    else if (status==ThinShellAssemblerStatus::AssemblyError)
         return 1;
-    else if (status==gismo::ThinShellAssemblerStatus::DimensionError)
+    else if (status==ThinShellAssemblerStatus::DimensionError)
         return 2;
     else
         return 99;
@@ -132,14 +134,14 @@ GISMO_EXPORT gsCMultiPatch * gsThinShellAssembler_constructSolution( gsCThinShel
 {
     auto * assembler = RICAST_TSA(assembler_ptr);
     auto * solVector = RICAST_M(solVector_ptr);
-    return RICAST_CMP(new gismo::gsMultiPatch<double>(assembler->constructSolution(*solVector)));
+    return RICAST_CMP(new gsMultiPatch<double>(assembler->constructSolution(*solVector)));
 }
 
 GISMO_EXPORT gsCMultiPatch * gsThinShellAssembler_constructDisplacement( gsCThinShellAssemblerBase * assembler_ptr, gsCMatrix * solVector_ptr)
 {
     auto * assembler = RICAST_TSA(assembler_ptr);
     auto * solVector = RICAST_M(solVector_ptr);
-    return RICAST_CMP(new gismo::gsMultiPatch<double>(assembler->constructDisplacement(*solVector)));
+    return RICAST_CMP(new gsMultiPatch<double>(assembler->constructDisplacement(*solVector)));
 }
 
 #ifdef __cplusplus
