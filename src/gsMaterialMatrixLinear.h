@@ -40,7 +40,7 @@ public:
 
     typedef T Scalar_t;
 
-    GISMO_OVERRIDE_CLONE_FUNCTION(gsMaterialMatrixLinear);
+    GISMO_CLONE_FUNCTION(gsMaterialMatrixLinear);
 
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 

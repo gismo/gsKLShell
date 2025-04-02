@@ -40,7 +40,7 @@ class gsMaterialMatrixComposite : public gsMaterialMatrixBaseDim<dim,T>
 {
 public:
 
-    GISMO_OVERRIDE_CLONE_FUNCTION(gsMaterialMatrixComposite)
+    GISMO_CLONE_FUNCTION(gsMaterialMatrixComposite)
 
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 

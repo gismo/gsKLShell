@@ -47,7 +47,7 @@ class gsMaterialMatrixNonlinear :    public gsMaterialMatrixBaseDim<dim,T>
 {
 public:
 
-    GISMO_OVERRIDE_CLONE_FUNCTION(gsMaterialMatrixNonlinear);
+    GISMO_CLONE_FUNCTION(gsMaterialMatrixNonlinear);
 
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 

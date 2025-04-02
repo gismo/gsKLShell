@@ -54,7 +54,7 @@ public:
     typedef typename gsFunctionSet<T>::Ptr function_ptr;
 
     // Define clone functions
-    GISMO_OVERRIDE_CLONE_FUNCTION(gsMaterialMatrixTFT)
+    GISMO_CLONE_FUNCTION(gsMaterialMatrixTFT)
 
 public:
 

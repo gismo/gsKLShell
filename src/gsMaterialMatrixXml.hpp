@@ -323,13 +323,14 @@ gsXmlNode * putMaterialMatrixToXml ( Object const & obj, gsXmlTree & data)
 
     GISMO_ASSERT(obj.hasThickness(),"Thickness is not assigned");
     gsXmlNode * t = internal::makeNode("Thickness", data);
-    gsXmlNode * tfun = putFunctionToXml<T>(obj.getThickness(), data, 0);
+    GISMO_ASSERT((dynamic_cast<gsFunction<T> *>(obj.getThickness().get())),"Function is not of type gsFunction<T>");
+    gsXmlNode * tfun = putFunctionToXml<T>(static_cast<gsFunction<T> &>(*(obj.getThickness().get())), data, 0);
     t->append_node(tfun);
     mm->append_node(t);
     if (obj.hasDensity())
     {
         gsXmlNode * r = internal::makeNode("Density", data);
-        gsXmlNode * rfun = putFunctionToXml<T>(obj.getDensity(), data, 0);
+        gsXmlNode * rfun = putFunctionToXml<T>(static_cast<gsFunction<T> &>(*(obj.getDensity().get())), data, 0);
         r->append_node(rfun);
         mm->append_node(r);
     }
@@ -337,7 +338,7 @@ gsXmlNode * putMaterialMatrixToXml ( Object const & obj, gsXmlTree & data)
     gsXmlNode * p = internal::makeNode("Parameters", data);
     for (index_t k=0; k!=obj.numParameters(); k++)
     {
-        gsXmlNode * pfun = putFunctionToXml<T>(obj.getParameter(k), data, k);
+        gsXmlNode * pfun = putFunctionToXml<T>(static_cast<gsFunction<T> &>(*(obj.getParameter(k).get())), data, k);
         p->append_node(pfun);
     }
     mm->append_node(p);
