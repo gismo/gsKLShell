@@ -2350,9 +2350,8 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleEmbeddedCu
                 }
             }
         }
+        matrix += matrix_curve; // TODO: Write everything to sparse entries and build the sparse matrix later.
     }
-
-
     return ThinShellAssemblerStatus::Success;
 }
 
