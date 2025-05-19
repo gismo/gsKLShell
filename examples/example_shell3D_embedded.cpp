@@ -193,7 +193,9 @@ int main(int argc, char *argv[])
 
         jacMat = assembler->matrix();
         rhsVec = assembler->rhs();
-        assembleNonlinearEmbeddedBeam_into(assembler,mp_surf,mp_surf_def,mp_curve,mbasis_curve,R,jacMat,rhsVec);
+        // assembleNonlinearEmbeddedBeam_into(assembler,mp_surf,mp_surf_def,mp_curve,mbasis_curve,R,jacMat,rhsVec);
+        jacMat += assembler->assembleEmbeddedCurveMatrix(m_surf_def,mp_curve);
+        R      += assembler->assembleEmbeddedCurveVector(m_surf_def,mp_curve);
     };
     //! [Lambda functions for Jacobian and Residual definition]
 
