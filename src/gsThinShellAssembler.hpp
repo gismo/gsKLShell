@@ -20,6 +20,7 @@
 #include <gsKLShell/src/gsMaterialMatrixBase.h>
 #include <gsKLShell/src/gsMaterialMatrixIntegrate.h>
 #include <gsKLShell/src/gsMaterialMatrixEval.h>
+#include <gsKLShell/src/gsEmbeddingUtils.h>
 
 #include <gsPde/gsBoundaryConditions.h>
 
@@ -231,7 +232,7 @@ void gsThinShellAssembler<d, T, bending>::_initialize()
     m_assembler.setIntegrationElements(m_basis);
     GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
     m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
-    
+
     GISMO_ASSERT(m_bcs.hasGeoMap(),"No geometry map was assigned to the boundary conditions. Use bc.setGeoMap to assign one!");
 
     // Initialize the geometry maps
@@ -2252,6 +2253,109 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleFoundation
     }
     return m_status;
 }
+
+template<short_t d, class T, bool bending>
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleEmbeddedCurve(const gsMultiPatch<T> & curve, T EA, T EI, T GI)
+{
+    /*
+    TODO:
+        * Provide an option for the number of initial guesses
+        * Differentiate between EImax and EImin in the input arguments
+    */
+    GISMO_ASSERT(m_patches.numPatches() == 1, "The curve assembler only works for a single patch.");
+    GISMO_ASSERT(curve.domainDim()==1, "The curve net should have domain dimension 1.");
+    GISMO_ASSERT(curve.targetDim()==2, "The curve net should have target dimension equal to the parameter domain of the surface, hence 2");
+
+    T EImax = EI;
+    T EImin = EI;
+    gsWarn<<"EImax and EImin are not set yet. They are both set to EI.\n";
+
+    // Loop over the curves
+    gsMatrix<T> quPointsCurve, quPointsSurface, quPointsPhysical;
+    gsVector<T> quWeights;
+
+    // Assemble curve contributions
+    m_assembler.cleanUp();
+    geometryMap G_surf  = m_assembler.getMap(m);
+    space       u = m_assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
+    index_t     N = m_assembler.numDofs();
+    gsSparseMatrix<T> matrix(N,N);
+
+    gsMatrix<T> evalMat, localMat;
+    for (size_t p=0; p!=curve.numPatches(); p++)
+    {
+        // Construct quadrature points on the curve
+        embeddedQuadraturePoints(m_patches.patch(0),curve.patch(p),quPointsCurve,quWeights);
+
+        auto G_curve = m_assembler.getMap(curve.patch(p));
+        gsSparseMatrix<T> matrix_curve(N,N);
+
+        auto eps_der = ctv_var1(u_surf,G_surf,G_curve) * ctv(G_surf, G_curve);
+        auto k21_der = cnv_vara_var1_normalized(u_surf,G_surf,G_curve)*ctv(G_surf, G_curve) + ctv_var1(u_surf,G_surf,G_curve)*cnv_vara_normalized(G_surf, G_curve);
+        auto k31_der = cbv_vara_var1_normalized(u_surf,G_surf,G_curve)*ctv(G_surf, G_curve) + ctv_var1(u_surf,G_surf,G_curve)*cbv_vara_normalized(G_surf, G_curve);
+        auto k23_der = cnv_vara_var1_normalized(u_surf,G_surf,G_curve)*cbv(G_surf, G_curve) + cbv_var1(u_surf,G_surf,G_curve)*cnv_vara_normalized(G_surf, G_curve);
+        auto k32_der = cbv_vara_var1_normalized(u_surf,G_surf,G_curve)*cnv(G_surf, G_curve) + cnv_var1(u_surf,G_surf,G_curve)*cbv_vara_normalized(G_surf, G_curve);
+
+        //Beam stiffness matrix (BendingAxial + Torsional)
+        auto stiff = 1./pow(ctv(G_surf, G_curve).norm(),3) *
+                    (EA * eps_der * eps_der.tr() + EImax * k21_der * k21_der.tr() + EImin * k31_der * k31_der.tr())
+                        +
+                    GI/(4*pow(ctv(G_surf, G_curve).norm(),3)) *
+                    (-k32_der * k32_der.tr() + k23_der * k23_der.tr());
+
+        // Evaluator for expressions
+        gsExprEvaluator<T> exprEvaluator(m_assembler);
+
+        // Map the quadrature points of the curve to 2D coordinates
+        curve.patch(p).eval_into(quPointsCurve, quPointsSurface);
+
+        // Loop over the quadrature points
+        for (index_t k=0; k!=QP.cols(); k++)
+        {
+            evalMat = exprEvaluator.eval(stiff,quPointsCurve.col(k));
+            localMat = quWeights[k] * evalMat;
+
+            // Push the local element matrix inside the big system
+            const expr::gsFeSpace<T> & v      = stiff.rowVar();
+            const expr::gsFeSpace<T> & u      = stiff.colVar();
+            const index_t rd                  = v.dim();
+            const index_t cd                  = u.dim();
+            const gsDofMapper  & rowMap       = v.mapper();
+            const gsDofMapper  & colMap       = u.mapper();
+            gsMatrix<index_t>   colInd0       = m_assembler->getSpaceBasis().basis(0).active(quPointsSurface.col(k));
+            gsMatrix<index_t>   rowInd0       = m_assembler->getSpaceBasis().basis(0).active(quPointsSurface.col(k));
+
+            for (index_t r = 0; r != rd; ++r)
+            {
+                const index_t rls = r * rowInd0.rows();
+                for (index_t i = 0; i != rowInd0.rows(); ++i)
+                {
+                    const index_t ii = rowMap.index(rowInd0.at(i),0,r);
+                    if ( rowMap.is_free_index(ii) )
+                    {
+                        for (index_t c = 0; c != cd; ++c)
+                        {
+                            const index_t cls = c * colInd0.rows();
+                            for (index_t j = 0; j != colInd0.rows(); ++j)
+                            {
+                                if ( 0 == localMat(rls+i,cls+j) ) continue;
+                                const index_t jj = colMap.index(colInd0.at(j),0,c);
+                                if ( colMap.is_free_index(jj) )
+                                {
+                                    matrix_curve.coeffRef(ii, jj) += localMat(rls+i,cls+j);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+    return ThinShellAssemblerStatus::Success;
+}
+
 
 template<short_t d, class T, bool bending>
 gsMatrix<T> gsThinShellAssembler<d, T, bending>::boundaryForce(const gsFunctionSet<T> & deformed,  const std::vector<patchSide> & patchSides) const

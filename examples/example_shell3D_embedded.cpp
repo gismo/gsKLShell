@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 
     for (int r =0; r < numRefine; ++r)
         mp_surf.uniformRefine(); //h-refine;
-    
+
     gsGeometry<real_t> &surfgeo = mp_surf.patch(0);
     gsTensorBSpline<2, real_t>* surf = dynamic_cast< gsTensorBSpline<2, real_t>* >(&surfgeo);
     gsWriteParaview(mp_surf, "surf", 1000, true, false);
@@ -163,7 +163,9 @@ int main(int argc, char *argv[])
     gsInfo<<"Shell assembly done\n";
 
     gsInfo <<"Setting up beam assembly\n";
-    assembleLinearEmbeddedBeam_into<real_t>(assembler,mp_surf,mp_curve,mbasis_curve,R,matrix);
+    gsSparseMatrix<> K_embedded = assembler->assembleEmbeddedCurve(mp_curve,EA,EI,GI);
+    matrix += K_embedded;
+    // assembleLinearEmbeddedBeam_into<real_t>(assembler,mp_surf,mp_curve,mbasis_curve,R,matrix);
     gsInfo<<"Beam assembly done\n";
     //! [Assemble linear part]
 
@@ -176,7 +178,7 @@ int main(int argc, char *argv[])
     //! [Solve linear problem]
 
     //! [Lambda functions for Jacobian and Residual definition]
-    std::function<void(gsVector<real_t> const&, gsSparseMatrix<real_t> &, gsVector<real_t> &)> AssembleNonlinear = 
+    std::function<void(gsVector<real_t> const&, gsSparseMatrix<real_t> &, gsVector<real_t> &)> AssembleNonlinear =
                  [&assembler,&mp_surf,&mp_curve,&mbasis_curve,&R](gsVector<real_t> const &x, gsSparseMatrix<real_t> &jacMat, gsVector<real_t> &rhsVec)
     {
         gsMultiPatch<> mp_surf_def;
@@ -316,7 +318,7 @@ void assembleLinearEmbeddedBeam_into(gsThinShellAssemblerBase<T> *assembler,
     {
         auto G_curve = exprAssembler.getMap(mp_curve.patch(p));
         gsSparseMatrix<T> matrix_curve(N,N);
- 
+
         auto eps_der = ctv_var1(u_surf,G_surf,G_curve) * ctv(G_surf, G_curve);
         auto k21_der = cnv_vara_var1_normalized(u_surf,G_surf,G_curve)*ctv(G_surf, G_curve) + ctv_var1(u_surf,G_surf,G_curve)*cnv_vara_normalized(G_surf, G_curve);
         auto k31_der = cbv_vara_var1_normalized(u_surf,G_surf,G_curve)*ctv(G_surf, G_curve) + ctv_var1(u_surf,G_surf,G_curve)*cbv_vara_normalized(G_surf, G_curve);
@@ -371,15 +373,15 @@ void assembleLinearEmbeddedBeam_into(gsThinShellAssemblerBase<T> *assembler,
 
                 for (index_t r = 0; r != rd; ++r)
                 {
-                    const index_t rls = r * rowInd0.rows();     
+                    const index_t rls = r * rowInd0.rows();
                     for (index_t i = 0; i != rowInd0.rows(); ++i)
                     {
-                        const index_t ii = rowMap.index(rowInd0.at(i),0,r); 
+                        const index_t ii = rowMap.index(rowInd0.at(i),0,r);
                         if ( rowMap.is_free_index(ii) )
                         {
                             for (index_t c = 0; c != cd; ++c)
                             {
-                                const index_t cls = c * colInd0.rows();     
+                                const index_t cls = c * colInd0.rows();
                                 for (index_t j = 0; j != colInd0.rows(); ++j)
                                 {
                                     if ( 0 == localMat(rls+i,cls+j) ) continue;
@@ -446,10 +448,10 @@ void assembleNonlinearEmbeddedBeam_into(gsThinShellAssemblerBase<T> *assembler,
         auto eps = 0.5 * (ctv(defG_surf, G_curve).tr()*ctv(defG_surf, G_curve) - ctv(G_surf, G_curve).tr()*ctv(G_surf, G_curve));
         auto eps_der = ctv_var1(u_surf,defG_surf,G_curve) * ctv(defG_surf, G_curve);
         auto eps_der2 = ctv_var1(u_surf,defG_surf,G_curve) * ctv_var1(u_surf,defG_surf,G_curve).tr();
-        
+
         auto k21 = cnv_vara_normalized(defG_surf, G_curve).tr()*ctv(defG_surf, G_curve) - cnv_vara_normalized(G_surf, G_curve).tr()*ctv(G_surf, G_curve);
         auto k21_der = cnv_vara_var1_normalized(u_surf,defG_surf,G_curve)*ctv(defG_surf, G_curve) + ctv_var1(u_surf,defG_surf,G_curve)*cnv_vara_normalized(defG_surf, G_curve);
-        auto k21_der2 = cnv_vara_var2dot(u_surf,u_surf,defG_surf,G_curve,ctv(defG_surf, G_curve)) 
+        auto k21_der2 = cnv_vara_var2dot(u_surf,u_surf,defG_surf,G_curve,ctv(defG_surf, G_curve))
                         + var1_dot_var1(u_surf,u_surf,G_curve,cnv_vara_var1_normalized(u_surf,defG_surf,G_curve),ctv_var1(u_surf,defG_surf,G_curve))
                         + var1_dot_var1(u_surf,u_surf,G_curve,ctv_var1(u_surf,defG_surf,G_curve),cnv_vara_var1_normalized(u_surf,defG_surf,G_curve));
 
@@ -458,7 +460,7 @@ void assembleNonlinearEmbeddedBeam_into(gsThinShellAssemblerBase<T> *assembler,
         auto k31_der2 = cbv_vara_var2dot(u_surf,u_surf,defG_surf,G_curve,ctv(defG_surf, G_curve))
                         + var1_dot_var1(u_surf,u_surf,G_curve,cbv_vara_var1_normalized(u_surf,defG_surf,G_curve),ctv_var1(u_surf,defG_surf,G_curve))
                         + var1_dot_var1(u_surf,u_surf,G_curve,ctv_var1(u_surf,defG_surf,G_curve),cbv_vara_var1_normalized(u_surf,defG_surf,G_curve));
-        
+
         auto k23 = cnv_vara_normalized(defG_surf, G_curve).tr()*cbv(defG_surf, G_curve) - cnv_vara_normalized(G_surf, G_curve).tr()*cbv(G_surf, G_curve);
         auto k23_der = cnv_vara_var1_normalized(u_surf,defG_surf,G_curve)*cbv(defG_surf, G_curve) + cbv_var1(u_surf,defG_surf,G_curve)*cnv_vara_normalized(defG_surf, G_curve);
         auto k23_der2 = cnv_vara_var2dot(u_surf,u_surf,defG_surf,G_curve,cbv(defG_surf, G_curve))
@@ -474,7 +476,7 @@ void assembleNonlinearEmbeddedBeam_into(gsThinShellAssemblerBase<T> *assembler,
                         + cnv_var2dot(u_surf,u_surf,G_curve,cbv_vara_normalized(defG_surf,G_curve));
 
         //Beam stiffness matrix (BendingAxial + Torsional)
-        auto stiff = E_modulus_b/pow(ctv(G_surf, G_curve).norm(),3) * 
+        auto stiff = E_modulus_b/pow(ctv(G_surf, G_curve).norm(),3) *
                      (area_b * eps_der * eps_der.tr() + inertiamax_b * k21_der * k21_der.tr() + inertiamin_b * k31_der * k31_der.tr() +
                       area_b * eps.val() * eps_der2 + inertiamax_b * k21.val() * k21_der2 + inertiamin_b * k31.val() * k31_der2)
                                                                    +
@@ -482,7 +484,7 @@ void assembleNonlinearEmbeddedBeam_into(gsThinShellAssemblerBase<T> *assembler,
                      (-k32_der * k32_der.tr() + k23_der * k23_der.tr() + k23.val() * k23_der2 + (-k32.val()) * k32_der2);
 
         //Beam residual vector (BendingAxial + Torsional) (rhs = -F_int) <<<<<<<< IS MINUS SIGN REALLY NEEDED? >>>>>>>
-        auto rhs =  -((E_modulus_b/pow(ctv(G_surf, G_curve).norm(),3)) * 
+        auto rhs =  -((E_modulus_b/pow(ctv(G_surf, G_curve).norm(),3)) *
                       (area_b * eps.val() * eps_der + inertiamax_b * k21.val() * k21_der + inertiamin_b * k31.val() * k31_der)
                                                                    +
                       (G_modulus_b*inertiap_b/(4*pow(ctv(G_surf, G_curve).norm(),3))) * (-k32.val() * k32_der + k23.val() * k23_der));

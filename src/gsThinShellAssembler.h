@@ -247,6 +247,9 @@ public:
     /// See \ref gsThinShellAssemblerBase for details
     ThinShellAssemblerStatus assemblePressureMatrix(const T pressure, const gsFunctionSet<T> & deformed);
 
+    /// See \ref gsThinShellAssemblerBase for details
+    ThinShellAssemblerStatus assembleEmbeddedCurve(const gsMultiPatch<T> & curve, T EA, T EI, T GI);
+
 private:
     /// Implementation of assembleMatrix for surfaces (3D)
     template<short_t _d, bool _bending>
@@ -922,6 +925,16 @@ public:
      * @param[in]  deformed  The deformed shape
      */
     virtual ThinShellAssemblerStatus assemblePressureMatrix(const T pressure, const gsFunctionSet<T> & deformed) = 0;
+
+    /**
+     * @brief      Assembles the linear stiffness matrix contibution for embedded curves
+     *
+     * @param[in]  curve     A multi-patch representing the curves
+     * @param[in]  EA        The axial stiffness
+     * @param[in]  EI        The bending stiffness
+     * @param[in]  GI        The shear stiffness
+     */
+    virtual ThinShellAssemblerStatus assembleEmbeddedCurve(const gsMultiPatch<T> & curve, T EA, T EI, T GI) = 0;
 
     /**
      * @brief      Assembles the pressure contribution in the system vector (linear)
