@@ -18,11 +18,10 @@
 #include <gsKLShell/src/gsMaterialMatrixBase.h>
 #include <gsKLShell/src/gsMaterialMatrixContainer.h>
 #include <gsKLShell/src/gsThinShellFunctions.h>
-
 #include <gsPde/gsPointLoads.h>
-
 #include <gsAssembler/gsExprAssembler.h>
 #include <gsAssembler/gsExprEvaluator.h>
+#include <gsKLShell/src/gsEmbeddingUtils.h>
 
 namespace gismo
 {
@@ -215,9 +214,6 @@ public:
     ThinShellAssemblerStatus assembleMass(const bool lumped = false);
 
     /// See \ref gsThinShellAssemblerBase for details
-    ThinShellAssemblerStatus assembleFoundation();
-
-    /// See \ref gsThinShellAssemblerBase for details
     ThinShellAssemblerStatus assemble(const gsFunctionSet<T> & deformed, const bool matrix = true, const bool homogenize = true);
 
     /// See \ref gsThinShellAssemblerBase for details
@@ -248,7 +244,12 @@ public:
     ThinShellAssemblerStatus assemblePressureMatrix(const T pressure, const gsFunctionSet<T> & deformed);
 
     /// See \ref gsThinShellAssemblerBase for details
-    ThinShellAssemblerStatus assembleEmbeddedCurve(const gsMultiPatch<T> & curve, T EA, T EI, T GI);
+    ThinShellAssemblerStatus assembleLinearEmbeddedCurve(const gsMultiPatch<T> &curve, T EA, T EI_min, T EI_max, T GI_p, 
+                                                         const gsMatrix<T> & allquPointsCurve, const gsMatrix<T> & allquWeights);
+    
+    /// See \ref gsThinShellAssemblerBase for details
+    ThinShellAssemblerStatus assembleNonlinearEmbeddedCurve(const gsMultiPatch<T> &curve, const gsMultiPatch<T> &deformed,
+                                                            T EA, T EI_min, T EI_max, T GI_p, const gsMatrix<T> & allquPointsCurve, const gsMatrix<T> & allquWeights);
 
 private:
     /// Implementation of assembleMatrix for surfaces (3D)
@@ -393,11 +394,13 @@ public:
     gsMaterialMatrixBase<T> * material(const index_t p)    const  {return m_materialMatrices.piece(p);}
 
     //--------------------- SYSTEM ACCESS ----------------------------------//
-    const gsSparseMatrix<T> & matrix()      const   {return m_assembler.matrix();}
+    //const gsSparseMatrix<T> & matrix()      const   {return m_assembler.matrix();}
+    const gsSparseMatrix<T> & matrix()      const   {return m_matrix;}
+    gsSparseMatrix<T> & matrix()     {return m_matrix;}
     gsSparseMatrix<T> & massMatrix() {return m_mass;}
 
-    const gsMatrix<T>       & rhs()         const {return m_rhs.size()==0 ? m_assembler.rhs() : m_rhs;}
-    // const gsMatrix<T>       & rhs()     const {return m_assembler.rhs();}
+    //const gsMatrix<T>       & rhs()         const {return m_rhs.size()==0 ? m_assembler.rhs() : m_rhs;}
+    const gsMatrix<T>       & rhs()         const {return m_rhs;}
 
     //--------------------- INTERFACE HANDLING -----------------------------//
     void addStrongC0(const gsBoxTopology::ifContainer & interfaces);
@@ -672,6 +675,7 @@ protected:
     mutable gsMatrix<T> m_ddofs;
 
     gsSparseMatrix<T> m_mass;
+    gsSparseMatrix<T> m_matrix;
 
     const gsFunction<T> * m_forceFun;
     const gsFunction<T> * m_foundFun;
@@ -816,9 +820,6 @@ public:
     /// Assembles the mass matrix (including density and thickness!); if lumped=true, a lumped mass matrix will be constructed,
     virtual ThinShellAssemblerStatus assembleMass(const bool lumped = false) = 0;
 
-    /// Assembles the elastic foundation matrix
-    virtual ThinShellAssemblerStatus assembleFoundation() = 0;
-
     /**
      * @brief      Assembles the tangential stiffness matrix and the residual for an iteration of Newton's method
      *
@@ -929,12 +930,31 @@ public:
     /**
      * @brief      Assembles the linear stiffness matrix contibution for embedded curves
      *
-     * @param[in]  curve     A multi-patch representing the curves
-     * @param[in]  EA        The axial stiffness
-     * @param[in]  EI        The bending stiffness
-     * @param[in]  GI        The shear stiffness
+     * @param[in]  curve             A multi-patch representing the curves
+     * @param[in]  m_patches         A multi-patch representing the surfaces
+     * @param[in]  EA                The axial stiffness
+     * @param[in]  EI_min            The bending stiffness
+     * @param[in]  EI_max            The bending stiffness
+     * @param[in]  GI_p              The torsional stiffness
+     * @param[in]  allquPointsCurve  The quadrature points for the curve
+     * @param[in]  allquWeights      The quadrature weights for the curve
      */
-    virtual ThinShellAssemblerStatus assembleEmbeddedCurve(const gsMultiPatch<T> & curve, T EA, T EI, T GI) = 0;
+    virtual ThinShellAssemblerStatus assembleLinearEmbeddedCurve(const gsMultiPatch<T> &curve, T EA, T EI_min, T EI_max, T GI_p, const gsMatrix<T> &allquPointsCurve, const gsMatrix<T> &allquWeights) = 0;
+
+    /**
+     * @brief      Assembles the nonlinear stiffness matrix contibution for embedded curves
+     *
+     * @param[in]  curve             A multi-patch representing the curves
+     * @param[in]  m_patches         A multi-patch representing the surfaces
+     * @param[in]  m_defpatches      A multi-patch representing the deformed surfaces
+     * @param[in]  EA                The axial stiffness
+     * @param[in]  EI_min            The bending stiffness
+     * @param[in]  EI_max            The bending stiffness
+     * @param[in]  GI_p              The torsional stiffness
+     * @param[in]  allquPointsCurve  The quadrature points for the curve
+     * @param[in]  allquWeights      The quadrature weights for the curve
+     */
+    virtual ThinShellAssemblerStatus assembleNonlinearEmbeddedCurve(const gsMultiPatch<T> &curve, const gsMultiPatch<T> &deformed, T EA, T EI_min, T EI_max, T GI_p, const gsMatrix<T> &allquPointsCurve, const gsMatrix<T> &allquWeights) = 0;
 
     /**
      * @brief      Assembles the pressure contribution in the system vector (linear)

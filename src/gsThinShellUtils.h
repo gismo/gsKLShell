@@ -16,17 +16,17 @@
 #pragma once
 
 //! [Include namespace]
+#include <gismo.h>
 #include <gsCore/gsLinearAlgebra.h>
+#include <gsNurbs/gsKnotVector.h>
 #include <gsCore/gsBasis.h>
 #include <gsCore/gsFuncData.h>
 #include <gsCore/gsDofMapper.h>
-
 #include <gsPde/gsBoundaryConditions.h>
-
 #include <gsUtils/gsPointGrid.h>
-
 #include <gsAssembler/gsAssemblerOptions.h>
 #include <gsAssembler/gsExpressions.h>
+#include <gsKLShell/src/gsEmbeddingUtils.h>
 
 
 #  define MatExprType  auto
@@ -2070,7 +2070,7 @@ cartcov_expr<E> cartcov(const gsGeometryMap<E> & G) { return cartcov_expr<E>(G);
 
 template<class E> EIGEN_STRONG_INLINE
 cartcon_expr<E> cartcon(const gsGeometryMap<E> & G) { return cartcon_expr<E>(G); }
-
+}
 }
 
 template <class T>
@@ -2103,51 +2103,60 @@ gsVector<T> findKnot(const gsGeometry<T> &geometry, const gsKnotVector<T> &kv, c
              Dfxn = geometry.deriv(xn)(dir,0);
              if (gsClose(Dfxn,0.0,std::numeric_limits<T>::epsilon()))
              {
-                 gsInfo << "Guess " << k+1 << " :zero derivative, no crossing found.\n";
+                 //gsInfo << "Guess " << k+1 << " :zero derivative, no crossing found.\n";
                  break;
              }
              fxn = geometry.eval(xn)(dir,0) - kv(i);
              if (math::abs(fxn) <= epsilon)
              {
-                gsInfo << "Guess " << k+1 << " :crossing found after " << n << " iterations.\n";
+                //gsInfo << "Guess " << k+1 << " :crossing found after " << n << " iterations.\n";
                 result(k) = xn(0,0);
                 break;
              }
              xn(0,0) -= fxn/Dfxn;
              if (n == maxiter - 1)
              {
-                gsInfo << "Guess" << k+1 << " :maxiter exceeded, no crossing found.\n";
+                //gsInfo << "Guess" << k+1 << " :maxiter exceeded, no crossing found.\n";
              }
         }
     }
     return result;
 }
 
+namespace gismo {
+    template <typename T>
+    class gsThinShellAssemblerBase;
+}
+
 template<class T>
 void embeddedQuadraturePoints(const gsGeometry<T> & surf,
-                              const gsGeometry<T> & curve,
+                              gsGeometry<T> & curve,
                               gsMatrix<T> & points,
-                              gsMatrix<T> & weights,
+                              gsVector<T> & weights,
+                              const gsThinShellAssemblerBase<T> *assembler,
                               index_t Nguess = 10,
-                              T threshold = 1e-2 )
+                              T threshold = 1e-2)
 {
-    const gsKnotVector<T> & kv_u = surf.basis().knots(0);
-    const gsKnotVector<T> & kv_v = surf.basis().knots(1);
+    const gsTensorBSplineBasis<2,T>& basis_s = dynamic_cast<const gsTensorBSplineBasis<2,T>&>(surf.basis());
+    const gsKnotVector<T> & kv_u = basis_s.knots(0);
+    const gsKnotVector<T> & kv_v = basis_s.knots(1);
+
     //! [Search for crossings between embedded curve and surface knot lines based on multiple γ-guesses]
     gsVector<T> guess(Nguess);
     gsMatrix<T> supp = curve.support();
+    index_t     N = assembler->numDofs();
     guess.setLinSpaced(N,supp(0,0),supp(0,1));
     index_t lu = guess.rows() * (kv_u.numElements() - 1);
     gsVector<T> crossing_u(lu);
 
-    gsDebug << "\nIntersections of embedded curve with u-knot lines.\n";
+    //gsDebug << "\nIntersections of embedded curve with u-knot lines.\n";
     for (size_t i = 1; i != kv_u.numElements(); ++i) //loop over internal u-knots regardless of multiplicity
         crossing_u.segment((i-1)*guess.rows(), guess.rows()) = findKnot(curve, kv_u, guess, i, 0);
 
     index_t lv = guess.rows() * (kv_v.numElements() - 1);
     gsVector<T> crossing_v (lv);
 
-    gsDebug << "\nIntersections of embedded curve with v-knot lines.\n";
+    //gsDebug << "\nIntersections of embedded curve with v-knot lines.\n";
     for (size_t j = 1; j != kv_v.numElements(); ++j) //loop over internal v-knots regardless of multiplicity
         crossing_v.segment((j-1)*guess.rows(), guess.rows()) = findKnot(curve, kv_v, guess, j, 1);
     //! [Search for crossings between embedded curve and surface knot lines starting from multiple γ-guesses]
@@ -2173,10 +2182,12 @@ void embeddedQuadraturePoints(const gsGeometry<T> & surf,
     std::remove(crossing.begin(), crossing.end(), 0);
     crossing.conservativeResize(crossing.size() - frequency0); //remove duplicated values within threshold
 
-    gsDebug << "\nTotal intersections: " << crossing.transpose() << "\n";
+    //gsDebug << "\nTotal intersections: " << crossing.transpose() << "\n";
     //! [Sort and filter out crossings]
 
     //![Add knots along the curve at found intersections]
+    const gsBSpline<T>& bs_curve = dynamic_cast<const gsBSpline<T>&>(curve);
+    gsKnotVector<T> kv_c = bs_curve.knots(0);
     gsAsConstMatrix<T> kv_c_ori = kv_c.asMatrix();
     gsMatrix <T> difference;
     for (index_t i = 0; i != crossing.size(); ++i)
@@ -2184,26 +2195,28 @@ void embeddedQuadraturePoints(const gsGeometry<T> & surf,
         difference = kv_c_ori - gsEigen::MatrixXd::Constant(1, kv_c_ori.size(), 1.0) * crossing(i);
         if (std::all_of(difference.row(0).begin(), difference.row(0).end(), [threshold](T x) { return std::abs(x) > threshold; }))
         {
-            curve.insertKnot(crossing(i));
+            curve.insertKnot(crossing(i),0,1); // (knot value, direction)
         }
     }
-    gsAsConstMatrix<T> kv_c_refined = curve.knots().get();
-    gsDebug << "Knot vector of h-refined embedded curve: " << kv_c_refined << "\n";
+    gsAsConstMatrix<T> kv_c_refined = bs_curve.knots(0).get();
+    //gsDebug << "Knot vector of h-refined embedded curve: " << kv_c_refined << "\n";
     //![Add knots along the curve at found intersections]
 
     //![Get integration points along embedded curve]
-    short_t maxdeg = std::max({curve.degree(),surf.degree(0),surf.degree(1)});
-    short_t numNodes = static_cast<short_t>(std::ceil(0.5*maxdeg + 1)); //# of Gauss points per curve knot span
+    //short_t maxdeg = std::max({curve.degree(0),surf.degree(0),surf.degree(1)});
+    //short_t numNodes = static_cast<short_t>(std::ceil(0.5*maxdeg + 1)); //# of Gauss points per curve knot span
+    //gsGaussRule<T> rule(numNodes);
+    short_t numNodes = 3;
     gsGaussRule<T> rule(numNodes);
-
-    points.resize(1,(curve.knots().uSize()-1)*numNodes);
-    weights.resize((curve.knots().uSize()-1)*numNodes);
+    
+    points.resize(1,(bs_curve.knots(0).uSize()-1)*numNodes);
+    weights.resize((bs_curve.knots(0).uSize()-1)*numNodes);
     gsMatrix<T> points_ks (curve.parDim(),numNodes);
     gsVector<T> weights_ks (numNodes);
-    for (size_t i = 0; i != curve.knots().uSize()-1; ++i) //loop over curve knot spans
+    for (size_t i = 0; i != bs_curve.knots(0).uSize()-1; ++i) //loop over curve knot spans
     {
-        auto lower = kv_c_refined.block(0,curve.knots().multFirst()-1 + i,1,1);
-        auto upper = kv_c_refined.block(0,curve.knots().multFirst()   + i,1,1);
+        auto lower = kv_c_refined.block(0,bs_curve.knots(0).multFirst()-1 + i,1,1);
+        auto upper = kv_c_refined.block(0,bs_curve.knots(0).multFirst()   + i,1,1);
         rule.mapTo(lower,upper,points_ks,weights_ks);
         points.block(0,i*numNodes,1,numNodes) = points_ks; //map Gauss point coordinates to current knot span
         weights.segment(i*numNodes,numNodes) = weights_ks; //map associated weights to current knot span

@@ -20,6 +20,7 @@
 #include <gsKLShell/src/gsMaterialMatrixBase.h>
 #include <gsKLShell/src/gsMaterialMatrixIntegrate.h>
 #include <gsKLShell/src/gsMaterialMatrixEval.h>
+#include <gsKLShell/src/gsThinShellUtils.h>
 #include <gsKLShell/src/gsEmbeddingUtils.h>
 
 #include <gsPde/gsBoundaryConditions.h>
@@ -1439,10 +1440,16 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMass(const
     {
         // assemble system
         if (!lumped)
+        {
             m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
+            m_assembler.matrix_into(m_mass);
+        }
         else
+        {
             m_assembler.assemble(mm0.val()*(m_space.rowSum())*meas(m_ori));
-
+            m_assembler.rhs_into(m_rhs);
+        }
+        
 /*        // assemble system
         if (!lumped)
         {
@@ -1460,36 +1467,6 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMass(const
 
         this->_applyMass();
         m_status = ThinShellAssemblerStatus::Success;*/
-    }
-    catch (...)
-    {
-        m_assembler.cleanUp();
-        m_status = ThinShellAssemblerStatus::AssemblyError;
-    }
-    return m_status;
-}
-
-// legacy
-template<short_t d, class T, bool bending>
-ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleFoundation()
-{
-    m_assembler.cleanUp();
-    GISMO_ENSURE(m_options.hasGroup("ExprAssembler"),"The option list does not contain options with the label 'ExprAssembler'!");
-    m_assembler.setOptions(m_options.getGroup("ExprAssembler"));
-
-    geometryMap m_ori   = m_assembler.getMap(m_patches);
-
-    // Initialize stystem
-    m_assembler.initSystem();
-    auto    m_foundation = m_assembler.getCoeff(*m_foundFun, m_ori);
-    GISMO_ASSERT(m_foundFun->targetDim()==3,"Foundation function has dimension "<<m_foundFun->targetDim()<<", but expected 3");
-
-    space       m_space = m_assembler.trialSpace(0);
-
-    try
-    {
-        m_assembler.assemble(m_space * m_foundation.asDiag() * m_space.tr() * meas(m_ori));
-        m_status = ThinShellAssemblerStatus::Success;
     }
     catch (...)
     {
@@ -1584,10 +1561,11 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
         this->_assembleWeakIfc<false>();
         this->_assembleNeumann();
 
+        m_assembler.rhs_into(m_rhs);
+
         // Assemble the loads
         if ( m_pLoads.numLoads() != 0 )
         {
-            m_rhs = m_assembler.rhs();
             _applyLoads();
         }
         m_status = ThinShellAssemblerStatus::Success;
@@ -1597,6 +1575,7 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
         m_assembler.cleanUp();
         m_status = ThinShellAssemblerStatus::AssemblyError;
     }
+    m_assembler.matrix_into(m_matrix);
     return m_status;
 }
 
@@ -1656,10 +1635,11 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
         this->_assembleWeakIfc<false>();
         this->_assembleNeumann();
 
+        m_assembler.rhs_into(m_rhs);
+
         // Assemble the loads
         if ( m_pLoads.numLoads() != 0 )
         {
-            m_rhs = m_assembler.rhs();
             _applyLoads();
         }
 
@@ -1670,6 +1650,7 @@ gsThinShellAssembler<d, T, bending>::assemble_impl()
         m_assembler.cleanUp();
         m_status = ThinShellAssemblerStatus::AssemblyError;
     }
+    m_assembler.matrix_into(m_matrix);
     return m_status;
 }
 
@@ -1760,6 +1741,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
         m_assembler.cleanUp();
         m_status = ThinShellAssemblerStatus::AssemblyError;
     }
+    m_assembler.matrix_into(m_matrix);
     return m_status;
 }
 
@@ -1818,6 +1800,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
         m_assembler.cleanUp();
         m_status = ThinShellAssemblerStatus::AssemblyError;
     }
+    m_assembler.matrix_into(m_matrix);
     return m_status;
 }
 
@@ -1929,6 +1912,7 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
         m_assembler.cleanUp();
         m_status = ThinShellAssemblerStatus::AssemblyError;
     }
+    m_assembler.matrix_into(m_matrix);
     return m_status;
 }
 
@@ -1973,7 +1957,10 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     geometryMap m_def   = m_assembler.getMap(deformed);
 
     // Initialize vector
+    m_assembler.initSystem();
     m_assembler.initVector(1);
+    m_rhs.clear();
+    m_rhs.setZero(m_assembler.numDofs(), 1);   
 
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&m_patches,&deformed);
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMatrices,&m_patches,&deformed);
@@ -2001,7 +1988,7 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
         if (m_foundInd) this->_assembleFoundation<false>(*m_foundFun,deformed);
         if (m_pressInd) this->_assemblePressure<false>(*m_pressFun,deformed);
 
-            // Assemble vector
+        // Assemble vector
         m_assembler.assemble(m_space * m_force * meas(m_ori) -
                                 ( ( m_N * m_Em_der.tr() + m_M * m_Ef_der.tr() ) * meas(m_ori) ).tr()
                             );
@@ -2010,10 +1997,11 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
         this->_assembleWeakIfc<false>(deformed);
         this->_assembleNeumann();
 
+        m_assembler.rhs_into(m_rhs);
+
         // Assemble the loads
         if ( m_pLoads.numLoads() != 0 )
         {
-            m_rhs = m_assembler.rhs();
             _applyLoads();
         }
 
@@ -2040,7 +2028,10 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     geometryMap m_def   = m_assembler.getMap(deformed);
 
     // Initialize vector
+    m_assembler.initSystem();
     m_assembler.initVector(1);
+    m_rhs.clear();
+    m_rhs.setZero(m_assembler.numDofs(), 1);  
 
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&m_patches,&deformed);
     auto S0  = m_assembler.getCoeff(m_S0);
@@ -2068,10 +2059,11 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
         this->_assembleWeakIfc<false>(deformed);
         this->_assembleNeumann();
 
+        m_assembler.rhs_into(m_rhs);
+
         // Assemble the loads
         if ( m_pLoads.numLoads() != 0 )
         {
-            m_rhs = m_assembler.rhs();
             _applyLoads();
         }
 
@@ -2255,38 +2247,36 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleFoundation
 }
 
 template<short_t d, class T, bool bending>
-ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleEmbeddedCurve(const gsMultiPatch<T> & curve, T EA, T EI, T GI)
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleLinearEmbeddedCurve(const gsMultiPatch<T> &curve,
+                                                              T EA, T EI_min, T EI_max, T GI_p,
+                                                              const gsMatrix<T> &allquPointsCurve, const gsMatrix<T> &allquWeights)
 {
     /*
     TODO:
         * Provide an option for the number of initial guesses
-        * Differentiate between EImax and EImin in the input arguments
     */
-    GISMO_ASSERT(m_patches.numPatches() == 1, "The curve assembler only works for a single patch.");
-    GISMO_ASSERT(curve.domainDim()==1, "The curve net should have domain dimension 1.");
-    GISMO_ASSERT(curve.targetDim()==2, "The curve net should have target dimension equal to the parameter domain of the surface, hence 2");
+    GISMO_ASSERT(m_patches.nPatches() == 1, "The assembler only works on a single embedding surface patch.");
+    GISMO_ASSERT(curve.domainDim()==1, "The embedded curve should have domain dimension 1.");
+    GISMO_ASSERT(curve.targetDim()==2, "The embedded curve should have target dimension equal to the parameter domain of the surface, hence 2");
 
-    T EImax = EI;
-    T EImin = EI;
-    gsWarn<<"EImax and EImin are not set yet. They are both set to EI.\n";
-
-    // Loop over the curves
-    gsMatrix<T> quPointsCurve, quPointsSurface, quPointsPhysical;
-    gsVector<T> quWeights;
-
-    // Assemble curve contributions
+    // Register curve contributions inside assembler
     m_assembler.cleanUp();
-    geometryMap G_surf  = m_assembler.getMap(m);
-    space       u = m_assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
+    geometryMap G_surf  = m_assembler.getMap(m_patches);
+    space       u_surf = m_assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
     index_t     N = m_assembler.numDofs();
-    gsSparseMatrix<T> matrix(N,N);
+    m_matrix.clear();
+    m_matrix.resize(N,N);
 
+    //gsMatrix<T> quPointsCurve, quPointsSurface, quPointsPhysical;
+    gsMatrix<T> quPointsSurface, quPointsPhysical;
+    //gsVector<T> quWeights;
     gsMatrix<T> evalMat, localMat;
-    for (size_t p=0; p!=curve.numPatches(); p++)
-    {
-        // Construct quadrature points on the curve
-        embeddedQuadraturePoints(m_patches.patch(0),curve.patch(p),quPointsCurve,quWeights);
 
+    gsMatrix<T, 2, 1> boxMin = gsMatrix<T, 2, 1>::Zero();
+    gsMatrix<T, 2, 1> boxMax = gsMatrix<T, 2, 1>::Ones();
+
+    for (size_t p=0; p!=curve.nPatches(); p++)
+    {
         auto G_curve = m_assembler.getMap(curve.patch(p));
         gsSparseMatrix<T> matrix_curve(N,N);
 
@@ -2298,22 +2288,38 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleEmbeddedCu
 
         //Beam stiffness matrix (BendingAxial + Torsional)
         auto stiff = 1./pow(ctv(G_surf, G_curve).norm(),3) *
-                    (EA * eps_der * eps_der.tr() + EImax * k21_der * k21_der.tr() + EImin * k31_der * k31_der.tr())
-                        +
-                    GI/(4*pow(ctv(G_surf, G_curve).norm(),3)) *
+                    (EA * eps_der * eps_der.tr() + EI_max * k21_der * k21_der.tr() + EI_min * k31_der * k31_der.tr())
+                                                           +
+                    GI_p/(4*pow(ctv(G_surf, G_curve).norm(),3)) *
                     (-k32_der * k32_der.tr() + k23_der * k23_der.tr());
 
-        // Evaluator for expressions
+        // Make expression data
         gsExprEvaluator<T> exprEvaluator(m_assembler);
+
+        //gsVector<> gamma(1);
+        //gamma << 0.5;
+        //gsDebugVar(exprEvaluator.eval(stiff,gamma));
+
+        // Construct quadrature points on the curve
+        //embeddedQuadraturePoints(m_patches.patch(0),curve.patch(p),quPointsCurve,quWeights,this);
+        gsMatrix<T> quPointsCurve = allquPointsCurve.middleRows(p,1);
+        gsMatrix<T> quWeights = allquWeights.middleRows(p,1);
+        //gsDebugVar(quPointsCurve);
+        //gsDebugVar(quWeights);
 
         // Map the quadrature points of the curve to 2D coordinates
         curve.patch(p).eval_into(quPointsCurve, quPointsSurface);
+        //gsDebugVar(quPointsSurface);
 
         // Loop over the quadrature points
-        for (index_t k=0; k!=QP.cols(); k++)
+        for (index_t k=0; k!=quPointsCurve.cols(); k++)
         {
+            // Skip the point if outside the bounding box of the surface patch
+            if ((boxMin.array() > quPointsSurface.col(k).array()).any() || (quPointsSurface.col(k).array() > boxMax.array()).any())
+            continue;
+
             evalMat = exprEvaluator.eval(stiff,quPointsCurve.col(k));
-            localMat = quWeights[k] * evalMat;
+            localMat = quWeights(0,k) * evalMat;
 
             // Push the local element matrix inside the big system
             const expr::gsFeSpace<T> & v      = stiff.rowVar();
@@ -2322,8 +2328,8 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleEmbeddedCu
             const index_t cd                  = u.dim();
             const gsDofMapper  & rowMap       = v.mapper();
             const gsDofMapper  & colMap       = u.mapper();
-            gsMatrix<index_t>   colInd0       = m_assembler->getSpaceBasis().basis(0).active(quPointsSurface.col(k));
-            gsMatrix<index_t>   rowInd0       = m_assembler->getSpaceBasis().basis(0).active(quPointsSurface.col(k));
+            gsMatrix<index_t>   colInd0       = this->getSpaceBasis().basis(0).active(quPointsSurface.col(k));
+            gsMatrix<index_t>   rowInd0       = this->getSpaceBasis().basis(0).active(quPointsSurface.col(k));
 
             for (index_t r = 0; r != rd; ++r)
             {
@@ -2350,11 +2356,162 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleEmbeddedCu
                 }
             }
         }
-        matrix += matrix_curve; // TODO: Write everything to sparse entries and build the sparse matrix later.
+        m_matrix += matrix_curve; // TODO: Write everything to sparse entries and build the sparse matrix later.
     }
     return ThinShellAssemblerStatus::Success;
 }
 
+template<short_t d, class T, bool bending>
+ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleNonlinearEmbeddedCurve(const gsMultiPatch<T> &curve,
+                                                    const gsMultiPatch<T> &deformed,
+                                                    T EA, T EI_min, T EI_max, T GI_p, const gsMatrix<T> &allquPointsCurve, 
+                                                    const gsMatrix<T> &allquWeights)
+{
+    /*
+    TODO:
+        * Provide an option for the number of initial guesses
+    */
+    GISMO_ASSERT(m_patches.nPatches() == 1, "The assembler only works on a single embedding surface patch.");
+    GISMO_ASSERT(curve.domainDim()==1, "The embedded curve should have domain dimension 1.");
+    GISMO_ASSERT(curve.targetDim()==2, "The embedded curve should have target dimension equal to the parameter domain of the surface, hence 2");
+
+    // Register curve contributions inside assembler
+    m_assembler.cleanUp();
+    geometryMap G_surf  = m_assembler.getMap(m_patches);
+    geometryMap defG_surf  = m_assembler.getMap(deformed);
+    space       u_surf = m_assembler.getSpace(*m_spaceBasis, d, 0); // last argument is the space ID
+    index_t     N = m_assembler.numDofs();
+    m_matrix.clear();
+    m_matrix.resize(N,N);
+    m_rhs.clear();
+    m_rhs.setZero(N,1);
+
+    //gsMatrix<T> quPointsCurve, quPointsSurface, quPointsPhysical;
+    gsMatrix<T> quPointsSurface, quPointsPhysical;
+    //gsVector<T> quWeights;
+    gsMatrix<T> evalMat, localMat, evalRhs, localRhs;
+
+    for (size_t p=0; p!=curve.nPatches(); p++)
+    {
+        auto G_curve = m_assembler.getMap(curve.patch(p));
+        gsSparseMatrix<T> matrix_curve(N,N);
+        gsVector<T> vector_curve(N);   
+        vector_curve.setZero();
+
+        auto eps = 0.5 * (ctv(defG_surf, G_curve).tr()*ctv(defG_surf, G_curve) - ctv(G_surf, G_curve).tr()*ctv(G_surf, G_curve));
+        auto eps_der = ctv_var1(u_surf,defG_surf,G_curve) * ctv(defG_surf, G_curve);
+        auto eps_der2 = ctv_var1(u_surf,defG_surf,G_curve) * ctv_var1(u_surf,defG_surf,G_curve).tr();
+
+        auto k21 = cnv_vara_normalized(defG_surf, G_curve).tr()*ctv(defG_surf, G_curve) - cnv_vara_normalized(G_surf, G_curve).tr()*ctv(G_surf, G_curve);
+        auto k21_der = cnv_vara_var1_normalized(u_surf,defG_surf,G_curve)*ctv(defG_surf, G_curve) + ctv_var1(u_surf,defG_surf,G_curve)*cnv_vara_normalized(defG_surf, G_curve);
+        auto k21_der2 = cnv_vara_var2dot(u_surf,u_surf,defG_surf,G_curve,ctv(defG_surf, G_curve))
+                        + var1_dot_var1(u_surf,u_surf,G_curve,cnv_vara_var1_normalized(u_surf,defG_surf,G_curve),ctv_var1(u_surf,defG_surf,G_curve))
+                        + var1_dot_var1(u_surf,u_surf,G_curve,ctv_var1(u_surf,defG_surf,G_curve),cnv_vara_var1_normalized(u_surf,defG_surf,G_curve));
+
+        auto k31 = cbv_vara_normalized(defG_surf, G_curve).tr()*ctv(defG_surf, G_curve) - cbv_vara_normalized(G_surf, G_curve).tr()*ctv(G_surf, G_curve);
+        auto k31_der = cbv_vara_var1_normalized(u_surf,defG_surf,G_curve)*ctv(defG_surf, G_curve) + ctv_var1(u_surf,defG_surf,G_curve)*cbv_vara_normalized(defG_surf, G_curve);
+        auto k31_der2 = cbv_vara_var2dot(u_surf,u_surf,defG_surf,G_curve,ctv(defG_surf, G_curve))
+                        + var1_dot_var1(u_surf,u_surf,G_curve,cbv_vara_var1_normalized(u_surf,defG_surf,G_curve),ctv_var1(u_surf,defG_surf,G_curve))
+                        + var1_dot_var1(u_surf,u_surf,G_curve,ctv_var1(u_surf,defG_surf,G_curve),cbv_vara_var1_normalized(u_surf,defG_surf,G_curve));
+
+        auto k23 = cnv_vara_normalized(defG_surf, G_curve).tr()*cbv(defG_surf, G_curve) - cnv_vara_normalized(G_surf, G_curve).tr()*cbv(G_surf, G_curve);
+        auto k23_der = cnv_vara_var1_normalized(u_surf,defG_surf,G_curve)*cbv(defG_surf, G_curve) + cbv_var1(u_surf,defG_surf,G_curve)*cnv_vara_normalized(defG_surf, G_curve);
+        auto k23_der2 = cnv_vara_var2dot(u_surf,u_surf,defG_surf,G_curve,cbv(defG_surf, G_curve))
+                        + var1_dot_var1(u_surf,u_surf,G_curve,cnv_vara_var1_normalized(u_surf,defG_surf,G_curve),cbv_var1(u_surf,defG_surf,G_curve))
+                        + var1_dot_var1(u_surf,u_surf,G_curve,cbv_var1(u_surf,defG_surf,G_curve),cnv_vara_var1_normalized(u_surf,defG_surf,G_curve))
+                        + cbv_var2dot(u_surf,u_surf,defG_surf,G_curve,cnv_vara_normalized(defG_surf,G_curve));
+
+        auto k32 = cbv_vara_normalized(defG_surf, G_curve).tr()*cnv(defG_surf, G_curve) - cbv_vara_normalized(G_surf, G_curve).tr()*cnv(G_surf, G_curve);
+        auto k32_der = cbv_vara_var1_normalized(u_surf,defG_surf,G_curve)*cnv(defG_surf, G_curve) + cnv_var1(u_surf,defG_surf,G_curve)*cbv_vara_normalized(defG_surf, G_curve);
+        auto k32_der2 = cbv_vara_var2dot(u_surf,u_surf,defG_surf,G_curve,cnv(defG_surf,G_curve))
+                        + var1_dot_var1(u_surf,u_surf,G_curve,cbv_vara_var1_normalized(u_surf,defG_surf,G_curve),cnv_var1(u_surf,defG_surf,G_curve))
+                        + var1_dot_var1(u_surf,u_surf,G_curve,cnv_var1(u_surf,defG_surf,G_curve),cbv_vara_var1_normalized(u_surf,defG_surf,G_curve))
+                        + cnv_var2dot(u_surf,u_surf,G_curve,cbv_vara_normalized(defG_surf,G_curve));
+
+        //Beam stiffness matrix (BendingAxial + Torsional)
+        auto stiff = 1./pow(ctv(G_surf, G_curve).norm(),3) *
+                     (EA * eps_der * eps_der.tr() + EI_max * k21_der * k21_der.tr() + EI_min * k31_der * k31_der.tr() +
+                      EA * eps.val() * eps_der2   + EI_max * k21.val() * k21_der2   + EI_min * k31.val() * k31_der2)
+                                                                   +
+                     GI_p/(4*pow(ctv(G_surf, G_curve).norm(),3)) *
+                     (-k32_der * k32_der.tr() + k23_der * k23_der.tr() + k23.val() * k23_der2 + (-k32.val()) * k32_der2);
+
+        //Beam residual vector (BendingAxial + Torsional) (rhs = -F_int)
+        auto rhs =  -((1./pow(ctv(G_surf, G_curve).norm(),3)) *
+                      (EA * eps.val() * eps_der + EI_max * k21.val() * k21_der + EI_min * k31.val() * k31_der)
+                                                                   +
+                      (GI_p/(4*pow(ctv(G_surf, G_curve).norm(),3))) * (-k32.val() * k32_der + k23.val() * k23_der));
+
+        // Make expression data
+        gsExprEvaluator<T> exprEvaluator(m_assembler);
+
+        // gsVector<> gamma(1);
+        // gamma << 0.5;
+        // gsDebugVar(exprEvaluator.eval(stiff,gamma));
+        // gsDebugVar(exprEvaluator.eval(rhs,gamma));
+
+        // Construct quadrature points on the curve
+        //embeddedQuadraturePoints(m_patches.patch(0),curve.patch(p),quPointsCurve,quWeights,this);
+        gsMatrix<T> quPointsCurve = allquPointsCurve.middleRows(p,1);
+        gsMatrix<T> quWeights = allquWeights.middleRows(p,1);
+
+        // Map the quadrature points of the curve to 2D coordinates
+        curve.patch(p).eval_into(quPointsCurve, quPointsSurface);
+
+        // Loop over the quadrature points
+        for (index_t k=0; k!=quPointsCurve.cols(); k++)
+        {
+            evalMat = exprEvaluator.eval(stiff,quPointsCurve.col(k));
+            localMat = quWeights(0,k) * evalMat;
+            //gsDebugVar(localMat);
+            evalRhs = exprEvaluator.eval(rhs,quPointsCurve.col(k));
+            localRhs = quWeights(0,k) * evalRhs;
+            //gsDebugVar(localRhs);
+
+            // Push the local element matrix inside the big system
+            const expr::gsFeSpace<T> & v      = stiff.rowVar();
+            const expr::gsFeSpace<T> & u      = stiff.colVar();
+            const index_t rd                  = v.dim();
+            const index_t cd                  = u.dim();
+            const gsDofMapper  & rowMap       = v.mapper();
+            const gsDofMapper  & colMap       = u.mapper();
+            gsMatrix<index_t>   colInd0       = this->getSpaceBasis().basis(0).active(quPointsSurface.col(k));
+            gsMatrix<index_t>   rowInd0       = this->getSpaceBasis().basis(0).active(quPointsSurface.col(k));
+
+            for (index_t r = 0; r != rd; ++r)
+            {
+                const index_t rls = r * rowInd0.rows();
+                for (index_t i = 0; i != rowInd0.rows(); ++i)
+                {
+                    const index_t ii = rowMap.index(rowInd0.at(i),0,r);
+                    if ( rowMap.is_free_index(ii) )
+                    {
+                        for (index_t c = 0; c != cd; ++c)
+                        {
+                            const index_t cls = c * colInd0.rows();
+                            for (index_t j = 0; j != colInd0.rows(); ++j)
+                            {
+                                if ( 0 == localMat(rls+i,cls+j) ) continue;
+                                const index_t jj = colMap.index(colInd0.at(j),0,c);
+                                if ( colMap.is_free_index(jj) )
+                                {
+                                    matrix_curve.coeffRef(ii, jj) += localMat(rls+i,cls+j);
+                                }
+                            }
+                        }
+                        vector_curve[ii] += localRhs(rls+i,0);
+                    }
+                }
+            }
+        }
+        //gsDebugVar(matrix_curve.toDense());
+        //gsDebugVar(vector_curve);
+        m_matrix += matrix_curve; // TODO: Write everything to sparse entries and build the sparse matrix later.
+        m_rhs.col(0) += vector_curve;
+        //gsDebugVar(m_rhs.col(0));
+    }
+    return ThinShellAssemblerStatus::Success;
+}
 
 template<short_t d, class T, bool bending>
 gsMatrix<T> gsThinShellAssembler<d, T, bending>::boundaryForce(const gsFunctionSet<T> & deformed,  const std::vector<patchSide> & patchSides) const
