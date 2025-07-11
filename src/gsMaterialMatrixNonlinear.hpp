@@ -217,7 +217,6 @@ template <bool _comp>
 typename std::enable_if<!_comp, void>::type
 gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_pstretch_into_impl(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
-    gsDebugVar("AAAAA)");
     Base::pstretch_into(patch,u,result);
 }
 
