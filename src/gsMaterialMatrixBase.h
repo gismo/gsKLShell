@@ -196,6 +196,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The result
      */
+    GISMO_DEPRECATED
     virtual void    pstretch_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
     /**
@@ -205,6 +206,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The result
      */
+    GISMO_DEPRECATED
     virtual void    pstretchDir_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
         /**
@@ -214,6 +216,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The result
      */
+    GISMO_DEPRECATED
     virtual void    pstress_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
     /**
@@ -223,6 +226,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The result
      */
+    GISMO_DEPRECATED
     virtual void    pstressDir_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
     /**
@@ -242,6 +246,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The result
      */
+    GISMO_DEPRECATED
     virtual void  parameters_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
 
@@ -252,6 +257,7 @@ public:
      * @param[in]  u       The in-plane shell coordinates to be eveluated on
      * @param      result  The result
      */
+    GISMO_DEPRECATED
     virtual void  transform_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const
     { GISMO_NO_IMPLEMENTATION; }
 

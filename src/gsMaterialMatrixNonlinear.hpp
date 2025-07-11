@@ -217,6 +217,7 @@ template <bool _comp>
 typename std::enable_if<!_comp, void>::type
 gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_pstretch_into_impl(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const
 {
+    gsDebugVar("AAAAA)");
     Base::pstretch_into(patch,u,result);
 }
 
@@ -561,6 +562,56 @@ template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enu
 gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::eval3D_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     return this->eval3D_CauchyStress(patch,u,z,out);
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::eval3D_pstretch(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+{
+    return eval3D_pstretch_impl<comp>(patch,u,z);
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <bool _comp>
+typename std::enable_if< _comp, gsMatrix<T>>::type
+gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::eval3D_pstretch_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+{
+    this->_computePoints(patch,u);
+
+    gsMatrix<T> result(3, u.cols() * z.rows());
+    std::pair<gsVector<T>,gsMatrix<T>> res;
+    index_t colIdx;
+
+    gsMatrix<T> C33s = _eval3D_Compressible_C33(patch,u,z);
+    T C33;
+
+    gsMatrix<T,3,3> c;
+    for (index_t k=0; k!= u.cols(); k++)
+    {
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            colIdx = j*u.cols()+k;
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
+
+            C33 = C33s(0,k);
+
+            // Compute c
+            c.setZero();
+            c.block(0,0,2,2) = m_data.mine().m_Gcov_def.block(0,0,2,2);
+            c(2,2) = C33; // c33
+
+            res = this->_evalStretch(c,m_data.mine().m_gcon_ori);
+            result.col(colIdx) = res.first;
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <bool _comp>
+typename std::enable_if<!_comp, gsMatrix<T>>::type
+gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::eval3D_pstretch_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const
+{
+    return Base::eval3D_pstretch(patch,u,z);
 }
 
 template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >

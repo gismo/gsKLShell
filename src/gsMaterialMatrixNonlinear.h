@@ -160,6 +160,9 @@ public:
     gsMatrix<T> eval3D_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_pstretch(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const override;
+
+    /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
     /// See \ref gsMaterialMatrixBase for details
@@ -568,6 +571,14 @@ private:
      */
     template<enum Material _mat, bool _com>
     typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_pstress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+
+    // Stretch overrides
+    template<bool _com>
+    typename std::enable_if<_com, gsMatrix<T>>::type
+    eval3D_pstretch_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    template<bool _com>
+    typename std::enable_if<!_com, gsMatrix<T>>::type
+    eval3D_pstretch_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
     template<enum Material _mat>
     typename std::enable_if<_mat==Material::MR, void>::type _setRatio_impl(const gsFunctionSet<T> & Ratio);

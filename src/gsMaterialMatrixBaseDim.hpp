@@ -178,7 +178,6 @@ gsMatrix<T> gsMaterialMatrixBaseDim<dim,T>::eval3D_deformation(const index_t pat
     this->_computePoints(patch,u);
 
     gsMatrix<T> result(9, u.cols() * z.rows());
-    std::pair<gsVector<T>,gsMatrix<T>> res;
     index_t colIdx;
     for (index_t k=0; k!=u.cols(); k++)
     {

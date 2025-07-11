@@ -26,7 +26,7 @@
 #include <gsUtils/gsPointGrid.h>
 
 #include <gsAssembler/gsAssemblerOptions.h>
-#include <gsAssembler/gsExpressions.h>
+#include <gsExpressions/gsExpressions.h>
 
 
 #  define MatExprType  auto
