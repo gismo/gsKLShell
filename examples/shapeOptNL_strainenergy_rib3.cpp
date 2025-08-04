@@ -64,7 +64,7 @@ public:
                 m_desLowerBounds[glx] = m_curDesign(glx,0) - 0.5;  // x-coordinate
                 m_desUpperBounds[glx] = m_curDesign(glx,0) + 0.5;
             }
-            
+
             const index_t gly = mapper.index(i,0,1);
             if (mapper.is_free_index(gly))
             {
@@ -316,13 +316,19 @@ int main(int argc, char *argv[])
     //! [Parse command line]
     index_t numRefineAn  = 0;
     index_t numRefineOpt  = 0;
-    GISMO_ASSERT(numRefineAn >= numRefineOpt,"Mesh refinement for analysis not coarser than for optimization");
+    std::string outputDir = "./output";
 
-    gsCmdLine cmd("Strain-energy based nonlinear optimization of rib-enforced shells by adjustment of shell geometry.");
+    gsCmdLine cmd("Strain-energy based linear optimization of rib-enforced shells by adjustment of shell geometry.");
     cmd.addInt( "A", "rAn", "Number of uniform h-refinement steps to perform before analysis",  numRefineAn );
     cmd.addInt( "O", "rOpt", "Number of uniform h-refinement steps to perform before optimization",  numRefineOpt );
+    cmd.addString("o", "output", "Output directory", outputDir);
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
+
+    GISMO_ENSURE(numRefineAn >= numRefineOpt,"Mesh refinement for analysis not coarser than for optimization");
+    outputDir += gsFileManager::getNativePathSeparator();
+    if (!gsFileManager::fileExists(outputDir))
+        gsFileManager::mkdir(outputDir);
 
     //! [Shell reference geometry for analysis and optimization]
     gsMultiPatch<> mp_surfOpt;
@@ -340,7 +346,7 @@ int main(int argc, char *argv[])
     gsInfo << "\nShell reference geometry for optimization\n";
     gsInfo << "Patches: "<< mp_surfOpt.nPatches() <<", degree: "<< mbasis_surfOpt.minCwiseDegree() <<"\n";
     gsInfo << mbasis_surfOpt.basis(0)<<"\n";
-    gsWriteParaview(mp_surfOpt, "initialDesignOpt", 1000, true, true);
+    gsWriteParaview(mp_surfOpt, outputDir + "initialDesignOpt", 1000, true, true);
 
     for (int r = 0; r < numRefineAn; ++r)
          mp_surfAn.uniformRefine();
@@ -349,9 +355,9 @@ int main(int argc, char *argv[])
     gsInfo << "\nShell reference geometry for analysis\n";
     gsInfo << "Patches: "<< mp_surfAn.nPatches() <<", degree: "<< mbasis_surfAn.minCwiseDegree() <<"\n";
     gsInfo << mbasis_surfAn.basis(0)<<"\n";
-    gsWriteParaview(mp_surfAn, "initialShellAn", 1000, true, true);
+    gsWriteParaview(mp_surfAn, outputDir + "initialShellAn", 1000, true, true);
 
-    gsGeometry<real_t> &surfgeo = mp_surfAn.patch(0);    
+    gsGeometry<real_t> &surfgeo = mp_surfAn.patch(0);
     gsTensorBSpline<2, real_t>* surf = dynamic_cast< gsTensorBSpline<2, real_t>* >(&surfgeo);
     //! [Shell reference geometry for analysis and optimization]
 
@@ -407,7 +413,7 @@ int main(int argc, char *argv[])
     gsBSpline<> LLDPE_vcentered(basis_c, coef_LLDPE);  // vertical centered rib
     mp_rib.addPatch(LLDPE_vcentered);
 
-    gsWriteParaview(mp_rib,  "ribs",  1000, true,  true);
+    gsWriteParaview(mp_rib, outputDir + "ribs", 1000, true, true);
     gsMultiBasis<> mbasis_rib(mp_rib);
     //! [Embedded beam features for analysis]
 
@@ -422,7 +428,7 @@ int main(int argc, char *argv[])
     real_t thickness_rib = 0.10; // [m] 3e-3
     real_t height_rib = 0.15;   // [m] 30e-3
     real_t G_modulus_rib = 0.5 * E_modulus_rib / (1 + PoissonRatio_rib);
-    real_t EA_rib = E_modulus_rib * (height_rib * thickness_rib);               //axial rigidity 
+    real_t EA_rib = E_modulus_rib * (height_rib * thickness_rib);               //axial rigidity
     real_t EI_min_rib = E_modulus_rib * (height_rib * pow(thickness_rib,3))/12; //minimum flexural rigidity
     real_t EI_max_rib = E_modulus_rib * (thickness_rib * pow(height_rib,3))/12; //maximum flexural rigidity
     real_t GI_p_rib = G_modulus_rib/E_modulus_rib * (EI_min_rib + EI_max_rib);  //torsional rigidity
@@ -459,7 +465,7 @@ int main(int argc, char *argv[])
 
     //Buoyant line loads on shell edges
     gsVector<> buoyancy(3);
-    buoyancy << 0,0,78.933; // [N/m] 
+    buoyancy << 0,0,78.933; // [N/m]
     gsConstantFunction<> neuData(buoyancy,3);
     bc.addCondition(0,boundary::west, condition_type::neumann,  &neuData);
     bc.addCondition(0,boundary::east, condition_type::neumann,  &neuData);
@@ -565,9 +571,9 @@ int main(int argc, char *argv[])
     gsShapeOptProblem<real_t>::geomUpdate(optimizedDesign,mp_surfOpt,mapper);
 
     // Plot optimized design
-    gsWrite(mp_surfOpt, "OptimalShape"); //.xml file of optimal shell geometry
-    gsWrite(mp_rib, "RibTopology"); //.xml file of rib geometry
-    gsWriteParaview(mp_surfOpt, "OptimizedDesign", 1000, true, false);
+    gsWrite(mp_surfOpt, outputDir + "OptimalShape"); //.xml file of optimal shell geometry
+    gsWrite(mp_rib, outputDir + "RibTopology"); //.xml file of rib geometry
+    gsWriteParaview(mp_surfOpt, outputDir + "OptimizedDesign", 1000, true, false);
 
     // ****** VALIDATION ****** //
 
