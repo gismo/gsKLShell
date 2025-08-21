@@ -63,7 +63,7 @@ public:
                 m_desLowerBounds[glx] = m_curDesign(glx,0) - 0.5;  // x-coordinate
                 m_desUpperBounds[glx] = m_curDesign(glx,0) + 0.5;
             }
-
+            
             const index_t gly = mapper.index(i,0,1);
             if (mapper.is_free_index(gly))
             {
@@ -132,7 +132,7 @@ public:
         gsDebug << "Computing objective at point " << u.transpose() << "\n";
         gsMultiPatch<> tmpGeom = m_geom;
         this->geomUpdate(u,tmpGeom,m_mapper);
-
+        
         // Re-assemble the rib-enforced system after updating the analysis geometry
         gsMultiPatch<> anGeom = tmpGeom;
         index_t m_numRefineDiff = m_numRefineAn - m_numRefineOpt;
@@ -147,7 +147,7 @@ public:
         gsInfo<<"Shell assembly done\n";
 
         gsInfo <<"Setting up rib assembly\n";
-        T EA_rib = m_materialParameters[0];
+        T EA_rib = m_materialParameters[0];   
         T EI_min_rib = m_materialParameters[1];
         T EI_max_rib = m_materialParameters[2];
         T GI_p_rib = m_materialParameters[3];
@@ -191,7 +191,7 @@ public:
         //gsInfo<<"Shell assembly done\n";
 
         //gsInfo <<"Setting up rib assembly\n";
-        T EA_rib = m_materialParameters[0];
+        T EA_rib = m_materialParameters[0];   
         T EI_min_rib = m_materialParameters[1];
         T EI_max_rib = m_materialParameters[2];
         T GI_p_rib = m_materialParameters[3];
@@ -220,7 +220,7 @@ public:
                 gsMultiPatch<> anGeom_splusds = tmpGeom_splusds;
                 for (int r =0; r < m_numRefineDiff; ++r)
                         anGeom_splusds.uniformRefine();
-                m_assembler->setGeometry(anGeom_splusds);
+                m_assembler->setGeometry(anGeom_splusds);   
                 m_assembler->assemble();
                 gsSparseMatrix<> K_splusds = m_assembler->matrix();
                 gsVector<> F_splusds = m_assembler->rhs();
@@ -237,8 +237,6 @@ public:
 
         // Return sensitivity vector df/ds
         result = u_s.transpose() * R_star;
-        //gsDebug << "Gradient: " << result.transpose() << " at point " << u.transpose() << "\n";
-        //gsDebug << "Gradient norm: " << result.norm() << "\n";
     }
 
     void gradObj_FDM_into(const gsAsConstVector<T> &u, gsAsVector<T> &result) const
@@ -319,7 +317,7 @@ int main(int argc, char *argv[])
     gsDebug << mp_surfAn.patch(0).coefs() << "\n";
     gsWriteParaview(mp_surfAn, outputDir + "initialShellAn", 1000, true, true);
 
-    gsGeometry<real_t> &surfgeo = mp_surfAn.patch(0);
+    gsGeometry<real_t> &surfgeo = mp_surfAn.patch(0);    
     gsTensorBSpline<2, real_t>* surf = dynamic_cast< gsTensorBSpline<2, real_t>* >(&surfgeo);
     //! [Shell reference geometry for analysis and optimization]
 
@@ -330,20 +328,7 @@ int main(int argc, char *argv[])
     gsEigen::ArrayXXd cpvec (surf->knots(0).size() - surf->degree(0) - 1, 1);
     cpvec = (surf->coefs().block(0,0,cpvec.rows(),1))/r;
 
-    auto cpvec_flipped = cpvec.reverse();
-    gsMatrix<real_t> coef_c1(basis_c.size(), surf->parDim());
-    coef_c1.col(0) = cpvec;
-    coef_c1.col(1) = cpvec_flipped;
-    gsMatrix<real_t> coef_c2(basis_c.size(), surf->parDim());
-    coef_c2.col(0) = cpvec;
-    coef_c2.col(1) = cpvec;
-
-    gsBSpline<> ribA(basis_c, coef_c1);
-    gsBSpline<> ribB(basis_c, coef_c2);
-
     gsMultiPatch<> mp_rib;
-    mp_rib.addPatch(ribA);
-    mp_rib.addPatch(ribB);
 
     gsMatrix<real_t> coef_LLDPE(basis_c.size(), surf->parDim());
     coef_LLDPE.col(0) = cpvec;
@@ -365,6 +350,55 @@ int main(int argc, char *argv[])
     gsBSpline<> LLDPE_right(basis_c, coef_LLDPE);  // right buoyant breakwater
     mp_rib.addPatch(LLDPE_right);
 
+    gsMatrix<real_t> coef_rib(basis_c.size(), surf->parDim());
+    coef_rib.col(0) = cpvec;
+    coef_rib.col(1).setOnes();
+    coef_rib.col(1) *= 0.20;
+    gsBSpline<> ribA(basis_c, coef_rib);
+    mp_rib.addPatch(ribA);
+
+    coef_rib.col(0) = cpvec;
+    coef_rib.col(1).setOnes();
+    coef_rib.col(1) *= 0.40;
+    gsBSpline<> ribE(basis_c, coef_rib);
+    mp_rib.addPatch(ribE);
+
+    coef_rib.col(0) = cpvec;
+    coef_rib.col(1).setOnes();
+    coef_rib.col(1) *= 0.60;
+    gsBSpline<> ribB(basis_c, coef_rib);
+    mp_rib.addPatch(ribB);
+
+    coef_rib.col(0) = cpvec;
+    coef_rib.col(1).setOnes();
+    coef_rib.col(1) *= 0.80;
+    gsBSpline<> ribG(basis_c, coef_rib);
+    mp_rib.addPatch(ribG);
+
+    coef_rib.col(1) = cpvec;
+    coef_rib.col(0).setOnes();
+    coef_rib.col(0) *= 0.20;
+    gsBSpline<> ribC(basis_c, coef_rib);
+    mp_rib.addPatch(ribC);
+
+    coef_rib.col(1) = cpvec;
+    coef_rib.col(0).setOnes();
+    coef_rib.col(0) *= 0.40;
+    gsBSpline<> ribF(basis_c, coef_rib);
+    mp_rib.addPatch(ribF);
+
+    coef_rib.col(1) = cpvec;
+    coef_rib.col(0).setOnes();
+    coef_rib.col(0) *= 0.60;
+    gsBSpline<> ribD(basis_c, coef_rib);
+    mp_rib.addPatch(ribD);
+
+    coef_rib.col(1) = cpvec;
+    coef_rib.col(0).setOnes();
+    coef_rib.col(0) *= 0.80;
+    gsBSpline<> ribH(basis_c, coef_rib);
+    mp_rib.addPatch(ribH);
+
     gsWriteParaview(mp_rib,  outputDir + "ribs",  1000, true,  true);
     gsMultiBasis<> mbasis_rib(mp_rib);
     //! [Embedded beam features for analysis]
@@ -380,7 +414,7 @@ int main(int argc, char *argv[])
     real_t thickness_rib = 0.10; // [m] 3e-3
     real_t height_rib = 0.15;   // [m] 30e-3
     real_t G_modulus_rib = 0.5 * E_modulus_rib / (1 + PoissonRatio_rib);
-    real_t EA_rib = E_modulus_rib * (height_rib * thickness_rib);               //axial rigidity
+    real_t EA_rib = E_modulus_rib * (height_rib * thickness_rib);               //axial rigidity 
     real_t EI_min_rib = E_modulus_rib * (height_rib * pow(thickness_rib,3))/12; //minimum flexural rigidity
     real_t EI_max_rib = E_modulus_rib * (thickness_rib * pow(height_rib,3))/12; //maximum flexural rigidity
     real_t GI_p_rib = G_modulus_rib/E_modulus_rib * (EI_min_rib + EI_max_rib);  //torsional rigidity
@@ -417,7 +451,7 @@ int main(int argc, char *argv[])
 
     //Buoyant line loads on shell edges
     gsVector<> buoyancy(3);
-    buoyancy << 0,0,78.933; // [N/m]
+    buoyancy << 0,0,78.933; // [N/m] 
     gsConstantFunction<> neuData(buoyancy,3);
     bc.addCondition(0,boundary::west, condition_type::neumann,  &neuData);
     bc.addCondition(0,boundary::east, condition_type::neumann,  &neuData);
@@ -433,7 +467,7 @@ int main(int argc, char *argv[])
     assembler = new gsThinShellAssembler<3, real_t,true>(mp_surfAn,mbasis_surfAn,bc,force,materialMatrix);
     //assembler->setPointLoads(pLoads);
     //! [Make assembler]
-
+    
     //! [h-refine embedded curves based on mp_surfAn for conforming quadrature]
     index_t numPatches_rib = mp_rib.nPatches();
 
@@ -483,15 +517,7 @@ int main(int argc, char *argv[])
     //! [Optimizer setup]
 
     gsVector<> reshaped = gsShapeOptProblem<real_t>::vectorUpdate(mp_surfOpt, mapper);
-    gsAsConstVector<> initialDesign(reshaped.data(), reshaped.size());
-
-    // gsMatrix<> mat_FDM(mapper.freeSize(),1);
-    // gsAsVector<> sensitivities_FDM(mat_FDM.data(),mat_FDM.rows());
-    // problem.gradObj_FDM_into(initialDesign,sensitivities_FDM);
-    // gsInfo<<"\nNumerical sensitivity vector:\n";
-    // gsDebugVar(sensitivities_FDM.transpose());
-    // gsDebugVar(sensitivities_FDM.norm());
-    // return EXIT_SUCCESS;
+    gsAsConstVector<> initialDesign(reshaped.data(), reshaped.size());gsMatrix<> mat_FDM(mapper.freeSize(),1);
 
     //! [Solve]
     // Start optimization

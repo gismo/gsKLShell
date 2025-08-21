@@ -28,15 +28,15 @@ class gsShapeOptProblem : public gsOptProblem<T>
 {
     using Base = gsOptProblem<T>;
 public:
-    gsShapeOptProblem(  gsThinShellAssemblerBase<T> *assembler,
-                        const gsDofMapper           &mapper,
-                        const gsMultiPatch<T>       &geom,
-                        const gsMultiPatch<T>       &rib,
-                        const gsMatrix<T>           &allquPointsCurve_rib,
-                        const gsMatrix<T>           &allquWeights_rib,
-                        const gsVector<T>           &materialParameters,
-                        index_t                     &numRefineAn,
-                        index_t                     &numRefineOpt)
+    gsShapeOptProblem(  gsThinShellAssemblerBase<T>     *assembler,
+                        const gsDofMapper               &mapper,
+                        const gsMultiPatch<T>           &geom,
+                        const gsMultiPatch<T>           &rib,
+                        const std::vector<gsMatrix<T>>  &allquPointsCurve_rib,
+                        const std::vector<gsVector<T>>  &allquWeights_rib,
+                        const gsVector<T>               &materialParameters,
+                        index_t                         &numRefineAn,
+                        index_t                         &numRefineOpt)
     :
     m_assembler(assembler),
     m_mapper(mapper),
@@ -75,8 +75,8 @@ public:
             const index_t glz = mapper.index(i,0,2);
             if (mapper.is_free_index(glz))
             {
-                m_desLowerBounds[glz] = m_curDesign(glz,0) - 0.3;  // z-coordinate
-                m_desUpperBounds[glz] = m_curDesign(glz,0) + 0.3;
+                m_desLowerBounds[glz] = m_curDesign(glz,0) - 0.2;  // z-coordinate
+                m_desUpperBounds[glz] = m_curDesign(glz,0) + 0.2;
             }
         }
 
@@ -183,7 +183,7 @@ public:
         T residualOld = residual;
 
         gsVector<T> updateVector;
-        for (index_t it = 0; it != 200; ++it)
+        for (index_t it = 0; it != 100; ++it)
         {
             assembleNonlinear(u_s, jacMat_s, rhsVec_s, m_materialParameters);
             solver.compute(jacMat_s);
@@ -291,8 +291,8 @@ protected:
     const gsDofMapper              &m_mapper;
     const gsMultiPatch<T>          &m_geom;
     const gsMultiPatch<T>          &m_rib;
-    const gsMatrix<T>              &m_allquPointsCurve_rib;
-    const gsMatrix<T>              &m_allquWeights_rib;
+    const std::vector<gsMatrix<T>> &m_allquPointsCurve_rib;
+    const std::vector<gsVector<T>> &m_allquWeights_rib;
     const gsVector<T>              &m_materialParameters;
     index_t                         m_numRefineAn;
     index_t                         m_numRefineOpt;
@@ -363,10 +363,12 @@ int main(int argc, char *argv[])
 
     //! [Embedded beam features for analysis]
     gsKnotVector<real_t> kv_c = surf->knots(0);
+    gsDebugVar(kv_c);
     gsBSplineBasis<> basis_c(kv_c);
 
     gsEigen::ArrayXXd cpvec (surf->knots(0).size() - surf->degree(0) - 1, 1);
     cpvec = (surf->coefs().block(0,0,cpvec.rows(),1))/r;
+    gsDebugVar(cpvec);
     auto cpvec_flipped = cpvec.reverse();
     gsMatrix<real_t> coef_c1(basis_c.size(), surf->parDim());
     coef_c1.col(0) = cpvec;
@@ -484,61 +486,32 @@ int main(int argc, char *argv[])
     //! [h-refine embedded curves based on mp_surfAn for conforming quadrature]
     index_t numPatches_rib = mp_rib.nPatches();
 
-    gsMatrix<> quPointsCurve;     gsVector<> quWeights;
-    embeddedQuadraturePoints(mp_surfAn.patch(0), mp_rib.patch(0), quPointsCurve, quWeights, assembler);
-    index_t numQuadPoints = quPointsCurve.cols();
+    std::vector<gsMatrix<real_t>> allquPointsCurve_rib;
+    std::vector<gsVector<real_t>> allquWeights_rib;
 
-    gsMatrix<> allquPointsCurve_rib(numPatches_rib, numQuadPoints);
-    gsMatrix<> allquWeights_rib(numPatches_rib, numQuadPoints);
-    allquPointsCurve_rib.topRows(1) = quPointsCurve;              //store quadrature points for the first rib patch
-    allquWeights_rib.topRows(1) = quWeights.transpose();          //store quadrature weights for the first rib patch
-
-    for (index_t p = 1; p < numPatches_rib; ++p)
+    for (index_t p = 0; p < numPatches_rib; ++p)
     {
-        allquPointsCurve_rib.middleRows(p,1) = quPointsCurve;
-        allquWeights_rib.middleRows(p,1) = quWeights.transpose();
+        gsMatrix<real_t> quPointsCurve;         gsVector<real_t> quWeights;
+        embeddedQuadraturePoints(mp_surfAn.patch(0),mp_rib.patch(p),quPointsCurve,quWeights);
+        allquPointsCurve_rib.push_back(quPointsCurve);
+        allquWeights_rib.push_back(quWeights);
     }
-
-    // for (index_t p = 1; p < numPatches_rib; ++p)
-    // {
-    //     embeddedQuadraturePoints(mp_surfAn.patch(0), mp_rib.patch(p), quPointsCurve, quWeights, assembler);
-    //     allquPointsCurve_rib.middleRows(p,1) = quPointsCurve;     //store quadrature points for the p-th rib patch
-    //     allquWeights_rib.middleRows(p,1) = quWeights.transpose(); //store quadrature weights for the p-th rib patch
-    // }
-
-    //gsDebugVar(allquPointsCurve_rib);
-    //gsDebugVar(allquWeights_rib);
     //! [h-refine embedded curves based on mp_surfAn for conforming quadrature]
 
-    //! [Collect control points on the whole shell boundary]
+    //! [Freeze z-dof on shell boundaries]
     gsDofMapper mapper(mbasis_surfOpt, mp_surfOpt.geoDim());
     for (index_t side = 0; side < 4; ++side)
     {
-        // Get indices of basis functions on this boundary
         gsMatrix<index_t> boundaryIndices = mbasis_surfOpt.basis(0).boundary(side);
 
-        // Loop over all these indices and eliminate the z-dof
         for (index_t i = 0; i < boundaryIndices.rows(); ++i)
         {
             index_t globalIndex = boundaryIndices(i, 0); // only one column
-
-            // Eliminate z-coordinate (index 2) of this control point
             mapper.eliminateDof(globalIndex,0,2);
         }
     }
     mapper.finalize();
-    //! [Collect control points on the whole shell boundary]
-
-    //! [Collect control points on shell sides]
-    // gsDofMapper mapper(mbasis_surfOpt,mp_surfOpt.geoDim());
-    // for (short_t c = 1; c!=5; c++)
-    // {
-    //     boxCorner corner(c);
-    //     index_t idx = mbasis_surfOpt.basis(0).functionAtCorner(corner);
-    //     mapper.eliminateDof(idx,0,2); // eliminate z-coordinate of corner control points
-    // }
-    // mapper.finalize();
-    //! [Collect control points on shell sides]
+    //! [Freeze z-dof on shell boundaries]
 
     //! [Optimizer setup]
     gsShapeOptProblem<real_t> problem(assembler,mapper,mp_surfOpt,mp_rib,
@@ -574,6 +547,10 @@ int main(int argc, char *argv[])
     gsWrite(mp_surfOpt, outputDir + "OptimalShape"); //.xml file of optimal shell geometry
     gsWrite(mp_rib, outputDir + "RibTopology"); //.xml file of rib geometry
     gsWriteParaview(mp_surfOpt, outputDir + "OptimizedDesign", 1000, true, false);
+
+    // gsWrite(mp_surfOpt, "OptimalShell"); //.xml file of optimal shell geometry
+    // gsWrite(mp_rib, "RibTopology"); //.xml file of rib geometry
+    // gsWriteParaview(mp_surfOpt, "OptimizedDesign", 1000, true, false);
 
     // ****** VALIDATION ****** //
 

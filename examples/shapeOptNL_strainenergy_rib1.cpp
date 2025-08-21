@@ -1,8 +1,8 @@
-/** @file shapeOpt_strainenergy.cpp
+/** @file shapeOptNL_strainenergyS.cpp
 
-    @brief Structural optimization problem of
-           a geometrically nonlinear Kirchhoff-Love shell
-           with embedded ribs
+    @brief Strain-energy based nonlinear optimization of
+           rib-enforced Kirchhoff-Love shells
+           by adjustment of the shell geometry.
 
     This file is part of the G+Smo library.
 
@@ -55,6 +55,7 @@ public:
 
         m_desLowerBounds.resize(m_numDesignVars);
         m_desUpperBounds.resize(m_numDesignVars);
+
         for (index_t i = 0; i != geom.patch(0).coefs().rows(); ++i)
         {
             const index_t glx = mapper.index(i,0,0);
@@ -63,7 +64,7 @@ public:
                 m_desLowerBounds[glx] = m_curDesign(glx,0) - 0.5;  // x-coordinate
                 m_desUpperBounds[glx] = m_curDesign(glx,0) + 0.5;
             }
-
+            
             const index_t gly = mapper.index(i,0,1);
             if (mapper.is_free_index(gly))
             {
@@ -79,12 +80,6 @@ public:
             }
         }
 
-        //for (index_t i = 0; i != m_numDesignVars; ++i)
-        // {
-        //     m_desLowerBounds[i] = m_curDesign(i,0) - 0.7;
-        //     m_desUpperBounds[i] = m_curDesign(i,0) + 0.7;
-        // }
-
         // m_numConstraints = 0;
         // m_conJacRows.resize(m_numConstraints);
         // m_conJacCols.resize(m_numConstraints);
@@ -92,7 +87,7 @@ public:
         // m_conUpperBounds.resize(m_numConstraints);
     }
 
-    static gsVector<T> vectorUpdate(const gsMultiPatch<T> & geom, const gsDofMapper & mapper)
+    static gsVector<T> vectorUpdate(const gsMultiPatch<T> &geom, const gsDofMapper &mapper)
     {
         gsVector<T> result(mapper.freeSize());
         for (index_t i = 0; i != geom.patch(0).coefs().rows(); ++i)
@@ -126,43 +121,104 @@ public:
         gsShapeOptProblem<T>::geomUpdate(tmp,geom,mapper);
     }
 
-    T evalObj(const gsAsConstVector<T> &u) const override
+    void assembleNonlinear(const gsVector<T> &x, gsSparseMatrix<T> &jacMat,
+                           gsVector<T> &rhsVec, const gsVector<T> &materialParameters) const
     {
-        // Update geometry coefficients from current design u
-        gsDebug << "Computing objective at point " << u.transpose() << "\n";
-        gsMultiPatch<> tmpGeom = m_geom;
-        this->geomUpdate(u,tmpGeom,m_mapper);
+        gsMultiPatch<T> anGeom_def;
+        ThinShellAssemblerStatus status;
 
-        // Re-assemble the rib-enforced system after updating the analysis geometry
+        m_assembler->constructSolution(x, anGeom_def);
+
+        status = m_assembler->assembleMatrix(anGeom_def);
+        GISMO_ENSURE(status == ThinShellAssemblerStatus::Success, "Shell K assembly failed");
+        status = m_assembler->assembleVector(anGeom_def);
+        GISMO_ENSURE(status == ThinShellAssemblerStatus::Success, "Shell R assembly failed");
+        jacMat = m_assembler->matrix();
+        rhsVec = m_assembler->rhs();
+
+        T EA_rib     = materialParameters[0];            T EI_min_rib = materialParameters[1];
+        T EI_max_rib = materialParameters[2];            T GI_p_rib   = materialParameters[3];
+
+        status = m_assembler->assembleNonlinearEmbeddedCurve(m_rib, anGeom_def,
+                                                             EA_rib, EI_min_rib, EI_max_rib, GI_p_rib,
+                                                             m_allquPointsCurve_rib, m_allquWeights_rib);
+        GISMO_ENSURE(status == ThinShellAssemblerStatus::Success, "Rib nonlinear assembly failed");
+
+        jacMat += m_assembler->matrix();
+        rhsVec += m_assembler->rhs();
+    }
+
+    gsVector<T> solveStateEquation(const gsAsConstVector<T> &u, gsVector<T> &F_s, gsVector<T> &rhsVec_s, gsSparseMatrix<T> &jacMat_s) const
+    {
+        gsMultiPatch<> tmpGeom = m_geom;
+        geomUpdate(u, tmpGeom, m_mapper);
+
         gsMultiPatch<> anGeom = tmpGeom;
         index_t m_numRefineDiff = m_numRefineAn - m_numRefineOpt;
         for (int r = 0; r < m_numRefineDiff; ++r)
-             anGeom.uniformRefine();
+            anGeom.uniformRefine();
         m_assembler->setGeometry(anGeom);
-        ThinShellAssemblerStatus status = m_assembler->assemble();
-        GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
-        gsInfo<<"Setting up shell assembly\n";
-        gsSparseMatrix<> K_s = m_assembler->matrix();
-        gsVector<> F_s = m_assembler->rhs();
-        gsInfo<<"Shell assembly done\n";
 
-        gsInfo <<"Setting up rib assembly\n";
-        T EA_rib = m_materialParameters[0];
-        T EI_min_rib = m_materialParameters[1];
-        T EI_max_rib = m_materialParameters[2];
-        T GI_p_rib = m_materialParameters[3];
-        ThinShellAssemblerStatus status_rib;
-        status_rib = m_assembler->assembleLinearEmbeddedCurve(m_rib,EA_rib,EI_min_rib,EI_max_rib,GI_p_rib,m_allquPointsCurve_rib,m_allquWeights_rib);
-        GISMO_ENSURE(status_rib==ThinShellAssemblerStatus::Success,"Assembly for rib embedding failed");
-        gsSparseMatrix<> K_embedded = m_assembler->matrix();
+        ThinShellAssemblerStatus status = m_assembler->assemble();
+        GISMO_ENSURE(status == ThinShellAssemblerStatus::Success, "Shell linear assembly failed");
+
+        gsSparseMatrix<T> K_s = m_assembler->matrix();
+        F_s = m_assembler->rhs(); // initial residual
+
+        T EA_rib = m_materialParameters[0];        T EI_min_rib = m_materialParameters[1];
+        T EI_max_rib = m_materialParameters[2];    T GI_p_rib = m_materialParameters[3];
+
+        status = m_assembler->assembleLinearEmbeddedCurve(m_rib, EA_rib, EI_min_rib, EI_max_rib, GI_p_rib,
+                                                             m_allquPointsCurve_rib, m_allquWeights_rib);
+        GISMO_ENSURE(status == ThinShellAssemblerStatus::Success, "Rib linear assembly failed");
+        gsSparseMatrix<T> K_embedded = m_assembler->matrix();
         K_s += K_embedded;
 
         gsSparseSolver<>::CGDiagonal solver;
         solver.compute(K_s);
-        gsVector<> u_s = solver.solve(F_s);
+        gsVector<T> u_s = solver.solve(F_s);
 
-        // Return the objective function, i.e.strain energy, at current design
-        T obj = 0.5 * u_s.transpose() * K_s * u_s;
+        T residual = F_s.norm();
+        T residual0 = residual;
+        T residualOld = residual;
+
+        gsVector<T> updateVector;
+        for (index_t it = 0; it != 100; ++it)
+        {
+            assembleNonlinear(u_s, jacMat_s, rhsVec_s, m_materialParameters);
+            solver.compute(jacMat_s);
+            updateVector = solver.solve(rhsVec_s);
+            u_s += updateVector;
+            residual = rhsVec_s.norm();
+
+            gsInfo << "Iteration: " << it
+                << ", residue: " << residual
+                << ", rel. residue: " << residual / residual0
+                << ", update norm: " << updateVector.norm()
+                << ", log(Ri/R0): " << math::log10(residualOld / residual0)
+                << ", log(Ri+1/R0): " << math::log10(residual / residual0)
+                << "\n";
+
+            residualOld = residual;
+
+            if (updateVector.norm() < 1e-6)
+                break;
+            else if (it + 1 == it)
+                gsWarn << "Maximum iterations reached!\n";
+        }
+
+        return u_s;
+    }
+
+    T evalObj(const gsAsConstVector<T> &u) const override
+    {
+        gsDebug << "Computing objective at point " << u.transpose() << "\n";
+
+        gsVector<T> F_s, rhsVec_s;
+        gsSparseMatrix<T> jacMat_s;
+        gsVector<T> u_s = solveStateEquation(u, F_s, rhsVec_s, jacMat_s);
+
+        T obj = 0.5 * u_s.transpose() * (rhsVec_s + F_s);
         gsDebug << "Objective: " << obj << " at point " << u.transpose() << "\n";
         return obj;
     }
@@ -172,73 +228,56 @@ public:
     {
         gsDebug << "Computing gradient at point " << u.transpose() << "\n";
         result.resize(m_numDesignVars);
-
-        // Update geometry coefficients from current design u
-        gsMultiPatch<> tmpGeom = m_geom;
-        this->geomUpdate(u,tmpGeom,m_mapper);
-
-        // Re-assemble the rib-enforced system after updating the geometry
-        gsMultiPatch<> anGeom = tmpGeom;
+        gsMultiPatch<T> tempGeom = m_geom;
+        geomUpdate(u, tempGeom, m_mapper);
         index_t m_numRefineDiff = m_numRefineAn - m_numRefineOpt;
-        for (int r = 0; r < m_numRefineDiff; ++r)
-             anGeom.uniformRefine();
-        m_assembler->setGeometry(anGeom);
-        ThinShellAssemblerStatus status = m_assembler->assemble();
-        GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
-        //gsInfo<<"Setting up shell assembly\n";
-        gsSparseMatrix<> K_s = m_assembler->matrix();
-        gsVector<> F_s = m_assembler->rhs();
-        //gsInfo<<"Shell assembly done\n";
 
-        //gsInfo <<"Setting up rib assembly\n";
-        T EA_rib = m_materialParameters[0];
-        T EI_min_rib = m_materialParameters[1];
-        T EI_max_rib = m_materialParameters[2];
-        T GI_p_rib = m_materialParameters[3];
-        ThinShellAssemblerStatus status_rib;
-        status_rib = m_assembler->assembleLinearEmbeddedCurve(m_rib,EA_rib,EI_min_rib,EI_max_rib,GI_p_rib,m_allquPointsCurve_rib,m_allquWeights_rib);
-        GISMO_ENSURE(status_rib==ThinShellAssemblerStatus::Success,"Assembly for rib embedding failed");
-        gsSparseMatrix<> K_embedded = m_assembler->matrix();
-        K_s += K_embedded;
+        gsVector<T> F_s, rhsVec_s;
+        gsSparseMatrix<T> jacMat_s;
+        gsVector<T> u_s = solveStateEquation(u, F_s, rhsVec_s, jacMat_s);
 
-        gsSparseSolver<>::CGDiagonal m_solver;
-        m_solver.compute(K_s);
-        gsVector<> u_s = m_solver.solve(F_s);
+        gsSparseSolver<>::CGDiagonal solver;
+        solver.compute(jacMat_s);
+        gsVector<T> adjointVector = solver.solve(rhsVec_s + F_s);
 
         // Compute pseudo load matrix R*
-        gsMatrix<> R_star(m_numDofs,m_numDesignVars);
-        for (index_t i = 0; i != tmpGeom.patch(0).coefs().rows(); ++i)
+        gsMatrix<T> R_star(m_numDofs,m_numDesignVars);
+        for (index_t i = 0; i != tempGeom.patch(0).coefs().rows(); ++i)
         {
-            for (index_t j = 0; j != tmpGeom.patch(0).coefs().cols(); ++j)
+            for (index_t j = 0; j != tempGeom.patch(0).coefs().cols(); ++j)
             {
                 index_t gl = m_mapper.index(i,0,j);
                 if (!m_mapper.is_free_index(gl)) continue;
-                //gsMultiPatch<> anGeom_splusds = anGeom;
-                //anGeom_splusds.patch(0).coefs()(i,j) += m_delta_s;
-                gsMultiPatch<> tmpGeom_splusds = tmpGeom;
+
+                gsMultiPatch<T> tmpGeom_splusds = tempGeom;
                 tmpGeom_splusds.patch(0).coefs()(i,j) += m_delta_s;
-                gsMultiPatch<> anGeom_splusds = tmpGeom_splusds;
-                for (int r =0; r < m_numRefineDiff; ++r)
+                gsMultiPatch<T> anGeom_splusds = tmpGeom_splusds;
+                for (int r = 0; r < m_numRefineDiff; ++r)
                         anGeom_splusds.uniformRefine();
                 m_assembler->setGeometry(anGeom_splusds);
-                m_assembler->assemble();
-                gsSparseMatrix<> K_splusds = m_assembler->matrix();
-                gsVector<> F_splusds = m_assembler->rhs();
+                ThinShellAssemblerStatus status = m_assembler->assemble();
+                GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Shell linear assembly failed");
+                gsSparseMatrix<T> K_splusds = m_assembler->matrix();
+                gsVector<T> F_splusds = m_assembler->rhs();  //displacement-independent external force vector
 
-                ThinShellAssemblerStatus status_rib;
-                status_rib = m_assembler->assembleLinearEmbeddedCurve(m_rib,EA_rib,EI_min_rib,EI_max_rib,GI_p_rib,m_allquPointsCurve_rib,m_allquWeights_rib);
-                GISMO_ENSURE(status_rib==ThinShellAssemblerStatus::Success,"Assembly for rib embedding failed");
-                gsSparseMatrix<> K_embedded = m_assembler->matrix();
-                K_splusds += K_embedded;
+                T EA_rib = m_materialParameters[0];            T EI_min_rib  = m_materialParameters[1];
+                T EI_max_rib  = m_materialParameters[2];       T GI_p_rib    = m_materialParameters[3];
+                status = m_assembler->assembleLinearEmbeddedCurve(m_rib,EA_rib,EI_min_rib,EI_max_rib,GI_p_rib,
+                                                                     m_allquPointsCurve_rib,m_allquWeights_rib);
+                GISMO_ENSURE(status == ThinShellAssemblerStatus::Success,"Rib linear assembly failed");
+                gsSparseMatrix<T> K_embedded_splusds = m_assembler->matrix();
+                K_splusds += K_embedded_splusds;
 
-                R_star.col(gl) = ((F_splusds - F_s) - 0.5 * (K_splusds - K_s)* u_s)/m_delta_s;
+                gsVector<T> rhsVec_splusds;
+                gsSparseMatrix<T> jacMat_splusds;
+                assembleNonlinear(u_s, jacMat_splusds, rhsVec_splusds, m_materialParameters);
+
+                R_star.col(gl) = (rhsVec_splusds - rhsVec_s)/m_delta_s;
             }
         }
 
         // Return sensitivity vector df/ds
-        result = u_s.transpose() * R_star;
-        //gsDebug << "Gradient: " << result.transpose() << " at point " << u.transpose() << "\n";
-        //gsDebug << "Gradient norm: " << result.norm() << "\n";
+        result = - adjointVector.transpose() * R_star;
     }
 
     void gradObj_FDM_into(const gsAsConstVector<T> &u, gsAsVector<T> &result) const
@@ -247,6 +286,7 @@ public:
     }
 
 protected:
+
     gsThinShellAssemblerBase<T>    *m_assembler;
     const gsDofMapper              &m_mapper;
     const gsMultiPatch<T>          &m_geom;
@@ -278,7 +318,7 @@ int main(int argc, char *argv[])
     index_t numRefineOpt  = 0;
     std::string outputDir = "./output";
 
-    gsCmdLine cmd("Strain-energy based linear optimization of rib-enforced shells by adjustment of shell geometry.");
+    gsCmdLine cmd("Strain-energy based nonlinear optimization of rib-enforced shells by adjustment of shell geometry.");
     cmd.addInt( "A", "rAn", "Number of uniform h-refinement steps to perform before analysis",  numRefineAn );
     cmd.addInt( "O", "rOpt", "Number of uniform h-refinement steps to perform before optimization",  numRefineOpt );
     cmd.addString("o", "output", "Output directory", outputDir);
@@ -290,7 +330,7 @@ int main(int argc, char *argv[])
     if (!gsFileManager::fileExists(outputDir))
         gsFileManager::mkdir(outputDir);
 
-     //! [Shell reference geometry for analysis and optimization]
+    //! [Shell reference geometry for analysis and optimization]
     gsMultiPatch<> mp_surfOpt;
     real_t r = 10; // [m]
     mp_surfOpt.addPatch(gsNurbsCreator<>::BSplineSquare(r));
@@ -306,7 +346,6 @@ int main(int argc, char *argv[])
     gsInfo << "\nShell reference geometry for optimization\n";
     gsInfo << "Patches: "<< mp_surfOpt.nPatches() <<", degree: "<< mbasis_surfOpt.minCwiseDegree() <<"\n";
     gsInfo << mbasis_surfOpt.basis(0)<<"\n";
-    gsDebug << mp_surfOpt.patch(0).coefs() << "\n";
     gsWriteParaview(mp_surfOpt, outputDir + "initialDesignOpt", 1000, true, true);
 
     for (int r = 0; r < numRefineAn; ++r)
@@ -316,34 +355,20 @@ int main(int argc, char *argv[])
     gsInfo << "\nShell reference geometry for analysis\n";
     gsInfo << "Patches: "<< mp_surfAn.nPatches() <<", degree: "<< mbasis_surfAn.minCwiseDegree() <<"\n";
     gsInfo << mbasis_surfAn.basis(0)<<"\n";
-    gsDebug << mp_surfAn.patch(0).coefs() << "\n";
     gsWriteParaview(mp_surfAn, outputDir + "initialShellAn", 1000, true, true);
 
-    gsGeometry<real_t> &surfgeo = mp_surfAn.patch(0);
+    gsGeometry<real_t> &surfgeo = mp_surfAn.patch(0);    
     gsTensorBSpline<2, real_t>* surf = dynamic_cast< gsTensorBSpline<2, real_t>* >(&surfgeo);
     //! [Shell reference geometry for analysis and optimization]
 
     //! [Embedded beam features for analysis]
     gsKnotVector<real_t> kv_c = surf->knots(0);
     gsBSplineBasis<> basis_c(kv_c);
-
+    
     gsEigen::ArrayXXd cpvec (surf->knots(0).size() - surf->degree(0) - 1, 1);
     cpvec = (surf->coefs().block(0,0,cpvec.rows(),1))/r;
 
-    auto cpvec_flipped = cpvec.reverse();
-    gsMatrix<real_t> coef_c1(basis_c.size(), surf->parDim());
-    coef_c1.col(0) = cpvec;
-    coef_c1.col(1) = cpvec_flipped;
-    gsMatrix<real_t> coef_c2(basis_c.size(), surf->parDim());
-    coef_c2.col(0) = cpvec;
-    coef_c2.col(1) = cpvec;
-
-    gsBSpline<> ribA(basis_c, coef_c1);
-    gsBSpline<> ribB(basis_c, coef_c2);
-
     gsMultiPatch<> mp_rib;
-    mp_rib.addPatch(ribA);
-    mp_rib.addPatch(ribB);
 
     gsMatrix<real_t> coef_LLDPE(basis_c.size(), surf->parDim());
     coef_LLDPE.col(0) = cpvec;
@@ -365,6 +390,55 @@ int main(int argc, char *argv[])
     gsBSpline<> LLDPE_right(basis_c, coef_LLDPE);  // right buoyant breakwater
     mp_rib.addPatch(LLDPE_right);
 
+    gsMatrix<real_t> coef_rib(basis_c.size(), surf->parDim());
+    coef_rib.col(0) = cpvec;
+    coef_rib.col(1).setOnes();
+    coef_rib.col(1) *= 0.20;
+    gsBSpline<> ribA(basis_c, coef_rib);
+    mp_rib.addPatch(ribA);
+
+    coef_rib.col(0) = cpvec;
+    coef_rib.col(1).setOnes();
+    coef_rib.col(1) *= 0.40;
+    gsBSpline<> ribE(basis_c, coef_rib);
+    mp_rib.addPatch(ribE);
+
+    coef_rib.col(0) = cpvec;
+    coef_rib.col(1).setOnes();
+    coef_rib.col(1) *= 0.60;
+    gsBSpline<> ribB(basis_c, coef_rib);
+    mp_rib.addPatch(ribB);
+
+    coef_rib.col(0) = cpvec;
+    coef_rib.col(1).setOnes();
+    coef_rib.col(1) *= 0.80;
+    gsBSpline<> ribG(basis_c, coef_rib);
+    mp_rib.addPatch(ribG);
+
+    coef_rib.col(1) = cpvec;
+    coef_rib.col(0).setOnes();
+    coef_rib.col(0) *= 0.20;
+    gsBSpline<> ribC(basis_c, coef_rib);
+    mp_rib.addPatch(ribC);
+
+    coef_rib.col(1) = cpvec;
+    coef_rib.col(0).setOnes();
+    coef_rib.col(0) *= 0.40;
+    gsBSpline<> ribF(basis_c, coef_rib);
+    mp_rib.addPatch(ribF);
+
+    coef_rib.col(1) = cpvec;
+    coef_rib.col(0).setOnes();
+    coef_rib.col(0) *= 0.60;
+    gsBSpline<> ribD(basis_c, coef_rib);
+    mp_rib.addPatch(ribD);
+
+    coef_rib.col(1) = cpvec;
+    coef_rib.col(0).setOnes();
+    coef_rib.col(0) *= 0.80;
+    gsBSpline<> ribH(basis_c, coef_rib);
+    mp_rib.addPatch(ribH);
+
     gsWriteParaview(mp_rib,  outputDir + "ribs",  1000, true,  true);
     gsMultiBasis<> mbasis_rib(mp_rib);
     //! [Embedded beam features for analysis]
@@ -380,7 +454,7 @@ int main(int argc, char *argv[])
     real_t thickness_rib = 0.10; // [m] 3e-3
     real_t height_rib = 0.15;   // [m] 30e-3
     real_t G_modulus_rib = 0.5 * E_modulus_rib / (1 + PoissonRatio_rib);
-    real_t EA_rib = E_modulus_rib * (height_rib * thickness_rib);               //axial rigidity
+    real_t EA_rib = E_modulus_rib * (height_rib * thickness_rib);               //axial rigidity 
     real_t EI_min_rib = E_modulus_rib * (height_rib * pow(thickness_rib,3))/12; //minimum flexural rigidity
     real_t EI_max_rib = E_modulus_rib * (thickness_rib * pow(height_rib,3))/12; //maximum flexural rigidity
     real_t GI_p_rib = G_modulus_rib/E_modulus_rib * (EI_min_rib + EI_max_rib);  //torsional rigidity
@@ -417,7 +491,7 @@ int main(int argc, char *argv[])
 
     //Buoyant line loads on shell edges
     gsVector<> buoyancy(3);
-    buoyancy << 0,0,78.933; // [N/m]
+    buoyancy << 0,0,78.933; // [N/m] 
     gsConstantFunction<> neuData(buoyancy,3);
     bc.addCondition(0,boundary::west, condition_type::neumann,  &neuData);
     bc.addCondition(0,boundary::east, condition_type::neumann,  &neuData);
@@ -431,7 +505,6 @@ int main(int argc, char *argv[])
     materialMatrix = getMaterialMatrix<3,real_t>(mp_surfAn,t,parameters,rho,options);
     gsThinShellAssemblerBase<real_t>* assembler;
     assembler = new gsThinShellAssembler<3, real_t,true>(mp_surfAn,mbasis_surfAn,bc,force,materialMatrix);
-    //assembler->setPointLoads(pLoads);
     //! [Make assembler]
 
     //! [h-refine embedded curves based on mp_surfAn for conforming quadrature]
@@ -477,21 +550,13 @@ int main(int argc, char *argv[])
     optimizer->options().setReal("MinGradientLength",1e-9);
     optimizer->options().setReal("MinStepLength",1e-9);
 #endif
-    optimizer->options().setInt("MaxIterations",50);
+    optimizer->options().setInt("MaxIterations",100);
     optimizer->options().setInt("Verbose",1);
     //optimizer->options().setReal("GradErrTol",1e-8);
     //! [Optimizer setup]
 
     gsVector<> reshaped = gsShapeOptProblem<real_t>::vectorUpdate(mp_surfOpt, mapper);
     gsAsConstVector<> initialDesign(reshaped.data(), reshaped.size());
-
-    // gsMatrix<> mat_FDM(mapper.freeSize(),1);
-    // gsAsVector<> sensitivities_FDM(mat_FDM.data(),mat_FDM.rows());
-    // problem.gradObj_FDM_into(initialDesign,sensitivities_FDM);
-    // gsInfo<<"\nNumerical sensitivity vector:\n";
-    // gsDebugVar(sensitivities_FDM.transpose());
-    // gsDebugVar(sensitivities_FDM.norm());
-    // return EXIT_SUCCESS;
 
     //! [Solve]
     // Start optimization
