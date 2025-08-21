@@ -2133,9 +2133,8 @@ void embeddedQuadraturePoints(const gsGeometry<T> & surf,
                               gsGeometry<T> & curve,
                               gsMatrix<T> & points,
                               gsVector<T> & weights,
-                              const gsThinShellAssemblerBase<T> *assembler,
                               index_t Nguess = 10,
-                              T threshold = 1e-2)
+                              T threshold = 1e-3)
 {
     const gsTensorBSplineBasis<2,T>& basis_s = dynamic_cast<const gsTensorBSplineBasis<2,T>&>(surf.basis());
     const gsKnotVector<T> & kv_u = basis_s.knots(0);
@@ -2144,8 +2143,7 @@ void embeddedQuadraturePoints(const gsGeometry<T> & surf,
     //! [Search for crossings between embedded curve and surface knot lines based on multiple γ-guesses]
     gsVector<T> guess(Nguess);
     gsMatrix<T> supp = curve.support();
-    index_t     N = assembler->numDofs();
-    guess.setLinSpaced(N,supp(0,0),supp(0,1));
+    guess.setLinSpaced(Nguess,supp(0,0),supp(0,1));
     index_t lu = guess.rows() * (kv_u.numElements() - 1);
     gsVector<T> crossing_u(lu);
 
@@ -2208,7 +2206,7 @@ void embeddedQuadraturePoints(const gsGeometry<T> & surf,
     //gsGaussRule<T> rule(numNodes);
     short_t numNodes = 3;
     gsGaussRule<T> rule(numNodes);
-    
+
     points.resize(1,(bs_curve.knots(0).uSize()-1)*numNodes);
     weights.resize((bs_curve.knots(0).uSize()-1)*numNodes);
     gsMatrix<T> points_ks (curve.parDim(),numNodes);

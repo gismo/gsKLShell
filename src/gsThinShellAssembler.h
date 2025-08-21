@@ -244,12 +244,15 @@ public:
     ThinShellAssemblerStatus assemblePressureMatrix(const T pressure, const gsFunctionSet<T> & deformed);
 
     /// See \ref gsThinShellAssemblerBase for details
-    ThinShellAssemblerStatus assembleLinearEmbeddedCurve(const gsMultiPatch<T> &curve, T EA, T EI_min, T EI_max, T GI_p, 
-                                                         const gsMatrix<T> & allquPointsCurve, const gsMatrix<T> & allquWeights);
-    
+    ThinShellAssemblerStatus assembleLinearEmbeddedCurve(const gsMultiPatch<T> &curve, T EA, T EI_min, T EI_max, T GI_p,
+                                                         const std::vector<gsMatrix<T>> &allquPointsCurve,
+                                                         const std::vector<gsVector<T>> &allquWeights);
+
     /// See \ref gsThinShellAssemblerBase for details
     ThinShellAssemblerStatus assembleNonlinearEmbeddedCurve(const gsMultiPatch<T> &curve, const gsMultiPatch<T> &deformed,
-                                                            T EA, T EI_min, T EI_max, T GI_p, const gsMatrix<T> & allquPointsCurve, const gsMatrix<T> & allquWeights);
+                                                            T EA, T EI_min, T EI_max, T GI_p,
+                                                            const std::vector<gsMatrix<T>> & allquPointsCurve,
+                                                            const std::vector<gsVector<T>> & allquWeights);
 
 private:
     /// Implementation of assembleMatrix for surfaces (3D)
@@ -939,7 +942,9 @@ public:
      * @param[in]  allquPointsCurve  The quadrature points for the curve
      * @param[in]  allquWeights      The quadrature weights for the curve
      */
-    virtual ThinShellAssemblerStatus assembleLinearEmbeddedCurve(const gsMultiPatch<T> &curve, T EA, T EI_min, T EI_max, T GI_p, const gsMatrix<T> &allquPointsCurve, const gsMatrix<T> &allquWeights) = 0;
+    virtual ThinShellAssemblerStatus assembleLinearEmbeddedCurve(const gsMultiPatch<T> &curve, T EA, T EI_min, T EI_max, T GI_p,
+                                                         const std::vector<gsMatrix<T>> &allquPointsCurve,
+                                                         const std::vector<gsVector<T>> &allquWeights) = 0;
 
     /**
      * @brief      Assembles the nonlinear stiffness matrix contibution for embedded curves
@@ -954,7 +959,10 @@ public:
      * @param[in]  allquPointsCurve  The quadrature points for the curve
      * @param[in]  allquWeights      The quadrature weights for the curve
      */
-    virtual ThinShellAssemblerStatus assembleNonlinearEmbeddedCurve(const gsMultiPatch<T> &curve, const gsMultiPatch<T> &deformed, T EA, T EI_min, T EI_max, T GI_p, const gsMatrix<T> &allquPointsCurve, const gsMatrix<T> &allquWeights) = 0;
+    virtual ThinShellAssemblerStatus assembleNonlinearEmbeddedCurve(const gsMultiPatch<T> &curve, const gsMultiPatch<T> &deformed,
+                                                                    T EA, T EI_min, T EI_max, T GI_p,
+                                                                    const std::vector<gsMatrix<T>> & allquPointsCurve,
+                                                                    const std::vector<gsVector<T>> & allquWeights) = 0;
 
     /**
      * @brief      Assembles the pressure contribution in the system vector (linear)

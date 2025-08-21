@@ -1449,7 +1449,7 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMass(const
             m_assembler.assemble(mm0.val()*(m_space.rowSum())*meas(m_ori));
             m_assembler.rhs_into(m_rhs);
         }
-        
+
 /*        // assemble system
         if (!lumped)
         {
@@ -1960,7 +1960,7 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     m_assembler.initSystem();
     m_assembler.initVector(1);
     m_rhs.clear();
-    m_rhs.setZero(m_assembler.numDofs(), 1);   
+    m_rhs.setZero(m_assembler.numDofs(), 1);
 
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&m_patches,&deformed);
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorM> m_S1(m_materialMatrices,&m_patches,&deformed);
@@ -2031,7 +2031,7 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
     m_assembler.initSystem();
     m_assembler.initVector(1);
     m_rhs.clear();
-    m_rhs.setZero(m_assembler.numDofs(), 1);  
+    m_rhs.setZero(m_assembler.numDofs(), 1);
 
     gsMaterialMatrixIntegrate<T,MaterialOutput::VectorN> m_S0(m_materialMatrices,&m_patches,&deformed);
     auto S0  = m_assembler.getCoeff(m_S0);
@@ -2249,7 +2249,8 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleFoundation
 template<short_t d, class T, bool bending>
 ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleLinearEmbeddedCurve(const gsMultiPatch<T> &curve,
                                                               T EA, T EI_min, T EI_max, T GI_p,
-                                                              const gsMatrix<T> &allquPointsCurve, const gsMatrix<T> &allquWeights)
+                                                              const std::vector<gsMatrix<T>> &allquPointsCurve,
+                                                              const std::vector<gsVector<T>> &allquWeights)
 {
     /*
     TODO:
@@ -2302,8 +2303,8 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleLinearEmbe
 
         // Construct quadrature points on the curve
         //embeddedQuadraturePoints(m_patches.patch(0),curve.patch(p),quPointsCurve,quWeights,this);
-        gsMatrix<T> quPointsCurve = allquPointsCurve.middleRows(p,1);
-        gsMatrix<T> quWeights = allquWeights.middleRows(p,1);
+        gsMatrix<T> quPointsCurve = allquPointsCurve[p]; //.middleRows(p,1);
+        gsVector<T> quWeights = allquWeights[p];  //.middleRows(p,1);
         //gsDebugVar(quPointsCurve);
         //gsDebugVar(quWeights);
 
@@ -2319,7 +2320,7 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleLinearEmbe
             continue;
 
             evalMat = exprEvaluator.eval(stiff,quPointsCurve.col(k));
-            localMat = quWeights(0,k) * evalMat;
+            localMat = quWeights[k] * evalMat;  //quWeights(0,k)
 
             // Push the local element matrix inside the big system
             const expr::gsFeSpace<T> & v      = stiff.rowVar();
@@ -2364,8 +2365,9 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleLinearEmbe
 template<short_t d, class T, bool bending>
 ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleNonlinearEmbeddedCurve(const gsMultiPatch<T> &curve,
                                                     const gsMultiPatch<T> &deformed,
-                                                    T EA, T EI_min, T EI_max, T GI_p, const gsMatrix<T> &allquPointsCurve, 
-                                                    const gsMatrix<T> &allquWeights)
+                                                    T EA, T EI_min, T EI_max, T GI_p,
+                                                    const std::vector<gsMatrix<T>> &allquPointsCurve,
+                                                    const std::vector<gsVector<T>> &allquWeights)
 {
     /*
     TODO:
@@ -2391,11 +2393,14 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleNonlinearE
     //gsVector<T> quWeights;
     gsMatrix<T> evalMat, localMat, evalRhs, localRhs;
 
+    gsMatrix<T, 2, 1> boxMin = gsMatrix<T, 2, 1>::Zero();
+    gsMatrix<T, 2, 1> boxMax = gsMatrix<T, 2, 1>::Ones();
+
     for (size_t p=0; p!=curve.nPatches(); p++)
     {
         auto G_curve = m_assembler.getMap(curve.patch(p));
         gsSparseMatrix<T> matrix_curve(N,N);
-        gsVector<T> vector_curve(N);   
+        gsVector<T> vector_curve(N);
         vector_curve.setZero();
 
         auto eps = 0.5 * (ctv(defG_surf, G_curve).tr()*ctv(defG_surf, G_curve) - ctv(G_surf, G_curve).tr()*ctv(G_surf, G_curve));
@@ -2452,8 +2457,8 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleNonlinearE
 
         // Construct quadrature points on the curve
         //embeddedQuadraturePoints(m_patches.patch(0),curve.patch(p),quPointsCurve,quWeights,this);
-        gsMatrix<T> quPointsCurve = allquPointsCurve.middleRows(p,1);
-        gsMatrix<T> quWeights = allquWeights.middleRows(p,1);
+        gsMatrix<T> quPointsCurve = allquPointsCurve[p]; //.middleRows(p,1);
+        gsVector<T> quWeights = allquWeights[p]; //.middleRows(p,1);
 
         // Map the quadrature points of the curve to 2D coordinates
         curve.patch(p).eval_into(quPointsCurve, quPointsSurface);
@@ -2461,11 +2466,15 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleNonlinearE
         // Loop over the quadrature points
         for (index_t k=0; k!=quPointsCurve.cols(); k++)
         {
+            // Skip the point if outside the bounding box of the surface patch
+            if ((boxMin.array() > quPointsSurface.col(k).array()).any() || (quPointsSurface.col(k).array() > boxMax.array()).any())
+            continue;
+
             evalMat = exprEvaluator.eval(stiff,quPointsCurve.col(k));
-            localMat = quWeights(0,k) * evalMat;
+            localMat = quWeights[k] * evalMat;   //quWeights(0,k)
             //gsDebugVar(localMat);
             evalRhs = exprEvaluator.eval(rhs,quPointsCurve.col(k));
-            localRhs = quWeights(0,k) * evalRhs;
+            localRhs = quWeights[k] * evalRhs;   //quWeights(0,k)
             //gsDebugVar(localRhs);
 
             // Push the local element matrix inside the big system
