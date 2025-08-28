@@ -32,8 +32,11 @@ public:
                         const gsDofMapper               &mapper,
                         const gsMultiPatch<T>           &geom,
                         const gsMultiPatch<T>           &rib,
+                        const gsMultiPatch<T>           &pipe,
                         const std::vector<gsMatrix<T>>  &allquPointsCurve_rib,
                         const std::vector<gsVector<T>>  &allquWeights_rib,
+                        const std::vector<gsMatrix<T>>  &allquPointsCurve_pipe,
+                        const std::vector<gsVector<T>>  &allquWeights_pipe,
                         const gsVector<T>               &materialParameters,
                         index_t                         &numRefineAn,
                         index_t                         &numRefineOpt)
@@ -42,8 +45,11 @@ public:
     m_mapper(mapper),
     m_geom(geom),
     m_rib(rib),
+    m_pipe(pipe),
     m_allquPointsCurve_rib(allquPointsCurve_rib),
     m_allquWeights_rib(allquWeights_rib),
+    m_allquPointsCurve_pipe(allquPointsCurve_pipe),
+    m_allquWeights_pipe(allquWeights_pipe),
     m_materialParameters(materialParameters),
     m_numRefineAn(numRefineAn),
     m_numRefineOpt(numRefineOpt),
@@ -129,7 +135,6 @@ public:
     T evalObj(const gsAsConstVector<T> &u) const override
     {
         // Update geometry coefficients from current design u
-        gsDebug << "Computing objective at point " << u.transpose() << "\n";
         gsMultiPatch<> tmpGeom = m_geom;
         this->geomUpdate(u,tmpGeom,m_mapper);
         
@@ -141,21 +146,28 @@ public:
         m_assembler->setGeometry(anGeom);
         ThinShellAssemblerStatus status = m_assembler->assemble();
         GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Assembly failed");
-        gsInfo<<"Setting up shell assembly\n";
+        //gsInfo<<"Setting up shell assembly\n";
         gsSparseMatrix<> K_s = m_assembler->matrix();
         gsVector<> F_s = m_assembler->rhs();
-        gsInfo<<"Shell assembly done\n";
+        //gsInfo<<"Shell assembly done\n";
 
-        gsInfo <<"Setting up rib assembly\n";
-        T EA_rib = m_materialParameters[0];   
-        T EI_min_rib = m_materialParameters[1];
-        T EI_max_rib = m_materialParameters[2];
-        T GI_p_rib = m_materialParameters[3];
+        //gsInfo <<"Setting up rib assembly\n";
+        T EA_rib = m_materialParameters[0];         T EI_min_rib = m_materialParameters[1];
+        T EI_max_rib = m_materialParameters[2];     T GI_p_rib = m_materialParameters[3];
         ThinShellAssemblerStatus status_rib;
         status_rib = m_assembler->assembleLinearEmbeddedCurve(m_rib,EA_rib,EI_min_rib,EI_max_rib,GI_p_rib,m_allquPointsCurve_rib,m_allquWeights_rib);
         GISMO_ENSURE(status_rib==ThinShellAssemblerStatus::Success,"Assembly for rib embedding failed");
-        gsSparseMatrix<> K_embedded = m_assembler->matrix();
-        K_s += K_embedded;
+        gsSparseMatrix<> K_embedded_rib = m_assembler->matrix();
+        K_s += K_embedded_rib;
+
+        //gsInfo <<"Setting up breakwater assembly\n";
+        T EA_pipe = m_materialParameters[4];         T EI_min_pipe = m_materialParameters[5];
+        T EI_max_pipe = m_materialParameters[6];     T GI_p_pipe = m_materialParameters[7];
+        ThinShellAssemblerStatus status_pipe;
+        status_pipe = m_assembler->assembleLinearEmbeddedCurve(m_pipe,EA_pipe,EI_min_pipe,EI_max_pipe,GI_p_pipe,m_allquPointsCurve_pipe,m_allquWeights_pipe);
+        GISMO_ENSURE(status_pipe==ThinShellAssemblerStatus::Success,"Assembly for breakwater embedding failed");
+        gsSparseMatrix<> K_embedded_pipe = m_assembler->matrix();
+        K_s += K_embedded_pipe;
 
         gsSparseSolver<>::CGDiagonal solver;
         solver.compute(K_s);
@@ -170,7 +182,6 @@ public:
     //void gradObj_analytical_into(const gsAsConstVector<T> &u, gsAsVector<T> &result) const
     void gradObj_into(const gsAsConstVector<T> &u, gsAsVector<T> &result) const override
     {
-        gsDebug << "Computing gradient at point " << u.transpose() << "\n";
         result.resize(m_numDesignVars);
 
         // Update geometry coefficients from current design u
@@ -191,15 +202,22 @@ public:
         //gsInfo<<"Shell assembly done\n";
 
         //gsInfo <<"Setting up rib assembly\n";
-        T EA_rib = m_materialParameters[0];   
-        T EI_min_rib = m_materialParameters[1];
-        T EI_max_rib = m_materialParameters[2];
-        T GI_p_rib = m_materialParameters[3];
+        T EA_rib = m_materialParameters[0];         T EI_min_rib = m_materialParameters[1];
+        T EI_max_rib = m_materialParameters[2];     T GI_p_rib = m_materialParameters[3];
         ThinShellAssemblerStatus status_rib;
         status_rib = m_assembler->assembleLinearEmbeddedCurve(m_rib,EA_rib,EI_min_rib,EI_max_rib,GI_p_rib,m_allquPointsCurve_rib,m_allquWeights_rib);
         GISMO_ENSURE(status_rib==ThinShellAssemblerStatus::Success,"Assembly for rib embedding failed");
-        gsSparseMatrix<> K_embedded = m_assembler->matrix();
-        K_s += K_embedded;
+        gsSparseMatrix<> K_embedded_rib = m_assembler->matrix();
+        K_s += K_embedded_rib;
+
+        //gsInfo <<"Setting up breakwater assembly\n";
+        T EA_pipe = m_materialParameters[4];         T EI_min_pipe = m_materialParameters[5];
+        T EI_max_pipe = m_materialParameters[6];     T GI_p_pipe = m_materialParameters[7];
+        ThinShellAssemblerStatus status_pipe;
+        status_pipe = m_assembler->assembleLinearEmbeddedCurve(m_pipe,EA_pipe,EI_min_pipe,EI_max_pipe,GI_p_pipe,m_allquPointsCurve_pipe,m_allquWeights_pipe);
+        GISMO_ENSURE(status_pipe==ThinShellAssemblerStatus::Success,"Assembly for breakwater embedding failed");
+        gsSparseMatrix<> K_embedded_pipe = m_assembler->matrix();
+        K_s += K_embedded_pipe;
 
         gsSparseSolver<>::CGDiagonal m_solver;
         m_solver.compute(K_s);
@@ -228,8 +246,14 @@ public:
                 ThinShellAssemblerStatus status_rib;
                 status_rib = m_assembler->assembleLinearEmbeddedCurve(m_rib,EA_rib,EI_min_rib,EI_max_rib,GI_p_rib,m_allquPointsCurve_rib,m_allquWeights_rib);
                 GISMO_ENSURE(status_rib==ThinShellAssemblerStatus::Success,"Assembly for rib embedding failed");
-                gsSparseMatrix<> K_embedded = m_assembler->matrix();
-                K_splusds += K_embedded;
+                gsSparseMatrix<> K_embedded_rib = m_assembler->matrix();
+                K_splusds += K_embedded_rib;
+
+                ThinShellAssemblerStatus status_pipe;
+                status_pipe = m_assembler->assembleLinearEmbeddedCurve(m_pipe,EA_pipe,EI_min_pipe,EI_max_pipe,GI_p_pipe,m_allquPointsCurve_pipe,m_allquWeights_pipe);
+                GISMO_ENSURE(status_pipe==ThinShellAssemblerStatus::Success,"Assembly for breakwater embedding failed");
+                gsSparseMatrix<> K_embedded_pipe = m_assembler->matrix();
+                K_splusds += K_embedded_pipe;
 
                 R_star.col(gl) = ((F_splusds - F_s) - 0.5 * (K_splusds - K_s)* u_s)/m_delta_s;
             }
@@ -249,8 +273,11 @@ protected:
     const gsDofMapper              &m_mapper;
     const gsMultiPatch<T>          &m_geom;
     const gsMultiPatch<T>          &m_rib;
+    const gsMultiPatch<T>          &m_pipe;
     const std::vector<gsMatrix<T>> &m_allquPointsCurve_rib;
     const std::vector<gsVector<T>> &m_allquWeights_rib;
+    const std::vector<gsMatrix<T>> &m_allquPointsCurve_pipe;
+    const std::vector<gsVector<T>> &m_allquWeights_pipe;
     const gsVector<T>              &m_materialParameters;
     index_t                         m_numRefineAn;
     index_t                         m_numRefineOpt;
@@ -304,7 +331,6 @@ int main(int argc, char *argv[])
     gsInfo << "\nShell reference geometry for optimization\n";
     gsInfo << "Patches: "<< mp_surfOpt.nPatches() <<", degree: "<< mbasis_surfOpt.minCwiseDegree() <<"\n";
     gsInfo << mbasis_surfOpt.basis(0)<<"\n";
-    gsDebug << mp_surfOpt.patch(0).coefs() << "\n";
     gsWriteParaview(mp_surfOpt, outputDir + "initialDesignOpt", 1000, true, true);
 
     for (int r = 0; r < numRefineAn; ++r)
@@ -314,7 +340,6 @@ int main(int argc, char *argv[])
     gsInfo << "\nShell reference geometry for analysis\n";
     gsInfo << "Patches: "<< mp_surfAn.nPatches() <<", degree: "<< mbasis_surfAn.minCwiseDegree() <<"\n";
     gsInfo << mbasis_surfAn.basis(0)<<"\n";
-    gsDebug << mp_surfAn.patch(0).coefs() << "\n";
     gsWriteParaview(mp_surfAn, outputDir + "initialShellAn", 1000, true, true);
 
     gsGeometry<real_t> &surfgeo = mp_surfAn.patch(0);    
@@ -329,26 +354,27 @@ int main(int argc, char *argv[])
     cpvec = (surf->coefs().block(0,0,cpvec.rows(),1))/r;
 
     gsMultiPatch<> mp_rib;
+    gsMultiPatch<> mp_pipe;
 
     gsMatrix<real_t> coef_LLDPE(basis_c.size(), surf->parDim());
     coef_LLDPE.col(0) = cpvec;
     coef_LLDPE.col(1).setOnes();
     gsBSpline<> LLDPE_top(basis_c, coef_LLDPE);    // top buoyant breakwater
-    mp_rib.addPatch(LLDPE_top);
+    mp_pipe.addPatch(LLDPE_top);
 
     coef_LLDPE.col(1).setZero();
     gsBSpline<> LLDPE_bottom(basis_c, coef_LLDPE); // bottom buoyant breakwater
-    mp_rib.addPatch(LLDPE_bottom);
+    mp_pipe.addPatch(LLDPE_bottom);
 
     coef_LLDPE.col(0).setZero();
     coef_LLDPE.col(1) = cpvec;
     gsBSpline<> LLDPE_left(basis_c, coef_LLDPE);   // left buoyant breakwater
-    mp_rib.addPatch(LLDPE_left);
+    mp_pipe.addPatch(LLDPE_left);
 
     coef_LLDPE.col(0).setOnes();
     coef_LLDPE.col(1) = cpvec;
     gsBSpline<> LLDPE_right(basis_c, coef_LLDPE);  // right buoyant breakwater
-    mp_rib.addPatch(LLDPE_right);
+    mp_pipe.addPatch(LLDPE_right);
 
     gsMatrix<real_t> coef_rib(basis_c.size(), surf->parDim());
     coef_rib.col(0) = cpvec;
@@ -401,13 +427,16 @@ int main(int argc, char *argv[])
 
     gsWriteParaview(mp_rib,  outputDir + "ribs",  1000, true,  true);
     gsMultiBasis<> mbasis_rib(mp_rib);
+
+    gsWriteParaview(mp_pipe,  outputDir + "breakwaters",  1000, true,  true);
+    gsMultiBasis<> mbasis_pipe(mp_pipe);
     //! [Embedded beam features for analysis]
 
     //! [Mechanical properties of shell and embedded entities]
     real_t E_modulus = 1.5e9; // [Pa] HDPE
     real_t PoissonRatio = 0.45;
     real_t density = 950; // [kg/m^3]
-    real_t thickness = 5.0e-3; // [m]
+    real_t thickness = 8.0e-3; // [m]
 
     real_t E_modulus_rib = 1.5e9; // [Pa] HDPE
     real_t PoissonRatio_rib = 0.45;
@@ -419,8 +448,19 @@ int main(int argc, char *argv[])
     real_t EI_max_rib = E_modulus_rib * (thickness_rib * pow(height_rib,3))/12; //maximum flexural rigidity
     real_t GI_p_rib = G_modulus_rib/E_modulus_rib * (EI_min_rib + EI_max_rib);  //torsional rigidity
 
-    gsVector<real_t> materialParameters(4);
-    materialParameters << EA_rib, EI_min_rib, EI_max_rib, GI_p_rib;
+    real_t E_modulus_pipe = 0.6e9;   // [Pa]
+    real_t PoissonRatio_pipe = 0.45;
+    real_t diameter_pipe = 0.10;     // [m] 0.10
+    real_t thickness_pipe = 0.01;    // [m] 0.01
+    real_t G_modulus_pipe = 0.5 * E_modulus_pipe / (1+PoissonRatio_pipe);
+    real_t area_pipe = 3.14 * (pow(diameter_pipe,2) - pow(diameter_pipe-2*thickness_pipe,2)) / 4; //cross-sectional area of breakwater
+    real_t EA_pipe = E_modulus_pipe * area_pipe; // axial rigidity of breakwater cross-section
+    real_t EI_min_pipe = E_modulus_pipe * 3.14 * (pow(diameter_pipe,4) - pow(diameter_pipe-2*thickness_pipe,4)) / 64; //minimum flexural rigidity of breakwater cross-section
+    real_t EI_max_pipe = EI_min_pipe;     //maximum flexural rigidity of breakwater cross-section 
+    real_t GI_p_pipe = G_modulus_pipe/E_modulus_pipe * (EI_min_pipe + EI_max_pipe);  //torsional rigidity of breakwater cross-section
+
+    gsVector<real_t> materialParameters(8);
+    materialParameters << EA_rib, EI_min_rib, EI_max_rib, GI_p_rib, EA_pipe, EI_min_pipe, EI_max_pipe, GI_p_pipe;
     //! [Mechanical properties of shell and embedded entities]
 
     //! [Make material functions]
@@ -481,6 +521,19 @@ int main(int argc, char *argv[])
         allquPointsCurve_rib.push_back(quPointsCurve);
         allquWeights_rib.push_back(quWeights);
     }
+
+    index_t numPatches_pipe = mp_pipe.nPatches();
+
+    std::vector<gsMatrix<>> allquPointsCurve_pipe;
+    std::vector<gsVector<>> allquWeights_pipe;
+
+    for (index_t p = 0; p < numPatches_pipe; ++p)
+    {
+        gsMatrix<> quPointsCurve;         gsVector<> quWeights;
+        embeddedQuadraturePoints(mp_surfAn.patch(0),mp_pipe.patch(p),quPointsCurve,quWeights);
+        allquPointsCurve_pipe.push_back(quPointsCurve);
+        allquWeights_pipe.push_back(quWeights);
+    }
     //! [h-refine embedded curves based on mp_surfAn for conforming quadrature]
 
     //! [Freeze z-dof on shell boundaries]
@@ -499,8 +552,9 @@ int main(int argc, char *argv[])
     //! [Freeze z-dof on shell boundaries]
 
     //! [Optimizer setup]
-    gsShapeOptProblem<real_t> problem(assembler,mapper,mp_surfOpt,mp_rib,
+    gsShapeOptProblem<real_t> problem(assembler,mapper,mp_surfOpt,mp_rib,mp_pipe,
                                       allquPointsCurve_rib,allquWeights_rib,
+                                      allquPointsCurve_pipe,allquWeights_pipe,
                                       materialParameters,numRefineAn,numRefineOpt);
 
     gsOptimizer<real_t> *optimizer;
@@ -531,6 +585,7 @@ int main(int argc, char *argv[])
     // Plot optimized design
     gsWrite(mp_surfOpt, outputDir + "OptimalShell"); //.xml file of optimal shell geometry
     gsWrite(mp_rib, outputDir + "RibTopology"); //.xml file of rib geometry
+    gsWrite(mp_pipe, outputDir + "BreakwaterTopology"); //.xml file of breakwater geometry
     gsWriteParaview(mp_surfOpt, outputDir + "OptimizedDesign", 1000, true, false);
 
     // ****** VALIDATION ****** //
