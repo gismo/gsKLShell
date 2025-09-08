@@ -176,6 +176,18 @@ public:
             anGeom.uniformRefine();
         m_assembler->setGeometry(anGeom);
 
+        // Check if solution already computed
+        gsVector<T> u_tmp = u;
+        if (m_lookup.find(u_tmp) != m_lookup.end())
+        {
+            gsVector<T> u_s = m_lookup.at(u_tmp);
+            ThinShellAssemblerStatus status = m_assembler->assemble();
+            GISMO_ENSURE(status == ThinShellAssemblerStatus::Success, "Shell linear assembly failed");
+            F_s = m_assembler->rhs(); // initial residual
+            assembleNonlinear(u_s, jacMat_s, rhsVec_s, m_materialParameters);
+            return u_s;
+        }
+
         ThinShellAssemblerStatus status = m_assembler->assemble();
         GISMO_ENSURE(status == ThinShellAssemblerStatus::Success, "Shell linear assembly failed");
 
@@ -209,7 +221,8 @@ public:
         T residualOld = residual;
 
         gsVector<T> updateVector;
-        for (index_t it = 0; it != 100; ++it)
+        index_t maxIt = 50;
+        for (index_t it = 0; it != maxIt; ++it)
         {
             assembleNonlinear(u_s, jacMat_s, rhsVec_s, m_materialParameters);
             solver.compute(jacMat_s);
@@ -229,10 +242,15 @@ public:
 
             if (updateVector.norm() < 1e-6)
                 break;
-            else if (it + 1 == it)
+            else if (it + 1 == maxIt)
+            {
                 gsWarn << "Maximum iterations reached!\n";
+                throw 100;
+            }
         }
 
+        // Add to the lookup table
+        m_lookup[u_tmp] = u_s;
         return u_s;
     }
 
@@ -240,10 +258,28 @@ public:
     {
         gsVector<T> F_s, rhsVec_s;
         gsSparseMatrix<T> jacMat_s;
-        gsVector<T> u_s = solveStateEquation(u, F_s, rhsVec_s, jacMat_s);
+        gsVector<T> u_s;
+        try
+        {
+            u_s = solveStateEquation(u, F_s, rhsVec_s, jacMat_s);
+        }
+        catch (int)
+        {
+            std::time_t now = std::time(nullptr);
+            std::tm* timeinfo = std::localtime(&now);
+            char buffer[80];
+            std::strftime(buffer, sizeof(buffer), "failed_state_%Y%m%d_%H%M%S", timeinfo);
+            std::string filename(buffer);
+            gsWarn << "[evalObj] Saving failure info to: " << filename << ".xml\n";
+            gsMultiPatch<> tmpGeom = m_geom;
+            geomUpdate(u, tmpGeom, m_mapper);
+            gsWrite(tmpGeom, filename);
+            GISMO_ERROR("[evalObj] Stopping simulation.");
+            return -1;
+        }
 
         T obj = 0.5 * u_s.transpose() * (rhsVec_s + F_s);
-        gsDebug << "Objective: " << obj << " at point " << u.transpose() << "\n";
+        gsInfo << "Objective: " << obj << " at point " << u.transpose() << "\n";
         return obj;
     }
 
@@ -257,7 +293,24 @@ public:
 
         gsVector<T> F_s, rhsVec_s;
         gsSparseMatrix<T> jacMat_s;
-        gsVector<T> u_s = solveStateEquation(u, F_s, rhsVec_s, jacMat_s);
+        gsVector<T> u_s;
+        try
+        {
+            u_s = solveStateEquation(u, F_s, rhsVec_s, jacMat_s);
+        }
+        catch (int)
+        {
+            std::time_t now = std::time(nullptr);
+            std::tm* timeinfo = std::localtime(&now);
+            char buffer[80];
+            std::strftime(buffer, sizeof(buffer), "failed_state_%Y-%m-%d_%H_%M_%S", timeinfo);
+            std::string filename(buffer);
+            gsWarn << "[gradObj] Saving failure info to: " << filename << ".xml\n";
+            gsMultiPatch<> tmpGeom = m_geom;
+            geomUpdate(u, tmpGeom, m_mapper);
+            gsWrite(tmpGeom, filename);
+            GISMO_ERROR("[gradObj] Stopping simulation.");
+        }
 
         gsSparseSolver<>::CGDiagonal solver;
         solver.compute(jacMat_s);
@@ -278,26 +331,26 @@ public:
                 for (int r = 0; r < m_numRefineDiff; ++r)
                         anGeom_splusds.uniformRefine();
                 m_assembler->setGeometry(anGeom_splusds);
-                ThinShellAssemblerStatus status = m_assembler->assemble();
-                GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Shell linear assembly failed");
-                gsSparseMatrix<T> K_splusds = m_assembler->matrix();
-                gsVector<T> F_splusds = m_assembler->rhs();  //displacement-independent external force vector
+                // ThinShellAssemblerStatus status = m_assembler->assemble();
+                // GISMO_ENSURE(status==ThinShellAssemblerStatus::Success,"Shell linear assembly failed");
+                // gsSparseMatrix<T> K_splusds = m_assembler->matrix();
+                // gsVector<T> F_splusds = m_assembler->rhs();  //displacement-independent external force vector
 
-                T EA_rib = m_materialParameters[0];            T EI_min_rib  = m_materialParameters[1];
-                T EI_max_rib  = m_materialParameters[2];       T GI_p_rib    = m_materialParameters[3];
-                status = m_assembler->assembleLinearEmbeddedCurve(m_rib,EA_rib,EI_min_rib,EI_max_rib,GI_p_rib,
-                                                                     m_allquPointsCurve_rib,m_allquWeights_rib);
-                GISMO_ENSURE(status == ThinShellAssemblerStatus::Success,"Rib linear assembly failed");
-                gsSparseMatrix<T> K_embedded_splusds = m_assembler->matrix();
-                K_splusds += K_embedded_splusds;
+                // T EA_rib = m_materialParameters[0];            T EI_min_rib  = m_materialParameters[1];
+                // T EI_max_rib  = m_materialParameters[2];       T GI_p_rib    = m_materialParameters[3];
+                // status = m_assembler->assembleLinearEmbeddedCurve(m_rib,EA_rib,EI_min_rib,EI_max_rib,GI_p_rib,
+                //                                                      m_allquPointsCurve_rib,m_allquWeights_rib);
+                // GISMO_ENSURE(status == ThinShellAssemblerStatus::Success,"Rib linear assembly failed");
+                // gsSparseMatrix<T> K_embedded_splusds = m_assembler->matrix();
+                // K_splusds += K_embedded_splusds;
 
-                T EA_pipe = m_materialParameters[4];            T EI_min_pipe  = m_materialParameters[5];
-                T EI_max_pipe  = m_materialParameters[6];       T GI_p_pipe    = m_materialParameters[7];
-                status = m_assembler->assembleLinearEmbeddedCurve(m_pipe,EA_pipe,EI_min_pipe,EI_max_pipe,GI_p_pipe,
-                                                                  m_allquPointsCurve_pipe,m_allquWeights_pipe);
-                GISMO_ENSURE(status == ThinShellAssemblerStatus::Success,"Breakwater linear assembly failed");
-                K_embedded_splusds = m_assembler->matrix();
-                K_splusds += K_embedded_splusds;
+                // T EA_pipe = m_materialParameters[4];            T EI_min_pipe  = m_materialParameters[5];
+                // T EI_max_pipe  = m_materialParameters[6];       T GI_p_pipe    = m_materialParameters[7];
+                // status = m_assembler->assembleLinearEmbeddedCurve(m_pipe,EA_pipe,EI_min_pipe,EI_max_pipe,GI_p_pipe,
+                //                                                   m_allquPointsCurve_pipe,m_allquWeights_pipe);
+                // GISMO_ENSURE(status == ThinShellAssemblerStatus::Success,"Breakwater linear assembly failed");
+                // K_embedded_splusds = m_assembler->matrix();
+                // K_splusds += K_embedded_splusds;
 
                 gsVector<T> rhsVec_splusds;
                 gsSparseMatrix<T> jacMat_splusds;
@@ -315,6 +368,17 @@ public:
     {
         this->gradObj_into(u, result);
     }
+
+private:
+
+    struct VectorCompare
+    {
+        bool operator()(const gsVector<T> &a, const gsVector<T> &b) const
+        {
+            return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end());
+        }
+    };
+
 
 protected:
 
@@ -341,6 +405,7 @@ protected:
     // using Base::m_conJacRows;
     // using Base::m_conJacCols;
     T                               m_delta_s;
+    mutable std::map<gsVector<T>, gsVector<T>, VectorCompare> m_lookup;
 };
 
 using namespace gismo;
@@ -350,13 +415,20 @@ int main(int argc, char *argv[])
     //! [Parse command line]
     index_t numRefineAn  = 0;
     index_t numRefineOpt  = 0;
+    std::string outputDir = "./output";
     GISMO_ASSERT(numRefineAn >= numRefineOpt,"Mesh refinement for analysis not coarser than for optimization");
 
     gsCmdLine cmd("Strain-energy based nonlinear optimization of rib-enforced shells by adjustment of shell geometry.");
     cmd.addInt( "A", "rAn", "Number of uniform h-refinement steps to perform before analysis",  numRefineAn );
     cmd.addInt( "O", "rOpt", "Number of uniform h-refinement steps to perform before optimization",  numRefineOpt );
+    cmd.addString("o", "output", "Output directory", outputDir);
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
+
+    GISMO_ENSURE(numRefineAn >= numRefineOpt,"Mesh refinement for analysis not coarser than for optimization");
+    outputDir += gsFileManager::getNativePathSeparator();
+    if (!gsFileManager::fileExists(outputDir))
+        gsFileManager::mkdir(outputDir);
 
     //! [Shell reference geometry for analysis and optimization]
     gsMultiPatch<> mp_surfOpt;
@@ -586,7 +658,7 @@ int main(int argc, char *argv[])
     // problem.gradObj_FDM_into(initialDesign,sensitivities_FDM);
     // gsInfo<<"\nNumerical sensitivity vector:\n";
     // gsDebugVar(sensitivities_FDM.transpose());
-    // gsDebugVar(sensitivities_FDM.norm());
+    // gsInfoVar(sensitivities_FDM.norm());
     // return EXIT_SUCCESS;
 
     //! [Solve]
@@ -608,7 +680,7 @@ int main(int argc, char *argv[])
 
     // //Evaluate the objective function
     // gsShapeOptProblem<real_t> SOP(assembler,mapper,mp_surfOpt,numRefineAn,numRefineOpt);
-    // gsDebug<<SOP.evalObj(initialDesign)<<"\n";
+    // gsInfo<<SOP.evalObj(initialDesign)<<"\n";
 
     // //Evaluate the sensitivity vector
     // gsMatrix<> mat(mapper.freeSize(),1);
