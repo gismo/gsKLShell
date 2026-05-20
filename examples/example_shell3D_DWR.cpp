@@ -338,14 +338,14 @@ int main(int argc, char *argv[])
 
     std::vector<real_t> elErrors;
 
-    gsAdaptiveMeshing<real_t> mesher;
+    gsAdaptiveMeshing<2, real_t> mesher;
     if (adaptivity!=0)
     {
         gsFileData<> fd_mesher(mesherOptionsFile);
         gsOptionList mesherOpts;
         fd_mesher.getFirst<gsOptionList>(mesherOpts);
 
-        mesher = gsAdaptiveMeshing<real_t>(mp);
+        mesher = gsAdaptiveMeshing<2, real_t>(mp);
         mesher.options() = mesherOpts;
         mesher.getOptions();
     }
