@@ -22,6 +22,44 @@
 namespace gismo
 {
 
+// ============================================================================
+// Diagnostics: global counter of gsMaterialMatrixBaseDim::_computePoints calls.
+//
+// This is a benchmarking aid (gsKLShell issue #28) used to make the material
+// pipeline's redundancy visible: the legacy gsThinShellAssembler creates SIX
+// independent gsMaterialMatrixIntegrate coefficients (MatrixA/B/C/D + VectorN/M)
+// per assembly, and each one independently re-runs _computePoints (both metrics
+// + thickness + parameters) on every element block.
+//
+// The accessors (and the counter) are declared GISMO_EXPORT here and DEFINED
+// ONCE in the explicit-instantiation unit gsMaterialMatrixBaseDim_.cpp, which is
+// compiled a single time into libgismo. This is required: G+Smo is built with
+// -fvisibility=hidden, so an inline function-local static would get a SEPARATE
+// hidden instance in the library and in each driver TU -- the library would
+// increment its copy while the driver reads its own (always zero). A single
+// exported symbol guarantees one counter shared across the .so boundary.
+// The counter is NOT thread-exact (a plain non-atomic global); it is intended
+// for single-threaded measurement only (run with OMP_NUM_THREADS=1).
+// ============================================================================
+/// Returns the number of gsMaterialMatrixBaseDim::_computePoints INVOCATIONS
+/// since the last reset (counted BEFORE the same-input guard; single global
+/// counter, single-threaded use only).
+GISMO_EXPORT size_t gsMaterialMatrixComputePointsCalls();
+/// Resets the _computePoints invocation counter to zero.
+GISMO_EXPORT void   gsMaterialMatrixResetComputePointsCalls();
+/// Internal: increments the _computePoints invocation counter.
+GISMO_EXPORT void   gsMaterialMatrixIncrementComputePointsCalls();
+
+/// Returns the number of gsMaterialMatrixBaseDim::_computePoints MISSES (full
+/// executions that passed the same-input guard and actually recomputed the
+/// metrics/thickness/parameters) since the last reset. calls-misses = the
+/// redundant invocations the guard eliminated (gsKLShell issue #28).
+GISMO_EXPORT size_t gsMaterialMatrixComputePointsMisses();
+/// Resets the _computePoints miss counter to zero.
+GISMO_EXPORT void   gsMaterialMatrixResetComputePointsMisses();
+/// Internal: increments the _computePoints miss counter.
+GISMO_EXPORT void   gsMaterialMatrixIncrementComputePointsMisses();
+
 template <short_t dim, class T>
 class gsMaterialMatrixBaseDimData;
 
@@ -464,7 +502,19 @@ public:
         m_Acov_ori_mat.setZero(); m_Acon_ori_mat.setZero(); m_Acov_def_mat.setZero(); m_Acon_def_mat.setZero(); m_Bcov_ori_mat.setZero(); m_Bcov_def_mat.setZero();
         m_acov_ori_mat.setZero(); m_acon_ori_mat.setZero(); m_acov_def_mat.setZero(); m_acon_def_mat.setZero(); m_ncov_ori_mat.setZero(); m_ncov_def_mat.setZero(); m_normal_ori_mat.setZero(); m_normal_def_mat.setZero();
 
+        // Invalidate the same-input guard so a re-zeroed cache always recomputes.
+        m_lastPatch = -1;
     }
+
+    // ---- Same-input guard state (gsKLShell issue #28) ------------------------
+    // Records the (patch, points, config-revision) triple of the last FULL
+    // _computePoints executed ON THIS THREAD. Because this state lives inside the
+    // same per-thread gsThreaded<gsMaterialMatrixBaseDimData> struct as the cached
+    // metrics above, its thread-locality is inherited: no extra synchronization.
+    // m_lastPatch==-1 means "no valid cache" (forces a miss).
+    mutable index_t     m_lastPatch = -1;
+    mutable uint64_t    m_lastRev   = 0;
+    mutable gsMatrix<T> m_lastPoints;
     // Material parameters and kinematics
     mutable gsMatrix<T> m_parmat;
     mutable gsVector<T> m_parvals;

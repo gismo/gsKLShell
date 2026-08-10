@@ -150,6 +150,7 @@ int main(int argc, char *argv[])
     gsVector<> updateVector = solVector;
     gsVector<> R;
     GISMO_ENSURE(Residual(solVector,R),"Assembly of the residual failed");
+    bool converged = false;
     for (index_t it = 0; it != 100; ++it)
     {
         GISMO_ENSURE(Jacobian(solVector,matrix),"Assembly of the Jacobian failed");
@@ -165,10 +166,17 @@ int main(int argc, char *argv[])
            <<"\n";
 
         if (updateVector.norm() < 1e-6)
+        {
+            converged = true;
             break;
-        else if (it+1 == it)
-            gsWarn<<"Maximum iterations reached!\n";
+        }
     }
+    // The guard that used to sit at the end of the loop read
+    //     else if (it+1 == it) gsWarn<<"Maximum iterations reached!\n";
+    // which is ALWAYS FALSE, so a Newton solve that used up all 100 iterations
+    // ended quietly and the (non-converged) solution was used as if it were good.
+    if (!converged)
+        gsWarn<<"Maximum iterations reached! The Newton solver did NOT converge.\n";
     //! [Solve nonlinear problem]
 
     //! [Construct solution and deformed geometry]

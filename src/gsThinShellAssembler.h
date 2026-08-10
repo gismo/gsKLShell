@@ -370,7 +370,8 @@ public:
         this->_initialize();
     }
 
-    /// See \ref gsThinShellAssemblerBase for details
+    /// See \ref gsThinShellAssemblerBase for details -- in particular the
+    /// precondition that the space basis is NOT finer than the integration mesh.
     void setSpaceBasis(const gsFunctionSet<T> & spaceBasis)
     {
         m_spaceBasis = &spaceBasis;
@@ -809,7 +810,34 @@ public:
     /// Assembles the linear system and corresponding right-hand side
     virtual ThinShellAssemblerStatus assemble() = 0;
 
-    /// Set the basis that is used for assembly (but not for quadrature!)
+    /**
+     * @brief Set the basis that is used for assembly (but not for quadrature!)
+     *
+     * \b PRECONDITION: the space basis must NOT be finer than the integration
+     * mesh \c m_basis (the one passed to the constructor / \ref setBasis).
+     * Assembly integrates on \c m_basis' elements, and \c gsExprAssembler's
+     * \c SAME_ELEMENT path evaluates the space at \b one knot span per element
+     * (\c gsBSplineBasis.hpp:947, \c if(!sameElement || 0==v) -- the span is
+     * located at the first point only and reused for all the rest), so a finer
+     * space basis is integrated with the off-span polynomial extension of its
+     * basis functions rather than with the functions themselves.
+     *
+     * Measured on a 2x-refined space basis: \b 63\% error, and \b still \b 8.9\%
+     * with \c SAME_ELEMENT disabled -- a coarse integration mesh cannot
+     * accurately integrate a fine basis either way. The configuration is
+     * therefore \b unsupported, not merely slow, and it is NOT guarded here: a
+     * \c numElements() test would miss the same-count/different-knots case and a
+     * full knot-vector test is disproportionate for a configuration that occurs
+     * nowhere in this tree.
+     *
+     * The supported use is the reverse split: an integration mesh at least as
+     * fine as the space basis (e.g. over-integration, or a mapped/assembled
+     * space living on a coarser function set).
+     *
+     * \param[in] spaceBasis basis used to build the discretisation space; must
+     *                       be no finer than the integration mesh.
+     * \sa setBasis, getSpaceBasis
+     */
     virtual void setSpaceBasis(const gsFunctionSet<T> & spaceBasis) = 0;
 
     /// Get the basis that is used for assembly (but not for quadrature!)

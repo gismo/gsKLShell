@@ -28,6 +28,12 @@
 namespace gismo
 {
 
+// Diagnostics counter (gsKLShell issue #28): the counter and its three accessor
+// free functions are DEFINED ONCE in gsMaterialMatrixBaseDim_.cpp (compiled a
+// single time into libgismo), and only DECLARED (GISMO_EXPORT) in the .h. This
+// template method calls gsMaterialMatrixIncrementComputePointsCalls() at the top
+// of _computePoints. See gsMaterialMatrixBaseDim.h for the visibility rationale.
+
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 template <short_t dim, class T >
@@ -387,6 +393,46 @@ gsMaterialMatrixBaseDim<dim,T>::_tensionField(const gsVector<T> & Sp, const gsVe
 template <short_t dim, class T >
 void gsMaterialMatrixBaseDim<dim,T>::_computePoints(const index_t patch, const gsMatrix<T> & u) const
 {
+    // Diagnostics (gsKLShell issue #28): count every INVOCATION (before the
+    // guard). Not thread-exact; single-threaded benchmarking only.
+    gsMaterialMatrixIncrementComputePointsCalls();
+
+    // --- Same-input guard (gsKLShell issue #28) ------------------------------
+    // The legacy gsThinShellAssembler builds SIX independent
+    // gsMaterialMatrixIntegrate coefficients (A/B/C/D + N/M) per assembly, each of
+    // which re-invokes _computePoints on the very same (patch, points) with an
+    // unchanged configuration. Skip the recomputation when the
+    // (patch, points, config-revision) triple is identical to the last FULL
+    // execution ON THIS THREAD -- the metrics/thickness/parameters are already
+    // cached in m_data.mine(). The guard state lives in the same per-thread
+    // gsThreaded struct, so no synchronization is needed.
+    //
+    // The revision (Base::m_configRev) is bumped by every state-changing setter
+    // (see gsMaterialMatrixBase). This is what makes the guard correct across the
+    // stateful setDeformed() injection done by gsMaterialMatrixIntegrateSingle:
+    // even re-setting the SAME deformed pointer with in-place-mutated coefficients
+    // (Newton iterations) bumps the revision, so the guard MISSES and recomputes.
+    // The revision also covers the "computes more than cached" hazard: a first
+    // call without a deformed configuration and a later one WITH it differ in
+    // revision (setDeformed bumped it), so no stale (deformed-less) result is
+    // reused. We never compare geometry pointers -- only the revision.
+    // The u-comparison is ~2*N*dim doubles, negligible against a metric compute.
+    //
+    // The cache holds only the LAST (patch, points, rev) triple, so its
+    // CORRECTNESS is independent of the assembler's evaluation order: a mismatch
+    // is a miss (recompute == original behaviour), never a stale read. Only the
+    // BENEFIT (misses==1 instead of ==6) relies on the assembler evaluating all
+    // six A/B/C/D/N/M outputs of one element before advancing.
+    gsMaterialMatrixBaseDimData<dim,T> & d = m_data.mine();
+    if (patch == d.m_lastPatch && Base::m_configRev == d.m_lastRev
+        && u.rows() == d.m_lastPoints.rows() && u.cols() == d.m_lastPoints.cols()
+        && u == d.m_lastPoints)
+        return; // identical request -- metrics/thickness/params already cached on this thread
+    d.m_lastPatch = patch; d.m_lastRev = Base::m_configRev; d.m_lastPoints = u;
+
+    // Diagnostics: a MISS -- an actual full recomputation follows.
+    gsMaterialMatrixIncrementComputePointsMisses();
+
     gsMatrix<T> tmp;
 
     this->_computeMetricUndeformed(patch,u);
@@ -1125,7 +1171,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T
 
     // Assign members
     m_data.mine().m_acov_def = acov_def;
-    m_data.mine().m_acon_def = acov_def;
+    m_data.mine().m_acon_def = acon_def;
     m_data.mine().m_gcov_def = gcov_def;
     m_data.mine().m_gcon_def = gcon_def;
 
@@ -1154,7 +1200,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T
 
     // Get metric information
     Acov_def = m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2);
-    Acon_def = m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2);
+    Acon_def = m_data.mine().m_Acon_def_mat.reshapeCol(k,2,2);
 
     // Compute full metric
     Gcov_def.setZero();
@@ -1256,7 +1302,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const
 
     // Assign members
     m_data.mine().m_acov_ori = acov_ori;
-    m_data.mine().m_acon_ori = acov_ori;
+    m_data.mine().m_acon_ori = acon_ori;
     m_data.mine().m_gcov_ori = gcov_ori;
     m_data.mine().m_gcon_ori = gcon_ori;
 
@@ -1283,7 +1329,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const
 
     // Get metric information
     Acov_ori = m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2);
-    Acon_ori = m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2);
+    Acon_ori = m_data.mine().m_Acon_ori_mat.reshapeCol(k,2,2);
 
     // Compute full metric
     Gcov_ori.setZero();

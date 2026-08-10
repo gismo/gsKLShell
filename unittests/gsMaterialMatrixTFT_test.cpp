@@ -182,83 +182,166 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
     }
     TEST(MM_NH_Incomp_Generic)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 1, impl = 2;
      bool comp = false;
      MM_CHECK(mat, impl, comp);
     }
     TEST(MM_NH_Comp_Generic)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 1, impl = 2;
      bool comp = true;
      MM_CHECK(mat, impl, comp);
     }
     TEST(MM_NH_Incomp_Spectral)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 1, impl = 3;
      bool comp = false;
      MM_CHECK(mat, impl, comp);
     }
     TEST(MM_NH_Comp_Spectral)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 1, impl = 3;
      bool comp = true;
      MM_CHECK(mat, impl, comp);
     }
 
     TEST(MM_MR_Incomp_Analytical)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 3, impl = 1;
      bool comp = false;
      MM_CHECK(mat, impl, comp);
     }
     TEST(MM_MR_Comp_Analytical)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 3, impl = 1;
      bool comp = true;
      MM_CHECK(mat, impl, comp);
     }
     TEST(MM_MR_Incomp_Generic)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 3, impl = 2;
      bool comp = false;
      MM_CHECK(mat, impl, comp);
     }
     TEST(MM_MR_Comp_Generic)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 3, impl = 2;
      bool comp = true;
      MM_CHECK(mat, impl, comp);
     }
     TEST(MM_MR_Incomp_Spectral)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 3, impl = 3;
      bool comp = false;
      MM_CHECK(mat, impl, comp);
     }
     TEST(MM_MR_Comp_Spectral)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 3, impl = 3;
      bool comp = true;
      MM_CHECK(mat, impl, comp);
     }
 
     TEST(MM_OG_Incomp_Spectral)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 4, impl = 3;
      bool comp = false;
      MM_CHECK(mat, impl, comp);
     }
     TEST(MM_OG_Comp_Spectral)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 4, impl = 3;
      bool comp = true;
      MM_CHECK(mat, impl, comp);
     }
 
+    /*  (task 65) RUNTIME identity gate -- see the twin in gsThinShellAssembler_test.cpp.
+        Twelve of the fourteen non-SvK MM_* tests were named for materials they did not
+        run (every body passed mat = 1, impl = 1). The arguments are therefore not
+        trusted: gsMaterialMatrixNonlinear::print() reports the object's own TEMPLATE
+        parameters <matId, comp> (gsMaterialMatrixNonlinear.hpp:153-192), i.e. what
+        getMaterialMatrix ACTUALLY constructed.
+    */
+    void CHECK_material_identity(const gsMaterialMatrixBase<real_t> & mm,
+                                 const index_t material, const index_t impl,
+                                 const bool Compressibility)
+    {
+        /*  THE EXPECTATION COMES FROM THE TEST NAME, NOT FROM THE ARGUMENTS.
+
+            An earlier version of this helper compared the constructed object against
+            the `material`/`impl` ARGUMENTS -- and it was MEASURED not to fire when two
+            tests were reverted to the original fictional `mat = 1, impl = 1` (task 65,
+            poison round 1: both suites stayed green). Of course: reverting the argument
+            moves BOTH sides of that comparison. The defect this task exists to prevent
+            is a mismatch between the test NAME and what the test RUNS, so the name is
+            the only admissible anchor. With the name on one side and the constructed
+            template instantiation on the other, the argument appears nowhere in the
+            chain and the original defect becomes unrepresentable.
+        */
+        const std::string tn = UnitTest::CurrentTest::Details()->testName;
+
+        std::string matName, implName, compName;
+        if      (tn.find("_NH_")!=std::string::npos) matName = "Neo-Hookean\n";
+        else if (tn.find("_MR_")!=std::string::npos) matName = "Mooney-Rivlin\n";
+        else if (tn.find("_OG_")!=std::string::npos) matName = "Ogden\n";
+        // the trailing newline matters: "Neo-Hookean" is a PREFIX of the NH_ext name
+
+        if      (tn.find("_Analytical") !=std::string::npos) implName = "Analytical implementation";
+        else if (tn.find("_Generic")    !=std::string::npos ||
+                 tn.find("_Generalized")!=std::string::npos) implName = "Generalized implementation";
+        else if (tn.find("_Spectral")   !=std::string::npos) implName = "Spectral implementation";
+
+        // "_Incomp" must be tested BEFORE "_Comp"
+        if      (tn.find("_Incomp")!=std::string::npos) compName = "\tIncompressible ";
+        else if (tn.find("_Comp")  !=std::string::npos) compName = "\tCompressible ";
+
+        if (matName.empty() || implName.empty() || compName.empty())
+        {
+            // A test that reaches the material path but whose name does not say which
+            // material it runs is exactly the condition this gate exists to forbid.
+            gsInfo << "[MATERIAL] FAIL: test name '"<<tn<<"' does not encode "
+                      "material / implementation / compressibility\n";
+            CHECK(false);
+            return;
+        }
+
+        // gsMaterialMatrixNonlinear::print() reports the object's own TEMPLATE
+        // parameters <matId, comp> (gsMaterialMatrixNonlinear.hpp:153-192), i.e. what
+        // getMaterialMatrix ACTUALLY constructed -- not what was requested.
+        std::ostringstream oss;
+        mm.print(oss);
+        const std::string s = oss.str();
+
+        const bool okMat  = (s.find(matName)  != std::string::npos);
+        const bool okImpl = (s.find(implName) != std::string::npos);
+        const bool okComp = (s.find(compName) != std::string::npos);
+        gsInfo << "[MATERIAL] "<<tn<<" : name wants "
+               << compName.substr(1) << matName.substr(0,matName.size()-1) << " / " << implName
+               << " ; args (mat "<<material<<", impl "<<impl<<", comp "<<Compressibility
+               << ") CONSTRUCTED "
+               << (okMat&&okImpl&&okComp ? "MATCH" : "MISMATCH") << "\n";
+        if (!(okMat&&okImpl&&okComp))
+            gsInfo << "[MATERIAL] constructed object reports:\n"<<s;
+        CHECK(okMat);
+        CHECK(okImpl);
+        CHECK(okComp);
+    }
+
     void MM_CHECK(const index_t material, const index_t impl, const bool Compressibility)
     {
+        // (task 65) THE SKIP MUST RETURN -- the same defect task 61 fixed in
+        // balloon_CHECK / UAT_CHECK, left behind here (task 61 open item 3). Without
+        // the return, the vacuous CHECK(true) was recorded and the body ran on into
+        // getMaterialMatrix.h's GISMO_ERROR for Ogden at a non-Spectral implementation.
+        // Still dead code after this task: the only mat = 4 registrations are
+        // MM_OG_{Incomp,Comp}_Spectral at impl = 3, so nothing reaches it (verified
+        // against the dispatch in getMaterialMatrix.h:230-255, where OG x Analytical
+        // and OG x Generalized are the only unsupported combinations used here).
         if (material==4 && impl!=3)
+        {
             CHECK(true);
+            return;
+        }
 
         real_t E_modulus;
         real_t PoissonRatio;
@@ -376,6 +459,9 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
             options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",impl);
             materialMatrix = getMaterialMatrix<2,real_t>(mp,t,parameters,options);
             materialMatrixTFT = memory::make_unique(new gsMaterialMatrixTFT<2,real_t,false>(*materialMatrix));
+            // (task 65) what was CONSTRUCTED, not what was asked for. Checked on the
+            // BASE material matrix, not on the TFT wrapper (which has its own print).
+            CHECK_material_identity(*materialMatrix,material,impl,Compressibility);
         }
 
         gsVector<> testpt(2);
@@ -448,14 +534,77 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         gsMatrix<> dC_FD = resss.reshape(9,3);
         gsMatrix<> dC_MM = materialMatrix->eval3D_dmatrix(0,pt,z,MaterialOutput::Generic).reshape(9,3);
         dC_MM *= 2; // NOTE: dmatrix returns d(mm)/dC, and dC_FD is d(mm)/dE = 2*d(mm)/dC
-        CHECK_MATRIX_CLOSE(dC_FD,dC_MM,1e-3);
+        /*  (task 65) THE TOLERANCE HERE WAS SCALE-BLIND, AND RE-ARMING THE ARGUMENTS
+            EXPOSED IT. This read
+                CHECK_MATRIX_CLOSE(dC_FD,dC_MM,1e-3);
+            and CHECK_MATRIX_CLOSE is ENTRYWISE ABSOLUTE (gsUnitTest/gs/CheckMatrix.h:37).
+            The entries of dC are O(1e7) here, so "1e-3" silently demanded ~1e-10
+            RELATIVE agreement between a finite-difference derivative and an analytic
+            tangent. That was attainable only on the Analytical/Generalized paths the
+            file used to run; it failed on all three newly-armed *_Comp_Spectral tests.
+
+            ADJUDICATED as neither a library defect nor an oracle defect, on three
+            independent measurements (task 65 report):
+              1. FD STEP SWEEP. gsFunction::deriv_into (gsFunction.hpp:93-126) hardcodes
+                 a 4-point stencil at h = 1e-5. Composing the function with a domain
+                 rescaling to sweep the EFFECTIVE step gives, for NH/Spectral/comp,
+                 max|dC_FD - dC_MM| = 3.2e-2, 7.6e-3, 1.3e-3, 1.2e-3, 4.5e-3 at
+                 h = 1e-7 ... 1e-3: a textbook roundoff/truncation V-curve whose MINIMUM
+                 (1.1e-3 for Ogden) already exceeds the old 1e-3 gate. No FD step could
+                 have passed it. A wrong analytic tangent would instead show an
+                 h-independent floor.
+              2. CROSS-IMPLEMENTATION FINGERPRINT. For NH compressible the analytic
+                 |dC_MM| is 14035337.358630737 (Analytical), ...358662579 (Generalized),
+                 ...360463997 (Spectral) -- the three independent implementations of the
+                 SAME tangent disagree among themselves by 1.3e-10 relative, exactly the
+                 size of the FD discrepancy. No implementation could pass a 1e-10 gate.
+              3. The relative deviation is 5.6e-12 ... 1.9e-10 over all fifteen
+                 registered combinations, i.e. 10 correct significant digits everywhere.
+
+            THE GATE IS THEREFORE RESCALED, NOT LOOSENED IN SUBSTANCE -- but stated
+            plainly: in RELATIVE terms this IS looser than the ~1.2e-10 the absolute
+            1e-3 happened to impose on the paths that used to pass. Nobody chose 1.2e-10;
+            it was an accident of the entry magnitudes, and it sits below the accuracy
+            floor of the FD oracle itself. The new gate scales with real_t precision
+            (float/double/multiprecision) and with the magnitude actually compared:
+            1e8*eps ~ 2.2e-8 relative in double, which is ~120x the worst floor measured
+            above and still demands EIGHT correct significant digits of the tangent.
+        */
+        // The scale is max(|dC|,|C|) and not |dC| alone: for SvK dC vanishes identically,
+        // which would make the gate exactly zero and leave the check hostage to the last
+        // bit of an FD difference that only happens to cancel exactly today.
+        const real_t dC_scale = math::max(dC_MM.array().abs().maxCoeff(),
+                                          C_MM.array().abs().maxCoeff());
+        const real_t dC_tol   = 1e8*std::numeric_limits<real_t>::epsilon()*dC_scale;
+        gsInfo << "[MM_DIAG] mat "<<material<<" impl "<<impl
+               << (Compressibility ? " comp" : " incomp")
+               << " : |C|max "<<C_MM.array().abs().maxCoeff()
+               << " dC_absdiff "<<(dC_FD-dC_MM).array().abs().maxCoeff()
+               << " dC_reldiff "<<(dC_FD-dC_MM).array().abs().maxCoeff()/dC_scale
+               << " (gate "<<dC_tol<<") ; C_reldiff "
+               << (C_FD-C_MM).array().abs().maxCoeff()/C_MM.array().abs().maxCoeff()
+               << "\n";
+        CHECK_MATRIX_CLOSE(dC_FD,dC_MM,dC_tol);
 
         /// STRESS TFT
         STFTfun<real_t> STFT(gori,materialMatrix.get(),0,pt,z);
         STFT.eval_into(e,resss);
         gsMatrix<> STFT_test = resss;
         gsMatrix<> STFT_MM   = vecTFT.piece(0).eval(pt).reshape(3,1);
-        CHECK_MATRIX_CLOSE(STFT_test,STFT_test,1e-3);
+        /*  (task 65) SECOND INSTANCE OF THE VERY DEFECT THIS TASK WAS SENT TO FIX.
+            This line read
+                CHECK_MATRIX_CLOSE(STFT_test,STFT_test,1e-3);
+            i.e. it compared the finite-difference-free reference to ITSELF. STFT_MM
+            was computed and dropped, so the TFT stress path (gsMaterialMatrixTFT's
+            VectorN output) was gated by NOTHING in any of the fifteen MM_* tests --
+            fictional coverage of the same shape as the fictional material arguments,
+            and in the same file.
+        */
+        gsInfo << "[MM_STFT] mat "<<material<<" impl "<<impl
+               << (Compressibility ? " comp" : " incomp")
+               << " : ref ["<<STFT_test.transpose()<<" ] vs TFT ["<<STFT_MM.transpose()
+               << " ] , max|diff| = "<<(STFT_test-STFT_MM).array().abs().maxCoeff()<<"\n";
+        CHECK_MATRIX_CLOSE(STFT_test,STFT_MM,1e-3);
 
         /// MATRIX TFT
         STFT.deriv_into(e,resss);

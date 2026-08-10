@@ -287,8 +287,12 @@ protected:
      */
     T _Sij    (const index_t i, const index_t j, const gsMatrix<T> & z) const;
 
-
-    using Base::_getMetric;
+    // NOTE: no "using Base::_getMetric;" here. gsMaterialMatrixBaseDim declares
+    // _getMetric PUBLIC (gsMaterialMatrixBaseDim.h:263) and the inheritance is
+    // public, so re-declaring it in this protected block only LOWERED its access
+    // for gsMaterialMatrixLinear. It was not needed for name lookup either: this
+    // class declares no _getMetric of its own and every call site in
+    // gsMaterialMatrixLinear.hpp is already this->_getMetric(...).
 
     /**
      * @brief      Computes the strain tensor

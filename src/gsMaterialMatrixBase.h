@@ -116,6 +116,9 @@ public:
             m_pars = other.m_pars;
             m_thickness = other.m_thickness;
             m_density = other.m_density;
+            // Do NOT copy m_configRev: bump our own so any stale per-thread
+            // _computePoints cache (in the derived data struct) is invalidated.
+            ++m_configRev;
         }
         return *this;
     }
@@ -130,6 +133,9 @@ public:
         m_pars = give(other.m_pars);
         m_thickness = give(other.m_thickness);
         m_density = give(other.m_density);
+        // Do NOT copy m_configRev: bump our own so any stale per-thread
+        // _computePoints cache (in the derived data struct) is invalidated.
+        ++m_configRev;
         return *this;
     }
 
@@ -653,13 +659,14 @@ public:
     { GISMO_NO_IMPLEMENTATION; }
 
     /// Sets the thickness
-    virtual void setThickness(const function_ptr & thickness) { m_thickness = thickness; }
+    virtual void setThickness(const function_ptr & thickness) { m_thickness = thickness; ++m_configRev; }
 
     /// Sets the thickness
     virtual void setThickness(const gsFunctionSet<T> & thickness)
     {
         function_ptr fun = memory::make_shared(thickness.clone().release());
         m_thickness = fun;
+        ++m_configRev;
     }
 
     /// Returns true if a thickness is assigned
@@ -669,12 +676,13 @@ public:
     virtual const function_ptr getThickness() const {return m_thickness;}
 
     /// Sets the density
-    virtual void setDensity(function_ptr Density) { m_density = Density; }
+    virtual void setDensity(function_ptr Density) { m_density = Density; ++m_configRev; }
     /// Sets the density
     virtual void setDensity(const gsFunctionSet<T> & Density)
     {
         function_ptr fun = memory::make_shared(Density.clone().release());
         m_density = fun;
+        ++m_configRev;
     }
     /// Returns true if a density is assigned
     virtual bool hasDensity() const { return m_density!=nullptr; }
@@ -690,6 +698,7 @@ public:
     virtual void setParameters(const std::vector<function_ptr> &pars)
     {
         m_pars = pars;
+        ++m_configRev;
     }
 
     /**
@@ -700,6 +709,7 @@ public:
     virtual void setParameter(const index_t i, const function_ptr &par)
     {
         m_pars[i] = par;
+        ++m_configRev;
     }
 
     /**
@@ -712,6 +722,7 @@ public:
         m_pars.resize(pars.size());
         for (size_t k = 0; k!=pars.size(); k++)
             m_pars[k] = memory::make_shared_not_owned(pars[k]);
+        ++m_configRev;
     }
 
     /**
@@ -724,6 +735,7 @@ public:
         if ((index_t)m_pars.size() < i+1)
             m_pars.resize(i+1);
         m_pars[i] = memory::make_shared(par.clone().release());
+        ++m_configRev;
     }
 
     /**
@@ -750,6 +762,7 @@ public:
     {
         m_pars.clear();
         m_pars.resize(0);
+        ++m_configRev;
     }
 
     /**
@@ -781,15 +794,17 @@ public:
     {
         function_ptr f_ptr = memory::make_shared_not_owned(undeformed);
         m_patches = f_ptr;
+        ++m_configRev;
     }
     virtual void setDeformed(const gsFunctionSet<T> * deformed)
     {
         function_ptr f_ptr = memory::make_shared_not_owned(deformed);
         m_defpatches = f_ptr;
+        ++m_configRev;
     }
 
-    virtual void setUndeformed(const function_ptr undeformed) {m_patches = undeformed; }
-    virtual void setDeformed(const function_ptr deformed) {m_defpatches = deformed; }
+    virtual void setUndeformed(const function_ptr undeformed) {m_patches = undeformed; ++m_configRev; }
+    virtual void setDeformed(const function_ptr deformed) {m_defpatches = deformed; ++m_configRev; }
 
     const function_ptr getUndeformed() const { return m_patches; }
     const function_ptr getDeformed()  const { return m_defpatches; }
@@ -809,6 +824,27 @@ protected:
     std::vector< function_ptr > m_pars;
     function_ptr m_thickness;
     function_ptr m_density;
+
+    // Configuration revision counter (gsKLShell issue #28). Bumped by EVERY
+    // setter that invalidates the results cached by
+    // gsMaterialMatrixBaseDim::_computePoints (undeformed/deformed geometry,
+    // thickness, parameters, and — conservatively — density and assignment).
+    // The derived same-input guard compares this against the revision stored in
+    // its per-thread data cache and only skips a recomputation when they match.
+    //
+    // Kept at the BASE level so no derived override of a setter can miss the
+    // bump: the parameter setters of the concrete materials
+    // (setYoungsModulus/setPoissonsRatio/...) all funnel through
+    // Base::setParameter, and the BaseDim/TFT geometry-setter overrides call
+    // Base::setUndeformed/Base::setDeformed. IMPORTANT: the bump happens on
+    // EVERY set (never a pointer comparison): re-setting the SAME deformed
+    // pointer whose underlying coefficients were mutated in-place (Newton
+    // iterations!) must still force a recomputation, and an unconditional bump
+    // is the safe semantic. Over-bumping only costs an extra recompute; a
+    // missed bump would be a correctness bug (stale skip). mutable: the guard
+    // reads it from const evaluation methods. Read-only during assembly (the
+    // setters are single-threaded setup), so no new threading hazard is added.
+    mutable uint64_t m_configRev = 0;
 };
 
 template<class T>

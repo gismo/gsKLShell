@@ -54,6 +54,13 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
     gsVector<real_t> Modal_numerical(const bool composite);
     void Modal_CHECK(const bool composite);
 
+    /// The imposed axial stretch of the UAT fixture. UAT_numerical applies it as a
+    /// Dirichlet displacement (lambda-1 on the east edge) and UAT_analytical builds
+    /// its closed forms at it. The two used to carry INDEPENDENT copies of the
+    /// literal 2.0 -- a second way for the oracle to go stale silently, alongside
+    /// the hardcoded Jacobians D2 removed. One source now. (task 61)
+    const real_t UAT_lambda = 2.0;
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     TEST(Balloon_NH_Analytical)
@@ -110,75 +117,75 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
     }
     TEST(UAT_NH_Incomp_Generic)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 1, impl = 2;
      bool comp = false;
      UAT_CHECK(mat, impl, comp);
     }
     TEST(UAT_NH_Comp_Generic)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 1, impl = 2;
      bool comp = true;
      UAT_CHECK(mat, impl, comp);
     }
     TEST(UAT_NH_Incomp_Spectral)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 1, impl = 3;
      bool comp = false;
      UAT_CHECK(mat, impl, comp);
     }
     TEST(UAT_NH_Comp_Spectral)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 1, impl = 3;
      bool comp = true;
      UAT_CHECK(mat, impl, comp);
     }
 
     TEST(UAT_MR_Incomp_Analytical)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 3, impl = 1;
      bool comp = false;
      UAT_CHECK(mat, impl, comp);
     }
     TEST(UAT_MR_Comp_Analytical)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 3, impl = 1;
      bool comp = true;
      UAT_CHECK(mat, impl, comp);
     }
     TEST(UAT_MR_Incomp_Generic)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 3, impl = 2;
      bool comp = false;
      UAT_CHECK(mat, impl, comp);
     }
     TEST(UAT_MR_Comp_Generic)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 3, impl = 2;
      bool comp = true;
      UAT_CHECK(mat, impl, comp);
     }
     TEST(UAT_MR_Incomp_Spectral)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 3, impl = 3;
      bool comp = false;
      UAT_CHECK(mat, impl, comp);
     }
     TEST(UAT_MR_Comp_Spectral)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 3, impl = 3;
      bool comp = true;
      UAT_CHECK(mat, impl, comp);
     }
 
     TEST(UAT_OG_Incomp_Spectral)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 4, impl = 3;
      bool comp = false;
      UAT_CHECK(mat, impl, comp);
     }
     TEST(UAT_OG_Comp_Spectral)
     {
-     index_t mat = 1, impl = 1;
+     index_t mat = 4, impl = 3;
      bool comp = true;
      UAT_CHECK(mat, impl, comp);
     }
@@ -356,6 +363,9 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         gsVector<real_t> updateVector = solVector;
         gsVector<real_t> resVec = Residual(solVector);
         gsSparseMatrix<real_t> jacMat;
+        bool   converged  = false;
+        index_t nIt       = 0;
+        real_t updateNorm = updateVector.norm();
         for (index_t it = 0; it != 100; ++it)
         {
             jacMat = Jacobian(solVector);
@@ -365,11 +375,25 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
 
             resVec = Residual(solVector);
 
-            if (updateVector.norm() < 1e-6)
+            nIt        = it+1;
+            updateNorm = updateVector.norm();
+            if (updateNorm < 1e-6)
+            {
+                converged = true;
                 break;
-            else if (it+1 == it)
-                gsWarn<<"Maximum iterations reached!\n";
+            }
         }
+        // (task 68, F11) TWIN of the defect task 65 fixed in UAT_numerical (see the
+        // note at the Newton loop of UAT_numerical in this same file). The guard
+        // removed just above read
+        //     else if (it+1 == it) gsWarn<<"Maximum iterations reached!\n";
+        // which is ALWAYS FALSE, so 100 fruitless Newton steps exited quietly with a
+        // garbage solution and the balloon tests could report an unconverged result
+        // as a pass. Non-convergence is now asserted and reported.
+        gsInfo << "[BALLOON_NEWTON] mat "<<material<<" impl "<<impl
+               << " : converged "<<converged<<" in "<<nIt<<" its, |du| = "<<updateNorm
+               << " , |R| = "<<resVec.norm()<<"\n";
+        CHECK(converged);
 
         mp_def = assembler->constructSolution(solVector);
 
@@ -453,8 +477,18 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
 
     void balloon_CHECK(const index_t material, const index_t impl)
     {
+     // Ogden (material 4) is only implemented for the Spectral implementation
+     // (impl 3): getMaterialMatrix.h:235-253 raises GISMO_ERROR for every other
+     // one. This is a SKIP, so it must RETURN -- without the return the vacuous
+     // CHECK(true) was recorded and the body ran on anyway, straight into that
+     // GISMO_ERROR as an unhandled exception (measured, task 61). No OG/non-
+     // Spectral combination is registered today, so the guard is dead defensive
+     // code; it becomes live the moment one is added.
      if (material==4 && impl!=3)
+     {
           CHECK(true);
+          return;
+     }
 
      std::pair<real_t,real_t> num = balloon_numerical(material,impl);
      real_t P = num.first;
@@ -463,6 +497,81 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
      real_t Pan = balloon_analytical(material,impl,rnum);
 
      CHECK_CLOSE(std::abs(P-Pan)/Pan,0,1e-3);
+    }
+
+    /*  (task 65) RUNTIME identity gate.
+
+        This whole task exists because twelve of the fourteen UAT_* tests were named
+        for materials they did not run: every body passed mat = 1, impl = 1. That was
+        invisible in a source diff and visible only at runtime. So the arguments are
+        NOT trusted here -- gsMaterialMatrixNonlinear::print() reports the object's own
+        TEMPLATE parameters <matId, comp> (gsMaterialMatrixNonlinear.hpp:153-192), i.e.
+        what getMaterialMatrix ACTUALLY constructed. This asserts the constructed type,
+        not the argument that was typed.
+    */
+    void CHECK_material_identity(const gsMaterialMatrixBase<real_t> & mm,
+                                 const index_t material, const index_t impl,
+                                 const bool Compressibility)
+    {
+        /*  THE EXPECTATION COMES FROM THE TEST NAME, NOT FROM THE ARGUMENTS.
+
+            An earlier version of this helper compared the constructed object against
+            the `material`/`impl` ARGUMENTS -- and it was MEASURED not to fire when two
+            tests were reverted to the original fictional `mat = 1, impl = 1` (task 65,
+            poison round 1: both suites stayed green). Of course: reverting the argument
+            moves BOTH sides of that comparison. The defect this task exists to prevent
+            is a mismatch between the test NAME and what the test RUNS, so the name is
+            the only admissible anchor. With the name on one side and the constructed
+            template instantiation on the other, the argument appears nowhere in the
+            chain and the original defect becomes unrepresentable.
+        */
+        const std::string tn = UnitTest::CurrentTest::Details()->testName;
+
+        std::string matName, implName, compName;
+        if      (tn.find("_NH_")!=std::string::npos) matName = "Neo-Hookean\n";
+        else if (tn.find("_MR_")!=std::string::npos) matName = "Mooney-Rivlin\n";
+        else if (tn.find("_OG_")!=std::string::npos) matName = "Ogden\n";
+        // the trailing newline matters: "Neo-Hookean" is a PREFIX of the NH_ext name
+
+        if      (tn.find("_Analytical") !=std::string::npos) implName = "Analytical implementation";
+        else if (tn.find("_Generic")    !=std::string::npos ||
+                 tn.find("_Generalized")!=std::string::npos) implName = "Generalized implementation";
+        else if (tn.find("_Spectral")   !=std::string::npos) implName = "Spectral implementation";
+
+        // "_Incomp" must be tested BEFORE "_Comp"
+        if      (tn.find("_Incomp")!=std::string::npos) compName = "\tIncompressible ";
+        else if (tn.find("_Comp")  !=std::string::npos) compName = "\tCompressible ";
+
+        if (matName.empty() || implName.empty() || compName.empty())
+        {
+            // A test that reaches the material path but whose name does not say which
+            // material it runs is exactly the condition this gate exists to forbid.
+            gsInfo << "[MATERIAL] FAIL: test name '"<<tn<<"' does not encode "
+                      "material / implementation / compressibility\n";
+            CHECK(false);
+            return;
+        }
+
+        // gsMaterialMatrixNonlinear::print() reports the object's own TEMPLATE
+        // parameters <matId, comp> (gsMaterialMatrixNonlinear.hpp:153-192), i.e. what
+        // getMaterialMatrix ACTUALLY constructed -- not what was requested.
+        std::ostringstream oss;
+        mm.print(oss);
+        const std::string s = oss.str();
+
+        const bool okMat  = (s.find(matName)  != std::string::npos);
+        const bool okImpl = (s.find(implName) != std::string::npos);
+        const bool okComp = (s.find(compName) != std::string::npos);
+        gsInfo << "[MATERIAL] "<<tn<<" : name wants "
+               << compName.substr(1) << matName.substr(0,matName.size()-1) << " / " << implName
+               << " ; args (mat "<<material<<", impl "<<impl<<", comp "<<Compressibility
+               << ") CONSTRUCTED "
+               << (okMat&&okImpl&&okComp ? "MATCH" : "MISMATCH") << "\n";
+        if (!(okMat&&okImpl&&okComp))
+            gsInfo << "[MATERIAL] constructed object reports:\n"<<s;
+        CHECK(okMat);
+        CHECK(okImpl);
+        CHECK(okComp);
     }
 
     std::pair<real_t,real_t> UAT_numerical(const index_t material, const index_t impl, const bool Compressibility)
@@ -518,7 +627,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
 
         gsPointLoads<real_t> pLoads = gsPointLoads<real_t>();
 
-        real_t lambda = 2.0;
+        const real_t lambda = UAT_lambda;   // (task 61) was an independent literal 2.0
         gsConstantFunction<> displx(lambda-1.0,2);
 
         GISMO_ENSURE(mp.targetDim()==2,"Geometry must be planar (targetDim=2)!");
@@ -579,6 +688,9 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
             materialMatrix = getMaterialMatrix<2,real_t>(mp,t,parameters,rho,options);
         }
 
+        // (task 65) what was CONSTRUCTED, not what was asked for.
+        CHECK_material_identity(*materialMatrix,material,impl,Compressibility);
+
         gsThinShellAssemblerBase<real_t>* assembler;
         assembler = new gsThinShellAssembler<2, real_t, false >(mp,dbasis,bc,force,materialMatrix);
 
@@ -619,6 +731,9 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         gsVector<real_t> updateVector = solVector;
         gsVector<real_t> resVec = Residual(solVector);
         gsSparseMatrix<real_t> jacMat;
+        bool   converged  = false;
+        index_t nIt       = 0;
+        real_t updateNorm = updateVector.norm();
         for (index_t it = 0; it != 100; ++it)
         {
             jacMat = Jacobian(solVector);
@@ -628,11 +743,26 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
 
             resVec = Residual(solVector);
 
-            if (updateVector.norm() < 1e-6)
+            nIt        = it+1;
+            updateNorm = updateVector.norm();
+            if (updateNorm < 1e-6)
+            {
+                converged = true;
                 break;
-            else if (it+1 == it)
-                gsWarn<<"Maximum iterations reached!\n";
+            }
         }
+        // (task 65) NON-CONVERGENCE USED TO BE SILENT. The guard removed just above read
+        //     else if (it+1 == it) gsWarn<<"Maximum iterations reached!\n";
+        // which is ALWAYS FALSE, so 100 fruitless Newton steps exited quietly with a
+        // garbage solution. That matters now that materials other than Neo-Hookean are
+        // actually run here: a non-converged solve would surface downstream as a large
+        // L/S deviation and be misread as a material (or oracle) defect. It is a THIRD,
+        // distinct failure mode, and it is now asserted and reported.
+        gsInfo << "[UAT_NEWTON] mat "<<material<<" impl "<<impl
+               << (Compressibility ? " compressible" : " incompressible")
+               << " : converged "<<converged<<" in "<<nIt<<" its, |du| = "<<updateNorm
+               << " , |R| = "<<resVec.norm()<<"\n";
+        CHECK(converged);
 
         mp_def = assembler->constructSolution(solVector);
 
@@ -643,7 +773,9 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // Check solutions
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        // NOTE: all analytical solutions for compressible materials are fixed for displ=1; (lambda=2)
+        // NOTE: the imposed stretch is UAT_lambda, shared with UAT_analytical. The
+        // compressible closed forms there no longer hardcode a Jacobian for it: J is
+        // solved at the actual lambda (task 61, D2).
 
         // Compute stretches (should be the same everywhere)
         // Ordering: lambda(0) < lambda(1); lambda(2) is ALWAYS the through-thickness stretch
@@ -665,6 +797,89 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         delete assembler;
 
         return result;
+    }
+
+    /*  TASK 61 / D2 -- the compressible UAT oracles used to HARDCODE the Jacobian:
+            J = 1.088778638;// specific for lambda==2!!
+        and the same, twice more, for the NH and MR branches. The comments were
+        honest, but nothing enforced them: changing the imposed stretch left the
+        analytic San/Lan built on the Jacobian of a DIFFERENT stretch. J is now
+        SOLVED at the actual lambda.
+
+        All three compressible branches below are Ogden-form,
+            Psi = sum_p (mu_p/alpha_p) (b1^a_p + b2^a_p + b3^a_p - 3)
+                  + K/4 (J^2 - 1 - 2 ln J),        b_i = lambda_i * J^(-1/3),
+        which is exactly what their San expressions differentiate -- verified term
+        by term against the code as written, and NOT assumed: NH is
+        {mu_p} = {mu}, {alpha_p} = {2}; MR is {c1*mu, -c2*mu}, {2, -2}; Ogden is
+        {mu1,mu2,mu3}, {alpha1,alpha2,alpha3}. In uniaxial tension along 1 with
+        lambda_2 = lambda_3 = sqrt(J/lambda),
+            J * sigma_22 = sum_p (mu_p/3)(b2^a_p - b1^a_p) + K/4 (2 J^2 - 2),
+        and the compressible uniaxial condition is sigma_22 = sigma_33 = 0.
+        UAT_J_residual is that right-hand side; UAT_solveJ bisects it.
+
+        THE OLD CONSTANTS WERE CORRECT. Recomputed independently at 30 digits
+        (mpmath) with this file's mu / mu_p / alpha_p / PoissonRatio = 0.45:
+            NH  1.10559856482753778   vs the file's 1.105598565
+            MR  1.09990584204437305   vs the file's 1.099905842
+            OG  1.08877863796876059   vs the file's 1.088778638
+        every digit they carried agrees. UAT_pinLegacyJ keeps that agreement
+        ASSERTED at lambda == 2, so a broken solver cannot pass quietly either.
+    */
+    real_t UAT_J_residual(const real_t J, const real_t lambda, const real_t K,
+                          const std::vector<real_t> & mu_p,
+                          const std::vector<real_t> & alpha_p)
+    {
+        const real_t Jm13 = math::pow(J,-1./3.);
+        const real_t b1   = lambda * Jm13;                     // lambda_bar_1
+        const real_t b2   = math::pow(J/lambda,0.5) * Jm13;    // lambda_bar_2 = _3
+        real_t r = 0.25*K*(2*J*J - 2);
+        for (size_t p = 0; p != mu_p.size(); ++p)
+            r += mu_p[p]/3. * (math::pow(b2,alpha_p[p]) - math::pow(b1,alpha_p[p]));
+        return r;
+    }
+
+    real_t UAT_solveJ(const real_t lambda, const real_t K,
+                      const std::vector<real_t> & mu_p,
+                      const std::vector<real_t> & alpha_p)
+    {
+        // Bracket generously and CHECK the bracket rather than assuming it: the
+        // residual -> -inf as J -> 0 (the isochoric terms blow up with the wrong
+        // sign there) and ~ K/2 * J^2 -> +inf for large J.
+        real_t a = 1e-3, b = 1e3;
+        GISMO_ENSURE(UAT_J_residual(a,lambda,K,mu_p,alpha_p) < 0 &&
+                     UAT_J_residual(b,lambda,K,mu_p,alpha_p) > 0,
+                     "UAT_solveJ: sigma_22(J) is not bracketed on ["<<a<<","<<b<<"] "
+                     "at lambda = "<<lambda);
+        // Bisection. The width test is in units of eps so that it terminates at the
+        // last representable bit for float, double and multiprecision alike; the
+        // 200-iteration cap is only a guard against a non-terminating tolerance.
+        for (index_t it = 0;
+             it != 200 && (b-a) > 4*std::numeric_limits<real_t>::epsilon()*b; ++it)
+        {
+            const real_t m = 0.5*(a+b);
+            if (UAT_J_residual(m,lambda,K,mu_p,alpha_p) < 0) a = m; else b = m;
+        }
+        return 0.5*(a+b);
+    }
+
+    /// Pin the solved @a J against the constant this file used to hardcode, while
+    /// the stretch is still the one that constant was computed for. Silent at any
+    /// other lambda -- which is the whole point of D2.
+    void UAT_pinLegacyJ(const real_t J, const real_t lambda, const real_t legacy)
+    {
+        // Only at the stretch the constants were computed for -- and only when the
+        // arithmetic can tell the difference. NO single absolute tolerance works for
+        // every real_t here, so this is a precision GATE rather than a rescale:
+        //   - the legacy constants are ROUNDED, sitting 1.7e-10 from the true root,
+        //     so any tolerance must EXCEED 1.7e-10;
+        //   - at real_t = float the bisection in UAT_solveJ stops at a width of
+        //     4*eps*J ~ 5.2e-7, so a tolerance float could satisfy must exceed
+        //     2.6e-7 -- which is VACUOUS in double, where a 3.5e-8 perturbation of
+        //     the constant is exactly what was used to falsify this check.
+        // Pinned in double and above; skipped below, deliberately and on the record.
+        if (lambda == 2.0 && std::numeric_limits<real_t>::epsilon() < 1e-12)
+            CHECK_CLOSE(legacy,J,1e-8);   // ABSOLUTE (CHECK_CLOSE always is); J = O(1)
     }
 
     std::pair<real_t,real_t> UAT_analytical(const index_t material, const index_t impl, const bool Compressibility)
@@ -689,13 +904,14 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         else
           PoissonRatio = 0.45;
 
-        real_t lambda = 2.0;
+        const real_t lambda = UAT_lambda;   // (task 61) was an independent literal 2.0
 
         real_t San,J,K,Lan;
         if      (material==1 && Compressibility)
         {
             K = 2*mu*(1+PoissonRatio)/(3-6*PoissonRatio);
-            J = 1.105598565;// specific for lambda==2!!
+            J = UAT_solveJ(lambda,K,std::vector<real_t>{mu},std::vector<real_t>{2.0});
+            UAT_pinLegacyJ(J,lambda,1.105598565);   // was hardcoded, "specific for lambda==2!!"
             San = lambda*(0.5*mu*(-(2*(math::pow(lambda,2)+2*J/lambda))/(3*math::pow(J,2./3.)*lambda)+2*lambda/math::pow(J,2./3.))+0.25*K*(2*math::pow(J,2)/lambda-2./lambda))/J;
             Lan = math::pow(J/lambda,0.5);
         }
@@ -709,7 +925,8 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
             real_t c2 = 1.0 / (Ratio+1);
             real_t c1 = 1.0 - c2;
             K = 2*mu*(1+PoissonRatio)/(3-6*PoissonRatio);
-            J = 1.099905842;// specific for lambda==2!!
+            J = UAT_solveJ(lambda,K,std::vector<real_t>{c1*mu,-c2*mu},std::vector<real_t>{2.0,-2.0});
+            UAT_pinLegacyJ(J,lambda,1.099905842);   // was hardcoded, "specific for lambda==2!!"
             San = lambda*(0.5*c1*mu*(-(2*(math::pow(lambda,2)+2*J/lambda))/(3*math::pow(J,2./3.)*lambda)+2*lambda/math::pow(J,2./3.))+0.5*c2*mu*(-(4*(2*lambda*J+math::pow(J,2)/math::pow(lambda,2)))/(3*math::pow(J,4./3.)*lambda)+4/math::pow(J,1./3.))+0.25*K*(2*math::pow(J,2)/lambda-2/lambda))/J;
             Lan = math::pow(J/lambda,0.5);
         }
@@ -723,7 +940,9 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         else if (material==4 && Compressibility)
         {
             K = 2*mu*(1+PoissonRatio)/(3-6*PoissonRatio);
-            J = 1.088778638;// specific for lambda==2!!
+            J = UAT_solveJ(lambda,K,std::vector<real_t>{mu1,mu2,mu3},
+                                    std::vector<real_t>{alpha1,alpha2,alpha3});
+            UAT_pinLegacyJ(J,lambda,1.088778638);   // was hardcoded, "specific for lambda==2!!"
             San = 1./J* (lambda *( mu1*(2*math::pow(lambda/math::pow(J,1./3.),alpha1)*alpha1/(3*lambda)-2*math::pow(math::pow(J/lambda,0.5)/math::pow(J,1./3.),alpha1)*alpha1/(3*lambda))/alpha1+mu2*(2*math::pow(lambda/math::pow(J,1./3.),alpha2)*alpha2/(3*lambda)-2*math::pow(math::pow(J/lambda,0.5)/math::pow(J,1./3.),alpha2)*alpha2/(3*lambda))/alpha2+mu3*(2*math::pow(lambda/math::pow(J,1./3.),alpha3)*alpha3/(3*lambda)-2*math::pow(math::pow(J/lambda,0.5)/math::pow(J,1./3.),alpha3)*alpha3/(3*lambda))/alpha3+0.25*K*(2*math::pow(J,2)/lambda-2/lambda) ) );
             Lan = math::pow(J/lambda,0.5);
         }
@@ -743,13 +962,46 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
 
     void UAT_CHECK(const index_t material, const index_t impl, const bool Compressibility)
     {
+        // See balloon_CHECK above: the skip must RETURN.
         if (material==4 && impl!=3)
+        {
           CHECK(true);
+          return;
+        }
 
         real_t Lnum, Snum, Lana, Sana;
         std::tie(Lnum,Snum) = UAT_numerical(material,impl,Compressibility);
         std::tie(Lana,Sana) = UAT_analytical(material,impl,Compressibility);
         CHECK_CLOSE(std::abs(Lnum-Lana)/Lana,0,1e-9);
+        /*  (task 65) THE STRESS IS NOW ASSERTED TOO -- task 61's named gap (HN-2)
+            closed, and it is not optional here.
+
+            For every INCOMPRESSIBLE branch the analytic lateral stretch is
+                Lan = pow(1/lambda,0.5)
+            with NO material dependence at all (see UAT_analytical: the material==1,
+            3 and 4 incompressible branches all set exactly that). So the L check
+            alone CANNOT distinguish Neo-Hookean from Mooney-Rivlin from Ogden -- it
+            gates incompressibility, not the material. Seven of these fourteen tests
+            would therefore have stayed vacuous with respect to their own name even
+            after the arguments were corrected. San is the only material-carrying
+            quantity in the incompressible half.
+
+            TOLERANCE, chosen on measured evidence and NOT fitted to the paths this
+            task newly exercises: on the two honest pre-existing tests (NH /
+            Analytical, the ONLY UAT combination that was ever really run) the
+            measured relative stress residual is 1.8e-16 incompressible and 1.6e-12
+            compressible. 1e-9 is the same gate the stretch already carries, and
+            leaves ~600x headroom on the worst honest path. It was fixed BEFORE any
+            argument was re-armed. The deformation here is homogeneous and exactly
+            representable in the spline space, which is why these residuals are at
+            solver level rather than at discretisation level.
+        */
+        CHECK_CLOSE(std::abs(Snum-Sana)/std::abs(Sana),0,1e-9);
+        gsInfo << "[UAT_CHECK] material "<<material<<" impl "<<impl
+               << (Compressibility ? " compressible" : " incompressible")
+               << " : L "<<Lnum<<" vs "<<Lana<<" (rel "<<std::abs(Lnum-Lana)/Lana
+               << ") ; S "<<Snum<<" vs "<<Sana<<" (rel "<<std::abs(Snum-Sana)/std::abs(Sana)
+               << ")\n";
     }
 
     gsVector<real_t> Modal_numerical(bool composite)

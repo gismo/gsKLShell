@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
     cmd.addSwitch("stress", "Create a ParaView visualization file with the stresses", stress);
     cmd.addSwitch("membrane", "Use membrane model (no bending)", membrane);
     cmd.addSwitch("composite", "Composite material", composite);
-    cmd.addSwitch( "nl", "Print information", nonlinear );
+    cmd.addSwitch( "nl", "Solve nonlinear problem", nonlinear );
 
     try { cmd.getValues(argc,argv); } catch (int rv) { return rv; }
     //! [Parse command line]
@@ -558,6 +558,7 @@ int main(int argc, char *argv[])
         gsVector<real_t> updateVector = solVector;
         gsVector<real_t> resVec = Residual(solVector);
         gsSparseMatrix<real_t> jacMat;
+        bool converged = false;
         for (index_t it = 0; it != 100; ++it)
         {
             jacMat = Jacobian(solVector);
@@ -578,10 +579,17 @@ int main(int argc, char *argv[])
             residualOld = residual;
 
             if (updateVector.norm() < 1e-6)
+            {
+                converged = true;
                 break;
-            else if (it+1 == it)
-                gsWarn<<"Maximum iterations reached!\n";
+            }
         }
+        // The guard that used to sit here read
+        //     else if (it+1 == it) gsWarn<<"Maximum iterations reached!\n";
+        // which is ALWAYS FALSE, so a Newton solve that used up all 100 iterations
+        // ended quietly and the (non-converged) solution was used as if it were good.
+        if (!converged)
+            gsWarn<<"Maximum iterations reached! The Newton solver did NOT converge.\n";
     }
     //! [Solve non-linear problem]
 

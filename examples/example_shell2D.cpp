@@ -448,6 +448,7 @@ int main(int argc, char *argv[])
         gsVector<real_t> updateVector = solVector;
         gsVector<real_t> resVec = Residual(solVector);
         gsSparseMatrix<real_t> jacMat;
+        bool converged = false;
         for (index_t it = 0; it != 100; ++it)
         {
             gsMatrix<> z(1,1);
@@ -476,10 +477,17 @@ int main(int argc, char *argv[])
             residualOld = residual;
 
             if (updateVector.norm() < 1e-6)
+            {
+                converged = true;
                 break;
-            else if (it+1 == it)
-                gsWarn<<"Maximum iterations reached!\n";
+            }
         }
+        // The guard that used to sit here read
+        //     else if (it+1 == it) gsWarn<<"Maximum iterations reached!\n";
+        // which is ALWAYS FALSE, so a Newton solve that used up all 100 iterations
+        // ended quietly and the (non-converged) solution was used as if it were good.
+        if (!converged)
+            gsWarn<<"Maximum iterations reached! The Newton solver did NOT converge.\n";
     }
     //! [Solve non-linear problem]
 

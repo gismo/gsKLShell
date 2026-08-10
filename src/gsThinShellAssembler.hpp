@@ -1384,6 +1384,97 @@ void gsThinShellAssembler<d, T, bending>::_applyLoads()
     }
 }
 
+/*
+    Adds the point masses of m_pMass to the ALREADY ASSEMBLED mass matrix m_mass.
+
+    Each point mass deposits the CONSISTENT (rank-one) block
+    value * N_k(p) * N_l(p) into every one of the d component blocks, restricted to
+    the FREE dofs -- hence the k x l double loop below, and hence the fact that this
+    routine must run BEFORE any row-sum lumping (see assembleMass).
+
+    CONTRACT -- five measured behaviours; the first two are handled here, the other
+    three are LOUD already and are documented rather than converted:
+
+    (a) The point must lie in the parameter domain of the patch's basis. An
+        out-of-domain point used to NaN the ENTIRE mass matrix while assembleMass()
+        still reported Success: silent corruption under a success status, which is
+        what every dynamic-analysis driver branches on. It is now rejected by the
+        GISMO_ENSURE below. ENSURE, not ASSERT: the point is a CALLER-SUPPLIED value
+        of the public setPointMass() API, and this routine runs once per point mass
+        (not per quadrature point), so the guard is live under -DNDEBUG as well. The
+        std::runtime_error it throws is caught by assembleMass()'s own catch(...)
+        and surfaces to the caller as AssemblyError -- with the full diagnostic
+        (the point and the domain) already on std::cerr, because GISMO_ENSURE prints
+        condition, message, file and line BEFORE it throws
+        (src/gsCore/gsDebug.h:120-124); only what() is the bare "GISMO_ENSURE".
+        CONTRACT WIDENING this implies: a point mass whose VALUE is zero at an
+        out-of-domain point used to be a silent no-op -- the "value != 0" test below
+        gated the write, so the NaN basis values were never consumed -- and now
+        raises AssemblyError as well. Deliberate: the input is wrong either way, and
+        distinguishing the two would make the guard value-dependent.
+
+        The bound is read from gsBasis::support(). TWO residues follow from that,
+        and they are NOT the same thing:
+          - the TOLERANCE band (see the guard below): points just outside the domain
+            are accepted and then CLAMPED onto it, so their mass is deposited at the
+            boundary instead of being lost. Closed.
+          - the BOUNDING BOX: support() is documented as *a bounding box for* the
+            domain, so a point in box \ domain is admitted. The clamp does NOT
+            relocate such a point (it is already inside the box), and it would
+            evaluate to sum(N) = 0, i.e. a dropped mass under Success (a NaN one on
+            a rational basis, see the clamp comment below). This residue
+            is EMPTY for every basis this assembler can reach: for a tensor /
+            B-spline / NURBS patch the parameter domain IS its box, and
+            gsHTensorBasis::support() (gsHTensorBasis.hpp:122-126) returns the
+            LEVEL-0 box, which hierarchical refinement does not shrink. It is
+            documented rather than guarded because closing it in general needs a
+            per-basis domain-membership query that gsBasis does not offer.
+        A basis type that does not implement support() raises
+        GISMO_NO_IMPLEMENTATION, again an AssemblyError rather than a silent NaN.
+
+    (b) The actives must be numbered in the SPACE basis, not in the integration
+        basis. m_mapper is read from m_space (:1485), and _initialize() builds
+        m_space from *m_spaceBasis (:259) -- m_basis is only the integration basis
+        (:248). The two diverge as soon as the public setSpaceBasis() is used, and
+        this routine used to resolve the basis as m_basis.front().basis(patch): the
+        actives were numbered in one basis and resolved in the other. MEASURED on the
+        Scordelis-Lo roof with m_basis = coarse and setSpaceBasis(refined), a 7.5
+        point mass at the interior point (0.5,0.5): the mass landed on an entirely
+        different dof set (rows 44 45 54 55 363 364 372 651 652 660 instead of
+        152 153 170 171 459 460 475 476 747 748 763 764) and the total deposited was
+        15.9375 instead of d*value = 22.5 -- silently, under Success, because the
+        grand sum is blind to WHERE the mass lands and some of the mis-resolved
+        indices hit ELIMINATED dofs. The reverse split (m_basis finer than the space
+        basis) reads m_dofs[c] past patchSize(0,c) and returns an unrelated index
+        that is_free_index() accepts. Repaired by dispatching over *m_spaceBasis
+        with the SAME type ladder _applyLoads carries (:1337-1369).
+        SIDE EFFECT, measured: a point mass on patch > 0 used to THROW through
+        gsBasis::piece()'s GISMO_ENSURE(0==k) (src/gsCore/gsBasis.h:105-109), because
+        m_basis.front() is patch 0's basis and .basis(patch) then asks it for a piece
+        it does not have. gsMultiBasis::basis(patch) indexes patches properly, so that
+        throw is gone and a multipatch point mass is now applied to its own patch --
+        verified on a two-patch DISCONNECTED fixture (see the report of task 63; the
+        deposited block is identical to the patch-0 one and sits on patch 1's dofs).
+        A glued multipatch was not probed.
+        That same throw was, however, ALSO the only thing stopping an OUT-OF-RANGE
+        patch index in a Release build, so the patch test below is a GISMO_ENSURE
+        and not the GISMO_ASSERT _applyLoads carries -- the one deliberate deviation
+        from that routine's literal form, and the reason is written at the line.
+
+    (c) On a problem with ZERO free dofs the GISMO_ASSERT(m_mass.rows()!=0) below
+        fires even when there is no point mass at all, because assembleMass() calls
+        this routine unconditionally; assembleMass() then returns AssemblyError.
+        Under -DNDEBUG that assert is absent, the empty loop is skipped and the same
+        call returns Success -- Debug and Release diverge on that (pathological)
+        fixture. Documented, not guarded: both branches are visible, neither is
+        silently wrong.
+
+    (d) A NEGATIVE mass is PERMITTED and is not validated. It produces a negative
+        contribution and hence a NEGATIVE lumped diagonal entry (measured: a
+        -1e6 point mass gives a minimum diagonal of -2.5e5), which makes the lumped
+        operator indefinite and unusable in a generalized eigenproblem. This is
+        deliberate: negative point masses are legitimate input in model updating.
+*/
 template<short_t d, class T, bool bending>
 void gsThinShellAssembler<d, T, bending>::_applyMass()
 {
@@ -1398,19 +1489,97 @@ void gsThinShellAssembler<d, T, bending>::_applyMass()
     for (size_t i = 0; i< m_pMass.numLoads(); ++i )
     {
         GISMO_ASSERT(m_pMass[i].value.size()==1,"Mass should be one-dimensional");
+        // ENSURE, not the ASSERT _applyLoads uses -- see contract (b): until this
+        // routine dispatched over m_spaceBasis, EVERY patch != 0 was stopped by
+        // gsBasis::piece()'s own GISMO_ENSURE, which is live under -DNDEBUG. Making
+        // the valid patches work removes that net, and an ASSERT here would leave
+        // patch >= nPatches() to fall through into gsMultiBasis::basis(patch) ->
+        // *m_bases[patch] in a Release build, i.e. an out-of-range deref instead of
+        // a throw. Same argument as (a): a caller-supplied value of a public setter,
+        // tested once per point mass.
+        GISMO_ENSURE((size_t)m_pMass[i].patch<m_patches.nPatches(),"Point mass is defined on a patch with index "<<m_pMass[i].patch<<" while the geometry has "<<m_patches.nPatches()<<" patches\n");
+
+        // Resolve the PARAMETRIC point at which this mass acts. Both branches feed
+        // the same active_into/eval_into below, so the domain guard covers the
+        // physical-space input too -- an inversion that does not converge lands
+        // outside the domain or returns NaN, and NaN fails both comparisons.
+        gsMatrix<T> parPoint;
+        if ( m_pMass[i].parametric )   // in parametric space
+            parPoint = m_pMass[i].point;
+        else                            // in physical space
+            m_patches.patch(m_pMass[i].patch).invertPoints(m_pMass[i].point,parPoint);
+
+        // Contract (b): the actives are resolved through m_mapper, which comes from
+        // the space, which is built from *m_spaceBasis -- so they must be NUMBERED
+        // in *m_spaceBasis, not in the integration basis m_basis. Same type ladder,
+        // same order and same fallback as _applyLoads (:1337-1369); the two casts
+        // are hoisted out of it only because the domain guard has to sit BETWEEN
+        // support() and active_into(), and duplicating the guard in each branch
+        // would be worse than hoisting the dispatch.
+        const gsMappedBasis<2,T> * mappedBasis = dynamic_cast<const gsMappedBasis<2,T> * >(m_spaceBasis);
+        const gsMultiBasis<T>    * multiBasis  = dynamic_cast<const gsMultiBasis<T>    * >(m_spaceBasis);
+        GISMO_ENSURE(mappedBasis!=nullptr || multiBasis!=nullptr,"Basis type not understood");
+
+        // Contract (a): out-of-domain points used to NaN the WHOLE mass matrix
+        // while assembleMass() still reported Success. The bounds are READ FROM THE
+        // SAME BASIS the actives come from -- the parameter domain is not
+        // guaranteed to be [0,1]^d, and reading it from a different basis would
+        // re-create contract (b) in a new place.
+        const gsMatrix<T> supp = (mappedBasis!=nullptr)
+                               ? mappedBasis->getMappedSingleBasis(m_pMass[i].patch).support()
+                               : multiBasis->basis(m_pMass[i].patch).support();
+        // This dimension test MUST precede the first .col(0) access below.
+        GISMO_ENSURE(parPoint.rows()==supp.rows(),
+                     "Point mass "<<i<<" has "<<parPoint.rows()<<" coordinate(s), but the basis of patch "
+                     <<m_pMass[i].patch<<" has parameter dimension "<<supp.rows());
+        // Tolerance in units of eps, on the extent of the domain, so that a float
+        // or multiprecision T scales with the arithmetic instead of degenerating
+        // into an exact test (for an exact-arithmetic T with epsilon() == 0 it IS
+        // an exact test, which is correct). The 1e3 is a round allowance for the
+        // round-off accumulated by whatever produced the point -- a coordinate
+        // computed from a knot vector, or a physical point run through
+        // invertPoints; it is NOT there to cover a Newton iterate landing outside
+        // the domain, which cannot happen: gsGeometry::invertPoints ->
+        // gsFunction::newtonRaphson(...,withSupport=true) clamps EVERY iterate with
+        // arg.cwiseMax(supp.col(0)).cwiseMin(supp.col(1)) against this same
+        // support(), and writes +inf on failure.
+        // Note the real_t scaling of the BAND, which is why the clamp below is not
+        // optional: in double it is ~2.2e-13*extent, but for real_t = float it is
+        // ~1.2e-4*extent, i.e. wider than one element on a mesh finer than that.
+        // A point admitted by tol is therefore RELOCATED onto the domain, never
+        // silently dropped, whatever the width of the band.
+        const T tol = 1e3 * std::numeric_limits<T>::epsilon()
+                          * (supp.col(1)-supp.col(0)).cwiseAbs().maxCoeff();
+        GISMO_ENSURE( ((parPoint.col(0).array()-supp.col(0).array()) >= -tol).all() &&
+                      ((parPoint.col(0).array()-supp.col(1).array()) <=  tol).all(),
+                      "Point mass "<<i<<" lies outside the parameter domain of patch "
+                      <<m_pMass[i].patch<<": the point is ("<<parPoint.col(0).transpose()
+                      <<") while the domain is ("<<supp.col(0).transpose()<<") x ("
+                      <<supp.col(1).transpose()<<")");
+
+        // ... and CLAMP what the tolerance admitted. Without this, a point ACCEPTED
+        // inside the band was NOT harmless: at u = 1+1e-14 on a [0,1] knot vector
+        // active_into returns a SHIFTED active set (measured on a B-spline basis:
+        // 12..26 instead of 15..29) on which every N vanishes. On a POLYNOMIAL basis
+        // the k x l loop then deposits exactly nothing -- the mass is silently lost
+        // under Success. On a RATIONAL one (this class' own Scordelis-Lo fixture is
+        // a NURBS) it is worse: gsRationalBasis divides by sum_i w_i N_i, which is
+        // ALSO zero, so eval_into returns NaN and the WHOLE mass matrix goes NaN --
+        // measured, still under Success. So the tolerance band re-opened, 2.2e-13
+        // wide, the very failure shape (a) exists to remove; the clamp closes it.
+        // Clamping is exact and a no-op for any point genuinely inside.
+        parPoint.col(0) = parPoint.col(0).cwiseMax(supp.col(0)).cwiseMin(supp.col(1));
 
         // Compute actives and values of basis functions on point load location.
-        if ( m_pMass[i].parametric )   // in parametric space
+        if (mappedBasis!=nullptr)
         {
-            m_basis.front().basis(m_pMass[i].patch).active_into( m_pMass[i].point, acts );
-            m_basis.front().basis(m_pMass[i].patch).eval_into  ( m_pMass[i].point, bVals);
+            mappedBasis->active_into(m_pMass[i].patch,parPoint, acts );
+            mappedBasis->eval_into  (m_pMass[i].patch,parPoint, bVals);
         }
-        else                            // in physical space
+        else
         {
-            gsMatrix<T> forcePoint;
-            m_patches.patch(m_pMass[i].patch).invertPoints(m_pMass[i].point,forcePoint);
-            m_basis.front().basis(m_pMass[i].patch).active_into( forcePoint, acts );
-            m_basis.front().basis(m_pMass[i].patch).eval_into  ( forcePoint, bVals);
+            multiBasis->basis(m_pMass[i].patch).active_into( parPoint, acts );
+            multiBasis->basis(m_pMass[i].patch).eval_into  ( parPoint, bVals);
         }
 
         // Add the point load values in the right entries in the global RHS
@@ -1448,46 +1617,83 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMass(const
     auto mm0 = m_assembler.getCoeff(m_mm);
 
     space       m_space = m_assembler.trialSpace(0);
+    // The mass operator carries no Dirichlet lifting, so the space is set up
+    // homogeneously here. This OVERWRITES the space's fixed part, which is
+    // shared state: it is restored after the try/catch below.
     m_space.setup(m_bcs, dirichlet::homogeneous, m_continuity);
-    // this->homogenizeDirichlet();
-
-    gsExprEvaluator<T> ev(m_assembler);
-    gsVector<> pt(2);
-    pt.setConstant(.25);
 
     try
     {
-        // assemble system
-        if (!lumped)
-            m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
-        else
-            m_assembler.assemble(mm0.val()*(m_space.rowSum())*meas(m_ori));
-
+        // The CONSISTENT mass matrix is assembled UNCONDITIONALLY, also when a
+        // lumped matrix is asked for. Assembling mm0.val()*m_space.rowSum()*meas()
+        // instead does NOT lump: rowSum() is transparent to the Space trait
+        // (gsExpressions/rowsum_expr.h:32 declares Space = E::Space), so that
+        // expression is VECTOR-valued and gsExprAssembler dispatches it -- at
+        // compile time, through push<E::isMatrix()> -- into the rhs. The system
+        // matrix is then never written and m_assembler.matrix() returns an
+        // unmanaged cache (empty, zero, or the STALE matrix of an earlier call).
+        m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
         m_mass = m_assembler.matrix();
 
-/*        // assemble system
-        if (!lumped)
-        {
-            m_assembler.assemble(mm0.val()*m_space*m_space.tr()*meas(m_ori));
-            m_mass = m_assembler.matrix();
-            this->_applyMass();
-        }
-        else
-        {
-            // To do: add point masses in lumped case
-            m_assembler.assemble(mm0.val()*(m_space.rowSum())*meas(m_ori));
-            m_rhs = m_assembler.rhs();
-        }
-        m_mass = m_assembler.matrix();
-
+        // Point masses are CONSISTENT (rank-one) contributions: _applyMass writes
+        // value*N_k*N_l over the FULL k x l double loop (:1591-1598 above), i.e.
+        // genuine OFF-DIAGONAL entries. It must therefore run BEFORE the row-sum
+        // lumping below -- applying it afterwards would re-introduce off-diagonals,
+        // so the result would not be diagonal at all. That ordering is also what
+        // makes the point masses reach the lumped diagonal (the dead block's own
+        // "To do: add point masses in lumped case").
         this->_applyMass();
-        m_status = ThinShellAssemblerStatus::Success;*/
+
+        if (lumped)
+        {
+            // Row-sum lumping of the ASSEMBLED matrix: the gsProjection pattern,
+            // src/gsUtils/gsProjection.hpp:59-69. Since sum_i sum_j M_ij IS the
+            // grand sum of M, the total mass is conserved to machine precision on
+            // ANY fixture, with or without eliminated Dirichlet dofs.
+            //
+            // COST, DELIBERATE -- DO NOT "OPTIMISE" THIS AWAY: this pays a full
+            // consistent assembly plus one O(nnz) sparse mat-vec, where assembling
+            // the vector-valued rowSum() expression and reading m_assembler.rhs()
+            // would be far cheaper. The cheap route is NOT equivalent: its
+            // push<false> path has no column loop, so it also deposits the
+            // contributions of the ELIMINATED columns, and the resulting diagonal
+            // does not sum to the consistent grand sum on a constrained problem.
+            // The two coincide only on a fixture without Dirichlet elimination.
+            gsMatrix<T> ones = gsMatrix<T>::Ones(m_mass.cols(),1);
+            gsMatrix<T> rowSums = m_mass * ones;
+            gsSparseEntries<T> entries;
+            entries.reserve(rowSums.rows());
+            for (index_t i = 0; i != rowSums.rows(); ++i)
+                entries.add(i,i,rowSums(i,0));
+            gsSparseMatrix<T> lumpedMass(m_mass.rows(),m_mass.cols());
+            lumpedMass.setFrom(entries);
+            m_mass = give(lumpedMass);
+        }
+
+        m_status = ThinShellAssemblerStatus::Success;
     }
     catch (...)
     {
         m_assembler.cleanUp();
         m_status = ThinShellAssemblerStatus::AssemblyError;
     }
+
+    // Undo the homogenization performed above. The trial space is shared state:
+    // leaving it homogenized makes every later assemble() on this instance
+    // silently return the rhs WITHOUT the Dirichlet lifting. This is exactly what
+    // updateBCs(m_bcs) does, and it runs on the error path too so that a failed
+    // mass assembly does not leave the instance in a homogenized state. Sitting
+    // after the try/catch is the ONLY load-bearing part of its position:
+    // its order relative to _applyMass() is NOT load-bearing. (An earlier comment
+    // here claimed that _applyMass "re-reads m_mapper from the space", which is
+    // true -- :1485 -- but is not a constraint: setup(bc,homogeneous,cont) and
+    // setup(bc,l2Projection,cont) build an IDENTICAL mapper and differ only in the
+    // gsDirichletValues call that writes fixedPart, so _applyMass sees the same
+    // free/eliminated classification either way.)
+    this->_assembleDirichlet();
+    m_ddofs  = m_space.fixedPart();
+    m_mapper = m_space.mapper();
+
     return m_status;
 }
 

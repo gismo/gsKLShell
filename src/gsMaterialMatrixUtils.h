@@ -15,7 +15,13 @@
 
 #pragma once
 
-#include <gsKLShell/src/gsMaterialMatrixBase.h>
+// NOTE: do NOT include gsMaterialMatrixBase.h here. This file is the *lower*
+// half of the pair: gsMaterialMatrixBase.h needs the enums declared below
+// (MatIntegration, MaterialOutput), nothing here needs gsMaterialMatrixBase.
+// The former (accidental) include closed a cycle, so any TU entering through
+// this header saw gsMaterialMatrixBase.h only half-defined and failed with
+// "use of enum 'MatIntegration' without previous declaration".
+#include <gsCore/gsForwardDeclarations.h>   // short_t
 #include <gsIO/gsOptionList.h>
 
 namespace gismo
