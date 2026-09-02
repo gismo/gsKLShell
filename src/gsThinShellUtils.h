@@ -1657,6 +1657,7 @@ public:
             for (index_t j = 0; j!=Bn; ++j) // for all actives v
             {
                 tmp.noalias() = eB.middleCols(i*Bc,Bc) * eA.middleCols(j*Ac,Ac);
+                tmp.noalias() = eB.middleCols(j*Bc,Bc) * eA.middleCols(i*Ac,Ac);
 
                 tmp(0,0) *= eC.at(0);
                 tmp(0,1) *= eC.at(2);
