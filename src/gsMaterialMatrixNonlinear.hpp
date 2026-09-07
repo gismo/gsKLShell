@@ -591,7 +591,7 @@ gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::eval3D_pstretch_impl(const 
             colIdx = j*u.cols()+k;
             this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
 
-            C33 = C33s(0,k);
+            C33 = C33s(0,colIdx);
 
             // Compute c
             c.setZero();
@@ -1872,6 +1872,11 @@ gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Compres
     gsMatrix<T> result(1, u.cols() * z.rows());
     result.setZero();
     index_t colIdx;
+    bool warnedNonFinite = false;
+    bool warnedDamped = false;
+    bool warnedExhausted = false;
+    bool warnedNotConverged = false;
+    bool warnedNonFiniteGuess = false;
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
@@ -1899,6 +1904,26 @@ gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Compres
             c.block(0,0,2,2) = m_data.mine().m_Gcov_def.block(0,0,2,2);
             c(2,2) = math::pow(m_data.mine().m_J0_sq,-1.0); // c33
             // c(2,2) = 1.0; // c33
+            // The Newton initial guess c33 = 1/J0^2 is not finite when J0^2 is zero (a
+            // degenerate element) or NaN (an inverted or undefined one, already flagged
+            // upstream in gsMaterialMatrixBaseDim::_getMetric). No admissible squared
+            // thickness stretch exists at such a point and the iteration cannot recover
+            // from a non-finite start, so the failure is signalled as data - a quiet NaN,
+            // as on the itmax path below - and not as an exception: this routine is
+            // evaluated inside the expression assembler's OpenMP region, where a throw
+            // cannot be caught by any handler above the parallel construct.
+            if (!math::isfinite(c(2,2)))
+            {
+                result(0,colIdx) = std::numeric_limits<T>::quiet_NaN();
+                if (!warnedNonFiniteGuess)
+                {
+                    warnedNonFiniteGuess = true;
+                    gsWarn<<"_eval3D_Compressible_C33: non-finite Newton initial guess c33 = 1/J0^2, "
+                          <<"c33 set to NaN without iterating (c(2,2)="<<c(2,2)
+                          <<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
+                }
+                continue;
+            }
             cinv.setZero();
             cinv.block(0,0,2,2) = m_data.mine().m_Gcon_def.block(0,0,2,2);
             cinv(2,2) = 1.0/c(2,2);
@@ -1911,9 +1936,40 @@ gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Compres
             dc33 = -2. * S33 / C3333;
             for (index_t it = 0; it < itmax; it++)
             {
-                c(2,2) += dc33;
+                // c(2,2) is a squared through-thickness stretch and is admissible only for
+                // c(2,2) > 0: the compressible stress evaluates pow(m_J_sq,-1/3) with
+                // m_J_sq = m_J0_sq*c(2,2), which is NaN for a negative argument, and the NaN
+                // then propagates through every remaining iterate. The Newton increment is
+                // therefore backtracked until the trial iterate stays admissible. A non-finite
+                // increment (C3333 -> 0 at loss of ellipticity, or S33 already NaN) cannot be
+                // repaired by halving and is left to the convergence check below.
+                if (math::isfinite(dc33))
+                {
+                    const T dc33_0 = dc33;
+                    index_t nhalve = 0;
+                    while (!(c(2,2) + dc33 > 0) && nhalve < 50) { dc33 /= 2; ++nhalve; }
+                    if (!(c(2,2) + dc33 > 0))
+                    {
+                        dc33 = dc33_0;
+                        if (!warnedExhausted)
+                        {
+                            warnedExhausted = true;
+                            gsWarn<<"_eval3D_Compressible_C33: backtracking exhausted after 50 halvings, dc33 left unchanged (it="<<it<<", c(2,2)="<<c(2,2)<<", dc33="<<dc33<<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
+                        }
+                    }
+                    else if (nhalve > 0 && !warnedDamped)
+                    {
+                        warnedDamped = true;
+                        gsWarn<<"_eval3D_Compressible_C33: Newton increment dc33 backtracked to keep c(2,2) admissible (it="<<it<<", c(2,2)="<<c(2,2)<<", dc33="<<dc33_0<<" -> "<<dc33<<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
+                    }
+                }
+                else if (!warnedNonFinite)
+                {
+                    warnedNonFinite = true;
+                    gsWarn<<"_eval3D_Compressible_C33: non-finite Newton increment dc33, iterate held (it="<<it<<", c(2,2)="<<c(2,2)<<", dc33="<<dc33<<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
+                }
 
-                //GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
+                c(2,2) += dc33;
                 cinv(2,2) = 1.0/c(2,2);
 
                 m_data.mine().m_J_sq = m_data.mine().m_J0_sq * c(2,2) ;
@@ -1922,12 +1978,30 @@ gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Compres
                 C3333   = _Cijkl3D(2,2,2,2,c,cinv); //  or _Cijkl???
 
                 dc33 = -2. * S33 / C3333;
-                if (math::lessthan(math::abs(dc33),tol))
+                if (math::lessthan(math::abs(dc33),tol) && c(2,2) > 0)
                 {
                     result(0,colIdx) = c(2,2);
                     break;
                 }
-                GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, S33 = "<<S33<<", dc33 = "<<dc33<<" and tolerance = "<<tol<<"\n");
+                // Newton on S33(c33)=0 exhausted itmax iterations: no admissible squared
+                // thickness stretch was found at this quadrature point. The failure is
+                // signalled as data — a quiet NaN that propagates through the material
+                // tensors into the assembled system — and not as an exception: this routine
+                // is evaluated inside the expression assembler's OpenMP region, where a
+                // throw cannot be caught by any handler above the parallel construct and
+                // terminates the process instead.
+                if (it == itmax-1)
+                {
+                    result(0,colIdx) = std::numeric_limits<T>::quiet_NaN();
+                    if (!warnedNotConverged)
+                    {
+                        warnedNotConverged = true;
+                        gsWarn<<"_eval3D_Compressible_C33: Newton did not converge in "<<itmax
+                              <<" iterations, c33 set to NaN (S33="<<S33<<", dc33="<<dc33
+                              <<", tol="<<tol<<", c(2,2)="<<c(2,2)
+                              <<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
+                    }
+                }
             }
         }
     }
@@ -1946,6 +2020,11 @@ gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Compres
     gsMatrix<T> result(1, u.cols() * z.rows());
     result.setZero();
     index_t colIdx;
+    bool warnedNonFinite = false;
+    bool warnedDamped = false;
+    bool warnedExhausted = false;
+    bool warnedNotConverged = false;
+    bool warnedNonFiniteGuess = false;
     for (index_t k=0; k!=u.cols(); k++)
     {
         // Evaluate material properties on the quadrature point
@@ -1973,6 +2052,26 @@ gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Compres
             c.block(0,0,2,2) = m_data.mine().m_Gcov_def.block(0,0,2,2);
             c(2,2) = math::pow(m_data.mine().m_J0_sq,-1.0); // c33
             // c(2,2) = 1.0; // c33
+            // The Newton initial guess c33 = 1/J0^2 is not finite when J0^2 is zero (a
+            // degenerate element) or NaN (an inverted or undefined one, already flagged
+            // upstream in gsMaterialMatrixBaseDim::_getMetric). No admissible squared
+            // thickness stretch exists at such a point and the iteration cannot recover
+            // from a non-finite start, so the failure is signalled as data - a quiet NaN,
+            // as on the itmax path below - and not as an exception: this routine is
+            // evaluated inside the expression assembler's OpenMP region, where a throw
+            // cannot be caught by any handler above the parallel construct.
+            if (!math::isfinite(c(2,2)))
+            {
+                result(0,colIdx) = std::numeric_limits<T>::quiet_NaN();
+                if (!warnedNonFiniteGuess)
+                {
+                    warnedNonFiniteGuess = true;
+                    gsWarn<<"_eval3D_Compressible_C33 (Cmat): non-finite Newton initial guess c33 = 1/J0^2, "
+                          <<"c33 set to NaN without iterating (c(2,2)="<<c(2,2)
+                          <<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
+                }
+                continue;
+            }
             cinv.setZero();
             cinv.block(0,0,2,2) = m_data.mine().m_Gcon_def.block(0,0,2,2);
             cinv(2,2) = 1.0/c(2,2);
@@ -1985,9 +2084,40 @@ gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Compres
             dc33 = -2. * S33 / C3333;
             for (index_t it = 0; it < itmax; it++)
             {
-                c(2,2) += dc33;
+                // c(2,2) is a squared through-thickness stretch and is admissible only for
+                // c(2,2) > 0: the compressible stress evaluates pow(m_J_sq,-1/3) with
+                // m_J_sq = m_J0_sq*c(2,2), which is NaN for a negative argument, and the NaN
+                // then propagates through every remaining iterate. The Newton increment is
+                // therefore backtracked until the trial iterate stays admissible. A non-finite
+                // increment (C3333 -> 0 at loss of ellipticity, or S33 already NaN) cannot be
+                // repaired by halving and is left to the convergence check below.
+                if (math::isfinite(dc33))
+                {
+                    const T dc33_0 = dc33;
+                    index_t nhalve = 0;
+                    while (!(c(2,2) + dc33 > 0) && nhalve < 50) { dc33 /= 2; ++nhalve; }
+                    if (!(c(2,2) + dc33 > 0))
+                    {
+                        dc33 = dc33_0;
+                        if (!warnedExhausted)
+                        {
+                            warnedExhausted = true;
+                            gsWarn<<"_eval3D_Compressible_C33 (Cmat): backtracking exhausted after 50 halvings, dc33 left unchanged (it="<<it<<", c(2,2)="<<c(2,2)<<", dc33="<<dc33<<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
+                        }
+                    }
+                    else if (nhalve > 0 && !warnedDamped)
+                    {
+                        warnedDamped = true;
+                        gsWarn<<"_eval3D_Compressible_C33 (Cmat): Newton increment dc33 backtracked to keep c(2,2) admissible (it="<<it<<", c(2,2)="<<c(2,2)<<", dc33="<<dc33_0<<" -> "<<dc33<<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
+                    }
+                }
+                else if (!warnedNonFinite)
+                {
+                    warnedNonFinite = true;
+                    gsWarn<<"_eval3D_Compressible_C33 (Cmat): non-finite Newton increment dc33, iterate held (it="<<it<<", c(2,2)="<<c(2,2)<<", dc33="<<dc33<<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
+                }
 
-                //GISMO_ENSURE(c(2,2)>= 0,"ERROR in iteration "<<it<<"; c(2,2) = " << c(2,2) << " C3333=" << C3333 <<" S33=" << S33<<" dc33 = "<<dc33);
+                c(2,2) += dc33;
                 cinv(2,2) = 1.0/c(2,2);
 
                 m_data.mine().m_J_sq = m_data.mine().m_J0_sq * c(2,2) ;
@@ -1996,12 +2126,30 @@ gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Compres
                 C3333   = _Cijkl3D(2,2,2,2,c,cinv); //  or _Cijkl???
 
                 dc33 = -2. * S33 / C3333;
-                if (math::lessthan(math::abs(dc33),tol))
+                if (math::lessthan(math::abs(dc33),tol) && c(2,2) > 0)
                 {
                     result(0,colIdx) = c(2,2);
                     break;
                 }
-                GISMO_ENSURE(it != itmax-1,"Error: Method did not converge, S33 = "<<S33<<", dc33 = "<<dc33<<" and tolerance = "<<tol<<"\n");
+                // Newton on S33(c33)=0 exhausted itmax iterations: no admissible squared
+                // thickness stretch was found at this quadrature point. The failure is
+                // signalled as data — a quiet NaN that propagates through the material
+                // tensors into the assembled system — and not as an exception: this routine
+                // is evaluated inside the expression assembler's OpenMP region, where a
+                // throw cannot be caught by any handler above the parallel construct and
+                // terminates the process instead.
+                if (it == itmax-1)
+                {
+                    result(0,colIdx) = std::numeric_limits<T>::quiet_NaN();
+                    if (!warnedNotConverged)
+                    {
+                        warnedNotConverged = true;
+                        gsWarn<<"_eval3D_Compressible_C33 (Cmat): Newton did not converge in "<<itmax
+                              <<" iterations, c33 set to NaN (S33="<<S33<<", dc33="<<dc33
+                              <<", tol="<<tol<<", c(2,2)="<<c(2,2)
+                              <<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
+                    }
+                }
             }
         }
     }
