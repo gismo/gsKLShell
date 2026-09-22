@@ -1708,6 +1708,21 @@ ThinShellAssemblerStatus gsThinShellAssembler<d, T, bending>::assembleMatrix(con
     return assembleMatrix_impl<d, bending>(deformed);
 }
 
+/// \brief Checks that every stored value of the assembled system matrix is finite.
+/// \note The value array is contiguous because gsFiberMatrix::toSparseMatrix_into
+/// compresses the matrix it produces, so it may be scanned as a plain value range.
+template<short_t d, class T, bool bending>
+bool gsThinShellAssembler<d, T, bending>::_isSystemFinite(const gsSparseMatrix<T> & K) const
+{
+    return gsAsConstVector<T>(K.valuePtr(),static_cast<unsigned>(K.nonZeros())).allFinite();
+}
+
+template<short_t d, class T, bool bending>
+bool gsThinShellAssembler<d, T, bending>::_isSystemFinite(const gsMatrix<T> & v) const
+{
+    return v.allFinite();
+}
+
 template <short_t d, typename T, bool bending>
 template <short_t _d, bool _bending>
 typename std::enable_if<(_d==3) && _bending, ThinShellAssemblerStatus>::type
@@ -1778,7 +1793,13 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
         this->_assembleWeakBCs<true>(deformed);
         this->_assembleWeakIfc<true>(deformed);
 
-        m_status = ThinShellAssemblerStatus::Success;
+        // A failed plane-stress solve in the material routine is signalled by a NaN rather
+        // than an exception (it is evaluated inside the assembler's OpenMP region, where a
+        // throw cannot be caught above the parallel construct), so the assembled matrix is
+        // where that failure becomes observable.
+        const gsSparseMatrix<T> & K = this->matrix();
+        m_status = _isSystemFinite(K) ? ThinShellAssemblerStatus::Success
+                                       : ThinShellAssemblerStatus::AssemblyError;
     }
     catch (...)
     {
@@ -1836,7 +1857,13 @@ gsThinShellAssembler<d, T, bending>::assembleMatrix_impl(const gsFunctionSet<T> 
         this->_assembleWeakBCs<true>(deformed);
         this->_assembleWeakIfc<true>(deformed);
 
-        m_status = ThinShellAssemblerStatus::Success;
+        // A failed plane-stress solve in the material routine is signalled by a NaN rather
+        // than an exception (it is evaluated inside the assembler's OpenMP region, where a
+        // throw cannot be caught above the parallel construct), so the assembled matrix is
+        // where that failure becomes observable.
+        const gsSparseMatrix<T> & K = this->matrix();
+        m_status = _isSystemFinite(K) ? ThinShellAssemblerStatus::Success
+                                       : ThinShellAssemblerStatus::AssemblyError;
     }
     catch (...) // add specific cases?
     {
@@ -2052,7 +2079,10 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
             _applyLoads();
         }
 
-        m_status = ThinShellAssemblerStatus::Success;
+        // See the note in assembleMatrix_impl: the material routine reports a failed
+        // plane-stress solve as a NaN in the assembled system, not as an exception.
+        m_status = _isSystemFinite(this->rhs()) ? ThinShellAssemblerStatus::Success
+                                                 : ThinShellAssemblerStatus::AssemblyError;
     }
     catch (...)
     {
@@ -2120,7 +2150,10 @@ gsThinShellAssembler<d, T, bending>::assembleVector_impl(const gsFunctionSet<T> 
             _applyLoads();
         }
 
-        m_status = ThinShellAssemblerStatus::Success;
+        // See the note in assembleMatrix_impl: the material routine reports a failed
+        // plane-stress solve as a NaN in the assembled system, not as an exception.
+        m_status = _isSystemFinite(this->rhs()) ? ThinShellAssemblerStatus::Success
+                                                 : ThinShellAssemblerStatus::AssemblyError;
     }
     catch (...)
     {

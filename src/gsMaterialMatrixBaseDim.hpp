@@ -1012,7 +1012,27 @@ void gsMaterialMatrixBaseDim<dim,T>::_getMetric(index_t k, T z, const gsMatrix<T
     else
         ratio = det_def / det_ori;
 
-    GISMO_ENSURE(ratio >= 0, "Jacobian determinant is negative! det(Gcov_def) = "<<det_def<<"; det(Gcov_ori) = "<<det_ori);
+    if (!(ratio >= 0))
+    {
+        // An inverted (ratio < 0) or undefined (ratio NaN) element has no admissible squared
+        // thickness stretch J0^2. The failure is signalled as data - a quiet NaN that propagates
+        // through the material tensors into the assembled system - and not as an exception: this
+        // routine is evaluated inside the expression assembler's OpenMP region, where a throw
+        // cannot be caught by any handler above the parallel construct and terminates the process
+        // instead. The test is written negated so that a NaN ratio also enters the branch.
+        bool warn = false;
+#       pragma omp critical (gsMaterialMatrixBaseDim_getMetric_negativeJacobian_C)
+        {
+            static bool warnedNegativeJacobian = false;
+            warn = !warnedNegativeJacobian;
+            warnedNegativeJacobian = true;
+        }
+        if (warn)
+            gsWarn<<"_getMetric (Cmat): J0^2 = det(Gcov_def)/det(Gcov_ori) is negative or undefined "
+                  <<"(inverted or degenerate element), m_J0_sq set to NaN (det(Gcov_def)="<<det_def
+                  <<", det(Gcov_ori)="<<det_ori<<")\n";
+        ratio = std::numeric_limits<T>::quiet_NaN();
+    }
     m_data.mine().m_J0_sq = ratio;
 }
 
@@ -1034,7 +1054,27 @@ void gsMaterialMatrixBaseDim<dim,T>::_getMetric(const index_t k, const T z) cons
     else
         ratio = det_def / det_ori;
 
-    GISMO_ENSURE(ratio >= 0, "Jacobian determinant is negative! det(Gcov_def) = "<<det_def<<"; det(Gcov_ori) = "<<det_ori<<"\nGcov_def = "<<m_data.mine().m_Gcov_def<<"\n"<<"Acov_def = "<<m_data.mine().m_Acov_def<<"\nBcov_def = "<<m_data.mine().m_Bcov_def);
+    if (!(ratio >= 0))
+    {
+        // An inverted (ratio < 0) or undefined (ratio NaN) element has no admissible squared
+        // thickness stretch J0^2. The failure is signalled as data - a quiet NaN that propagates
+        // through the material tensors into the assembled system - and not as an exception: this
+        // routine is evaluated inside the expression assembler's OpenMP region, where a throw
+        // cannot be caught by any handler above the parallel construct and terminates the process
+        // instead. The test is written negated so that a NaN ratio also enters the branch.
+        bool warn = false;
+#       pragma omp critical (gsMaterialMatrixBaseDim_getMetric_negativeJacobian)
+        {
+            static bool warnedNegativeJacobian = false;
+            warn = !warnedNegativeJacobian;
+            warnedNegativeJacobian = true;
+        }
+        if (warn)
+            gsWarn<<"_getMetric: J0^2 = det(Gcov_def)/det(Gcov_ori) is negative or undefined "
+                  <<"(inverted or degenerate element), m_J0_sq set to NaN (det(Gcov_def)="<<det_def
+                  <<", det(Gcov_ori)="<<det_ori<<")\n";
+        ratio = std::numeric_limits<T>::quiet_NaN();
+    }
     m_data.mine().m_J0_sq = ratio;
 }
 

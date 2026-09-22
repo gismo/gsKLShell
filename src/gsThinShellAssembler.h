@@ -533,6 +533,11 @@ protected:
     bool _isInPlane(const boundaryInterface & ifc, const T tol = 1e-2);
 
 private:
+    /// True if the assembled matrix's stored values are all finite (no NaN/Inf).
+    bool _isSystemFinite(const gsSparseMatrix<T> & K) const;
+    /// True if the assembled vector's entries are all finite (no NaN/Inf).
+    bool _isSystemFinite(const gsMatrix<T>       & v) const;
+
     template<short_t _d>
     typename std::enable_if<(_d==3), void>::type
     _assembleNeumann_impl();
