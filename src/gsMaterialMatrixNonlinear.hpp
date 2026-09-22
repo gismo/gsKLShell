@@ -1963,10 +1963,14 @@ gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Compres
                         gsWarn<<"_eval3D_Compressible_C33: Newton increment dc33 backtracked to keep c(2,2) admissible (it="<<it<<", c(2,2)="<<c(2,2)<<", dc33="<<dc33_0<<" -> "<<dc33<<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
                     }
                 }
-                else if (!warnedNonFinite)
+                else
                 {
-                    warnedNonFinite = true;
-                    gsWarn<<"_eval3D_Compressible_C33: non-finite Newton increment dc33, iterate held (it="<<it<<", c(2,2)="<<c(2,2)<<", dc33="<<dc33<<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
+                    if (!warnedNonFinite)
+                    {
+                        warnedNonFinite = true;
+                        gsWarn<<"_eval3D_Compressible_C33: non-finite Newton increment dc33, iterate held (it="<<it<<", c(2,2)="<<c(2,2)<<", dc33="<<dc33<<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
+                    }
+                    dc33 = 0.0;
                 }
 
                 c(2,2) += dc33;
@@ -2111,10 +2115,14 @@ gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Compres
                         gsWarn<<"_eval3D_Compressible_C33 (Cmat): Newton increment dc33 backtracked to keep c(2,2) admissible (it="<<it<<", c(2,2)="<<c(2,2)<<", dc33="<<dc33_0<<" -> "<<dc33<<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
                     }
                 }
-                else if (!warnedNonFinite)
+                else
                 {
-                    warnedNonFinite = true;
-                    gsWarn<<"_eval3D_Compressible_C33 (Cmat): non-finite Newton increment dc33, iterate held (it="<<it<<", c(2,2)="<<c(2,2)<<", dc33="<<dc33<<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
+                    if (!warnedNonFinite)
+                    {
+                        warnedNonFinite = true;
+                        gsWarn<<"_eval3D_Compressible_C33 (Cmat): non-finite Newton increment dc33, iterate held (it="<<it<<", c(2,2)="<<c(2,2)<<", dc33="<<dc33<<", m_J0_sq="<<m_data.mine().m_J0_sq<<")\n";
+                    }
+                    dc33 = 0.0;
                 }
 
                 c(2,2) += dc33;
