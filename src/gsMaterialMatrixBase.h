@@ -367,6 +367,12 @@ public:
      * @param[in]  z      The point through-thickness coorinate
      * @param[in]  out    (for classes with MatIntegration==Integrated, more details about \ref MaterialOutput can be found in \ref gsMaterialMatrixUtils)
      *
+     * @note       For the matrix outputs (MatrixA, MatrixB, MatrixC, MatrixD), each column holds a
+     *             3x3 matrix in column-major order (9 entries) with M_ij = dS_i/dE_j: the row index is
+     *             the stress (Voigt) component and the column index is the strain (engineering Voigt)
+     *             component. The shell assemblers form the tangent as K = dE_test * M * dE_trial, which
+     *             requires this orientation for non-symmetric tangents.
+     *
      * @return     Matrix with the result (matrix) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      */
@@ -393,12 +399,12 @@ public:
      *
      * @return     Matrix with the result (matrix) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
-     *             every column has 9*3=27 entries. To obtain the derivatives of C, one can do the following
-     *
-     *             dC = eval.reshapeCol(k,9,3);
-     *             dCd11 = dC.reshapeCol(0,3,3);
-     *             dCd22 = dC.reshapeCol(1,3,3);
-     *             dCd11 = dC.reshapeCol(2,3,3);
+     *             every column has 27 entries. Entry d + 3*(i + 3*l) is dC_il/dx_d: the derivative of entry (i,l)
+     *             of the 3x3 matrix returned by \ref eval3D_matrix with respect to x = (g_11, g_22, 2 g_12), the
+     *             deformed metric in Voigt form with doubled shear entry. Hence eval.reshapeCol(k,3,9) has the
+     *             derivative variable d as its row and the column-major matrix entry i+3l as its column.
+     *             With respect to the engineering strain E = (E_11, E_22, 2E_12), dC/dE_d = 2 dC/dx_d.
+     *             \ref gsMaterialMatrixLinear returns zeros.
      *
      */
     virtual gsMatrix<T>  eval3D_dmatrix(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
@@ -477,6 +483,13 @@ public:
      *
      * @return     Matrix with the result (principal stress directions) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     *
+     * @note       Layout: 9 rows, the column-major 3x3 matrix [d_min | d_max | N] of Cartesian unit vectors
+     *             (entry (i,l) in row i+3*l), minor principal direction first (ascending, as \ref eval3D_pstress;
+     *             Verhelst's S_p,1 is Zhang's sigma_2), N = normalise(G_1 x G_2) the unit normal of the reference
+     *             (undeformed) configuration at the evaluation point, d_min and d_max Cartesian unit vectors in its
+     *             tangent plane, and d_max = N x d_min. Every implementation builds the frame from the reference
+     *             covariant basis.
      */
     virtual gsMatrix<T> eval3D_pstressDir(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
     { GISMO_NO_IMPLEMENTATION; }
@@ -629,6 +642,73 @@ public:
         gsMatrix<T> zmat(1,1);
         zmat<<z;
         return eval3D_gamma(patch,u,zmat,out);
+    }
+
+    /**
+     * @brief      Evaluates the unit vector along the wrinkles (tension-field materials) on \a patch on in-plane points \a u with height \a z
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     * @param[in]  out    (not used)
+     *
+     * @return     3 rows: the Cartesian unit vector tangent to the wrinkles on the deformed surface,
+     *             normalise(-sin(theta) g_1 + cos(theta) g_2). The zero vector where the point is not wrinkled.
+     *             Ordered per z coordinate per point (column j*u.cols()+k for point k, fibre j)
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
+    virtual gsMatrix<T> eval3D_wrinkleDir(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsMatrix<T> eval3D_wrinkleDir(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    {
+        gsMatrix<T> zmat(1,1);
+        zmat<<z;
+        return eval3D_wrinkleDir(patch,u,zmat,out);
+    }
+
+    /**
+     * @brief      Evaluates the wrinkling intensity (tension-field materials) on \a patch on in-plane points \a u with height \a z
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     * @param[in]  out    (not used)
+     *
+     * @return     1 row: max(0,-E_min) with E_min the minor (ascending order, first) principal value of the total
+     *             Green-Lagrange strain w.r.t. the reference metric (|E_2| of Zhang & Kiendl 2024, who number the
+     *             major value first). Zero where the point is not wrinkled.
+     *             Ordered per z coordinate per point (column j*u.cols()+k for point k, fibre j)
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
+    virtual gsMatrix<T> eval3D_wrinkleIntensity(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsMatrix<T> eval3D_wrinkleIntensity(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    {
+        gsMatrix<T> zmat(1,1);
+        zmat<<z;
+        return eval3D_wrinkleIntensity(patch,u,zmat,out);
+    }
+
+    /**
+     * @brief      Evaluates the parametrisation-independent wrinkle strain (tension-field materials) on \a patch on in-plane points \a u with height \a z
+     *
+     * @param[in]  patch  The patch
+     * @param[in]  u      The in-plane shell coordinates to be eveluated on
+     * @param[in]  z      The point through-thickness coorinate
+     * @param[in]  out    (not used)
+     *
+     * @return     1 row: gamma * G^{ab} n_a n_b with n = (cos theta, sin theta) and G^{ab} the inverse of the
+     *             2x2 covariant reference metric. NaN where the point is not wrinkled.
+     *             Ordered per z coordinate per point (column j*u.cols()+k for point k, fibre j)
+     *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+     */
+    virtual gsMatrix<T> eval3D_gammaHat(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
+    { GISMO_NO_IMPLEMENTATION; }
+    virtual gsMatrix<T> eval3D_gammaHat(const index_t patch, const gsVector<T>& u, const T & z, enum MaterialOutput out) const
+    {
+        gsMatrix<T> zmat(1,1);
+        zmat<<z;
+        return eval3D_gammaHat(patch,u,zmat,out);
     }
 
     virtual void setYoungsModulus(const gsFunctionSet<T> & /*YoungsModulus*/)
@@ -795,7 +875,7 @@ public:
     const function_ptr getDeformed()  const { return m_defpatches; }
 
     virtual bool hasUndeformed() const
-    { return m_defpatches!=nullptr; }
+    { return m_patches!=nullptr; }
     virtual bool hasDeformed() const { return m_defpatches!=nullptr; }
 
     virtual bool initialized() const

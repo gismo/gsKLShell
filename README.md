@@ -52,6 +52,7 @@ The `gsKLShell` module consists of the classes
 * `gsMaterialMatrixNonlinear`: class that handles the non-linear constitutive relations of the shells.
 * `gsMaterialMatrixComposite`: class that handles constitutive relations for linear composites.
 * `gsMaterialMatrixTFT`: class that handles tension-field-theory-based constitutive models for membranes.
+* `gsMaterialMatrixTFTSplit`: class that handles tension-field-theory-based constitutive models for membranes following the stress-split wrinkling model of Zhang and Kiendl, with a closed-form wrinkle direction, regularisation and an optional exact (non-truncated) wrinkled stress.
 
 See the doxygen manuals for more information about the classes. (**to do: add link**)
 

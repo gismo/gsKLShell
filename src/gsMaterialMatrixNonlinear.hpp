@@ -385,7 +385,7 @@ gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::dCijkl_impl(const index_t p
 
     Cvoight(0,0) = m_data.mine().m_Gcov_def(0,0);
     Cvoight(1,0) = m_data.mine().m_Gcov_def(1,1);
-    Cvoight(2,0) = m_data.mine().m_Gcov_def(0,1);
+    Cvoight(2,0) = 2*m_data.mine().m_Gcov_def(0,1); // Cfun takes Voigt input (g11, g22, 2*g12)
 
     Cfunc.deriv_into(Cvoight,result);
     return result;
@@ -647,7 +647,7 @@ template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enu
 gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::eval3D_pstressDir(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     gsMatrix<T> Smat = eval3D_stress(patch,u,z,out);
-    gsMatrix<T> result(2, u.cols() * z.rows());
+    gsMatrix<T> result(9, u.cols() * z.rows());
     result.setZero();
     gsMatrix<T,3,3> S;
     index_t colIdx;
@@ -661,13 +661,16 @@ gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::eval3D_pstressD
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             colIdx = j * u.cols() + k;
+            // eval3D_stress leaves the reference basis of its last point in m_data; _evalPStress needs this point's
+            this->_getMetricUndeformed(k, z(j, k) * m_data.mine().m_Tmat(0, k));
             S.setZero();
             S(0,0) = Smat(0,colIdx);
             S(1,1) = Smat(1,colIdx);
             S(0,1) = S(1,0) = Smat(2,colIdx);
             S(2,2) = 0;
             res = this->_evalPStress(S);
-            result.col(colIdx) = res.second.reshape(9,1);
+            GISMO_ASSERT(res.second.rows()==3 && res.second.cols()==3,"Principal stress frame must be 3x3");
+            result.col(colIdx) = res.second.reshape(9,1); // column-major [d_min | d_max | N]
         }
     }
     return result;
@@ -1051,8 +1054,6 @@ gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Compres
 
     gsMatrix<T> Smat = _eval3D_Compressible_stress(patch,u,z);
 
-    gsMatrix<T> result(3, u.cols() * z.rows());
-    result.setZero();
     gsMatrix<T> C33s = _eval3D_Compressible_C33(patch,u,z);
     T C33;
     index_t colIdx;
@@ -1068,7 +1069,7 @@ gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Compres
             Smat.col(colIdx) /= detF;
         }
     }
-    return result;
+    return Smat;
 }
 
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >

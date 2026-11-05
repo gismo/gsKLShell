@@ -1323,7 +1323,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const
 
     // Get metric information
     Acov_ori = m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2);
-    Acon_ori = m_data.mine().m_Acov_ori_mat.reshapeCol(k,2,2);
+    Acon_ori = m_data.mine().m_Acon_ori_mat.reshapeCol(k,2,2);
 
     // Compute full metric
     Gcov_ori.setZero();
@@ -1419,92 +1419,163 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalStretch(
 }
 
 
+// Principal values and directions of the in-plane stress tensor S^{ab} G_a (x) G_b, with respect to the reference basis
+// G_a = m_gcov_ori.col(a) loaded by the last _getMetric/_getMetricUndeformed call (dim 2: third row 0).
+// Returns the two principal values in ascending order and the 3x3 matrix [d_min | d_max | N] of Cartesian unit
+// vectors, with N = G_1 x G_2 / |G_1 x G_2| and d_max = N x d_min (right-handed frame).
+// The out-of-plane direction is taken from the geometry and the eigenproblem is solved in the orthonormal tangent
+// basis (e1,e2): B_ij = sum_{kl} S^{kl} (e_i . G_k)(e_j . G_l). (A 3x3 solve of sum S^{kl} G_k G_l^T has the extra
+// eigenpair (0,N), which cannot be told apart from an in-plane zero principal stress.) Complexity O(1).
+//
+// Degenerate frame: the frame [G_1 G_2] is numerically rank-deficient when |G_1 x G_2| <= tol (|G_1|^2 + |G_2|^2),
+// tol = 10 eps. With s_1 >= s_2 the singular values of [G_1 G_2] and kappa = s_1/s_2, the ratio is
+// s_1 s_2/(s_1^2 + s_2^2) = 1/(kappa + 1/kappa), so the test reads kappa >~ 1/tol and is independent of units and of
+// the parametric scaling. It is written as !(a > b), so that non-finite entries (0/0 normals at a pole) also count
+// as degenerate. Below the threshold the tangent plane has no correct digit.
+// - dim 2: the plane is known (N = e_3, taken exactly even for a left-handed parametrisation, where the regular path
+//   gives -e_3), so the principal decomposition of the finite tensor S^{ab} G_a (x) G_b is returned, with e1 along
+//   the longer of G_1, G_2 (G_1 on ties). No inversion is involved. If either G_a is non-finite or both vanish, NaN.
+// - dim 3: the tangent plane is undefined; all values and all frame entries are quiet NaN.
+// A non-finite in-plane block of S gives the same NaN result in both dimensions.
 template <short_t dim, class T>
 std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalPStress(const gsMatrix<T> & S) const
 {
-    gsVector<T> pstresses;
-    gsMatrix<T> pstressvec;
-    std::pair<gsVector<T>,gsMatrix<T>> result;
-    pstresses.resize(2,1);    pstresses.setZero();
-    pstressvec.resize(3,2);   pstressvec.setZero();
+    const gsMatrix<T> & gcov = m_data.mine().m_gcov_ori;
+    const gsVector<T,3> G1 = gcov.col(0), G2 = gcov.col(1);
+    gsVector<T,3> N = G1.cross(G2);
+    const T nN = N.norm();
+    const T tol = 10 * std::numeric_limits<T>::epsilon();
+    const bool regular = (nN > tol * (G1.squaredNorm() + G2.squaredNorm()));
 
-    typename gsEigen::SelfAdjointEigenSolver< typename gsMatrix<T>::Base >  eigSolver;
+    gsMatrix<T> S2(2,2);
+    S2 << S(0,0), S(0,1),
+          S(0,1), S(1,1);
 
-    gsMatrix<T> B(3,3);
-    B.setZero();
-    for (index_t k = 0; k != 2; k++)
-        for (index_t l = 0; l != 2; l++)
-            B += S(k,l) * m_data.mine().m_gcov_ori.col(k) * m_data.mine().m_gcov_ori.col(l).transpose();
-
-    eigSolver.compute(B);
-
-    index_t zeroIdx = -1;
-    T tol = 1e-14;
-    T max = eigSolver.eigenvalues().array().abs().maxCoeff();
-    max = (max==0) ? 1 : max;
-    for (index_t k=0; k!=3; k++)
-        zeroIdx = std::abs(eigSolver.eigenvalues()[k] ) / max < tol ? k : zeroIdx;
-
-    GISMO_ASSERT(zeroIdx!=-1,"No zero found?");
-
-    index_t count = 0;
-
-    for (index_t k=0; k!=3; k++)
+    gsVector<T,3> e1;
+    bool defined = S2.allFinite();
+    if (defined && regular)
     {
-        if (k==zeroIdx) continue;
-        pstressvec.col(count) = eigSolver.eigenvectors().col(k);
-        pstresses(count,0) = eigSolver.eigenvalues()(k,0);
-        count++;
+        N /= nN;
+        e1 = G1 / G1.norm();
+    }
+    else if (defined && dim==2 && G1.allFinite() && G2.allFinite())
+    {
+        const T n1 = G1.norm(), n2 = G2.norm();
+        const T nmax = (n1 >= n2) ? n1 : n2;
+        if (nmax > 0)
+        {
+            N << 0, 0, 1;
+            e1 = ((n1 >= n2) ? G1 : G2) / nmax;
+        }
+        else
+            defined = false;
+    }
+    else
+        defined = false;
+
+    std::pair<gsVector<T>,gsMatrix<T>> result;
+    result.second.resize(3,3);
+    if (!defined)
+    {
+        const T nan = std::numeric_limits<T>::quiet_NaN();
+        result.first.resize(2);
+        result.first.setConstant(nan);
+        result.second.setConstant(nan);
+        return result;
     }
 
-    result.first = pstresses;
-    result.second = pstressvec;
+    const gsVector<T,3> e2 = N.cross(e1);
+
+    gsMatrix<T> P(2,2);                 // P(i,k) = e_i . G_k
+    P << e1.dot(G1), e1.dot(G2),
+         e2.dot(G1), e2.dot(G2);
+    const gsMatrix<T> B = P * S2 * P.transpose();
+
+    typename gsEigen::SelfAdjointEigenSolver< typename gsMatrix<T>::Base >  eigSolver;
+    eigSolver.compute(B);
+
+    gsVector<T,3> dmin = eigSolver.eigenvectors()(0,0) * e1 + eigSolver.eigenvectors()(1,0) * e2;
+    dmin /= dmin.norm();
+    const gsVector<T,3> dmax = N.cross(dmin);
+
+    result.first = eigSolver.eigenvalues();
+    result.second.col(0) = dmin;
+    result.second.col(1) = dmax;
+    result.second.col(2) = N;
 
     return result;
 }
 
+// Principal values and directions of the in-plane Green-Lagrange strain E = E_{ab} G^a (x) G^b, given by its covariant
+// components E_{ab} (the 2x2 block of the argument S) with respect to the contravariant reference basis
+// G^a = m_gcon_ori.col(a). The frame G_a = m_gcov_ori.col(a) is loaded by the last _getMetric/_getMetricUndeformed call.
+// The eigenproblem is solved in the orthonormal tangent basis (e1,e2) taken from the geometry,
+// B_ij = sum_{kl} E_{kl} (e_i . G^k)(e_j . G^l), i.e. Q = P^{-T} with P(i,k) = e_i . G_k. (A 3x3 solve of
+// sum E_{kl} G^k G^l^T has the extra eigenpair (0,N), which cannot be told apart from an in-plane zero principal
+// strain.) Complexity O(1).
+// Returns the vector (E_min, E_max, S(2,2)), with the in-plane pair ascending and the out-of-plane entry passed
+// through, and the 3x3 matrix [d_min | d_max | n], with d_max = N x d_min, N = G_1 x G_2/|G_1 x G_2| and n the stored
+// unit normal m_gcov_ori.col(2). [d_min | d_max | n] is right-handed when G_1 x G_2 points along n.
+// The covariant-to-tensor map needs G^a = P^{-T}, so the absolute error of the values grows like eps kappa^2, with
+// kappa = 1/sin(angle(G_1,G_2)) (or the length ratio): values are returned but degrade well before the degeneracy
+// threshold (kappa ~ 1/sqrt(eps) onwards).
+//
+// Degenerate frame: the test of _evalPStress (|G_1 x G_2| <= 10 eps (|G_1|^2 + |G_2|^2), non-finite counts as
+// degenerate) applies in both dimensions. Then G^a does not exist, and the in-plane values and the first two columns
+// are quiet NaN; S(2,2) and the stored normal are still returned. The same NaN is returned for a non-finite in-plane
+// block of S, or for a non-finite G^a.
 template <short_t dim, class T>
 std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalPStrain(const gsMatrix<T> & S) const
 {
-    gsVector<T> pstrains;
-    gsMatrix<T> pstrainvec;
+    const gsMatrix<T> & gcov = m_data.mine().m_gcov_ori;
+    const gsMatrix<T> & gcon = m_data.mine().m_gcon_ori;
+    const gsVector<T,3> G1 = gcov.col(0), G2 = gcov.col(1);
+    gsVector<T,3> N = G1.cross(G2);
+    const T nN = N.norm();
+    const T tol = 10 * std::numeric_limits<T>::epsilon();
+    const bool regular = (nN > tol * (G1.squaredNorm() + G2.squaredNorm()));
+
     std::pair<gsVector<T>,gsMatrix<T>> result;
-    pstrains.resize(3,1);    pstrains.setZero();
-    pstrainvec.resize(3,3);   pstrainvec.setZero();
+    result.first.resize(3);
+    result.second.resize(3,3);
+    result.first(2) = S(2,2);
+    result.second.col(2) = gcov.col(2);
 
-    typename gsEigen::SelfAdjointEigenSolver< typename gsMatrix<T>::Base >  eigSolver;
+    gsMatrix<T> E2(2,2);
+    E2 << S(0,0), S(0,1),
+          S(0,1), S(1,1);
 
-    gsMatrix<T> B(3,3);
-    B.setZero();
-    for (index_t k = 0; k != 2; k++)
-        for (index_t l = 0; l != 2; l++)
-            B += S(k,l) * m_data.mine().m_gcon_ori.col(k) * m_data.mine().m_gcon_ori.col(l).transpose();
-
-    eigSolver.compute(B);
-
-    index_t zeroIdx = -1;
-    T tol = 1e-14;
-    T max = eigSolver.eigenvalues().array().abs().maxCoeff();
-    max = (max==0) ? 1 : max;
-    for (index_t k=0; k!=3; k++)
-        zeroIdx = std::abs(eigSolver.eigenvalues()[k] ) / max < tol ? k : zeroIdx;
-
-    GISMO_ASSERT(zeroIdx!=-1,"No zero found?");
-
-    index_t count = 0;
-    pstrainvec.col(2) = m_data.mine().m_gcon_ori.col(2);
-    pstrains(2,0) = S(2,2);
-
-    for (index_t k=0; k!=3; k++)
+    gsMatrix<T> Q(2,2);                 // Q(i,k) = e_i . G^k
+    gsVector<T,3> e1, e2;
+    if (regular && E2.allFinite())
     {
-        if (k==zeroIdx) continue;
-        pstrainvec.col(count) = eigSolver.eigenvectors().col(k);
-        pstrains(count,0) = eigSolver.eigenvalues()(k,0);
-        count++;
+        N /= nN;
+        e1 = G1 / G1.norm();
+        e2 = N.cross(e1);
+        const gsVector<T,3> H1 = gcon.col(0), H2 = gcon.col(1);
+        Q << e1.dot(H1), e1.dot(H2),
+             e2.dot(H1), e2.dot(H2);
+    }
+    if (!(regular && E2.allFinite() && Q.allFinite()))
+    {
+        const T nan = std::numeric_limits<T>::quiet_NaN();
+        result.first.head(2).setConstant(nan);
+        result.second.leftCols(2).setConstant(nan);
+        return result;
     }
 
-    result.first = pstrains;
-    result.second = pstrainvec;
+    const gsMatrix<T> B = Q * E2 * Q.transpose();
+
+    typename gsEigen::SelfAdjointEigenSolver< typename gsMatrix<T>::Base >  eigSolver;
+    eigSolver.compute(B);
+
+    gsVector<T,3> dmin = eigSolver.eigenvectors()(0,0) * e1 + eigSolver.eigenvectors()(1,0) * e2;
+    dmin /= dmin.norm();
+
+    result.first(0) = eigSolver.eigenvalues()(0);
+    result.first(1) = eigSolver.eigenvalues()(1);
+    result.second.col(0) = dmin;
+    result.second.col(1) = N.cross(dmin);
 
     return result;
 }

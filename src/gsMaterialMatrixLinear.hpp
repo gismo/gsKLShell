@@ -410,13 +410,16 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_pstressDir(const index_t patch
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
             colIdx = j * u.cols() + k;
+            // eval3D_stress leaves the reference basis of its last point in m_data; _evalPStress needs this point's
+            this->_getMetricUndeformed(k, z(j, k) * m_data.mine().m_Tmat(0, k));
             S.setZero();
             S(0,0) = Smat(0,colIdx);
             S(1,1) = Smat(1,colIdx);
             S(0,1) = S(1,0) = Smat(2,colIdx);
             S(2,2) = 0;
             res = this->_evalPStress(S);
-            result.col(j * u.cols() + k) = res.second.reshape(9,1);
+            GISMO_ASSERT(res.second.rows()==3 && res.second.cols()==3,"Principal stress frame must be 3x3");
+            result.col(colIdx) = res.second.reshape(9,1); // column-major [d_min | d_max | N]
         }
     }
 

@@ -1,6 +1,6 @@
 /** @file gsMaterialMatrixTFT.hpp
 
-    @brief Provides linear material matrices
+    @brief Tension-field theory decorator of a material matrix
 
     This file is part of the G+Smo library.
 
@@ -60,26 +60,20 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_vector(const index_t patch
 template <short_t dim, class T, bool linear >
 gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out) const
 {
-    gsMatrix<T> TF = this->_compute_TF(patch,u,z);
-    gsMatrix<T> result = m_materialMat->eval3D_pstress(patch,u,z,out);
-    index_t colIdx;
+    // Modified stress in every state; evaluated before _computePoints since it does not use TFT's own geometry
+    gsMatrix<T> S = this->eval3D_stress(patch,u,z,out);
+    this->_computePoints(patch,u);
+
+    gsMatrix<T> result(2,u.cols()*z.rows());
+    gsMatrix<T> Gori(2,2), Gdef(2,2), Gb(3,2), gb(3,2);
     for (index_t k=0; k!=u.cols(); k++)
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            colIdx = j*u.cols()+k;
-            if (TF(0,colIdx) == 1 || TF(0,colIdx) == 0) // taut & wrinkled
-            {
-                // do nothing
-            }
-            else if (TF(0,colIdx) == -1) // slack
-            {
-                // Set to zero
-                // result.col(colIdx).setZero();
-                result.col(colIdx) *= m_options.getReal("SlackMultiplier");
-            }
-            else
-                GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
+            const index_t colIdx = j*u.cols()+k;
+            this->_pointGeometry(k,z(j,k),Gori,Gdef,Gb,gb);
+            detail_tftsplit::principalValues(detail_tftsplit::stressPencil(Gori,S(0,colIdx),S(1,colIdx),S(2,colIdx)),
+                                             result(0,colIdx),result(1,colIdx));
         }
     }
     return result;
@@ -196,103 +190,65 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch
 }
 
 template <short_t dim, class T, bool linear >
-gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput /*out*/) const
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     // Input: u in-plane points
     //        z matrix with, per point, a column with z integration points
     // Output: (n=u.cols(), m=z.rows())
     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
 
-    gsMatrix<T> result = m_materialMat->eval3D_CauchyStress(patch,u,z,MaterialOutput::CauchyStressN);
-    gsMatrix<T> TF = this->_compute_TF(patch,u,z);
-    index_t colIdx;
-    T theta;
+    gsMatrix<T> S = this->eval3D_stress(patch,u,z,out);
+    const gsMatrix<T> J = m_materialMat->eval3D_detF(patch,u,z,out);
+    gsMatrix<T> result(3,S.cols());
+    for (index_t c=0; c!=S.cols(); c++)
+        result.col(c) = S.col(c) / J(0,c);
+    return result;
+}
 
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyPStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    gsMatrix<T> S = this->eval3D_stress(patch,u,z,out);
+    const gsMatrix<T> J = m_materialMat->eval3D_detF(patch,u,z,out);
     this->_computePoints(patch,u);
+
+    gsMatrix<T> result(2,u.cols()*z.rows());
+    gsMatrix<T> Gori(2,2), Gdef(2,2), Gb(3,2), gb(3,2);
     for (index_t k=0; k!=u.cols(); k++)
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
         {
-            colIdx = j*u.cols()+k;
-            if (TF(0,colIdx) == 1) // taut
-            {
-                // do nothing
-            }
-            else if (TF(0,colIdx) == -1) // slack
-            {
-                // Set to zero
-                // result.col(colIdx).setZero();
-                result.col(colIdx) *= m_options.getReal("SlackMultiplier");
-            }
-            else if (TF(0,colIdx) == 0) // wrinkled
-            {
-                this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
-                gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
-                gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);;
-                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k));
-                gsMatrix<T> thetas = eval_theta(C,N,E);
-                theta = thetas(0,0);
-                gsMatrix<T> S = this->_compute_S(theta,C.reshape(3,3),N);
-                T detF = math::sqrt(m_data.mine().m_J0_sq)*1.0;
-                result.col(colIdx) = S / math::sqrt(detF);
-            }
-            else
-                GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
+            const index_t colIdx = j*u.cols()+k;
+            this->_pointGeometry(k,z(j,k),Gori,Gdef,Gb,gb);
+            detail_tftsplit::Mat2<T> M = detail_tftsplit::stressPencil(Gdef,S(0,colIdx),S(1,colIdx),S(2,colIdx));
+            const T Jinv = 1 / J(0,colIdx);
+            M.a *= Jinv; M.b *= Jinv; M.c *= Jinv; M.d *= Jinv;
+            detail_tftsplit::principalValues(M,result(0,colIdx),result(1,colIdx));
         }
     }
     return result;
 }
 
-// template <short_t dim, class T, bool linear >
-// gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyPStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
-// {
-//     // Input: u in-plane points
-//     //        z matrix with, per point, a column with z integration points
-//     // Output: (n=u.cols(), m=z.rows())
-//     //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_pstressDir(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    gsMatrix<T> S = this->eval3D_stress(patch,u,z,out);
+    this->_computePoints(patch,u);
 
-//     gsMatrix<T> result = m_materialMat->eval3D_CauchyPStress(patch,u,z,MaterialOutput::PCauchyStressN);
-//     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
-//     index_t colIdx;
-//     T theta;
-//     std::pair<gsVector<T>,gsMatrix<T>> res;
-
-//     this->_computePoints(patch,u);
-//     for (index_t k=0; k!=u.cols(); k++)
-//     {
-//         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
-//         {
-//             colIdx = j*u.cols()+k;
-//             if (TF(0,colIdx) == 1) // taut
-//             {
-//                 // do nothing
-//             }
-//             else if (TF(0,colIdx) == -1) // slack
-//             {
-//                 // Set to zero
-//                 // result.col(colIdx).setZero();
-//                 result.col(colIdx) *= m_options.getReal("SlackMultiplier");
-//             }
-//             else if (TF(0,colIdx) == 0) // wrinkled
-//             {
-//                 this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k)); // on point i, on height z(0,j)
-//                 gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
-//                 gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);;
-//                 gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k),MaterialOutput::StrainN);
-//                 gsMatrix<T> thetas = eval_theta(C,N,E);
-//                 theta = thetas(0,0);
-//                 gsMatrix<T> S = this->_compute_S(theta,C.reshape(3,3),N);
-//                 res = this->_evalPStress(S);
-
-//                 T detF = math::sqrt(m_data.mine().m_J0_sq)*1.0;
-//                 result.col(colIdx) = res.first / math::sqrt(detF);
-//             }
-//             else
-//                 GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
-//         }
-//     }
-//     return result;
-// }
+    gsMatrix<T> result(9,u.cols()*z.rows());
+    gsMatrix<T> Gori(2,2), Gdef(2,2), Gb(3,2), gb(3,2), F;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            const index_t colIdx = j*u.cols()+k;
+            this->_pointGeometry(k,z(j,k),Gori,Gdef,Gb,gb);
+            detail_tftsplit::principalStressFrame<T>(S.col(colIdx),Gb,F);
+            result.col(colIdx) = F.reshape(9,1);
+        }
+    }
+    return result;
+}
 
 template <short_t dim, class T, bool linear >
 gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_tensionfield(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput /*out*/) const
@@ -303,10 +259,11 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_tensionfield(const index_t
 template <short_t dim, class T, bool linear >
 gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_theta(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput /*out*/) const
 {
-    gsMatrix<T> result(1,u.cols());
+    gsMatrix<T> result(1,u.cols()*z.rows());
     result.setZero();
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
     index_t colIdx;
+    T theta, gamma;
     for (index_t k=0; k!=u.cols(); k++)
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
@@ -318,12 +275,8 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_theta(const index_t patch,
             }
             else if (TF(0,colIdx) == 0) // wrinkled
             {
-                gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
-                gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);;
-                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k));
-
-                gsMatrix<T> thetas = eval_theta(C,N,E);
-                result(0,colIdx) = thetas(0,0);
+                this->_wrinkleThetaGamma(patch,u.col(k),z(j,k),theta,gamma);
+                result(0,colIdx) = theta;
             }
             else
                 GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
@@ -335,10 +288,11 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_theta(const index_t patch,
 template <short_t dim, class T, bool linear >
 gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_gamma(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput /*out*/) const
 {
-    gsMatrix<T> result(1,u.cols());
+    gsMatrix<T> result(1,u.cols()*z.rows());
     result.setZero();
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
     index_t colIdx;
+    T theta, gamma;
     for (index_t k=0; k!=u.cols(); k++)
     {
         for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
@@ -350,18 +304,140 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_gamma(const index_t patch,
             }
             else if (TF(0,colIdx) == 0) // wrinkled
             {
-                gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u.col(k),z(j,k),MaterialOutput::MatrixA);
-                gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u.col(k),z(j,k),MaterialOutput::VectorN);;
-                gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u.col(k),z(j,k));
-
-                gsMatrix<T> thetas = eval_theta(C,N,E);
-                result(0,colIdx) = _compute_gamma(thetas(0,0),C.reshape(3,3),N.reshape(3,1),E.reshape(3,1));
+                this->_wrinkleThetaGamma(patch,u.col(k),z(j,k),theta,gamma);
+                result(0,colIdx) = gamma;
             }
             else
                 GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
         }
     }
     return result;
+}
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_wrinkleDir(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput /*out*/) const
+{
+    gsMatrix<T> TF = this->_compute_TF(patch,u,z);
+    this->_computePoints(patch,u);
+
+    gsMatrix<T> result(3,u.cols()*z.rows());
+    result.setZero();
+    T theta, gamma;
+    gsMatrix<T> Gori(2,2), Gdef(2,2), Gb(3,2), gb(3,2);
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            const index_t colIdx = j*u.cols()+k;
+            if (TF(0,colIdx) == 0) // wrinkled
+            {
+                this->_wrinkleThetaGamma(patch,u.col(k),z(j,k),theta,gamma);
+                if (math::isfinite(theta))
+                {
+                    this->_pointGeometry(k,z(j,k),Gori,Gdef,Gb,gb);
+                    result.col(colIdx) = detail_tftsplit::wrinkleDirection(theta,gb);
+                }
+            }
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_wrinkleIntensity(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput /*out*/) const
+{
+    gsMatrix<T> TF = this->_compute_TF(patch,u,z);
+    this->_computePoints(patch,u);
+
+    gsMatrix<T> result(1,u.cols()*z.rows());
+    result.setZero();
+    gsMatrix<T> Gori(2,2), Gdef(2,2), Gb(3,2), gb(3,2);
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            const index_t colIdx = j*u.cols()+k;
+            if (TF(0,colIdx) == 0) // wrinkled
+            {
+                this->_pointGeometry(k,z(j,k),Gori,Gdef,Gb,gb);
+                // total strain from the metrics of this point (engineering Voigt)
+                const T E0 = T(0.5) * (Gdef(0,0) - Gori(0,0));
+                const T E1 = T(0.5) * (Gdef(1,1) - Gori(1,1));
+                const T E2 =          (Gdef(0,1) - Gori(0,1));
+                T Emin, Emax;
+                detail_tftsplit::principalValues(
+                    detail_tftsplit::strainPencil(detail_tftsplit::invert2x2(Gori),E0,E1,E2),Emin,Emax);
+                result(0,colIdx) = detail_tftsplit::wrinkleIntensity(Emin);
+            }
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_gammaHat(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput /*out*/) const
+{
+    gsMatrix<T> TF = this->_compute_TF(patch,u,z);
+    this->_computePoints(patch,u);
+
+    gsMatrix<T> result(1,u.cols()*z.rows());
+    result.setConstant(NAN);
+    T theta, gamma;
+    gsMatrix<T> Gori(2,2), Gdef(2,2), Gb(3,2), gb(3,2);
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            const index_t colIdx = j*u.cols()+k;
+            if (TF(0,colIdx) == 0) // wrinkled
+            {
+                this->_wrinkleThetaGamma(patch,u.col(k),z(j,k),theta,gamma);
+                this->_pointGeometry(k,z(j,k),Gori,Gdef,Gb,gb);
+                result(0,colIdx) = detail_tftsplit::gammaHat(gamma,theta,Gori);
+            }
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T, bool linear >
+void gsMaterialMatrixTFT<dim,T,linear>::_wrinkleThetaGamma(const index_t patch, const gsVector<T> & u, const T z, T & theta, T & gamma) const
+{
+    gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,u,z,MaterialOutput::MatrixA);
+    gsMatrix<T> N = m_materialMat->eval3D_stress(patch,u,z,MaterialOutput::VectorN);
+    gsMatrix<T> E = m_materialMat->eval3D_strain(patch,u,z);
+
+    gsMatrix<T> thetas = eval_theta(C,N,E);
+    theta = thetas(0,0);
+    gamma = _compute_gamma(theta,C.reshape(3,3),N.reshape(3,1),E.reshape(3,1));
+}
+
+template <short_t dim, class T, bool linear >
+void gsMaterialMatrixTFT<dim,T,linear>::_pointGeometry(const index_t k, const T z, gsMatrix<T> & Gori, gsMatrix<T> & Gdef, gsMatrix<T> & Gb, gsMatrix<T> & gb) const
+{
+    this->_getMetric(k, z * m_data.mine().m_Tmat(0,k)); // on point k, on height z
+    if (linear)
+    {
+        Gori = m_data.mine().m_Acov_ori;
+        Gdef = m_data.mine().m_Acov_def;
+    }
+    else
+    {
+        Gori = m_data.mine().m_Gcov_ori.block(0,0,2,2);
+        Gdef = m_data.mine().m_Gcov_def.block(0,0,2,2);
+    }
+
+    // Cartesian covariant basis vectors (columns): mid-surface for linear, fibre otherwise
+    if (linear && dim==3)
+    {
+        Gb = m_data.mine().m_acov_ori;
+        gb = m_data.mine().m_acov_def;
+    }
+    else
+    {
+        Gb = m_data.mine().m_gcov_ori.leftCols(2);
+        gb = m_data.mine().m_gcov_def.leftCols(2);
+    }
 }
 
 /// Provides an implementation of eval3D_matrix for \a gsMaterialMatrixLinear
@@ -865,7 +941,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
 
     // dF/dE
     // gsMatrix<T> dfdE = ( n2_vec.transpose() - tmp * n1_vec.transpose() ) * C;
-    gsMatrix<T> dfdE = n2_vec.transpose() * C - dgammadE.transpose() * (n2_vec.transpose() * C * n1_vec).value();
+    gsMatrix<T> dfdE = n2_vec.transpose() * C + dgammadE.transpose() * (n2_vec.transpose() * C * n1_vec).value();
     dfdE.transposeInPlace();
 
     // dF/dT
@@ -939,7 +1015,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::_compute_C(const T theta, const g
 
     // d(gamma*n1)dE
     gsMatrix<T> dgamman1dE = ( n1_vec * dgammadE + dgammadT * n1_vec * dTdE + 2*gamma * n2_vec * dTdE );
-    result += dgamman1dE.transpose() * C;
+    result += C * dgamman1dE;
     result += gamma * dCN1;
     return result;
 }

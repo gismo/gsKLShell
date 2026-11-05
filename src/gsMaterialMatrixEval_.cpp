@@ -29,6 +29,9 @@ namespace gismo
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::TensionField>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Theta>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Gamma>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::WrinkleDir>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::WrinkleIntensity>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::GammaHat>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::Strain>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StrainN>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEval<real_t,MaterialOutput::StrainM>;
@@ -71,6 +74,9 @@ namespace gismo
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::TensionField>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Theta>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Gamma>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::WrinkleDir>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::WrinkleIntensity>;
+  CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::GammaHat>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Strain>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::StrainN>;
   CLASS_TEMPLATE_INST gsMaterialMatrixEvalSingle<real_t,MaterialOutput::StrainM>;
