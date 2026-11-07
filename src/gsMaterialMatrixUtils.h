@@ -120,9 +120,9 @@ enum class MaterialOutput : short_t
     PStrainM = 17,
     Stretch = 18,       // ONLY ON MID-PLANE
     StretchDir = 19,    // ONLY ON MID-PLANE
-    TensionField = 20,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
-    Theta = 21,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
-    Gamma = 22,  // Tension field indicator (1: slack, 0: wrinkled, -1: taut)
+    TensionField = 20,  // Tension field indicator (1: taut, 0: wrinkled, -1: slack)
+    Theta = 21,  // Tension field indicator (1: taut, 0: wrinkled, -1: slack)
+    Gamma = 22,  // Tension field indicator (1: taut, 0: wrinkled, -1: slack)
     Strain  = 23,
     StrainN = 24,
     StrainM = 25,

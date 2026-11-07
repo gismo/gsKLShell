@@ -117,15 +117,60 @@ inline T wrinkleIntensity(const T Emin)
 /// basis Gbasis (3x2, columns G_1, G_2, Cartesian). Writes the 3x3 matrix [d_min | d_max | N] (Cartesian
 /// unit columns): N = normalise(G_1 x G_2), d_min/d_max the eigenvectors of S^{ab} G_a (x) G_b in the
 /// tangent plane, in ascending eigenvalue order (column 0 = minor), d_max = N x d_min.
+/// Degenerate basis (|G_1 x G_2| <= 10 eps (|G_1|^2 + |G_2|^2), non-finite G) or non-finite S: if G_1 and
+/// G_2 both have an exactly zero z-component (taken as a planar problem), N = e_3 and the frame is built from
+/// the longer of G_1, G_2; otherwise all nine entries are quiet NaN.
 /// Complexity O(1) per point.
 template <class T>
 inline void principalStressFrame(const gsMatrix<T> & S, const gsMatrix<T> & Gbasis, gsMatrix<T> & frame)
 {
     const gsVector<T,3> G1 = Gbasis.col(0);
     const gsVector<T,3> G2 = Gbasis.col(1);
-    const gsVector<T,3> e1 = G1 / G1.norm();
     gsVector<T,3> N = G1.cross(G2);
-    N /= N.norm();
+
+    // Degenerate frame (|G_1 x G_2| <= 10 eps (|G_1|^2 + |G_2|^2), or non-finite data), same test as
+    // gsMaterialMatrixBaseDim::_evalPStress. The dimension is not known here: a basis with exactly zero z-components
+    // is treated as planar (dim 2, where the third row of m_gcov_ori is 0) and gets N = e_3 with the frame from the
+    // longer of G_1, G_2. A dim-3 surface lying exactly in z = 0 therefore also gets this finite frame, where
+    // _evalPStress returns NaN; any other degenerate basis gets NaN.
+    const T nN = N.norm();
+    if (!(nN > 10 * std::numeric_limits<T>::epsilon() * (G1.squaredNorm() + G2.squaredNorm())) || !S.allFinite())
+    {
+        const T nan = std::numeric_limits<T>::quiet_NaN();
+        frame.resize(3,3);
+        const T n1 = G1.norm(), n2 = G2.norm();
+        const T nmax = (n1 >= n2) ? n1 : n2;
+        if (S.allFinite() && G1(2) == 0 && G2(2) == 0 && G1.allFinite() && G2.allFinite() && nmax > 0)
+        {
+            gsVector<T,3> e3;
+            e3 << 0, 0, 1;
+            const gsVector<T,3> a = ((n1 >= n2) ? G1 : G2) / nmax;
+            const gsVector<T,3> b = e3.cross(a);
+            const T p[2][2] = { { a.dot(G1), a.dot(G2) }, { b.dot(G1), b.dot(G2) } };
+            gsMatrix<T> B(2,2);
+            const T Sc[2][2] = { { S(0), S(2) }, { S(2), S(1) } };
+            for (index_t i = 0; i < 2; ++i)
+                for (index_t j = 0; j < 2; ++j)
+                {
+                    T v = 0;
+                    for (index_t k = 0; k < 2; ++k)
+                        for (index_t l = 0; l < 2; ++l)
+                            v += Sc[k][l] * p[i][k] * p[j][l];
+                    B(i,j) = v;
+                }
+            typename gsEigen::SelfAdjointEigenSolver< typename gsMatrix<T>::Base > eig(B);
+            const gsVector<T,3> dmin = eig.eigenvectors()(0,0) * a + eig.eigenvectors()(1,0) * b;
+            frame.col(0) = dmin;
+            frame.col(1) = e3.cross(dmin);
+            frame.col(2) = e3;
+        }
+        else
+            frame.setConstant(nan);
+        return;
+    }
+
+    const gsVector<T,3> e1 = G1 / G1.norm();
+    N /= nN;
     const gsVector<T,3> e2 = N.cross(e1);
 
     // B(i,j) = S^{kl} (e_i.G_k)(e_j.G_l): the stress tensor in the orthonormal tangent frame (e1,e2)

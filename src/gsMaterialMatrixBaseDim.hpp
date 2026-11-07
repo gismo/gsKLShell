@@ -346,6 +346,11 @@ template <short_t _type>
 typename std::enable_if<_type==0, index_t>::type
 gsMaterialMatrixBaseDim<dim,T>::_tensionField(const gsVector<T> &   , const gsVector<T> & Ep) const
 {
+    // Non-finite principal state (e.g. NaN deformed-to-reference metric ratio): treated as taut so that no
+    // wrinkling solve is attempted on undefined data
+    if (!Ep.allFinite())
+        return 1;
+
     if (Ep[0] > 0 || (math::abs(Ep[0]) <= Ep.maxCoeff()*1e-12) ) // taut
         return 1;
     else if (Ep[1] < 0) // slack
@@ -359,6 +364,11 @@ template <short_t _type>
 typename std::enable_if<_type==1, index_t>::type
 gsMaterialMatrixBaseDim<dim,T>::_tensionField(const gsVector<T> & Sp, const gsVector<T> &   ) const
 {
+    // Non-finite principal state (e.g. NaN deformed-to-reference metric ratio): treated as taut so that no
+    // wrinkling solve is attempted on undefined data
+    if (!Sp.allFinite())
+        return 1;
+
     if (Sp[0] > 0 || (math::abs(Sp[0]) <= Sp.maxCoeff()*1e-12) ) // taut
         return 1;
     else if (Sp[1] < 0) // slack
@@ -372,6 +382,11 @@ template <short_t _type>
 typename std::enable_if<_type==2, index_t>::type
 gsMaterialMatrixBaseDim<dim,T>::_tensionField(const gsVector<T> & Sp, const gsVector<T> & Ep) const
 {
+    // Non-finite principal state (e.g. NaN deformed-to-reference metric ratio): treated as taut so that no
+    // wrinkling solve is attempted on undefined data
+    if (!(Sp.allFinite() && Ep.allFinite()))
+        return 1;
+
     // See Nakashino 2020
     // Smin = Sp[0], Smax = Sp[1], S33 = Sp[2]
     // Emin = Ep[0], Emax = Ep[1], E33 = Ep[2]
