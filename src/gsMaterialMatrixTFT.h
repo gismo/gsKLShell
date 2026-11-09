@@ -475,6 +475,10 @@ protected:
     gsMatrix<T> _compute_TF(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
     gsMatrix<T> _compute_TF(const index_t patch, const gsVector<T> & u, const T & z)           const;
 
+    /// Wrinkling state (1 taut, 0 wrinkled, -1 slack) for linear=true, classified on the mid-surface from the pair
+    /// (N,E) of the wrapped law with the criterion selected by its TensionField option. Independent of z.
+    gsMatrix<T> _compute_TF_mid(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z) const;
+
     gsMatrix<T> _compute_E(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & E) const;
 
     gsMatrix<T> _compute_S(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S) const;
@@ -484,7 +488,15 @@ protected:
     gsMatrix<T> _compute_C(const T theta, const gsMatrix<T> & C, const gsMatrix<T> & S, const gsMatrix<T> & dC) const;
 
 
-    /// theta and gamma at one wrinkled point (wrapped C, S, E at (u,z); eval_theta root; _compute_gamma)
+    /// Tangent C (9x1), stress N (3x1) and engineering strain E (3x1) of the wrapped material at (u,z), the triple
+    /// that the wrinkle (eval_theta, gamma, modified stress and tangent) is built from.
+    ///
+    /// For linear=true the triple is taken on the mid-surface (z is not used): N is the wrapped VectorN stress, which
+    /// is the stress of the mid-surface strain E, so that (N,E) is a consistent pair for the wrinkle equations. For
+    /// linear=false the wrapped law is queried at height z.
+    void _wrinkleState(const index_t patch, const gsVector<T> & u, const T z, gsMatrix<T> & C, gsMatrix<T> & N, gsMatrix<T> & E) const;
+
+    /// theta and gamma at one wrinkled point (the (C,N,E) triple of _wrinkleState: mid-surface for linear=true, at (u,z) otherwise; eval_theta root; _compute_gamma)
     void _wrinkleThetaGamma(const index_t patch, const gsVector<T> & u, const T z, T & theta, T & gamma) const;
 
     /// Reference/deformed 2x2 metrics and 3x2 Cartesian covariant bases of point k at height z (after _computePoints).
