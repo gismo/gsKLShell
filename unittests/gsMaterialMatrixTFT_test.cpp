@@ -972,4 +972,382 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         TFT_linear_curved_CHECK(0.95,0.90,-1);
     }
 
+    /// Curved d = 3 SvK state of TFT_linear_curved_CHECK: the wrapped law, a TFT decorator (linear = true) and a
+    /// Split decorator around it, and the evaluation points (three in-plane points, four heights each).
+    struct TFT_curved_setup
+    {
+        typedef real_t T;
+
+        gsMultiPatch<T> ref, def;
+        gsConstantFunction<T> t, E, nu;
+        gsMaterialMatrixBase<T>::uPtr wrapped;
+        memory::unique_ptr< gsMaterialMatrixTFT<3,T,true> >      tft;
+        memory::unique_ptr< gsMaterialMatrixTFTSplit<3,T,true> > split;
+        gsMatrix<T> u, z;
+
+        TFT_curved_setup(const T stretch1, const T stretch2)
+        :
+        t(0.01,3), E(1e5,3), nu(0.3,3)
+        {
+            const T bump = 0.15;
+            ref.addPatch(gsNurbsCreator<T>::BSplineSquare(1));
+            ref.patch(0).degreeElevate(1);
+            ref.embed(3);
+            def = ref;
+            gsMatrix<T> & c = def.patch(0).coefs();
+            for (index_t i=0; i!=c.rows(); ++i)
+            {
+                const T x = c(i,0), y = c(i,1);
+                c(i,0) = stretch1 * x;
+                c(i,1) = stretch2 * y;
+                c(i,2) = bump * (x*(1-x) + y*(1-y) + 2*x*y);
+            }
+            ref.addAutoBoundaries();
+            def.addAutoBoundaries();
+
+            std::vector<gsFunctionSet<T>*> par(2);
+            par[0] = &E;
+            par[1] = &nu;
+            gsOptionList o;
+            o.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
+            o.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+            wrapped = getMaterialMatrix<3,T>(ref,t,par,o);
+
+            tft   = memory::make_unique(new gsMaterialMatrixTFT<3,T,true>(wrapped.get()));
+            split = memory::make_unique(new gsMaterialMatrixTFTSplit<3,T,true>(wrapped.get()));
+            gsMaterialMatrixBase<T> * all[3] = { tft.get(), split.get(), wrapped.get() };
+            for (index_t i=0; i!=3; ++i)
+            {
+                all[i]->setUndeformed(&ref);
+                all[i]->setDeformed(&def);
+            }
+
+            u.resize(2,3);
+            u << 0.3, 0.7, 0.5,
+                 0.4, 0.6, 0.2;
+            z.resize(4,3);
+            z << -0.5,  -0.4,  -0.3,
+                  0.0,   0.1,  -0.1,
+                  0.25,  0.3,   0.2,
+                  0.5,   0.45,  0.35;
+        }
+    };
+
+    /// \f$\max|b-a| \le \mathrm{rel}\max|a| + \mathrm{tiny}\f$
+    static void TFT_eta_CLOSE(const gsMatrix<real_t> & a, const gsMatrix<real_t> & b, const real_t rel)
+    {
+        CHECK_EQUAL(a.rows(),b.rows());
+        CHECK_EQUAL(a.cols(),b.cols());
+        if (a.rows()!=b.rows() || a.cols()!=b.cols())
+            return;
+        CHECK_MATRIX_CLOSE(a,b,rel*a.cwiseAbs().maxCoeff() + std::numeric_limits<real_t>::min());
+    }
+
+    /// Residual stiffness Eta of the TFT decorator against the Split decorator (same definition, Eqs. 35 and 40 of
+    /// Zhang & Kiendl 2026): stress, tangent and strain at the wrinkled, taut and slack curved states.
+    static void TFT_eta_split_CHECK(const real_t stretch1, const real_t stretch2, const index_t expectedState)
+    {
+        typedef real_t T;
+        TFT_curved_setup s(stretch1,stretch2);
+        const T rel = 1e-12;
+        const MaterialOutput MA = MaterialOutput::MatrixA;
+        const MaterialOutput VN = MaterialOutput::VectorN;
+
+        const gsMatrix<T> TF = s.tft->eval3D_tensionfield(0,s.u,s.z);
+        for (index_t i=0; i!=TF.cols(); ++i)
+            CHECK_EQUAL(expectedState,(index_t)TF(0,i));
+
+        s.tft->options().setReal("SlackMultiplier",0);
+        s.split->options().setReal("SlackMultiplier",0);
+
+        // Eta = 0: the tangents agree to the same tolerance (the root-searched theta of TFT enters to first order)
+        const gsMatrix<T> Cs0 = s.split->eval3D_matrix(0,s.u,s.z,MA);
+        const gsMatrix<T> Ct0 = s.tft->eval3D_matrix(0,s.u,s.z,MA);
+        gsInfo<<"state "<<expectedState<<", Eta 0 tangent gap TFT vs Split (relative): "
+              <<(Cs0-Ct0).cwiseAbs().maxCoeff()/(Cs0.cwiseAbs().maxCoeff() + std::numeric_limits<T>::min())<<"\n";
+        TFT_eta_CLOSE(Cs0,Ct0,rel);
+
+        const T eta = 1e-3;
+        s.tft->options().setReal("Eta",eta);
+        s.split->options().setReal("Eta",eta);
+        const gsMatrix<T> Ct = s.tft->eval3D_matrix(0,s.u,s.z,MA);
+        const gsMatrix<T> Cs = s.split->eval3D_matrix(0,s.u,s.z,MA);
+        const gsMatrix<T> St = s.tft->eval3D_stress(0,s.u,s.z,VN);
+        const gsMatrix<T> Ss = s.split->eval3D_stress(0,s.u,s.z,VN);
+        const gsMatrix<T> Et = s.tft->eval3D_strain(0,s.u,s.z);
+        const gsMatrix<T> Es = s.split->eval3D_strain(0,s.u,s.z);
+        gsInfo<<"state "<<expectedState<<", Eta 1e-3 gaps TFT vs Split (relative): tangent "
+              <<(Cs-Ct).cwiseAbs().maxCoeff()/(Cs.cwiseAbs().maxCoeff() + std::numeric_limits<T>::min())<<", stress "
+              <<(Ss-St).cwiseAbs().maxCoeff()/(Ss.cwiseAbs().maxCoeff() + std::numeric_limits<T>::min())<<", strain "
+              <<(Es-Et).cwiseAbs().maxCoeff()/(Es.cwiseAbs().maxCoeff() + std::numeric_limits<T>::min())<<"\n";
+        TFT_eta_CLOSE(Cs,Ct,rel);
+        TFT_eta_CLOSE(Ss,St,rel);
+        TFT_eta_CLOSE(Es,Et,rel);
+
+        // Control: Eta changes the tangent and, away from taut points, the stress
+        s.tft->options().setReal("Eta",0);
+        const gsMatrix<T> C0 = s.tft->eval3D_matrix(0,s.u,s.z,MA);
+        const gsMatrix<T> S0 = s.tft->eval3D_stress(0,s.u,s.z,VN);
+        s.tft->options().setReal("Eta",eta);
+        const gsMatrix<T> S1 = s.tft->eval3D_stress(0,s.u,s.z,VN);
+        if (expectedState != 1)
+        {
+            CHECK((Ct-C0).cwiseAbs().maxCoeff() > 1e-6*Ct.cwiseAbs().maxCoeff());
+            CHECK((S1-S0).cwiseAbs().maxCoeff() > 1e-6*S0.cwiseAbs().maxCoeff());
+        }
+        else
+        {
+            CHECK_EQUAL(T(0),(Ct-C0).cwiseAbs().maxCoeff());
+            CHECK_EQUAL(T(0),(S1-S0).cwiseAbs().maxCoeff());
+        }
+    }
+
+    TEST(TFT_eta_vs_split_wrinkled)
+    {
+        TFT_eta_split_CHECK(1.2,0.8/math::sqrt(1.2),0);
+    }
+
+    TEST(TFT_eta_vs_split_taut)
+    {
+        TFT_eta_split_CHECK(1.2,0.97,1);
+    }
+
+    TEST(TFT_eta_vs_split_slack)
+    {
+        TFT_eta_split_CHECK(0.95,0.90,-1);
+    }
+
+    /// Tangent-only residual stiffness: stress and strain are those of Eta = 0 exactly, the tangent is blended.
+    static void TFT_eta_tangent_only_CHECK(const real_t stretch1, const real_t stretch2, const index_t expectedState)
+    {
+        typedef real_t T;
+        TFT_curved_setup s(stretch1,stretch2);
+        const MaterialOutput MA = MaterialOutput::MatrixA;
+        const MaterialOutput VN = MaterialOutput::VectorN;
+
+        const gsMatrix<T> TF = s.tft->eval3D_tensionfield(0,s.u,s.z);
+        for (index_t i=0; i!=TF.cols(); ++i)
+            CHECK_EQUAL(expectedState,(index_t)TF(0,i));
+
+        const gsMatrix<T> S0 = s.tft->eval3D_stress(0,s.u,s.z,VN);
+        const gsMatrix<T> E0 = s.tft->eval3D_strain(0,s.u,s.z);
+        const gsMatrix<T> M0 = s.tft->eval3D_matrix(0,s.u,s.z,MA);
+        const gsMatrix<T> Cb = s.wrapped->eval3D_matrix(0,s.u,s.z,MA);
+
+        const T eta = 1e-3;
+        s.tft->options().setReal("Eta",eta);
+        s.tft->options().setSwitch("EtaTangentOnly",true);
+        CHECK_EQUAL(T(0),(s.tft->eval3D_stress(0,s.u,s.z,VN)-S0).cwiseAbs().maxCoeff());
+        CHECK_EQUAL(T(0),(s.tft->eval3D_strain(0,s.u,s.z)-E0).cwiseAbs().maxCoeff());
+
+        gsMatrix<T> Mexp;
+        if (expectedState == 0)
+            Mexp = (1-eta)*M0 + eta*Cb;
+        else if (expectedState == -1)
+            Mexp = eta*Cb;
+        else
+            Mexp = Cb;
+        const gsMatrix<T> M = s.tft->eval3D_matrix(0,s.u,s.z,MA);
+        TFT_eta_CLOSE(Mexp,M,1e-14);
+
+        // The blend is not vacuous
+        if (expectedState != 1)
+            CHECK((M-M0).cwiseAbs().maxCoeff() > 1e-6*M.cwiseAbs().maxCoeff());
+    }
+
+    TEST(TFT_eta_tangent_only_wrinkled)
+    {
+        TFT_eta_tangent_only_CHECK(1.2,0.8/math::sqrt(1.2),0);
+    }
+
+    TEST(TFT_eta_tangent_only_taut)
+    {
+        TFT_eta_tangent_only_CHECK(1.2,0.97,1);
+    }
+
+    TEST(TFT_eta_tangent_only_slack)
+    {
+        TFT_eta_tangent_only_CHECK(0.95,0.90,-1);
+    }
+
+    /// Affine d = 2 setup of TFT_tangent_CHECK (svk = linear): with \a zeroOnly, only the check that Eta = 0 with
+    /// EtaTangentOnly set gives exactly the outputs of a default decorator; otherwise the tangent of the default
+    /// variant at Eta = 0.1 against finite differences of the decorator's own stress with respect to the deformed
+    /// metric.
+    template<bool linear>
+    static void TFT_eta_affine_CHECK(const bool zeroOnly)
+    {
+        typedef real_t T;
+        const real_t pi = EIGEN_PI;
+        const bool svk = linear;
+        const real_t al = svk ? 0.9 : pi/6;
+        gsMatrix<> R(2,2);
+        R << math::cos(al), -math::sin(al), math::sin(al), math::cos(al);
+
+        gsMatrix<> Jref(2,2), Jdef(2,2);
+        if (svk)
+        {
+            Jref << 1.0, 0.3, 0.0, 0.8;
+            gsMatrix<> D(2,2); D << 1.1, 0.0, 0.0, 0.75;
+            Jdef = (R * D * R.transpose()) * Jref;
+        }
+        else
+        {
+            const real_t lam1 = 1.2;
+            const real_t lam2 = 0.8 * math::pow(lam1,-0.5);
+            Jref.setIdentity();
+            gsMatrix<> D(2,2); D << lam1, 0.0, 0.0, lam2;
+            Jdef = R * D * R.transpose();
+        }
+
+        gsMultiPatch<> mp, mp_def;
+        mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) );
+        mp.patch(0).coefs() = mp.patch(0).coefs() * Jref.transpose();
+        mp.addAutoBoundaries();
+        mp_def.addPatch( gsNurbsCreator<>::BSplineSquare(1) );
+        mp_def.patch(0).coefs() = mp_def.patch(0).coefs() * Jdef.transpose();
+        mp_def.addAutoBoundaries();
+
+        const real_t mu = 4.225e5;
+        const real_t PoissonRatio = svk ? 0.45 : 0.5;
+        const real_t E_modulus = 2*mu*(1+PoissonRatio);
+        gsFunctionExpr<> t(std::to_string(0.01),2);
+        gsFunctionExpr<> E(std::to_string(E_modulus),2);
+        gsFunctionExpr<> nu(std::to_string(PoissonRatio),2);
+        std::vector<gsFunctionSet<>*> parameters(2);
+        parameters[0] = &E;
+        parameters[1] = &nu;
+
+        gsOptionList options;
+        if (svk)
+        {
+            options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
+            options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+        }
+        else
+        {
+            options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",1);
+            options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",false);
+            options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+        }
+        gsMaterialMatrixBase<real_t>::uPtr materialMatrix = getMaterialMatrix<2,real_t>(mp,t,parameters,options);
+        materialMatrix->setDeformed(&mp_def);
+        gsMaterialMatrixTFT<2,real_t,linear> tft(*materialMatrix);
+        tft.setDeformed(&mp_def);
+
+        gsVector<> pt(2);
+        pt.setConstant(0.25);
+        gsMatrix<> z(1,1); z.setZero();
+        const MaterialOutput MA = MaterialOutput::MatrixA;
+        const MaterialOutput VN = MaterialOutput::VectorN;
+        CHECK_EQUAL(0,(index_t)tft.eval3D_tensionfield(0,pt,z,MaterialOutput::Generic)(0,0));
+
+        if (zeroOnly)
+        {
+            gsMaterialMatrixTFT<2,real_t,linear> tft0(*materialMatrix);
+            tft0.setDeformed(&mp_def);
+            tft0.options().setReal("Eta",0);
+            tft0.options().setSwitch("EtaTangentOnly",true);
+            const gsMatrix<> S = tft.eval3D_stress(0,pt,z,VN);
+            CHECK(S.cwiseAbs().maxCoeff() > 0);
+            CHECK_EQUAL(T(0),(tft0.eval3D_stress(0,pt,z,VN)-S).cwiseAbs().maxCoeff());
+            CHECK_EQUAL(T(0),(tft0.eval3D_matrix(0,pt,z,MA)-tft.eval3D_matrix(0,pt,z,MA)).cwiseAbs().maxCoeff());
+            CHECK_EQUAL(T(0),(tft0.eval3D_strain(0,pt,z)-tft.eval3D_strain(0,pt,z)).cwiseAbs().maxCoeff());
+            return;
+        }
+
+        // Tangent (i,d) = dS_i/dE_d with the engineering strain E = (E11, E22, 2 E12)
+        const gsMatrix<> C0 = tft.eval3D_matrix(0,pt,z,MA).reshape(3,3);
+        const gsMatrix<> S0 = tft.eval3D_stress(0,pt,z,VN);
+        const gsMatrix<> Cb = materialMatrix->eval3D_matrix(0,pt,z,MA).reshape(3,3);
+
+        const T eta = 0.1;
+        tft.options().setReal("Eta",eta);
+        const gsMatrix<> J_MM = tft.eval3D_matrix(0,pt,z,MA).reshape(3,3);
+        const gsMatrix<> S1 = tft.eval3D_stress(0,pt,z,VN);
+        const real_t tol = 1e-6 * J_MM.cwiseAbs().maxCoeff();
+
+        // The blend is visible at this tolerance, and the stress differs from the Eta = 0 one
+        CHECK(eta * (Cb - C0).cwiseAbs().maxCoeff() >= 100 * tol);
+        CHECK((S1 - S0).cwiseAbs().maxCoeff() > 1e-3 * S0.cwiseAbs().maxCoeff());
+
+        // Deformed metric G' = G + dG as the upper Cholesky factor U (U^T U = G'), patch coefs * U^T; the decorator
+        // depends on the deformed geometry through the metric only. Stress of the decorator itself.
+        gsMatrix<> Gdef = Jdef.transpose() * Jdef;
+        auto stressAt = [&](const gsMatrix<> & G, bool & wrinkled) -> gsMatrix<>
+        {
+            gsMatrix<> U(2,2);
+            U << math::sqrt(G(0,0)), G(0,1)/math::sqrt(G(0,0)),
+                 0.0,                math::sqrt(G(1,1) - G(0,1)*G(0,1)/G(0,0));
+            gsMultiPatch<> m;
+            m.addPatch( gsNurbsCreator<>::BSplineSquare(1) );
+            m.patch(0).coefs() = m.patch(0).coefs() * U.transpose();
+            m.addAutoBoundaries();
+            tft.setDeformed(&m);
+            wrinkled = (tft.eval3D_tensionfield(0,pt,z,MaterialOutput::Generic)(0,0) == 0);
+            return tft.eval3D_stress(0,pt,z,VN);
+        };
+
+        bool w;
+        const gsMatrix<> Schol = stressAt(Gdef,w);
+        CHECK(w);
+        CHECK_MATRIX_CLOSE(S1,Schol,1e-10*S1.cwiseAbs().maxCoeff());
+
+        // Fourth-order central stencil (-S(2h) + 8 S(h) - 8 S(-h) + S(-2h)) / (12 h), truncation O(h^4)
+        const real_t h = 1e-5;
+        gsMatrix<> J_FD(3,3);
+        for (index_t d=0; d!=3; ++d)
+        {
+            const real_t scale = (d==2) ? 1.0 : 2.0;   // dG11 = 2 dE_0, dG22 = 2 dE_1, dG12 = dE_2
+            gsMatrix<> dG(2,2);
+            dG.setZero();
+            gsMatrix<> Sst[4];
+            const real_t m[4] = {-2.0, -1.0, 1.0, 2.0};
+            for (index_t s=0; s!=4; ++s)
+            {
+                if (d==0)      dG(0,0) = scale*m[s]*h;
+                else if (d==1) dG(1,1) = scale*m[s]*h;
+                else           dG(0,1) = dG(1,0) = scale*m[s]*h;
+                Sst[s] = stressAt(Gdef + dG,w);
+                CHECK(w);
+            }
+            J_FD.col(d) = (-Sst[3] + 8*Sst[2] - 8*Sst[1] + Sst[0]) / (12*h);
+        }
+        tft.setDeformed(&mp_def);
+        CHECK_MATRIX_CLOSE(J_FD,J_MM,tol);
+    }
+
+    TEST(TFT_eta_tangent_FD_SvK_linear)
+    {
+        TFT_eta_affine_CHECK<true>(false);
+    }
+
+    TEST(TFT_eta_tangent_FD_NH_incomp)
+    {
+        TFT_eta_affine_CHECK<false>(false);
+    }
+
+    TEST(TFT_eta_zero_is_default)
+    {
+        const MaterialOutput MA = MaterialOutput::MatrixA;
+        const MaterialOutput VN = MaterialOutput::VectorN;
+        const real_t st[3][3] = { {1.2, 0.8/math::sqrt(1.2), 0}, {1.2, 0.97, 1}, {0.95, 0.90, -1} };
+        for (index_t i=0; i!=3; ++i)
+        {
+            TFT_curved_setup s(st[i][0],st[i][1]);
+            gsMaterialMatrixTFT<3,real_t,true> tft0(s.wrapped.get());
+            tft0.setUndeformed(&s.ref);
+            tft0.setDeformed(&s.def);
+            tft0.options().setReal("Eta",0);
+            tft0.options().setSwitch("EtaTangentOnly",true);
+            CHECK_EQUAL((index_t)st[i][2],(index_t)s.tft->eval3D_tensionfield(0,s.u,s.z)(0,0));
+            CHECK_EQUAL(0.0,(tft0.eval3D_stress(0,s.u,s.z,VN)-s.tft->eval3D_stress(0,s.u,s.z,VN)).cwiseAbs().maxCoeff());
+            CHECK_EQUAL(0.0,(tft0.eval3D_matrix(0,s.u,s.z,MA)-s.tft->eval3D_matrix(0,s.u,s.z,MA)).cwiseAbs().maxCoeff());
+            CHECK_EQUAL(0.0,(tft0.eval3D_strain(0,s.u,s.z)-s.tft->eval3D_strain(0,s.u,s.z)).cwiseAbs().maxCoeff());
+            CHECK_EQUAL(0.0,(tft0.eval3D_pstrain(0,s.u,s.z)-s.tft->eval3D_pstrain(0,s.u,s.z)).cwiseAbs().maxCoeff());
+        }
+        TFT_eta_affine_CHECK<false>(true);
+        TFT_eta_affine_CHECK<true>(true);
+    }
+
 }

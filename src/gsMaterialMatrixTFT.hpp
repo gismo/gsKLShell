@@ -93,6 +93,8 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_pstrain(const index_t patc
     }
     else
         result = m_materialMat->eval3D_pstrain(patch,u,z);
+    const T etaS = m_options.getSwitch("EtaTangentOnly") ? T(0) : this->_eta();
+    const T slackFac = this->_slackFactor(etaS);
     index_t colIdx;
     for (index_t k=0; k!=u.cols(); k++)
     {
@@ -107,7 +109,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_pstrain(const index_t patc
             {
                 // Set to zero
                 // result.col(colIdx).setZero();
-                result.col(colIdx) *= m_options.getReal("SlackMultiplier");
+                result.col(colIdx) *= slackFac;
             }
             else
                 GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
@@ -130,6 +132,8 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_strain(const index_t patch
     else
         result = m_materialMat->eval3D_strain(patch,u,z);
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
+    const T etaS = m_options.getSwitch("EtaTangentOnly") ? T(0) : this->_eta();
+    const T slackFac = this->_slackFactor(etaS);
     index_t colIdx;
     T theta;
     for (index_t k=0; k!=u.cols(); k++)
@@ -145,7 +149,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_strain(const index_t patch
             {
                 // Set to zero
                 // result.col(colIdx).setZero();
-                result.col(colIdx) *= m_options.getReal("SlackMultiplier");
+                result.col(colIdx) *= slackFac;
             }
             else if (TF(0,colIdx) == 0) // wrinkled
             {
@@ -172,6 +176,8 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch
 
     gsMatrix<T> result = m_materialMat->eval3D_stress(patch,u,z,MaterialOutput::VectorN);
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
+    const T etaS = m_options.getSwitch("EtaTangentOnly") ? T(0) : this->_eta();
+    const T slackFac = this->_slackFactor(etaS);
     index_t colIdx;
     T theta;
     for (index_t k=0; k!=u.cols(); k++)
@@ -187,7 +193,7 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch
             {
                 // Set to zero
                 // result.col(colIdx).setZero();
-                result.col(colIdx) *= m_options.getReal("SlackMultiplier");
+                result.col(colIdx) *= slackFac;
             }
             else if (TF(0,colIdx) == 0) // wrinkled
             {
@@ -197,6 +203,8 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch
                 gsMatrix<T> thetas = eval_theta(C,N,E);
                 theta = thetas(0,0);
                 result.col(colIdx) = this->_compute_S(theta,C.reshape(3,3),N);
+                if (etaS != 0) // S_eff = (1-eta) S_wr + eta S
+                    result.col(colIdx) = (1-etaS)*result.col(colIdx) + etaS*N;
             }
             else
                 GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
@@ -417,6 +425,21 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_gammaHat(const index_t pat
 }
 
 template <short_t dim, class T, bool linear >
+T gsMaterialMatrixTFT<dim,T,linear>::_eta() const
+{
+    const T eta = m_options.getReal("Eta");
+    GISMO_ENSURE(eta>=0 && eta<=1,"Option Eta must lie in [0,1], got "<<eta);
+    return eta;
+}
+
+template <short_t dim, class T, bool linear >
+T gsMaterialMatrixTFT<dim,T,linear>::_slackFactor(const T etaEff) const
+{
+    const T slackMult = m_options.getReal("SlackMultiplier");
+    return etaEff == 0 ? slackMult : (slackMult > 0 ? slackMult : etaEff);
+}
+
+template <short_t dim, class T, bool linear >
 void gsMaterialMatrixTFT<dim,T,linear>::_wrinkleState(const index_t patch, const gsVector<T> & u, const T z, gsMatrix<T> & C, gsMatrix<T> & N, gsMatrix<T> & E) const
 {
     // The wrinkle equations (Li et al. eqs. 55-63) relate the stress N produced by the strain E: N must be the
@@ -477,6 +500,8 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
 {
     gsMatrix<T> result = m_materialMat->eval3D_matrix(patch,u,z,MaterialOutput::MatrixA);
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
+    const T eta = this->_eta();
+    const T slackFac = this->_slackFactor(eta);
 
     index_t colIdx;
     T theta;
@@ -493,7 +518,7 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
             {
                 // Set to zero
                 // result.col(colIdx).setZero();
-                result.col(colIdx) *= m_options.getReal("SlackMultiplier");
+                result.col(colIdx) *= slackFac;
             }
             else if (TF(0,colIdx) == 0) // wrinkled
             {
@@ -503,6 +528,8 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
 
                 theta = thetas(0,0);
                 result.col(colIdx) = this->_compute_C(theta,C.reshape(3,3),N.reshape(3,1)).reshape(9,1);
+                if (eta != 0) // C_eff = (1-eta) C_wr + eta C
+                    result.col(colIdx) = (1-eta)*result.col(colIdx) + eta*C;
             }
             else
                 GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
@@ -518,6 +545,8 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
 {
     gsMatrix<T> result = m_materialMat->eval3D_matrix(patch,u,z,out);
     gsMatrix<T> TF = this->_compute_TF(patch,u,z);
+    const T eta = this->_eta();
+    const T slackFac = this->_slackFactor(eta);
 
     index_t colIdx;
     T theta;
@@ -534,7 +563,7 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
             {
                 // Set to zero
                 // result.col(colIdx).setZero();
-                result.col(colIdx) *= m_options.getReal("SlackMultiplier");
+                result.col(colIdx) *= slackFac;
             }
             else if (TF(0,colIdx) == 0) // wrinkled
             {
@@ -547,6 +576,8 @@ gsMaterialMatrixTFT<dim,T,linear>::_eval3D_matrix_impl(const index_t patch, cons
                 dC *= 2; // since eval3D_dmatrix gives dC/dC and dC/dE = 2*dC/dC
                 theta = thetas(0,0);
                 result.col(colIdx) = this->_compute_C(theta,C.reshape(3,3),N.reshape(3,1),dC.reshape(9,3)).reshape(9,1);
+                if (eta != 0) // C_eff = (1-eta) C_wr + eta C
+                    result.col(colIdx) = (1-eta)*result.col(colIdx) + eta*C;
             }
             else
                 GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));

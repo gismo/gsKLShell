@@ -212,6 +212,25 @@ inline void principalStressFrame(const gsMatrix<T> & S, const gsMatrix<T> & Gbas
  * truncation for hyperelastic laws. See \ref gsMaterialMatrixTFTSplit (option Exact) for the
  * non-truncated state and the error order.
  *
+ * Residual stiffness (option Eta, 0 <= Eta <= 1, default 0). With S, C the stress and tangent of the wrapped law and
+ * S_wr, C_wr the tension-field stress and (consistent) tangent, the points of the three states carry
+ * - taut:     S, C;
+ * - wrinkled: S_eff = (1-Eta) S_wr + Eta S and C_eff = (1-Eta) C_wr + Eta C;
+ * - slack:    sigma S and sigma C, with sigma = SlackMultiplier if SlackMultiplier > 0, else Eta
+ * (Zhang & Kiendl 2026, Eqs. 35 and 40; the same definition as option Eta of \ref gsMaterialMatrixTFTSplit). The
+ * strain at slack points is scaled by sigma as well; at wrinkled points it is the elastic strain E + gamma n_1 and
+ * is not blended (as in gsMaterialMatrixTFTSplit). C_eff is the derivative of S_eff, so the Newton iteration keeps
+ * its rate. The state classification and theta, gamma do not depend on Eta.
+ *
+ * With option EtaTangentOnly, Eta enters the tangent only: C_eff and sigma C as above, while stress and strain stay
+ * those of Eta = 0 (S_wr at wrinkled points, SlackMultiplier S at slack points). The converged solution is then an
+ * exact tension field, since the residual is the pure tension-field stress, and Eta changes the Newton iteration
+ * only. The tangent is no longer the derivative of the stress, so the convergence is at best linear.
+ *
+ * Complexity: S and C are quantities that the wrinkled and slack updates already hold, so the blend costs one 3-vector
+ * or 3x3 axpy per point and no material evaluation. For an effective Eta of 0 no blend is evaluated at all, so the
+ * pure tension-field quantities are returned bit for bit.
+ *
  * @tparam     dim   The dimension of the problem (2 = planar, 3 = surface)
  * @tparam     T     Real type
  * @tparam     linear  The wrapped material is linear in E (\ref gsMaterialMatrixLinear). The tangent then
@@ -294,6 +313,8 @@ public:
         this->setThickness(materialMatrix.get()->getThickness());
 
         m_options.addReal("SlackMultiplier","Multiplies the original value of the matrix for the slack state",0);
+        m_options.addReal("Eta","Residual stiffness: fraction of the unmodified stress and tangent kept at wrinkled points, slack multiplier at slack points when SlackMultiplier is 0 (Zhang & Kiendl 2026, Eqs. 35, 40)",0);
+        m_options.addSwitch("EtaTangentOnly","Apply Eta to the tangent only; stress and strain remain those of the pure tension field",false);
         m_options.addSwitch("Explicit","Explicit iterations; use tension field from a fixed deformed geometry that does not change when calling setDeformed",false);
     }
 
@@ -502,6 +523,13 @@ protected:
     /// Reference/deformed 2x2 metrics and 3x2 Cartesian covariant bases of point k at height z (after _computePoints).
     /// The bases are the mid-surface ones for linear=true (dim 3) and the fibre ones otherwise.
     void _pointGeometry(const index_t k, const T z, gsMatrix<T> & Gori, gsMatrix<T> & Gdef, gsMatrix<T> & Gb, gsMatrix<T> & gb) const;
+
+    /// Option Eta, checked to lie in [0,1].
+    T _eta() const;
+
+    /// Factor applied to stress, tangent and strain at slack points for the effective residual fraction \a etaEff:
+    /// SlackMultiplier if etaEff == 0 or SlackMultiplier > 0, else etaEff.
+    T _slackFactor(const T etaEff) const;
 
     T _compute_gamma(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const;
     gsVector<T> _theta_interval(const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const;
