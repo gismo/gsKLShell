@@ -1170,6 +1170,126 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         TFT_eta_tangent_only_CHECK(0.95,0.90,-1);
     }
 
+    /// \f$\max|a|\f$ with a floor, for relative comparisons
+    static real_t TFT_eta_maxAbs(const gsMatrix<real_t> & a)
+    {
+        return a.cwiseAbs().maxCoeff() + std::numeric_limits<real_t>::min();
+    }
+
+    /// Principal strains under Eta > 0, default and tangent-only variants (SlackMultiplier = 0). Taut: untouched. Slack:
+    /// scaled by Eta (default) or by SlackMultiplier = 0 (tangent-only, as at Eta = 0); equal to the Split decorator
+    /// in the default variant. Wrinkled: neither variant blends the strain, TFT returns the principal strains of the
+    /// wrapped law (total strain), whereas Split returns those of the elastic strain, so only TFT-internal values are
+    /// compared.
+    static void TFT_eta_pstrain_CHECK(const real_t stretch1, const real_t stretch2, const index_t expectedState)
+    {
+        typedef real_t T;
+        TFT_curved_setup s(stretch1,stretch2);
+        const T rel = 1e-12;
+        const T eta = 1e-3;
+
+        const gsMatrix<T> TF = s.tft->eval3D_tensionfield(0,s.u,s.z);
+        for (index_t i=0; i!=TF.cols(); ++i)
+            CHECK_EQUAL(expectedState,(index_t)TF(0,i));
+
+        s.tft->options().setReal("SlackMultiplier",0);
+        s.split->options().setReal("SlackMultiplier",0);
+
+        const gsMatrix<T> P0 = s.tft->eval3D_pstrain(0,s.u,s.z);
+        const gsMatrix<T> Pw = s.wrapped->eval3D_pstrain(0,s.u,gsMatrix<T>::Zero(1,s.u.cols())).replicate(1,s.z.rows());
+
+        s.tft->options().setReal("Eta",eta);
+        s.split->options().setReal("Eta",eta);
+        const gsMatrix<T> Pd = s.tft->eval3D_pstrain(0,s.u,s.z);
+        s.tft->options().setSwitch("EtaTangentOnly",true);
+        const gsMatrix<T> Pt = s.tft->eval3D_pstrain(0,s.u,s.z);
+
+        // Tangent-only does not touch the strain output
+        CHECK_EQUAL(T(0),(Pt-P0).cwiseAbs().maxCoeff());
+
+        if (expectedState == 1)
+        {
+            CHECK_EQUAL(T(0),(Pd-P0).cwiseAbs().maxCoeff());
+            const gsMatrix<T> Ps = s.split->eval3D_pstrain(0,s.u,s.z);
+            TFT_eta_CLOSE(Ps.topRows(2),Pd.topRows(2),rel);
+        }
+        else if (expectedState == -1)
+        {
+            // slack factor Eta with SlackMultiplier = 0; zero at Eta = 0
+            CHECK_EQUAL(T(0),P0.cwiseAbs().maxCoeff());
+            CHECK(Pd.cwiseAbs().maxCoeff() > 1e-6*TFT_eta_maxAbs(Pw));
+            const gsMatrix<T> Ps = s.split->eval3D_pstrain(0,s.u,s.z);
+            TFT_eta_CLOSE(Ps.topRows(2),Pd.topRows(2),rel);
+            TFT_eta_CLOSE(eta*Pw.topRows(2),Pd.topRows(2),1e-14);
+        }
+        else
+        {
+            CHECK_EQUAL(T(0),(Pd-P0).cwiseAbs().maxCoeff());
+            CHECK_EQUAL(T(0),(Pd-Pw).cwiseAbs().maxCoeff());
+            CHECK(P0.cwiseAbs().maxCoeff() > 0);
+        }
+    }
+
+    TEST(TFT_eta_pstrain_wrinkled)
+    {
+        TFT_eta_pstrain_CHECK(1.2,0.8/math::sqrt(1.2),0);
+    }
+
+    TEST(TFT_eta_pstrain_taut)
+    {
+        TFT_eta_pstrain_CHECK(1.2,0.97,1);
+    }
+
+    TEST(TFT_eta_pstrain_slack)
+    {
+        TFT_eta_pstrain_CHECK(0.95,0.90,-1);
+    }
+
+    /// SlackMultiplier > 0 together with Eta > 0: the slack factor is SlackMultiplier (the rule of the Split
+    /// decorator), not Eta. Stress, strain, principal strains and tangent agree with Split; with SlackMultiplier = 0
+    /// the factor is Eta and the result differs.
+    TEST(TFT_eta_slackmultiplier_overrides_eta)
+    {
+        typedef real_t T;
+        TFT_curved_setup s(0.95,0.90);
+        const T rel = 1e-12;
+        const MaterialOutput MA = MaterialOutput::MatrixA;
+        const MaterialOutput VN = MaterialOutput::VectorN;
+
+        const gsMatrix<T> TF = s.tft->eval3D_tensionfield(0,s.u,s.z);
+        for (index_t i=0; i!=TF.cols(); ++i)
+            CHECK_EQUAL(-1,(index_t)TF(0,i));
+
+        const T eta = 0.1, slack = 1e-3;
+        s.tft->options().setReal("Eta",eta);
+        s.split->options().setReal("Eta",eta);
+
+        s.tft->options().setReal("SlackMultiplier",0);
+        const gsMatrix<T> S_eta = s.tft->eval3D_stress(0,s.u,s.z,VN);
+        const gsMatrix<T> C_eta = s.tft->eval3D_matrix(0,s.u,s.z,MA);
+        const gsMatrix<T> E_eta = s.tft->eval3D_strain(0,s.u,s.z);
+        const gsMatrix<T> P_eta = s.tft->eval3D_pstrain(0,s.u,s.z);
+
+        s.tft->options().setReal("SlackMultiplier",slack);
+        s.split->options().setReal("SlackMultiplier",slack);
+        const gsMatrix<T> S = s.tft->eval3D_stress(0,s.u,s.z,VN);
+        const gsMatrix<T> C = s.tft->eval3D_matrix(0,s.u,s.z,MA);
+        const gsMatrix<T> E = s.tft->eval3D_strain(0,s.u,s.z);
+        const gsMatrix<T> P = s.tft->eval3D_pstrain(0,s.u,s.z);
+
+        TFT_eta_CLOSE(s.split->eval3D_stress(0,s.u,s.z,VN),S,rel);
+        TFT_eta_CLOSE(s.split->eval3D_matrix(0,s.u,s.z,MA),C,rel);
+        TFT_eta_CLOSE(s.split->eval3D_strain(0,s.u,s.z),E,rel);
+        TFT_eta_CLOSE(s.split->eval3D_pstrain(0,s.u,s.z).topRows(2),P.topRows(2),rel);
+
+        // Controls: Eta and SlackMultiplier are two orders apart, so the two factors give clearly different results
+        CHECK((S-S_eta).cwiseAbs().maxCoeff() > 1e-6*TFT_eta_maxAbs(S_eta));
+        CHECK((C-C_eta).cwiseAbs().maxCoeff() > 1e-6*TFT_eta_maxAbs(C_eta));
+        CHECK((E-E_eta).cwiseAbs().maxCoeff() > 1e-6*TFT_eta_maxAbs(E_eta));
+        CHECK((P-P_eta).cwiseAbs().maxCoeff() > 1e-6*TFT_eta_maxAbs(P_eta));
+        TFT_eta_CLOSE(S_eta*(slack/eta),S,1e-12);
+    }
+
     /// Affine d = 2 setup of TFT_tangent_CHECK (svk = linear): with \a zeroOnly, only the check that Eta = 0 with
     /// EtaTangentOnly set gives exactly the outputs of a default decorator; otherwise the tangent of the default
     /// variant at Eta = 0.1 against finite differences of the decorator's own stress with respect to the deformed
@@ -1274,12 +1394,14 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         // Deformed metric G' = G + dG as the upper Cholesky factor U (U^T U = G'), patch coefs * U^T; the decorator
         // depends on the deformed geometry through the metric only. Stress of the decorator itself.
         gsMatrix<> Gdef = Jdef.transpose() * Jdef;
+        // Perturbed geometry, kept alive for as long as the decorator references it
+        gsMultiPatch<> m;
         auto stressAt = [&](const gsMatrix<> & G, bool & wrinkled) -> gsMatrix<>
         {
             gsMatrix<> U(2,2);
             U << math::sqrt(G(0,0)), G(0,1)/math::sqrt(G(0,0)),
                  0.0,                math::sqrt(G(1,1) - G(0,1)*G(0,1)/G(0,0));
-            gsMultiPatch<> m;
+            m.clear();
             m.addPatch( gsNurbsCreator<>::BSplineSquare(1) );
             m.patch(0).coefs() = m.patch(0).coefs() * U.transpose();
             m.addAutoBoundaries();
