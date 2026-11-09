@@ -823,4 +823,153 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         HandOverUndeformed_CHECK< gsMaterialMatrixTFTSplit<2,real_t,false> >(mp,mp_def);
     }
 
+    /// Largest deviation of the columns of the through-thickness blocks 1..nz-1 from block 0.
+    /// The columns are ordered [(u1,z1) .. (un,z1), (u1,z2) .. (un,z2), ..], n = number of in-plane points.
+    static real_t TFT_zVariation(const gsMatrix<real_t> & M, const index_t n, const index_t nz)
+    {
+        real_t d = 0;
+        for (index_t j=1; j<nz; ++j)
+            d = math::max(d,(M.middleCols(j*n,n) - M.leftCols(n)).cwiseAbs().maxCoeff());
+        return d;
+    }
+
+    /// Linear (SvK) material on a flat reference square deformed into a curved surface (stretches plus a quadratic
+    /// out-of-plane bump of the deformed configuration) wrapped in the
+    /// TFT decorator (linear = true) and in the Split decorator with Eta = 0. With a linear base law the
+    /// wrinkle state is the mid-surface one at every through-thickness point, so the TFT output must
+    /// not depend on z and must coincide with the Split decorator at Eta = 0.
+    /// \a stretch1, \a stretch2 are the in-plane stretches of the deformed surface; \a expectedState
+    /// the wrinkling state (1 taut, 0 wrinkled, -1 slack) they are chosen to produce.
+    static void TFT_linear_curved_CHECK(const real_t stretch1, const real_t stretch2, const index_t expectedState)
+    {
+        typedef real_t T;
+        const T bump = 0.15;
+
+        gsMultiPatch<T> ref, def;
+        ref.addPatch(gsNurbsCreator<T>::BSplineSquare(1));
+        ref.patch(0).degreeElevate(1);
+        ref.embed(3);
+        def = ref;
+        gsMatrix<T> & c = def.patch(0).coefs();
+        for (index_t i=0; i!=c.rows(); ++i)
+        {
+            const T x = c(i,0), y = c(i,1);
+            c(i,0) = stretch1 * x;
+            c(i,1) = stretch2 * y;
+            c(i,2) = bump * (x*(1-x) + y*(1-y) + 2*x*y);
+        }
+        ref.addAutoBoundaries();
+        def.addAutoBoundaries();
+
+        gsConstantFunction<T> t(0.01,3), E(1e5,3), nu(0.3,3);
+        std::vector<gsFunctionSet<T>*> par(2);
+        par[0] = &E;
+        par[1] = &nu;
+        gsOptionList o;
+        o.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
+        o.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+        gsMaterialMatrixBase<T>::uPtr wrapped = getMaterialMatrix<3,T>(ref,t,par,o);
+
+        gsMaterialMatrixTFT<3,T,true> tft(wrapped.get());
+        gsMaterialMatrixTFTSplit<3,T,true> split(wrapped.get());
+        split.options().setReal("Eta",0);
+        gsMaterialMatrixBase<T> * all[3] = { &tft, &split, wrapped.get() };
+        for (index_t i=0; i!=3; ++i)
+        {
+            all[i]->setUndeformed(&ref);
+            all[i]->setDeformed(&def);
+        }
+
+        // Three in-plane points; per point a different, non-uniform set of four through-thickness
+        // heights spanning the thickness (z is the through-thickness coordinate in [-1/2,1/2], scaled by the thickness inside the material)
+        gsMatrix<T> u(2,3);
+        u << 0.3, 0.7, 0.5,
+             0.4, 0.6, 0.2;
+        gsMatrix<T> z(4,3);
+        z << -0.5,  -0.4,  -0.3,
+              0.0,   0.1,  -0.1,
+              0.25,  0.3,   0.2,
+              0.5,   0.45,  0.35;
+        const index_t n = u.cols(), nz = z.rows();
+
+        const T eps  = std::numeric_limits<T>::epsilon();
+        const T rel  = math::max(T(1e-12), T(100)*eps);
+        const T tiny = std::numeric_limits<T>::min();
+
+        // The case produces the requested state at all points
+        const gsMatrix<T> TF = tft.eval3D_tensionfield(0,u,z);
+        CHECK_EQUAL(n*nz,TF.cols());
+        for (index_t i=0; i!=TF.cols(); ++i)
+            CHECK_EQUAL(expectedState,(index_t)TF(0,i));
+
+        const gsMatrix<T> Et = tft.eval3D_strain(0,u,z);
+        const gsMatrix<T> St = tft.eval3D_stress(0,u,z,MaterialOutput::VectorN);
+        const gsMatrix<T> Pt = tft.eval3D_pstrain(0,u,z);
+        const gsMatrix<T> Es = split.eval3D_strain(0,u,z);
+        const gsMatrix<T> Ss = split.eval3D_stress(0,u,z,MaterialOutput::VectorN);
+
+        // Control: the wrapped strain does depend on z on this surface, so the z-independence below is
+        // not vacuous
+        const gsMatrix<T> Ew = wrapped->eval3D_strain(0,u,z);
+        CHECK(TFT_zVariation(Ew,n,nz) > 1e-4 * Ew.cwiseAbs().maxCoeff());
+
+        CHECK_EQUAL(Es.rows(),Et.rows());
+        CHECK_EQUAL(Es.cols(),Et.cols());
+        CHECK_EQUAL(Ss.cols(),St.cols());
+
+        // z-independence, exact up to rounding of the replicated mid-surface values
+        CHECK_EQUAL(T(0),TFT_zVariation(Et,n,nz));
+        CHECK_EQUAL(T(0),TFT_zVariation(St,n,nz));
+        CHECK_EQUAL(T(0),TFT_zVariation(Pt,n,nz));
+
+        // Equality with the Split decorator at Eta = 0 (strain: at wrinkled points the elastic strain
+        // E + gamma n1 of Split is the TFT strain output)
+        CHECK_MATRIX_CLOSE(Es,Et,rel*Es.cwiseAbs().maxCoeff() + tiny);
+        CHECK_MATRIX_CLOSE(Ss,St,rel*Ss.cwiseAbs().maxCoeff() + tiny);
+
+        // Principal strain, one in-plane point per call: the multi-point call evaluates all points with
+        // the metric of the last one. At wrinkled points TFT returns the total and Split the elastic
+        // principal strain, so the comparison is restricted to taut and slack points.
+        if (expectedState != 0)
+        {
+            for (index_t k=0; k!=n; ++k)
+            {
+                const gsMatrix<T> uk = u.col(k), zk = z.col(k);
+                const gsMatrix<T> P1 = tft.eval3D_pstrain(0,uk,zk);
+                const gsMatrix<T> P2 = split.eval3D_pstrain(0,uk,zk);
+                CHECK_MATRIX_CLOSE(P2,P1,rel*P2.cwiseAbs().maxCoeff() + tiny);
+            }
+        }
+
+        // Single in-plane point and single through-thickness row give the same values as the block call
+        for (index_t k=0; k!=n; ++k)
+        {
+            const gsMatrix<T> uk = u.col(k), zk = z.col(k);
+            const gsMatrix<T> E1 = tft.eval3D_strain(0,uk,zk);
+            const gsMatrix<T> S1 = tft.eval3D_stress(0,uk,zk,MaterialOutput::VectorN);
+            for (index_t j=0; j!=nz; ++j)
+            {
+                CHECK_MATRIX_CLOSE(Et.col(j*n+k),E1.col(j),rel*Et.cwiseAbs().maxCoeff() + tiny);
+                CHECK_MATRIX_CLOSE(St.col(j*n+k),S1.col(j),rel*St.cwiseAbs().maxCoeff() + tiny);
+            }
+        }
+        const gsMatrix<T> z1 = gsMatrix<T>::Constant(1,n,0.37);
+        CHECK_MATRIX_CLOSE(split.eval3D_strain(0,u,z1),tft.eval3D_strain(0,u,z1),rel*Es.cwiseAbs().maxCoeff() + tiny);
+    }
+
+    TEST(TFT_linear_curved_reference_wrinkled)
+    {
+        TFT_linear_curved_CHECK(1.2,0.8/math::sqrt(1.2),0);
+    }
+
+    TEST(TFT_linear_curved_reference_taut)
+    {
+        TFT_linear_curved_CHECK(1.2,0.97,1);
+    }
+
+    TEST(TFT_linear_curved_reference_slack)
+    {
+        TFT_linear_curved_CHECK(0.95,0.90,-1);
+    }
+
 }
