@@ -35,6 +35,9 @@ struct WrinkleOptions
     T       eta = 0;            ///< Zhang (2026) Eq. 40 regularisation
     T       slackMultiplier = 0;///< slack stress factor; if <= 0, eta is used instead
     bool    exact = false;      ///< exact (non-truncated) wrinkled state; only honoured for linear=false
+    T       exactTol = T(1e-12);///< exact solve: residual tolerance relative to ||S'||_2 at the iterate (with a round-off floor)
+    T       exactStagTol = T(1e-9);///< exact solve: relative residual tolerance up to which a stalled iteration is accepted; >= exactTol
+    index_t exactMaxIt = 50;    ///< exact solve: budget of S/C evaluations per pass (scalar, 2x2); >= 1
 };
 
 /// Result of the pointwise core for one point/fibre.
@@ -48,12 +51,17 @@ struct WrinkleResult
     T theta;                ///< n = (cos θ, sin θ) covector components, θ ∈ [0,π); NaN unless wrinkled
     T gamma;                ///< γ with |n|_Euclid = 1 (TFT normalisation); NaN unless wrinkled
     T gammaHat;             ///< γ̂ = γ · G^{αβ} n_α n_β (parametrisation-independent); NaN unless wrinkled
-    T residual;             ///< |f(θ)| at the θ used (linearised), max(|n1.S'|,|n2.S'|) at the converged iterate (exact); NaN unless wrinkled
+    T residual;             ///< |f(θ)| at the θ used (linearised), max(|n1.S'|,|n2.S'|) at the kept iterate (exact); NaN unless wrinkled
     bool guardFallback;     ///< closed-form θ rejected by the isotropy guard
     bool tftFailure;        ///< guard failed AND TFT's eval_theta also failed its residual (closed form kept if usable, else TFT's root), or n1ᵀCn1 <= 0
-    bool exactFallback;     ///< exact solve attempted and not converged / not a minimum: linearised result returned
-    bool exactReclassified; ///< exact solve converged to gamma <= 0 (taut) or zero/negative wrinkle tension (slack)
-    index_t exactIterations;///< number of S/C evaluations at E' made by the exact solve (0 if not attempted)
+    bool exactFallback;     ///< exact solve attempted and ended in non-convergence, a saddle or a wrong branch: linearised result returned
+    bool exactReclassified; ///< exact solve found the point taut (taut at gamma = 0, or gamma <= 0 within the taut band) or slack (non-positive wrinkle tension within the slack band)
+    index_t exactIterations;///< number of S/C evaluations at E' made by the exact solve, over both passes incl. the gamma = 0 check and the polish step (0 if not attempted)
+    bool exactSaddle;       ///< exact solve converged to a stationary point that is not a minimum (outside the slack band): linearised result returned
+    bool exactWrongBranch;  ///< exact solve converged to a branch inconsistent with the classifier (gamma <= 0 outside the taut band, or a minimum with non-positive wrinkle tension outside the slack band): linearised result returned
+    bool exactStagnated;    ///< the final pass of the exact solve was accepted by stall acceptance (residual within ExactStagTol) rather than ExactTol; reset when the 2x2 pass follows a scalar-pass stall; independent of the outcome
+    bool exactSkipped;      ///< exact mode requested but not attempted (indefinite n1^T C n1 or no admissible wrinkle direction)
+    bool exactUsed2x2;      ///< the 2x2 (gamma,theta) pass of the exact solve ran
     gsMatrix<T> S;          ///< 3x1 S_eff
     gsMatrix<T> C;          ///< 3x3 C_eff (A_ij = dS_eff_i/dE_j); size 0x0 when not requested
     gsMatrix<T> E;          ///< 3x1 elastic strain (engineering Voigt), see eval3D_strain
@@ -127,63 +135,156 @@ struct WrinkleResult
  * absolute, O(gamma) relative to the wrinkling correction gamma C n_1. The linearised gamma carries
  * an O(gamma) relative error as well. Whether this matters depends on the size of gammaHat in the
  * application, not on the order. The linearised mode is exact for a wrapped law that is linear in E
- * (SvK).
+ * (SvK). The linearised tangent J is the consistent derivative of the truncated stress S'. For a
+ * non-quadratic law it is not symmetric, because S + gamma C n_1 is not the gradient of an energy (the
+ * model is non-variational at O(gamma)); for SvK it is symmetric.
  * - For a hyperelastic wrapped law the linearised S' need not stay tensile along the wrinkles:
  *   n_4.S' <= 0 can occur, for example for incompressible neo-Hookean at unit stretch along the
  *   wrinkles. The linearised mode has no n_4.S' check and keeps such points wrinkled, so the stress
  *   jumps at the wrinkled/slack boundary, where the slack value is SlackMultiplier*S or Eta*S.
- *   Energy continuity across state switches holds for SvK and for the exact mode, not for the
- *   linearised mode with a hyperelastic law.
+ *   Under TensionField 1 and 2 the taut/wrinkled boundary is S_min = 0, where gamma -> 0, so the stress is
+ *   continuous there in the linearised and in the exact mode: S_eff = (1-Eta) S' + Eta S -> S. Under
+ *   TensionField 0 that boundary is E_min = 0, where S_min, and hence the linearised gamma, need not vanish
+ *   (gamma < 0 where S(E) is positive definite), so the linearised stress can jump there.
+ *   Under TensionField 0 and 2 the wrinkled/slack boundary is E_max = 0. There, for SvK and in the exact mode
+ *   (with the stress-free state at E = 0, hypothesis (ii) below), S' -> 0, so S_eff -> Eta S, while a slack
+ *   point returns sigma S with sigma = SlackMultiplier if > 0, else Eta. The stress is then continuous iff
+ *   sigma = Eta (SlackMultiplier <= 0 or SlackMultiplier == Eta); a positive SlackMultiplier different from
+ *   Eta makes a stress jump at that boundary by design. The linearised mode with a non-quadratic law can
+ *   jump there for any sigma (see above). Under TensionField 1 that boundary is S_max = 0, where S' need not
+ *   vanish, so the stress can jump there for any sigma.
  * - In every mode the tangent jumps at the taut/wrinkled boundary (the relaxed energy W_r is C^1,
  *   not C^2). This is intrinsic to tension-field theory.
  *
  * <b>Exact mode</b>
- * With E' = E + gamma n_1, the pair (gamma, theta) solves n_1 . S(E') = n_2 . S(E') = 0 by a local
- * Newton method started from the linearised (gamma, theta). The iteration is scalar in gamma when the
- * closed-form theta passes the isotropy guard (coaxiality) and 2x2 otherwise. With
- * W(gamma,theta) = W(E + gamma n_1(theta)) one has dW/dgamma = n_1.S(E') and
- * dW/dtheta = 2 gamma n_2.S(E') (dn_1/dtheta = 2 n_2), so the solution of R = 0 is a stationary point
- * of W(gamma,theta) for gamma != 0, i.e. of Pipkin's relaxed energy W_r(E) = min W(E + gamma n (x) n).
+ *
+ * <i>Theory.</i> Pipkin's relaxed energy minimises over all positive semi-definite (PSD) wrinkle strains P,
+ * not only rank-one ones: W_r(E) = min_{P PSD} W(E + P). Its KKT conditions are S(E+P) PSD, P PSD and
+ * S(E+P):P = 0. The three states are the three ranks of P:
+ * - taut: P = 0, S(E) PSD;
+ * - wrinkled: P = gamma n (x) n with gamma >= 0 and S' = sigma t (x) t, sigma = n_4.S' >= 0;
+ * - slack: P = -E, S' = 0.
+ *
+ * Adding eps m (x) m to P changes the energy by eps n_4.S', so n_4.S' >= 0 is the first-order (dual)
+ * feasibility condition of a rank-one point. Assume (i) a wrapped law strictly convex in E, (ii) with a
+ * unique stress-free state at E = 0, and (iii) TensionField 2 (taut iff S(E) PSD, slack iff E is negative
+ * semi-definite, wrinkled otherwise). Then W_r has a unique minimiser and the partition used here is
+ * exactly its KKT partition: taut; the rank-one point (gamma > 0, R = 0, n_4.S' > 0); slack. The
+ * partition is not certified outside these hypotheses (non-convex laws, a natural state away from E = 0,
+ * TensionField 0 or 1). The slack boundary in the code is strict (E_max < 0), see the conventions.
+ *
+ * <i>Rank-one solve.</i> With E' = E + gamma n_1, the pair (gamma, theta) solves
+ * R = (n_1.S(E'), n_2.S(E')) = 0 by a local Newton method started from the linearised (gamma, theta).
+ * With W(gamma,theta) = W(E + gamma n_1(theta)) one has dW/dgamma = n_1.S(E') and
+ * dW/dtheta = 2 gamma n_2.S(E') (dn_1/dtheta = 2 n_2), so R = 0 is stationarity of W(gamma,theta) for
+ * gamma != 0. This is a statement about the rank-one family; it is not the definition of W_r.
  * The stress is S' = S(E') and the tangent is
  * C' - [C'n_1, C'n_2] diag(1,2 gamma) Jac_0^{-1} [n_1^T C'; n_2^T C'], with C' = C(E') and
  * Jac_0 = [[n_1.C'n_1, 2 gamma n_1.C'n_2], [n_2.C'n_1, n_4.S' + 2 gamma n_2.C'n_2]],
  * the R = 0 form of the Jacobian of R. The tangent is symmetric whenever C(E') is, and is the
  * consistent tangent up to O(||R||) at the converged iterate.
  *
- * At R = 0 the Hessian of W(gamma,theta) is diag(1, 2 gamma) Jac_0. For gamma > 0 the stationary
- * point is a minimum iff n_1.C'n_1 > 0 and det Jac_0 > 0; this is guaranteed when n_4.S' > 0 and C' is
- * positive definite on span{n_1, n_2}. In the major principal direction stationarity gives gamma < 0
+ * <i>Minimum test.</i> At R = 0 the Hessian of W(gamma,theta) is diag(1, 2 gamma) Jac_0, which is
+ * symmetric. For gamma > 0 it is positive definite iff n_1.C'n_1 > 0 and det Jac_0 > 0, which makes the
+ * point a non-degenerate (strict) local minimum of W(gamma,theta), that is, on the rank-one family only.
+ * This is guaranteed when n_4.S' > 0 and C' is positive definite on span{n_1, n_2}. With n_4.S' > 0 the
+ * point also satisfies the KKT conditions above; for a law satisfying the hypotheses it is then the
+ * minimiser of W_r. For a non-convex law the checks certify a strict local minimiser on the rank-one
+ * family together with the KKT conditions, not the global W_r; local minimality over the whole PSD cone
+ * is not tested. In the major principal direction stationarity gives gamma < 0
  * (to first order gamma = -S_max/(n_1.C n_1)), which is not an admissible wrinkle; the iteration
  * therefore starts from the minor direction. The linearised gamma is the first scalar Newton step in
  * gamma from gamma = 0 at fixed theta (not so for the 2x2 iteration at a non-coaxial theta).
  *
- * Outcomes of a wrinkled point in exact mode, with the counters that record them:
- * - Not attempted if the direction search failed or n_1.C n_1 <= 0: counted in numThetaFallbacks()
- *   and numTFTFailures() (the closed form was already rejected by the guard or unusable, e.g. for a
- *   degenerate pencil), not in the exact-mode counters.
- *   A failed search with n_1.C n_1 > 0 gets the linearised result with the kept direction; a point with
- *   n_1.C n_1 <= 0 gets no wrinkle correction (S_eff = S, C_eff = C, state 0).
+ * <i>Algorithm.</i> The iteration is scalar in gamma when the closed-form theta passes the isotropy guard
+ * (coaxiality), followed by a 2x2 pass in (gamma, theta) if n_2.S' is not within tolerance; it is the
+ * 2x2 pass alone, started from the root of \ref gsMaterialMatrixTFT::eval_theta, when the guard rejected
+ * the closed form. Each pass has a budget of ExactMaxIt provider calls (S and C of the wrapped law at E');
+ * the result's exactIterations counts the calls of both passes. Option validation
+ * is lazy: GISMO_ERROR is raised where an exact solve is entered, unless ExactStagTol >= ExactTol > 0 and
+ * ExactMaxIt >= 1.
+ * - Tolerance, recomputed at every iterate: floorR = 64 eps ||C'||_F max(1, ||E'||_2),
+ *   tol(k) = max(k ||S'||_2, floorR), tolC = tol(ExactTol) for convergence and tolS = tol(ExactStagTol)
+ *   for stall acceptance. The reference is the relaxed stress S' at the iterate, not the unrelaxed S(E);
+ *   floorR is the round-off floor, which takes over where S' -> 0.
+ * - Scalar pass: theta is fixed and g(gamma) = n_1.S(E + gamma n_1). If the linearised gamma is
+ *   gamma_lin <= 0 (or NaN), which can occur only under the strain
+ *   criterion (TensionField 0), one provider call at gamma = 0 decides, without iteration:
+ *   g(0) >= 0 gives taut at zero, otherwise (or for non-finite S', C') the solve did not converge. For
+ *   gamma_lin > 0 the first call is at gamma_lin (non-finite: not converged); if g(gamma_lin) > 0 and
+ *   |g| > tolC, g(0) is evaluated first (g(0) >= 0: taut at zero, else [0, gamma_lin] brackets the
+ *   root); if g(gamma_lin) < 0 the upper end is open. With an open upper end the Newton step is capped
+ *   at a doubling of gamma; with a closed bracket the step is Newton-bisection (rtsafe, Numerical
+ *   Recipes: Newton if it lands strictly inside the bracket and the step before last halved, else
+ *   bisection). A non-finite S' or C' at a later trial means that the trial is too far: it becomes the
+ *   upper end and the next trial is the midpoint.
+ * - Convergence is |g| <= tolC, tested first at every gamma > 0. It is followed by one polishing Newton
+ *   step, taken only if n_1.C'n_1 > 0 (finite), budget is left and the Newton point is gamma > 0 (strictly
+ *   inside the bracket when the bracket is closed); it is kept iff |g| does not grow. There is no polish
+ *   after stall acceptance.
+ * - Stall acceptance (exactStagnated) takes the best iterate (smallest |g|) iff its |g| <= its own tolS,
+ *   after a Newton step that does not reduce |g| below the minimum of the up to three most recent finite
+ *   evaluations, or when a closed bracket has collapsed to width <= 4 eps max(lo, hi). It is meant for
+ *   providers whose S' and C' carry noise above tolC (e.g. an inner iteration of the wrapped law stopped
+ *   at a loose tolerance). Exhausting the budget is non-convergence.
+ * - After the scalar pass n_2.S' at the kept iterate is compared with the tolerance the iterate was
+ *   accepted at (tolC, or tolS if stalled). Within it the solve is done; otherwise the 2x2 pass starts
+ *   from (gamma, theta) and the stall flag is reset, so that exactStagnated and numExactStagnated()
+ *   describe the final pass.
+ * - 2x2 pass (Newton in (gamma, theta), not globalised). Per call, in this order: non-finite S' or C'
+ *   fails; ||R||_inf <= tolC converges, followed by one polishing step (kept iff ||R||_inf does not
+ *   grow); a singular Jacobian (|det| <= 1e-14 (|J11 J22| + |J12 J21|)) fails; from the 4th call of the
+ *   pass, ||R||_inf not below its value two calls back is a stall, accepting the best iterate iff it is
+ *   within its own tolS and failing otherwise; a non-finite gamma or theta after the step fails;
+ *   exhausted budget fails. exactUsed2x2 is set whenever this pass ran, also when it failed.
+ *
+ * Outcomes of a wrinkled point in exact mode, with the counters that record them. The exact solve is
+ * attempted when Exact is on, linear=false, and the point is wrinkled with an admissible direction
+ * (the direction search succeeded and n_1.C n_1 > 0).
+ * - Skipped otherwise (result flag exactSkipped, counted in numExactSkipped()): the linearised result
+ *   follows (for a failed search with n_1.C n_1 > 0 with the kept direction; a point with
+ *   n_1.C n_1 <= 0 gets no wrinkle correction: S_eff = S, C_eff = C, state 0). These points are also
+ *   counted in numTFTFailures() (and in numThetaFallbacks() when the guard rejected the closed form).
  * - A missing S/C provider where the solve is attempted is an error (GISMO_ERROR).
- * - Converged with gamma <= 0: taut. S, C and E are returned unmodified (eta is not applied).
- *   Counted in numExactReclassified(); the state becomes 1 and theta, gamma, gammaHat are NaN.
- * - Converged with n_4.S' <= 0 or NaN (no tension along the wrinkles): slack, with result
- *   sigma*(S,C,E), sigma = SlackMultiplier if > 0 else Eta. Counted in numExactReclassified(); the
- *   state becomes -1 and theta, gamma, gammaHat are NaN.
- * - Converged at a stationary point that is not a minimum (n_1.C'n_1 <= 0 or det Jac_0 <= 0), or not
- *   converged: the linearised result is returned and counted in numExactFallbacks(). Non-convergence
- *   covers non-finite S' or C', non-finite gamma or theta after a step, n_1.C'n_1 <= 0 in the
- *   scalar iteration, a singular 2x2 Jacobian, a residual that does not decrease over two iterations
- *   after the third, and no convergence within 20 iterations per mode.
- * - Otherwise accepted: S_eff = (1-eta) S(E') + eta S, E = E + gamma n_1,
- *   C_eff = (1-eta) J_ex + eta C.
+ * - Not converged (exactFallback, numExactNonconverged()): the solve failed in one of the ways listed
+ *   under the algorithm, including non-finite provider data. The linearised result is returned.
+ * - Taut at zero (scalar pass, g(0) >= 0): taut, counted in numExactReclassifiedTaut().
+ * - Converged with gamma <= 0 (or NaN): taut iff within the taut band (numExactReclassifiedTaut()),
+ *   otherwise a wrong branch (exactWrongBranch, numExactWrongBranch()).
+ * - Converged with gamma > 0: with sw = n_4.S', the minimum test (finite, n_1.C'n_1 > 0 and
+ *   det Jac_0 > 0) comes first.
+ *   - Not a minimum: slack if !(sw > 0) and within the slack band (numExactReclassifiedSlack()),
+ *     otherwise a saddle (exactSaddle, numExactSaddle()).
+ *   - A minimum with !(sw > 0): slack iff within the slack band, otherwise a wrong branch.
+ *   - Otherwise accepted: S_eff = (1-Eta) S(E') + Eta S, E = E + gamma n_1,
+ *     C_eff = (1-Eta) J_ex + Eta C; theta, gamma, gammaHat and the residual are set.
+ * - Bands, with band = 1e-8 and the principal values relative to the larger magnitude of the pair, taken
+ *   from the quantity the classifier uses: taut means Smin >= -band max(|Smin|,|Smax|) (TensionField 1,
+ *   2) or Emin >= -band max(|Emin|,|Emax|) (TensionField 0); slack means
+ *   Emax <= band max(|Emin|,|Emax|) (TensionField 0, 2) or Smax <= band max(|Smin|,|Smax|)
+ *   (TensionField 1).
+ * - Reclassified points (exactReclassified) report state 1 or -1 and theta, gamma, gammaHat and the
+ *   residual NaN. A taut point returns S, C and E unmodified (Eta is not applied); a slack point
+ *   returns sigma (S, C, E), sigma = SlackMultiplier if > 0 else Eta.
+ * - Not converged, saddle and wrong branch all return the linearised result with its non-symmetric
+ *   tangent (exactFallback).
  *
  * <b>Options</b>
  * - TensionField (int, 2): 0 strain-based, 1 stress-based, 2 mixed criterion. The decorator evaluates
  *   the criterion itself, with its own option (not the wrapped material's). 2 is the mixed criterion
  *   of Zhang & Kiendl (2026, Eq. 35) and Verhelst et al. (Eq. 34).
- * - Eta (real, 0): regularisation (Zhang & Kiendl 2026, Eq. 40)
+ * - Eta (real, 0): regularisation (Zhang & Kiendl 2026, Eq. 40). It blends wrinkled points only; taut
+ *   points, including taut reclassifications of the exact mode, return the unmodified S, C, E.
  * - SlackMultiplier (real, 0): slack stress SlackMultiplier*S if > 0, else Eta*S; it does not
- *   affect wrinkled points
+ *   affect wrinkled points. Slack points, including slack reclassifications, return sigma (S, C, E)
+ *   with sigma the slack factor. Under TensionField 0 and 2, for SvK and in the exact mode, the
+ *   wrinkled/slack stress is continuous iff sigma = Eta; a SlackMultiplier > 0 different from Eta jumps
+ *   by design (see Accuracy of the linearised mode).
+ * - ExactTol (real, 1e-12): convergence tolerance of the exact solve, relative to ||S'||_2 at the
+ *   iterate, with a round-off floor (see the algorithm above)
+ * - ExactStagTol (real, 1e-9): residual tolerance up to which a stalled iteration is accepted;
+ *   >= ExactTol
+ * - ExactMaxIt (int, 50): provider calls per pass (scalar, 2x2) of the exact solve; >= 1
  * - S2crit (real, 0): display-only (S_2,crit of Zhang & Kiendl 2026); a wrinkled point is reported
  *   wrinkled by eval3D_tensionfield iff its unmodified S_min < S2crit (S and C are not affected)
  * - Midsurface (switch, false): evaluate once on the mid-surface (MatIntegration::Constant).
@@ -196,8 +297,20 @@ struct WrinkleResult
  * actual deformation, not of E' (the thickness stretch at E' is not computed).
  *
  * <b>Counters</b>
- * numThetaFallbacks(), numTFTFailures(), numExactFallbacks() and numExactReclassified() are
- * cumulative from construction until resetCounters() and are incremented atomically. Every output
+ * - numThetaFallbacks(): wrinkled evaluations whose closed-form theta was rejected by the guard.
+ * - numTFTFailures(): those where eval_theta of \ref gsMaterialMatrixTFT also failed, plus the cases with
+ *   n_1.C n_1 <= 0.
+ * - numExactNonconverged(), numExactSaddle(), numExactWrongBranch(), numExactReclassifiedTaut(),
+ *   numExactReclassifiedSlack() and numExactSkipped(): per wrinkle() evaluation either exactly one of the
+ *   first five or none (accepted), or the skipped counter (never together with those).
+ * - numExactStagnated() and numExactUsed2x2() are independent of the outcome: they are incremented before
+ *   the classification, so a stalled solve can still end as a saddle, a wrong branch or a
+ *   reclassification, and numExactUsed2x2() also counts 2x2 passes that failed.
+ * - Sums kept for existing callers: numExactFallbacks() = numExactNonconverged() + numExactSaddle() +
+ *   numExactWrongBranch(); numExactReclassified() = numExactReclassifiedTaut() +
+ *   numExactReclassifiedSlack().
+ *
+ * All counters are cumulative from construction until resetCounters() and are incremented atomically. Every output
  * call (eval3D_matrix, eval3D_vector, eval3D_pstress, eval3D_theta, ...) re-runs the pointwise core,
  * as does every public wrinkle() call, so a point evaluated by both eval3D_matrix and eval3D_vector
  * is counted twice. Each matching gsWarn message is printed at most once per program run and
@@ -283,7 +396,7 @@ public:
     /// Updates the options (Exact is ignored, with a message, for linear=true)
     void setOptions(gsOptionList opt) override;
 
-    /// Reads TensionField, Eta, SlackMultiplier and Exact from the option list
+    /// Reads TensionField, Eta, SlackMultiplier, Exact, ExactTol, ExactStagTol and ExactMaxIt from the option list
     detail_tftsplit::WrinkleOptions<T> wrinkleOptions() const;
 
     /// Number of wrinkled evaluations whose closed-form theta was rejected by the isotropy guard
@@ -293,14 +406,46 @@ public:
     /// kept when usable, otherwise TFT's root), plus the cases with n1^T C n1 <= 0
     index_t numTFTFailures() const { return m_nTFTFailures; }
 
-    /// Number of exact solves that did not converge or reached a saddle (linearised result used)
-    index_t numExactFallbacks() const { return m_nExactFallbacks; }
+    /// Number of exact solves whose linearised result was used: numExactNonconverged() + numExactSaddle() + numExactWrongBranch()
+    index_t numExactFallbacks() const { return m_nExactNonconverged + m_nExactSaddle + m_nExactWrongBranch; }
 
-    /// Number of exact solves that converged to a taut (gamma <= 0) or slack (zero/negative wrinkle tension) state
-    index_t numExactReclassified() const { return m_nExactReclassified; }
+    /// Number of exact solves reclassified as taut or slack: numExactReclassifiedTaut() + numExactReclassifiedSlack()
+    index_t numExactReclassified() const { return m_nExactReclassifiedTaut + m_nExactReclassifiedSlack; }
+
+    /// Exact solves that did not converge (incl. non-finite provider data); linearised result used.
+    /// Counts are per evaluation, not per point: each wrinkle() call increments at most one of the
+    /// nonconverged, saddle, wrongBranch, reclassifiedTaut, reclassifiedSlack and skipped counters
+    index_t numExactNonconverged() const { return m_nExactNonconverged; }
+
+    /// Exact solves that converged to a stationary point that is not a minimum; linearised result used
+    index_t numExactSaddle() const { return m_nExactSaddle; }
+
+    /// Exact solves that converged to a branch inconsistent with the classifier; linearised result used
+    index_t numExactWrongBranch() const { return m_nExactWrongBranch; }
+
+    /// Exact solves whose final pass was accepted by stall acceptance (independent of the outcome counters).
+    /// A scalar-pass stall followed by a converged 2x2 pass is not counted
+    index_t numExactStagnated() const { return m_nExactStagnated; }
+
+    /// Exact solves reclassified as taut (taut at gamma = 0, or gamma <= 0 within the taut band)
+    index_t numExactReclassifiedTaut() const { return m_nExactReclassifiedTaut; }
+
+    /// Exact solves reclassified as slack (non-positive wrinkle tension within the slack band)
+    index_t numExactReclassifiedSlack() const { return m_nExactReclassifiedSlack; }
+
+    /// Evaluations where exact mode was requested but not attempted (indefinite n1^T C n1 or no admissible direction)
+    index_t numExactSkipped() const { return m_nExactSkipped; }
+
+    /// Exact solves in which the 2x2 pass ran (independent of the outcome counters)
+    index_t numExactUsed2x2() const { return m_nExactUsed2x2; }
 
     /// Sets all counters to zero
-    void resetCounters() { m_nThetaFallbacks = 0; m_nTFTFailures = 0; m_nExactFallbacks = 0; m_nExactReclassified = 0; }
+    void resetCounters()
+    {
+        m_nThetaFallbacks = 0; m_nTFTFailures = 0;
+        m_nExactNonconverged = 0; m_nExactSaddle = 0; m_nExactWrongBranch = 0; m_nExactStagnated = 0;
+        m_nExactReclassifiedTaut = 0; m_nExactReclassifiedSlack = 0; m_nExactSkipped = 0; m_nExactUsed2x2 = 0;
+    }
 
     /**
      * @brief      Pointwise core: classifies the point and returns the effective stress and tangent
@@ -323,7 +468,7 @@ public:
      *                         (g_11, g_22, 2 g_12)) of eval3D_matrix_C on the prescribed-metric path;
      *                         for linear=true the provider is empty.
      * @param[in]  SCatE       S and C of the wrapped material at E' (exact mode only), called once per
-     *                         local Newton iteration. Required where the exact solve is attempted
+     *                         provider call of the exact solve (at most ExactMaxIt per pass). Required where the exact solve is attempted
      *                         (opt.exact, linear=false, wrinkled point with an admissible direction);
      *                         GISMO_ERROR if empty there. Both class drivers bind eval3D_vector_C and
      *                         eval3D_matrix_C at Cmat' = (G11 + 2E'_0, G22 + 2E'_1, G12 + E'_2).
@@ -483,17 +628,20 @@ protected:
     detail_tftsplit::WrinkleResult<T> _evalCore_C(const gsMatrix<T> & Cmat, const index_t patch,
                                                   const gsVector<T> & u, const T z, bool needTangent) const;
 
-    /// Exact wrinkled state: Newton on R = (n1.S(E+gamma n1), n2.S(E+gamma n1)) = 0; returns true if converged
+    /// Exact wrinkled state: bracketed scalar pass in gamma, then Newton on R = (n1.S(E+gamma n1), n2.S(E+gamma n1)) = 0
+    /// if needed; returns true if converged, accepted by stall acceptance (\a stagnated) or taut at gamma = 0 (\a tautAtZero)
     template <bool _linear>
     typename std::enable_if<!_linear, bool>::type
-    _exactSolve(const gsVector<T,3> & E3, const T tolR, const SC_provider & SCatE, const bool scalar,
-                T & gamma, T & theta, gsVector<T,3> & Sp, gsMatrix<T,3,3> & Cp, T & resNorm, index_t & nEval) const;
+    _exactSolve(const gsVector<T,3> & E3, const detail_tftsplit::WrinkleOptions<T> & opt, const SC_provider & SCatE, const bool scalar,
+                T & gamma, T & theta, gsVector<T,3> & Sp, gsMatrix<T,3,3> & Cp, T & resNorm, index_t & nEval,
+                bool & tautAtZero, bool & stagnated, bool & used2x2) const;
 
     /// Not available for a wrapped material that is linear in E (exact and linearised coincide); never called
     template <bool _linear>
     typename std::enable_if< _linear, bool>::type
-    _exactSolve(const gsVector<T,3> & E3, const T tolR, const SC_provider & SCatE, const bool scalar,
-                T & gamma, T & theta, gsVector<T,3> & Sp, gsMatrix<T,3,3> & Cp, T & resNorm, index_t & nEval) const;
+    _exactSolve(const gsVector<T,3> & E3, const detail_tftsplit::WrinkleOptions<T> & opt, const SC_provider & SCatE, const bool scalar,
+                T & gamma, T & theta, gsVector<T,3> & Sp, gsMatrix<T,3,3> & Cp, T & resNorm, index_t & nEval,
+                bool & tautAtZero, bool & stagnated, bool & used2x2) const;
 
     /// Stress S_eff of every result as columns
     gsMatrix<T> _collectStress(const std::vector<detail_tftsplit::WrinkleResult<T>> & res) const;
@@ -505,7 +653,9 @@ protected:
 
     mutable material_ptr m_materialMat;
     memory::shared_ptr< gsMaterialMatrixTFT<dim,T,linear> > m_tft;
-    mutable index_t m_nThetaFallbacks, m_nTFTFailures, m_nExactFallbacks, m_nExactReclassified;
+    mutable index_t m_nThetaFallbacks, m_nTFTFailures;
+    mutable index_t m_nExactNonconverged, m_nExactSaddle, m_nExactWrongBranch, m_nExactStagnated;
+    mutable index_t m_nExactReclassifiedTaut, m_nExactReclassifiedSlack, m_nExactSkipped, m_nExactUsed2x2;
 
     using Base::m_patches;
     using Base::m_defpatches;

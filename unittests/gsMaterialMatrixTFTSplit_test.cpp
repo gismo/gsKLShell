@@ -1944,13 +1944,13 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         }
     }
 
-    /// The provider with the wrinkle tension n4.S' shifted to -sw_lin is reclassified as slack and returns
-    /// sigma (S, C, E), sigma = SlackMultiplier if positive, else Eta
+    /// The provider with the wrinkle tension n4.S' shifted to -sw_lin converges to a stationary point with
+    /// negative wrinkle tension and det Jac_0 < 0 whose unmodified strain is outside the slack band, i.e. a
+    /// saddle: the linearised result is returned and counted
     TEST(Exact_synthetic_reclassify_slack)
     {
         SplitSynthetic sy(false);
         const SplitSynthetic::Provider prov = sy.provider(SplitSynthetic::Slack,2 * sy.swLin);
-        const real_t sigmas[2] = { 1e-3, 0.25 };
         for (index_t i = 0; i!=2; ++i)
             for (index_t t = 0; t!=2; ++t)
             {
@@ -1959,23 +1959,24 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
                 opt.slackMultiplier = (i==0) ? 0.0 : 0.25;
                 sy.fx.split->resetCounters();
                 const SplitSynthetic::Result r = sy.run(opt,t==0,prov);
-                CHECK_EQUAL(-1,r.state);
-                CHECK(r.exactReclassified);
-                CHECK(!r.exactFallback);
-                CHECK_EQUAL(1,sy.fx.split->numExactReclassified());
-                CHECK_EQUAL(0,sy.fx.split->numExactFallbacks());
-                const gsMatrix<real_t> Se = sigmas[i] * sy.S;
-                const gsMatrix<real_t> Ee = sigmas[i] * sy.E;
-                SPLIT_CHECK_SAME(r.S,Se);
-                SPLIT_CHECK_SAME(r.E,Ee);
+                SplitSynthetic::Options optL = opt;
+                optL.exact = false;
+                const SplitSynthetic::Result ref = sy.run(optL,t==0);
+                CHECK_EQUAL(0,r.state);
+                CHECK(r.exactFallback);
+                CHECK(r.exactSaddle);
+                CHECK(!r.exactWrongBranch);
+                CHECK(!r.exactReclassified);
+                CHECK_EQUAL(1,sy.fx.split->numExactSaddle());
+                CHECK_EQUAL(1,sy.fx.split->numExactFallbacks());
+                CHECK_EQUAL(0,sy.fx.split->numExactReclassified());
+                CHECK(std::isfinite(r.theta) && std::isfinite(r.gamma));
+                SPLIT_CHECK_SAME(r.S,ref.S);
+                SPLIT_CHECK_SAME(r.E,ref.E);
                 if (t==0)
-                {
-                    const gsMatrix<real_t> Ce = sigmas[i] * sy.C;
-                    SPLIT_CHECK_SAME(r.C,Ce);
-                }
+                    SPLIT_CHECK_SAME(r.C,ref.C);
                 else
                     CHECK_EQUAL(0,r.C.size());
-                CHECK(std::isnan(r.theta) && std::isnan(r.gamma));
             }
 
         // Control: without the shift the wrinkle tension is positive and the point stays wrinkled
@@ -1987,8 +1988,9 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         CHECK_EQUAL(0,sy.fx.split->numExactReclassified());
     }
 
-    /// A provider that returns NaN, or a tangent with n1^T C n1 < 0 (scalar mode), cannot be solved: the first
-    /// provider call ends the solve and the result is the linearised one, bit for bit, with the fallback counted
+    /// The NaN provider ends the solve after its first call (non-convergence); the NegJ11 provider converges
+    /// on its first call to a stationary point with n1^T C n1 < 0, which is a saddle; both return the
+    /// linearised result bit for bit, with the fallback counted
     TEST(Exact_synthetic_nonconvergence)
     {
         SplitSynthetic sy(false);
@@ -2007,6 +2009,20 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
                 CHECK_EQUAL(1,sy.fx.split->numExactFallbacks());
                 CHECK_EQUAL(0,sy.fx.split->numExactReclassified());
                 CHECK_EQUAL(0,r.state);
+                if (k==1)
+                {
+                    CHECK(r.exactSaddle);
+                    CHECK(!r.exactWrongBranch);
+                    CHECK_EQUAL(1,sy.fx.split->numExactSaddle());
+                    CHECK_EQUAL(0,sy.fx.split->numExactNonconverged());
+                }
+                else
+                {
+                    CHECK(!r.exactSaddle);
+                    CHECK(!r.exactWrongBranch);
+                    CHECK_EQUAL(1,sy.fx.split->numExactNonconverged());
+                    CHECK_EQUAL(0,sy.fx.split->numExactSaddle());
+                }
                 SPLIT_CHECK_SAME(r.S,ref.S);
                 SPLIT_CHECK_SAME(r.E,ref.E);
                 if (t==0)
@@ -2248,6 +2264,1214 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
     {
         SplitOutputsCheck(true);
     }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    typedef detail_tftsplit::WrinkleOptions<real_t>        SplitXOpt;
+    typedef detail_tftsplit::WrinkleResult<real_t>         SplitXRes;
+    typedef SplitFixture<2,false>::SplitType::SC_provider  SplitXProv;
+
+    /// Tolerance of the exact solve at an iterate: max(k ||S'||, floor), the floor being the round-off of the
+    /// strain E' mapped to a stress, 64 eps ||C'||_F max(1,||E'||). \a k is ExactTol or ExactStagTol.
+    static real_t SplitExactTolAt(const gsMatrix<real_t> & Sp, const gsMatrix<real_t> & Cp, const gsMatrix<real_t> & Eel, const real_t k)
+    {
+        const real_t eps = std::numeric_limits<real_t>::epsilon();
+        const real_t floorR = 64 * eps * Cp.norm() * math::max(real_t(1),Eel.norm());
+        return math::max(k * Sp.norm(),floorR);
+    }
+
+    /// Full counter vector of the exact solve: the expected value of each outcome counter, and the two legacy sums
+    template<class SplitT>
+    static void SplitCheckExactCounters(const SplitT & split, const index_t nonconv, const index_t saddle, const index_t wrong,
+                                        const index_t taut, const index_t slack, const index_t skipped)
+    {
+        CHECK_EQUAL(nonconv,split.numExactNonconverged());
+        CHECK_EQUAL(saddle,split.numExactSaddle());
+        CHECK_EQUAL(wrong,split.numExactWrongBranch());
+        CHECK_EQUAL(taut,split.numExactReclassifiedTaut());
+        CHECK_EQUAL(slack,split.numExactReclassifiedSlack());
+        CHECK_EQUAL(skipped,split.numExactSkipped());
+        CHECK_EQUAL(split.numExactNonconverged()+split.numExactSaddle()+split.numExactWrongBranch(),split.numExactFallbacks());
+        CHECK_EQUAL(split.numExactReclassifiedTaut()+split.numExactReclassifiedSlack(),split.numExactReclassified());
+    }
+
+    /// \a r equals the reference result \a ref bit for bit (the tangent only if requested)
+    static void SplitCheckSameResult(const SplitXRes & r, const SplitXRes & ref, const bool tangent)
+    {
+        SPLIT_CHECK_SAME(r.S,ref.S);
+        SPLIT_CHECK_SAME(r.E,ref.E);
+        if (tangent)
+            SPLIT_CHECK_SAME(r.C,ref.C);
+        else
+            CHECK_EQUAL(0,r.C.size());
+        CHECK(r.theta == ref.theta);
+        CHECK(r.gamma == ref.gamma);
+        CHECK(r.gammaHat == ref.gammaHat);
+        CHECK(r.residual == ref.residual);
+    }
+
+    /// Stress-like vectors dual to the directions at \a theta, with their defining identities checked
+    /// (c = cos theta, s = sin theta, n4 = (s^2,c^2,-2cs)):
+    ///   v  = (c^2, s^2, cs):       n1.v = 1,  n2.v = 0,  n4.v = 0
+    ///   w  = (-2sc, 2sc, c^2-s^2): n1.w = 0,  n2.w = 1
+    ///   Tm = (s^2, c^2, -sc):      n1.Tm = n2.Tm = 0, n4.Tm = 1
+    static void SplitDualVectors(const real_t theta, gsMatrix<real_t> & v, gsMatrix<real_t> & w, gsMatrix<real_t> & Tm)
+    {
+        const real_t c = math::cos(theta), s = math::sin(theta);
+        v.resize(3,1);
+        v << c*c, s*s, c*s;
+        w.resize(3,1);
+        w << -2*s*c, 2*s*c, c*c-s*s;
+        Tm.resize(3,1);
+        Tm << s*s, c*c, -s*c;
+        gsVector<real_t,3> n4;
+        n4 << s*s, c*c, -2*c*s;
+        const gsVector<real_t,3> n1 = SplitN1(theta), n2 = SplitN2(theta);
+        CHECK(math::abs(n1.dot(v.col(0)) - 1) <= 1e-15);
+        CHECK(math::abs(n2.dot(v.col(0))) <= 1e-15);
+        CHECK(math::abs(n4.dot(v.col(0))) <= 1e-15);
+        CHECK(math::abs(n1.dot(w.col(0))) <= 1e-15);
+        CHECK(math::abs(n2.dot(w.col(0)) - 1) <= 1e-15);
+        CHECK(math::abs(n1.dot(Tm.col(0))) <= 1e-15);
+        CHECK(math::abs(n2.dot(Tm.col(0))) <= 1e-15);
+        CHECK(math::abs(n4.dot(Tm.col(0)) - 1) <= 1e-15);
+    }
+
+    /// Provider of a scalar-shaped problem along the direction \a theta of the input (S0,C0,E0):
+    ///   t = v.(E' - E0),  S(E') = S0 + C0 (E' - E0) + h(t) v,  C(E') = C0 + h'(t) v v^T.
+    /// S is the gradient of an added potential H(t) = int h, so the tangent is consistent and symmetric. Along
+    /// E' = E0 + gamma n1(theta) one has t = gamma and g(gamma) = n1.S = b (gamma - gamma_lin) + h(gamma), with
+    /// b = n1.C0 n1 and gamma_lin = -n1.S0/b. h moves only n1.S: n2.v = n4.v = 0.
+    static SplitXProv SplitScalarProvider(const gsMatrix<real_t> & S0, const gsMatrix<real_t> & C0, const gsMatrix<real_t> & E0,
+                                          const real_t theta, const std::function<real_t(real_t)> & h,
+                                          const std::function<real_t(real_t)> & hp)
+    {
+        gsMatrix<real_t> v, w, Tm;
+        SplitDualVectors(theta,v,w,Tm);
+        return [=](const gsMatrix<real_t> & Ep, gsMatrix<real_t> & Se, gsMatrix<real_t> & Ce)
+        {
+            const gsMatrix<real_t> d = Ep - E0;
+            const real_t t = v(0,0)*d(0,0) + v(1,0)*d(1,0) + v(2,0)*d(2,0);
+            Se = S0 + C0 * d + h(t) * v;
+            Ce = C0 + hp(t) * (v * v.transpose());
+        };
+    }
+
+    /// Provider of the wrapped material of \a fx at through-thickness coordinate \a z. \a fx must outlive it.
+    static SplitXProv SplitWrappedProvider(const SplitFixture<2,false> & fx, const real_t z)
+    {
+        const SplitFixture<2,false> * f = &fx;
+        const gsVector<real_t> pt = SplitPoint();
+        return [f,pt,z](const gsMatrix<real_t> & Eel, gsMatrix<real_t> & Se, gsMatrix<real_t> & Ce)
+        {
+            const gsMatrix<real_t> Cm = f->CmatFromE(Eel);
+            Se = f->wrapped->eval3D_vector_C(Cm,0,pt,z,MaterialOutput::VectorN);
+            Ce = f->wrapped->eval3D_matrix_C(Cm,0,pt,z,MaterialOutput::MatrixA);
+        };
+    }
+
+    /// The pointwise core at the engineering strain \a Eeng of the fixture (Gcov = Gref) with the wrapped material as
+    /// provider; \a S3out receives the wrapped stress S(Eeng)
+    static SplitXRes SplitPointwise(const SplitFixture<2,false> & fx, const gsMatrix<real_t> & Eeng, const real_t z,
+                                    const SplitXOpt & opt, const bool tangent, gsMatrix<real_t> * S3out = NULL)
+    {
+        const gsVector<real_t> pt = SplitPoint();
+        const gsMatrix<real_t> Cmat = fx.CmatFromE(Eeng);
+        const gsMatrix<real_t> S3 = fx.wrapped->eval3D_vector_C(Cmat,0,pt,z,MaterialOutput::VectorN);
+        const gsMatrix<real_t> C3 = fx.wrapped->eval3D_matrix_C(Cmat,0,pt,z,MaterialOutput::MatrixA);
+        if (S3out)
+            *S3out = S3;
+        return fx.split->wrinkle(S3,C3,Eeng,fx.Gref,opt,tangent,SplitFixture<2,false>::SplitType::dC_provider(),SplitWrappedProvider(fx,z));
+    }
+
+    /// Exact-mode options of the pointwise core: mixed criterion, eta = 0, no slack multiplier
+    static SplitXOpt SplitExactOptions()
+    {
+        SplitXOpt opt;
+        opt.tensionField = 2;
+        opt.eta = 0;
+        opt.slackMultiplier = 0;
+        opt.exact = true;
+        return opt;
+    }
+
+    /// Runs \a f \a N times in an OpenMP parallel loop (no output inside)
+    template<class F>
+    static void SplitRepeatParallel(const index_t N, const F & f)
+    {
+#       pragma omp parallel for
+        for (index_t i = 0; i<N; ++i)
+            f();
+    }
+
+    /// Input of the pointwise core with both stresses negative and Emax = 0: E = (0,-0.01,0) rotated by \a rot, S = C E,
+    /// C isotropic, Gcov = I. The linearised wrinkled state has n4.S' = 0 in exact arithmetic (the sign is round-off),
+    /// so a slack shift of the provider decides the acceptance order.
+    struct SplitSlackInput
+    {
+        SplitFixture<2,false> fx;
+        gsMatrix<real_t> I2, S, C, E, Tm, v, w;
+        SplitXOpt optEx;
+        SplitXRes lin;
+        real_t thetaLin, gammaLin, m22;
+
+        explicit SplitSlackInput(const real_t rot)
+        :
+        fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0), I2(SplitIdentity2())
+        {
+            C = SplitIsoC(0.3);
+            const real_t cr = math::cos(rot), sr = math::sin(rot);
+            E.resize(3,1);
+            E << -0.01*sr*sr, -0.01*cr*cr, 0.02*cr*sr;
+            S = C * E;
+            optEx = SplitExactOptions();
+            SplitXOpt optLin = optEx;
+            optLin.exact = false;
+            lin = fx.split->wrinkle(S,C,E,I2,optLin,true);
+            thetaLin = lin.theta;
+            gammaLin = lin.gamma;
+            SplitDualVectors(thetaLin,v,w,Tm);
+            const gsVector<real_t,3> n2 = SplitN2(thetaLin);
+            const gsVector<real_t,3> Cn2 = C * n2;
+            m22 = n2.dot(Cn2);
+        }
+
+        /// Affine provider with the wrinkle tension shifted by -alpha: S0 + C0 (E'-E0) - alpha Tm
+        SplitXProv provider(const real_t alpha) const
+        {
+            const gsMatrix<real_t> S0 = S, C0 = C, E0 = E, Tm0 = Tm;
+            return [=](const gsMatrix<real_t> & Ep, gsMatrix<real_t> & Se, gsMatrix<real_t> & Ce)
+            {
+                Se = S0 + C0 * (Ep - E0) - alpha * Tm0;
+                Ce = C0;
+            };
+        }
+
+        SplitXRes run(const SplitXOpt & opt, const bool tangent, const SplitXProv & prov) const
+        {
+            return fx.split->wrinkle(S,C,E,I2,opt,tangent,SplitFixture<2,false>::SplitType::dC_provider(),prov);
+        }
+    };
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// (a) The plain Newton step from gamma_lin overshoots below zero; the bracketed pass still finds the root.
+    /// The provider is g(gamma) = A atan((gamma - gamma*)/l): root gamma* = gamma_lin/2, g(gamma_lin) > 0, g(0) < 0,
+    /// and a Newton step from gamma_lin lands at about -2.6 gamma_lin.
+    TEST(Exact_bracket_overshoot)
+    {
+        SplitSynthetic sy(false);
+        CHECK(!sy.lin.guardFallback);
+        const gsVector<real_t,3> n1l = SplitN1(sy.thetaLin);
+        const gsVector<real_t,3> Cn1l = sy.C * n1l;
+        const real_t b = n1l.dot(Cn1l);
+        const real_t gl = sy.gammaLin, gs = 0.5 * gl, l = 0.1 * gl, A = b * gl;
+        const std::function<real_t(real_t)> h = [=](const real_t g) { return A * math::atan((g-gs)/l) - b * (g-gl); };
+        const std::function<real_t(real_t)> hp = [=](const real_t g) { const real_t x = (g-gs)/l; return A / (l * (1 + x*x)) - b; };
+        const SplitXProv prov = SplitScalarProvider(sy.S,sy.C,sy.E,sy.thetaLin,h,hp);
+
+        // Precondition: the plain Newton step from gamma_lin leaves (0,gamma_lin), and the bracket closes
+        gsMatrix<real_t> Sx, Cx;
+        prov(sy.E + gl * n1l,Sx,Cx);
+        const real_t g1 = n1l.dot(Sx.col(0));
+        const gsVector<real_t,3> Cxn1 = Cx * n1l;
+        const real_t a1 = n1l.dot(Cxn1);
+        const real_t gammaN = gl - g1 / a1;
+        prov(sy.E,Sx,Cx);
+        const real_t g0 = n1l.dot(Sx.col(0));
+        gsInfo << "  gamma_lin = " << gl << ", root = " << gs << ", plain Newton step from gamma_lin -> " << gammaN
+               << " (" << gammaN / gl << " gamma_lin), g(gamma_lin) = " << g1 << ", g(0) = " << g0 << "\n";
+        CHECK(g1 > 0);
+        CHECK(g0 < 0);
+        CHECK(gammaN < 0);
+
+        for (index_t t = 0; t!=2; ++t)
+        {
+            sy.fx.split->resetCounters();
+            const SplitXRes r = sy.run(sy.optEx,t==0,prov);
+            gsInfo << "  tangent " << (t==0) << ": exactIterations = " << r.exactIterations << ", gamma/gamma* - 1 = "
+                   << r.gamma / gs - 1 << "\n";
+            CHECK_EQUAL(0,r.state);
+            CHECK(!r.exactFallback);
+            CHECK(!r.exactReclassified);
+            CHECK(!r.exactUsed2x2);
+            CHECK(!r.exactStagnated);
+            CHECK(r.gamma > 0);
+            CHECK(math::abs(r.gamma - gs) <= 1e-10 * gs);
+
+            gsMatrix<real_t> Sp, Cp;
+            prov(r.E,Sp,Cp);
+            const gsVector<real_t,3> n1 = SplitN1(r.theta);
+            const real_t R1 = n1.dot(Sp.col(0));
+            const real_t tol = SplitExactTolAt(Sp,Cp,r.E,1e-12);
+            gsInfo << "  |n1.S'| = " << math::abs(R1) << " (tol " << tol << ")\n";
+            CHECK(math::abs(R1) <= tol);
+            SPLIT_CHECK_REL("S vs provider at E'",r.S,Sp,1e-12);
+            SplitCheckExactCounters(*sy.fx.split,0,0,0,0,0,0);
+            CHECK_EQUAL(0,sy.fx.split->numExactStagnated());
+            CHECK_EQUAL(0,sy.fx.split->numExactUsed2x2());
+        }
+    }
+
+    /// Surface law of the near-singular hard state of the TFT tangent diagnostics (3D wrapped material on an embedded
+    /// flat unit square, so that G = I at every point)
+    struct SplitHardState3D
+    {
+        typedef gsMaterialMatrixTFTSplit<3,real_t,false> SplitType;
+
+        gsMultiPatch<real_t> mp, mp_def;
+        gsConstantFunction<real_t> t, E, nu;
+        gsMaterialMatrixBase<real_t>::uPtr wrapped;
+        memory::unique_ptr<SplitType> split;
+
+        static gsMultiPatch<real_t> EmbeddedSquare()
+        {
+            gsMultiPatch<real_t> m;
+            m.addPatch( gsNurbsCreator<real_t>::BSplineSquare(1) );
+            m.embed(3);
+            return m;
+        }
+
+        SplitHardState3D()
+        :
+        mp(EmbeddedSquare()), mp_def(mp), t(0.05e-3,3), E(1e9,3), nu(0.5,3)
+        {
+            std::vector<gsFunctionSet<real_t>*> parameters(2);
+            parameters[0] = &E;
+            parameters[1] = &nu;
+            gsOptionList options;
+            options.addInt("Material","Material model: (0): SvK | (1): NH | (3): MR",1);
+            options.addInt("Implementation","Implementation: (1): Analytical",1);
+            options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",false);
+            wrapped = getMaterialMatrix<3,real_t>(mp,t,parameters,options);
+            split = memory::make_unique(new SplitType(wrapped.get()));
+            split->setUndeformed(&mp);
+            split->setDeformed(&mp_def);
+        }
+
+        /// Prescribed metric (1 + 2 E1, 1 + 2 E2, E3) of an engineering Voigt strain for G = I
+        static gsMatrix<real_t> CmatFromE(const gsMatrix<real_t> & Eeng)
+        {
+            gsMatrix<real_t> Cm(3,1);
+            Cm << 1 + 2*Eeng(0,0), 1 + 2*Eeng(1,0), Eeng(2,0);
+            return Cm;
+        }
+    };
+
+    /// (b) The near-singular state E 1e9, nu 0.5, thickness
+    /// 0.05e-3, incompressible Neo-Hookean, E = (8.72, -0.50, 0) with lambda_2^2 ~ 2e-5. The wrapped stress S(E) is of order
+    /// 1e16 and the tangent is near-singular; the exact solve is accepted without any counter, with a residual far below
+    /// the round-off floor of the iterate.
+    TEST(Exact_hard_state)
+    {
+        SplitHardState3D hs;
+        typedef SplitHardState3D::SplitType HType;
+        const gsVector<real_t> pt = SplitPoint();
+        const gsMatrix<real_t> I2 = SplitIdentity2();
+        gsMatrix<real_t> E3(3,1);
+        E3 << 8.7176634982689478, -0.49998982751041243, 0;
+        const gsMatrix<real_t> Cmat = SplitHardState3D::CmatFromE(E3);
+        const gsMatrix<real_t> S3 = hs.wrapped->eval3D_vector_C(Cmat,0,pt,0,MaterialOutput::VectorN);
+        const gsMatrix<real_t> C3 = hs.wrapped->eval3D_matrix_C(Cmat,0,pt,0,MaterialOutput::MatrixA);
+        const HType::SC_provider prov = [&](const gsMatrix<real_t> & Eel, gsMatrix<real_t> & Se, gsMatrix<real_t> & Ce)
+        {
+            const gsMatrix<real_t> Cm = SplitHardState3D::CmatFromE(Eel);
+            Se = hs.wrapped->eval3D_vector_C(Cm,0,pt,0,MaterialOutput::VectorN);
+            Ce = hs.wrapped->eval3D_matrix_C(Cm,0,pt,0,MaterialOutput::MatrixA);
+        };
+
+        SplitXOpt opt = SplitExactOptions();
+        opt.exact = false;
+        const SplitXRes lin = hs.split->wrinkle(S3,C3,E3,I2,opt,true,HType::dC_provider(),prov);
+        gsInfo << "  linearised: state " << lin.state << ", tftFailure " << lin.tftFailure << ", guardFallback " << lin.guardFallback
+               << ", Smin " << lin.Smin << ", Smax " << lin.Smax << ", Emin " << lin.Emin << ", Emax " << lin.Emax << "\n";
+        CHECK_EQUAL(0,lin.state);
+        CHECK(!lin.tftFailure);
+
+        opt.exact = true;
+        hs.split->resetCounters();
+        const SplitXRes res = hs.split->wrinkle(S3,C3,E3,I2,opt,true,HType::dC_provider(),prov);
+
+        // Quantities at the strain E' of the result; for a fallback also at the linearised E'
+        auto report = [&](const char * label, const gsMatrix<real_t> & Ee, const real_t theta)
+        {
+            gsMatrix<real_t> Sp, Cp;
+            prov(Ee,Sp,Cp);
+            const gsVector<real_t,3> n1 = SplitN1(theta);
+            gsInfo << std::setprecision(12) << "  " << label << ": ||S'|| = " << Sp.norm() << ", ||C'||_F = " << Cp.norm()
+                   << ", floorR = " << SplitExactTolAt(Sp,Cp,Ee,0) << ", |R1| = " << math::abs(n1.dot(Sp.col(0)))
+                   << std::setprecision(6) << "\n";
+        };
+        gsInfo << std::setprecision(12) << "  ||S(E)|| = " << S3.norm() << ", state " << res.state << ", exactFallback " << res.exactFallback
+               << ", saddle " << res.exactSaddle << ", wrongBranch " << res.exactWrongBranch << ", reclassified " << res.exactReclassified
+               << ", stagnated " << res.exactStagnated << ", used2x2 " << res.exactUsed2x2 << ", skipped " << res.exactSkipped
+               << ", exactIterations " << res.exactIterations << ", residual " << res.residual << std::setprecision(6) << "\n";
+        gsInfo << "  counters: nonconv " << hs.split->numExactNonconverged() << ", saddle " << hs.split->numExactSaddle()
+               << ", wrong " << hs.split->numExactWrongBranch() << ", taut " << hs.split->numExactReclassifiedTaut()
+               << ", slack " << hs.split->numExactReclassifiedSlack() << ", skipped " << hs.split->numExactSkipped() << "\n";
+        report("at E'",res.E,res.theta);
+
+        CHECK_EQUAL(0,res.state);
+        CHECK(!res.exactFallback);
+        CHECK(!res.exactReclassified);
+        CHECK(!res.exactSkipped);
+        SplitCheckExactCounters(*hs.split,0,0,0,0,0,0);
+        gsMatrix<real_t> Sp, Cp;
+        prov(res.E,Sp,Cp);
+        const real_t R1 = math::abs(SplitN1(res.theta).dot(Sp.col(0)));
+        CHECK(R1 <= 1e-9 * Sp.norm() || R1 <= SplitExactTolAt(Sp,Cp,res.E,0));
+    }
+
+    /// (c) Wrinkled states of tiny amplitude |E| = m in {1e-3,1e-5,1e-7}, a rotated over-contracted strain
+    /// m R diag(1,-0.75) R^T: the solve is accepted without any counter and its residual is at the stall tolerance
+    TEST(Exact_near_natural)
+    {
+        const real_t pi = static_cast<real_t>(EIGEN_PI);
+        const real_t ca = math::cos(pi/6), sa = math::sin(pi/6);
+        const SplitMaterial mats[2] = { SplitMatNHIncomp, SplitMatMRIncomp };
+        const real_t ms[3] = { 1e-3, 1e-5, 1e-7 };
+        for (index_t im = 0; im!=2; ++im)
+            for (index_t k = 0; k!=3; ++k)
+            {
+                const real_t m = ms[k];
+                gsInfo << "material " << im << ", m = " << m << "\n";
+                SplitFixture<2,false> fx(mats[im],SplitIdentity2(),1.0,1.0,0.0);
+                fx.split->resetCounters();
+                gsMatrix<real_t> E3(3,1);
+                E3 << m * (ca*ca - 0.75*sa*sa), m * (sa*sa - 0.75*ca*ca), 2 * m * 1.75 * ca * sa;
+
+                SplitXOpt opt = SplitExactOptions();
+                opt.exact = false;
+                const SplitXRes lin = SplitPointwise(fx,E3,0,opt,true);
+                CHECK_EQUAL(0,lin.state);
+                CHECK(!lin.guardFallback);
+
+                opt.exact = true;
+                const SplitXRes res = SplitPointwise(fx,E3,0,opt,true);
+                const SplitXProv prov = SplitWrappedProvider(fx,0);
+                gsMatrix<real_t> Sp, Cp;
+                prov(res.E,Sp,Cp);
+                const real_t tolS = SplitExactTolAt(Sp,Cp,res.E,1e-9);
+                const real_t tolC = SplitExactTolAt(Sp,Cp,res.E,1e-12);
+                gsInfo << "  exactIterations = " << res.exactIterations << ", stagnated = " << res.exactStagnated
+                       << ", residual = " << res.residual << " (tolS " << tolS << "), floorR / (1e-12 ||S'||) = "
+                       << SplitExactTolAt(Sp,Cp,res.E,0) / (1e-12 * Sp.norm()) << ", tolC = " << tolC << "\n";
+                CHECK_EQUAL(0,res.state);
+                CHECK(!res.exactFallback);
+                CHECK(!res.exactReclassified);
+                CHECK(!res.exactSkipped);
+                CHECK(res.residual <= tolS);
+                SplitCheckExactCounters(*fx.split,0,0,0,0,0,0);
+            }
+    }
+
+    /// (d) Compressible Neo-Hookean wrinkled states, at the mid-surface and off it: no fallback, no reclassification
+    TEST(Exact_NH_Comp_no_fallback)
+    {
+        const real_t pi = static_cast<real_t>(EIGEN_PI);
+        const real_t deltas[2] = { 0.05, 0.2 };
+        const real_t zs[2] = { 0.0, 0.4 * 0.01 };
+        for (index_t id = 0; id!=2; ++id)
+            for (index_t iz = 0; iz!=2; ++iz)
+            {
+                gsInfo << "delta " << deltas[id] << ", z " << zs[iz] << "\n";
+                SplitFixture<2,false> fx(SplitMatNHComp,SplitSkewedJref(),1.2,(1-deltas[id])/math::sqrt(1.2),pi/6);
+                fx.split->resetCounters();
+                const gsMatrix<real_t> E3 = fx.EengDef();
+                SplitXOpt opt = SplitExactOptions();
+                opt.exact = false;
+                const SplitXRes lin = SplitPointwise(fx,E3,zs[iz],opt,true);
+                CHECK_EQUAL(0,lin.state);
+
+                opt.exact = true;
+                const SplitXRes res = SplitPointwise(fx,E3,zs[iz],opt,true);
+                gsMatrix<real_t> Sp, Cp;
+                SplitWrappedProvider(fx,zs[iz])(res.E,Sp,Cp);
+                const real_t tolS = SplitExactTolAt(Sp,Cp,res.E,1e-9);
+                gsInfo << "  exactIterations = " << res.exactIterations << ", stagnated = " << res.exactStagnated
+                       << ", residual = " << res.residual << " (tolS " << tolS << ")\n";
+                CHECK_EQUAL(0,res.state);
+                CHECK(!res.exactFallback);
+                CHECK(!res.exactReclassified);
+                CHECK(!res.exactSkipped);
+                CHECK(res.residual <= tolS);
+                SplitCheckExactCounters(*fx.split,0,0,0,0,0,0);
+            }
+    }
+
+    /// (e) Isotropic incompressible laws keep the wrinkle direction fixed: the scalar pass alone solves n2.S' = 0
+    TEST(Exact_scalar_only_isotropic)
+    {
+        const real_t pi = static_cast<real_t>(EIGEN_PI);
+        const SplitMaterial mats[2] = { SplitMatNHIncomp, SplitMatMRIncomp };
+        const real_t deltas[2] = { 0.05, 0.2 };
+        for (index_t im = 0; im!=2; ++im)
+            for (index_t ij = 0; ij!=2; ++ij)
+                for (index_t id = 0; id!=2; ++id)
+                {
+                    gsInfo << "material " << im << ", Jref " << (ij==0 ? "identity" : "skewed") << ", delta " << deltas[id] << "\n";
+                    const gsMatrix<real_t> Jref = (ij==0) ? SplitIdentity2() : SplitSkewedJref();
+                    SplitFixture<2,false> fx(mats[im],Jref,1.2,(1-deltas[id])/math::sqrt(1.2),pi/6);
+                    fx.split->resetCounters();
+                    const gsMatrix<real_t> E3 = fx.EengDef();
+                    SplitXOpt opt = SplitExactOptions();
+                    opt.exact = false;
+                    gsMatrix<real_t> S3;
+                    const SplitXRes lin = SplitPointwise(fx,E3,0,opt,true,&S3);
+                    gsInfo << "  Smax - Smin = " << lin.Smax - lin.Smin << " (>= " << 1e-2 * S3.norm() << "), guardFallback " << lin.guardFallback << "\n";
+                    CHECK(lin.Smax - lin.Smin >= 1e-2 * S3.norm());
+                    CHECK(!lin.guardFallback);
+
+                    opt.exact = true;
+                    const SplitXRes res = SplitPointwise(fx,E3,0,opt,true);
+                    gsMatrix<real_t> Sp, Cp;
+                    SplitWrappedProvider(fx,0)(res.E,Sp,Cp);
+                    const real_t tol = SplitExactTolAt(Sp,Cp,res.E,res.exactStagnated ? 1e-9 : 1e-12);
+                    const real_t R2 = SplitN2(res.theta).dot(res.S.col(0));
+                    gsInfo << "  exactUsed2x2 " << res.exactUsed2x2 << ", |n2.S'| = " << math::abs(R2) << " (tol " << tol << ")\n";
+                    CHECK(!res.exactUsed2x2);
+                    CHECK_EQUAL(0,fx.split->numExactUsed2x2());
+                    CHECK(!res.exactFallback);
+                    CHECK_EQUAL(0,res.state);
+                    CHECK(math::abs(R2) <= tol);
+                    CHECK(!res.exactSkipped);
+                    CHECK(res.exactIterations >= 1);
+                    SplitCheckExactCounters(*fx.split,0,0,0,0,0,0);
+                }
+    }
+
+    /// (f) SvK major-branch point (law S = Csvk E', lambda 2, mu 1): the closed-form theta and gamma_lin
+    /// come from the classifier input, whose stress has its principal entries swapped. The scalar pass converges to the
+    /// stationary point gamma = 0.04 with tension n4.S' = -0.30 and det Jac_0 = -0.88, a saddle outside the slack band,
+    /// not a slack point.
+    TEST(Exact_M8_major_branch_saddle)
+    {
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0);
+        const gsMatrix<real_t> I2 = SplitIdentity2();
+        gsMatrix<real_t> Csvk(3,3);
+        Csvk << 4, 2, 0,
+                2, 4, 0,
+                0, 0, 1;
+        const gsMatrix<real_t> & Cin = Csvk;
+        gsMatrix<real_t> Sin(3,1), Ein(3,1);
+        Sin << -0.38, -0.16, 0;
+        Ein << 0.01, -0.1, 0;
+        const SplitXProv prov = [Csvk](const gsMatrix<real_t> & Ep, gsMatrix<real_t> & Se, gsMatrix<real_t> & Ce)
+        {
+            Se = Csvk * Ep;
+            Ce = Csvk;
+        };
+        SplitXOpt optEx = SplitExactOptions();
+        SplitXOpt optLin = optEx;
+        optLin.exact = false;
+
+        const SplitXRes lin = fx.split->wrinkle(Sin,Cin,Ein,I2,optLin,true);
+        gsInfo << "  linearised: state " << lin.state << ", guardFallback " << lin.guardFallback << ", tftFailure "
+               << lin.tftFailure << ", theta " << lin.theta << ", gamma_lin " << lin.gamma << "\n";
+        CHECK_EQUAL(0,lin.state);
+        CHECK(!lin.guardFallback);
+        CHECK(SplitThetaDiff(lin.theta,0) <= 1e-14);
+
+        // The stationary point gamma = 0.04, from the law alone
+        const gsVector<real_t,3> n1 = SplitN1(lin.theta), n2 = SplitN2(lin.theta);
+        gsVector<real_t,3> n4;
+        n4 << math::sin(lin.theta)*math::sin(lin.theta), math::cos(lin.theta)*math::cos(lin.theta), -2*math::cos(lin.theta)*math::sin(lin.theta);
+        const real_t gam = 0.04;
+        const gsMatrix<real_t> Ep = Ein + gam * n1;
+        const gsMatrix<real_t> Sp = Csvk * Ep;
+        const gsVector<real_t,3> Cn1 = Csvk * n1, Cn2 = Csvk * n2;
+        const real_t sw = n4.dot(Sp.col(0));
+        const real_t M11 = n1.dot(Cn1), M12 = n1.dot(Cn2), M21 = n2.dot(Cn1), M22 = n2.dot(Cn2);
+        const real_t d = sw + 2 * gam * M22;
+        const real_t det0 = M11 * d - 2 * gam * M12 * M21;
+        gsInfo << "  sw = " << sw << ", d = " << d << ", det0 = " << det0 << "\n";
+        CHECK(math::abs(sw + 0.30) <= 1e-12);
+        CHECK(math::abs(det0 + 0.88) <= 1e-12);
+        CHECK(math::abs(n1.dot(Sp.col(0))) <= 1e-12);
+        CHECK(math::abs(n2.dot(Sp.col(0))) <= 1e-12);
+
+        for (index_t t = 0; t!=2; ++t)
+        {
+            fx.split->resetCounters();
+            const SplitXRes r = fx.split->wrinkle(Sin,Cin,Ein,I2,optEx,t==0,SplitFixture<2,false>::SplitType::dC_provider(),prov);
+            const SplitXRes ref = fx.split->wrinkle(Sin,Cin,Ein,I2,optLin,t==0);
+            gsInfo << "  tangent " << (t==0) << ": exactFallback " << r.exactFallback << ", saddle " << r.exactSaddle << ", wrongBranch "
+                   << r.exactWrongBranch << ", reclassified " << r.exactReclassified << ", used2x2 " << r.exactUsed2x2
+                   << ", exactIterations " << r.exactIterations << "\n";
+            CHECK_EQUAL(0,r.state);
+            CHECK(r.exactFallback);
+            CHECK(r.exactSaddle);
+            CHECK(!r.exactWrongBranch);
+            CHECK(!r.exactReclassified);
+            CHECK(!r.exactUsed2x2);
+            SplitCheckExactCounters(*fx.split,0,1,0,0,0,0);
+            SplitCheckSameResult(r,ref,t==0);
+        }
+    }
+
+    /// (g) nonconverged: the NaN provider ends the solve after one call
+    TEST(Exact_counter_nonconverged)
+    {
+        SplitSynthetic sy(false);
+        const SplitSynthetic::Provider prov = sy.provider(SplitSynthetic::NaN);
+        for (index_t t = 0; t!=2; ++t)
+        {
+            sy.fx.split->resetCounters();
+            const SplitXRes r = sy.run(sy.optEx,t==0,prov);
+            CHECK_EQUAL(0,r.state);
+            CHECK(r.exactFallback);
+            CHECK(!r.exactSaddle);
+            CHECK(!r.exactWrongBranch);
+            CHECK(!r.exactReclassified);
+            CHECK(!r.exactSkipped);
+            CHECK_EQUAL(1,r.exactIterations);
+            SplitCheckExactCounters(*sy.fx.split,1,0,0,0,0,0);
+            SplitCheckSameResult(r,(t==0) ? sy.lin : sy.linNoC,t==0);
+        }
+    }
+
+    /// (g) saddle: the stationary point of the affine problem with a tangent C - beta w w^T that is not a minimum
+    TEST(Exact_counter_saddle)
+    {
+        SplitSynthetic sy(false);
+        const SplitSynthetic::Provider prov = sy.provider(SplitSynthetic::Saddle,sy.m22() + sy.swLin/sy.gammaLin);
+        for (index_t t = 0; t!=2; ++t)
+        {
+            sy.fx.split->resetCounters();
+            const SplitXRes r = sy.run(sy.optEx,t==0,prov);
+            CHECK_EQUAL(0,r.state);
+            CHECK(r.exactFallback);
+            CHECK(r.exactSaddle);
+            CHECK(!r.exactWrongBranch);
+            CHECK(!r.exactReclassified);
+            SplitCheckExactCounters(*sy.fx.split,0,1,0,0,0,0);
+            SplitCheckSameResult(r,(t==0) ? sy.lin : sy.linNoC,t==0);
+        }
+    }
+
+    /// (g) wrong branch: the slack shift alpha = sw_lin + gamma_lin M22 keeps the solution at
+    /// (gamma_lin,theta_lin) with sw = -gamma_lin M22 < 0 and det Jac_0 = M11 gamma_lin M22 > 0, a minimum with a
+    /// non-positive wrinkle tension outside the slack band. Larger shifts make det Jac_0 negative: a saddle.
+    TEST(Exact_counter_wrong_branch)
+    {
+        SplitSynthetic sy(false);
+        const gsVector<real_t,3> n1 = SplitN1(sy.thetaLin), n2 = SplitN2(sy.thetaLin);
+        gsVector<real_t,3> n4;
+        n4 << math::sin(sy.thetaLin)*math::sin(sy.thetaLin), math::cos(sy.thetaLin)*math::cos(sy.thetaLin),
+              -2*math::cos(sy.thetaLin)*math::sin(sy.thetaLin);
+        const real_t alphas[5] = { sy.swLin + sy.gammaLin * sy.m22(), 1.01 * sy.swLin, 1.1 * sy.swLin, 1.5 * sy.swLin, 2 * sy.swLin };
+        for (index_t k = 0; k!=5; ++k)
+        {
+            const SplitSynthetic::Provider prov = sy.provider(SplitSynthetic::Slack,alphas[k]);
+            gsMatrix<real_t> Sx, Cx;
+            prov(sy.E + sy.gammaLin * n1,Sx,Cx);
+            const gsVector<real_t,3> Cn1 = Cx * n1, Cn2 = Cx * n2;
+            const real_t sw = n4.dot(Sx.col(0));
+            const real_t M11 = n1.dot(Cn1), M12 = n1.dot(Cn2), M21 = n2.dot(Cn1), M22 = n2.dot(Cn2);
+            const real_t det0 = M11 * (sw + 2 * sy.gammaLin * M22) - 2 * sy.gammaLin * M12 * M21;
+            gsInfo << "  alpha = " << alphas[k] << ": sw = " << sw << ", det0 = " << det0 << "\n";
+            CHECK(sw < 0);
+            CHECK(M11 > 0);
+            // sw = sw_lin - alpha and d = sw + 2 gamma_lin M22: det0 = M11 d > 0 iff alpha < sw_lin + 2 gamma_lin M22
+            const bool minimum = det0 > 0;
+            CHECK_EQUAL(k < 3,minimum);
+
+            for (index_t t = 0; t!=2; ++t)
+            {
+                sy.fx.split->resetCounters();
+                const SplitXRes r = sy.run(sy.optEx,t==0,prov);
+                CHECK_EQUAL(0,r.state);
+                CHECK(r.exactFallback);
+                CHECK_EQUAL(minimum,r.exactWrongBranch);
+                CHECK_EQUAL(!minimum,r.exactSaddle);
+                CHECK(!r.exactReclassified);
+                if (minimum)
+                    SplitCheckExactCounters(*sy.fx.split,0,0,1,0,0,0);
+                else
+                    SplitCheckExactCounters(*sy.fx.split,0,1,0,0,0,0);
+                SplitCheckSameResult(r,(t==0) ? sy.lin : sy.linNoC,t==0);
+            }
+        }
+    }
+
+    /// (g) stagnated: the jump g(gamma) = b (gamma - gs) + delta sign(gamma - gs) has no root and |g| >= delta, with delta
+    /// between ExactTol and ExactStagTol relative to ||S||. The best iterate is accepted at the stall tolerance.
+    TEST(Exact_counter_stagnated)
+    {
+        SplitSynthetic sy(false);
+        const gsVector<real_t,3> n1l = SplitN1(sy.thetaLin);
+        const gsVector<real_t,3> Cn1l = sy.C * n1l;
+        const real_t b = n1l.dot(Cn1l);
+        const real_t gl = sy.gammaLin, gs = 1.5 * gl, dlt = 1e-10 * sy.sNorm;
+        const std::function<real_t(real_t)> h = [=](const real_t g) { return b * (gl - gs) + dlt * (g > gs ? 1 : -1); };
+        const std::function<real_t(real_t)> hp = [](const real_t) { return real_t(0); };
+        const SplitXProv prov = SplitScalarProvider(sy.S,sy.C,sy.E,sy.thetaLin,h,hp);
+
+        gsMatrix<real_t> Sx, Cx;
+        prov(sy.E + gl * n1l,Sx,Cx);
+        const real_t g1 = n1l.dot(Sx.col(0));
+        gsInfo << "  g(gamma_lin) = " << g1 << " (< 0: the upper end of the bracket is open), jump delta = " << dlt << "\n";
+        CHECK(g1 < 0);
+
+        for (index_t t = 0; t!=2; ++t)
+        {
+            sy.fx.split->resetCounters();
+            const SplitXRes r = sy.run(sy.optEx,t==0,prov);
+            gsMatrix<real_t> Sp, Cp;
+            prov(r.E,Sp,Cp);
+            const real_t R1 = math::abs(SplitN1(r.theta).dot(Sp.col(0)));
+            const real_t tolC = SplitExactTolAt(Sp,Cp,r.E,1e-12), tolS = SplitExactTolAt(Sp,Cp,r.E,1e-9);
+            gsInfo << "  exactIterations = " << r.exactIterations << ", |n1.S'| = " << R1 << " (tolC " << tolC << ", tolS " << tolS << ")\n";
+            CHECK_EQUAL(0,r.state);
+            CHECK(r.exactStagnated);
+            CHECK(!r.exactFallback);
+            CHECK(!r.exactReclassified);
+            CHECK(R1 <= tolS);
+            CHECK(R1 > tolC);
+            SplitCheckExactCounters(*sy.fx.split,0,0,0,0,0,0);
+            CHECK_EQUAL(1,sy.fx.split->numExactStagnated());
+        }
+    }
+
+    /// (g) taut at gamma = 0: the provider -S + C (E'-E) has g(gamma_lin) > 0 and g(0) > 0
+    TEST(Exact_counter_taut_at_zero)
+    {
+        SplitSynthetic sy(false);
+        const SplitSynthetic::Provider prov = sy.provider(SplitSynthetic::Taut);
+        for (index_t t = 0; t!=2; ++t)
+        {
+            sy.fx.split->resetCounters();
+            const SplitXRes r = sy.run(sy.optEx,t==0,prov);
+            CHECK_EQUAL(1,r.state);
+            CHECK(r.exactReclassified);
+            CHECK(!r.exactFallback);
+            CHECK_EQUAL(2,r.exactIterations);
+            SplitCheckExactCounters(*sy.fx.split,0,0,0,1,0,0);
+            SPLIT_CHECK_SAME(r.S,sy.S);
+            SPLIT_CHECK_SAME(r.E,sy.E);
+            if (t==0)
+                SPLIT_CHECK_SAME(r.C,sy.C);
+            else
+                CHECK_EQUAL(0,r.C.size());
+            CHECK(std::isnan(r.theta) && std::isnan(r.gamma) && std::isnan(r.gammaHat) && std::isnan(r.residual));
+        }
+    }
+
+    /// (g) gamma_lin <= 0 (strain-based criterion): one provider call at gamma = 0 decides taut or not converged
+    TEST(Exact_counter_gamma_lin_nonpositive)
+    {
+        SplitSynthetic sy(false);
+        gsMatrix<real_t> C = SplitIsoC(0.3), E(3,1);
+        E << 0.02, -0.001, 0;
+        const gsMatrix<real_t> S = C * E;
+        SplitXOpt optEx = sy.optEx;
+        optEx.tensionField = 0;
+        SplitXOpt optLin = optEx;
+        optLin.exact = false;
+
+        const SplitXRes linT = sy.fx.split->wrinkle(S,C,E,sy.I2,optLin,true);
+        const SplitXRes linN = sy.fx.split->wrinkle(S,C,E,sy.I2,optLin,false);
+        gsInfo << "  linearised: state " << linT.state << ", gamma_lin " << linT.gamma << ", guardFallback " << linT.guardFallback << "\n";
+        CHECK_EQUAL(0,linT.state);
+        CHECK(linT.gamma < 0);
+        CHECK(!linT.guardFallback);
+
+        const SplitXProv affine = [C,E,S](const gsMatrix<real_t> & Ep, gsMatrix<real_t> & Se, gsMatrix<real_t> & Ce)
+        {
+            Se = S + C * (Ep - E);
+            Ce = C;
+        };
+        const SplitXProv negated = [C,E,S](const gsMatrix<real_t> & Ep, gsMatrix<real_t> & Se, gsMatrix<real_t> & Ce)
+        {
+            Se = -S + C * (Ep - E);
+            Ce = C;
+        };
+        for (index_t t = 0; t!=2; ++t)
+        {
+            // g(0) = n1.S > 0: taut at zero
+            sy.fx.split->resetCounters();
+            const SplitXRes r = sy.fx.split->wrinkle(S,C,E,sy.I2,optEx,t==0,SplitFixture<2,false>::SplitType::dC_provider(),affine);
+            CHECK_EQUAL(1,r.state);
+            CHECK(r.exactReclassified);
+            CHECK(!r.exactFallback);
+            CHECK_EQUAL(1,r.exactIterations);
+            SplitCheckExactCounters(*sy.fx.split,0,0,0,1,0,0);
+            SPLIT_CHECK_SAME(r.S,S);
+            SPLIT_CHECK_SAME(r.E,E);
+            if (t==0)
+                SPLIT_CHECK_SAME(r.C,C);
+            else
+                CHECK_EQUAL(0,r.C.size());
+            CHECK(std::isnan(r.theta) && std::isnan(r.gamma) && std::isnan(r.gammaHat) && std::isnan(r.residual));
+
+            // g(0) = -n1.S < 0: not converged
+            sy.fx.split->resetCounters();
+            const SplitXRes rn = sy.fx.split->wrinkle(S,C,E,sy.I2,optEx,t==0,SplitFixture<2,false>::SplitType::dC_provider(),negated);
+            CHECK_EQUAL(0,rn.state);
+            CHECK(rn.exactFallback);
+            CHECK(!rn.exactReclassified);
+            CHECK_EQUAL(1,rn.exactIterations);
+            SplitCheckExactCounters(*sy.fx.split,1,0,0,0,0,0);
+            SplitCheckSameResult(rn,(t==0) ? linT : linN,t==0);
+        }
+    }
+
+    /// (g) slack reclassification: a negative wrinkle tension within the slack band, as a
+    /// minimum (alpha = gamma_lin M22) and as a non-minimum (alpha = 3 gamma_lin M22), returns sigma (S,E,C)
+    TEST(Exact_counter_slack_reclassification)
+    {
+        SplitSlackInput si(0.0);
+        const gsVector<real_t,3> n1 = SplitN1(si.thetaLin), n2 = SplitN2(si.thetaLin);
+        gsVector<real_t,3> n4;
+        n4 << math::sin(si.thetaLin)*math::sin(si.thetaLin), math::cos(si.thetaLin)*math::cos(si.thetaLin),
+              -2*math::cos(si.thetaLin)*math::sin(si.thetaLin);
+        gsInfo << "  linearised: state " << si.lin.state << ", guardFallback " << si.lin.guardFallback << ", Emax " << si.lin.Emax
+               << ", Emin " << si.lin.Emin << ", theta " << si.thetaLin << ", gamma_lin " << si.gammaLin << ", M22 " << si.m22 << "\n";
+        CHECK_EQUAL(0,si.lin.state);
+        CHECK(!si.lin.guardFallback);
+        CHECK(si.lin.Emax <= 1e-8 * math::max(math::abs(si.lin.Emin),math::abs(si.lin.Emax)));
+
+        const real_t alphas[2] = { si.gammaLin * si.m22, 3 * si.gammaLin * si.m22 };
+        const real_t etas[2] = { 1e-3, 1e-3 };
+        const real_t mults[2] = { 0.0, 0.25 };
+        for (index_t k = 0; k!=2; ++k)
+        {
+            const SplitXProv prov = si.provider(alphas[k]);
+            gsMatrix<real_t> Sx, Cx;
+            prov(si.E + si.gammaLin * n1,Sx,Cx);
+            const gsVector<real_t,3> Cn1 = Cx * n1, Cn2 = Cx * n2;
+            const real_t sw = n4.dot(Sx.col(0));
+            const real_t M11 = n1.dot(Cn1), M12 = n1.dot(Cn2), M21 = n2.dot(Cn1), M22 = n2.dot(Cn2);
+            const real_t det0 = M11 * (sw + 2 * si.gammaLin * M22) - 2 * si.gammaLin * M12 * M21;
+            gsInfo << "  route " << (k==0 ? "5d" : "5c") << ": alpha = " << alphas[k] << ", sw = " << sw << ", det0 = " << det0 << "\n";
+            CHECK(sw < 0);
+            CHECK_EQUAL(k==0,det0 > 0);
+
+            for (index_t i = 0; i!=2; ++i)
+                for (index_t t = 0; t!=2; ++t)
+                {
+                    SplitXOpt opt = si.optEx;
+                    opt.eta = etas[i];
+                    opt.slackMultiplier = mults[i];
+                    const real_t sigma = (mults[i] > 0) ? mults[i] : etas[i];
+                    si.fx.split->resetCounters();
+                    const SplitXRes r = si.run(opt,t==0,prov);
+                    CHECK_EQUAL(-1,r.state);
+                    CHECK(r.exactReclassified);
+                    CHECK(!r.exactFallback);
+                    SplitCheckExactCounters(*si.fx.split,0,0,0,0,1,0);
+                    const gsMatrix<real_t> Sexp = sigma * si.S, Eexp = sigma * si.E, Cexp = sigma * si.C;
+                    SPLIT_CHECK_SAME(r.S,Sexp);
+                    SPLIT_CHECK_SAME(r.E,Eexp);
+                    if (t==0)
+                        SPLIT_CHECK_SAME(r.C,Cexp);
+                    else
+                        CHECK_EQUAL(0,r.C.size());
+                    CHECK(std::isnan(r.theta) && std::isnan(r.gamma) && std::isnan(r.gammaHat) && std::isnan(r.residual));
+                }
+        }
+    }
+
+    /// (g) skipped: an indefinite wrapped tangent along n1 is not attempted, and is not a fallback
+    TEST(Exact_counter_skipped)
+    {
+        SplitSynthetic sy(false);
+        const gsMatrix<real_t> negC = -sy.C;
+        const SplitSynthetic::Provider prov = sy.provider(SplitSynthetic::Affine);
+        for (index_t t = 0; t!=2; ++t)
+        {
+            sy.fx.split->resetCounters();
+            const SplitXRes r = sy.fx.split->wrinkle(sy.S,negC,sy.E,sy.I2,sy.optEx,t==0,SplitSynthetic::SplitType::dC_provider(),prov);
+            CHECK(r.exactSkipped);
+            CHECK(r.tftFailure);
+            CHECK_EQUAL(0,r.exactIterations);
+            CHECK(!r.exactFallback);
+            CHECK(!r.exactReclassified);
+            SplitCheckExactCounters(*sy.fx.split,0,0,0,0,0,1);
+            CHECK_EQUAL(0,sy.fx.split->numExactFallbacks());
+        }
+    }
+
+    /// (g) 2x2 pass: a constant shift of n2.S' above the tolerance leaves the scalar pass unsolved
+    TEST(Exact_counter_used2x2)
+    {
+        SplitSynthetic sy(false);
+        const SplitSynthetic::Provider prov = sy.provider(SplitSynthetic::Switch,1e-4);
+        for (index_t t = 0; t!=2; ++t)
+        {
+            sy.fx.split->resetCounters();
+            const SplitXRes r = sy.run(sy.optEx,t==0,prov);
+            gsInfo << "  exactIterations = " << r.exactIterations << ", stagnated = " << r.exactStagnated << "\n";
+            CHECK_EQUAL(0,r.state);
+            CHECK(r.exactUsed2x2);
+            CHECK(!r.exactFallback);
+            CHECK(!r.exactReclassified);
+            SplitCheckExactCounters(*sy.fx.split,0,0,0,0,0,0);
+            CHECK_EQUAL(1,sy.fx.split->numExactUsed2x2());
+        }
+    }
+
+    /// Anisotropic input for which the isotropy guard rejects the closed form while the minor stress -r is inside or
+    /// outside the taut band (1e-8 relative to the larger principal stress). With C = [[1,0.2,0],[0.2,1,c12],[0,c12,200]]
+    /// and S = (1,-r,0) the minor direction is theta = pi/2, b = 1, gamma_lin = r and the closed-form residual is
+    /// -c12 r. The provider -S + C (E'-E) has its 2x2 root at gamma <= 0, which is taut within the
+    /// band and a wrong branch outside it.
+    static void SplitBandTautCase(const real_t r, const real_t c12, const bool expectTaut)
+    {
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0);
+        const gsMatrix<real_t> I2 = SplitIdentity2();
+        gsMatrix<real_t> C(3,3), S(3,1);
+        C << 1, 0.2, 0,
+             0.2, 1, c12,
+             0, c12, 200;
+        S << 1, -r, 0;
+        const gsMatrix<real_t> E = C.inverse() * S;
+        const SplitXProv prov = [C,E,S](const gsMatrix<real_t> & Ep, gsMatrix<real_t> & Se, gsMatrix<real_t> & Ce)
+        {
+            Se = -S + C * (Ep - E);
+            Ce = C;
+        };
+        SplitXOpt optEx = SplitExactOptions();
+        SplitXOpt optLin = optEx;
+        optLin.exact = false;
+
+        const SplitXRes lin = fx.split->wrinkle(S,C,E,I2,optLin,true);
+        gsInfo << "  r " << r << ", c12 " << c12 << ": linearised state " << lin.state << ", guardFallback " << lin.guardFallback << ", tftFailure "
+               << lin.tftFailure << ", Smin/max|S| " << lin.Smin / math::max(math::abs(lin.Smin),math::abs(lin.Smax)) << ", Emax " << lin.Emax << "\n";
+        CHECK_EQUAL(0,lin.state);
+        CHECK(lin.guardFallback);
+        CHECK(!lin.tftFailure);
+        const real_t rel = lin.Smin / math::max(math::abs(lin.Smin),math::abs(lin.Smax));
+        CHECK_EQUAL(expectTaut,rel >= -1e-8);
+
+        for (index_t t = 0; t!=2; ++t)
+        {
+            fx.split->resetCounters();
+            const SplitXRes res = fx.split->wrinkle(S,C,E,I2,optEx,t==0,SplitFixture<2,false>::SplitType::dC_provider(),prov);
+            const SplitXRes ref = fx.split->wrinkle(S,C,E,I2,optLin,t==0);
+            gsInfo << "  tangent " << (t==0) << ": state " << res.state << ", exactUsed2x2 " << res.exactUsed2x2 << ", reclassified "
+                   << res.exactReclassified << ", wrongBranch " << res.exactWrongBranch << ", saddle " << res.exactSaddle << ", fallback "
+                   << res.exactFallback << ", exactIterations " << res.exactIterations << "\n";
+            CHECK(res.exactUsed2x2);
+            CHECK_EQUAL(1,fx.split->numExactUsed2x2());
+            if (expectTaut)
+            {
+                CHECK_EQUAL(1,res.state);
+                CHECK(res.exactReclassified);
+                CHECK(!res.exactFallback);
+                SplitCheckExactCounters(*fx.split,0,0,0,1,0,0);
+            }
+            else
+            {
+                CHECK_EQUAL(0,res.state);
+                CHECK(res.exactFallback);
+                CHECK(res.exactWrongBranch);
+                CHECK(!res.exactReclassified);
+                SplitCheckExactCounters(*fx.split,0,0,1,0,0,0);
+                SplitCheckSameResult(res,ref,t==0);
+            }
+        }
+    }
+
+    /// (g) band-taut: gamma <= 0 with the minor stress inside the taut band is taut
+    TEST(Exact_counter_band_taut)
+    {
+        SplitBandTautCase(0.5e-8,10,true);
+    }
+
+    /// (g) gamma <= 0 with the minor stress outside the taut band is a wrong branch
+    TEST(Exact_counter_band_taut_wrong_branch)
+    {
+        SplitBandTautCase(1e-6,10,false);
+    }
+
+    /// (h) The counters are incremented atomically: one OpenMP loop per counter, each call ending in the same outcome
+    TEST(OpenMP_exact_new_counters_atomic)
+    {
+        SplitSynthetic sy(false);
+        SplitSlackInput si(0.0);
+        const index_t N = 20000;
+        gsInfo << "  omp_get_max_threads() = " << omp_get_max_threads() << "\n";
+
+        const SplitSynthetic::Provider nan = sy.provider(SplitSynthetic::NaN);
+        const SplitSynthetic::Provider saddle = sy.provider(SplitSynthetic::Saddle,sy.m22() + sy.swLin/sy.gammaLin);
+        const SplitSynthetic::Provider wrong = sy.provider(SplitSynthetic::Slack,sy.swLin + sy.gammaLin * sy.m22());
+        const SplitSynthetic::Provider taut = sy.provider(SplitSynthetic::Taut);
+        const SplitSynthetic::Provider affine = sy.provider(SplitSynthetic::Affine);
+        const SplitSynthetic::Provider sw2x2 = sy.provider(SplitSynthetic::Switch,1e-4);
+        const gsMatrix<real_t> negC = -sy.C;
+
+        const gsVector<real_t,3> n1l = SplitN1(sy.thetaLin);
+        const gsVector<real_t,3> Cn1l = sy.C * n1l;
+        const real_t b = n1l.dot(Cn1l);
+        const real_t gl = sy.gammaLin, gs = 1.5 * gl, dlt = 1e-10 * sy.sNorm;
+        const std::function<real_t(real_t)> h = [=](const real_t g) { return b * (gl - gs) + dlt * (g > gs ? 1 : -1); };
+        const std::function<real_t(real_t)> hp = [](const real_t) { return real_t(0); };
+        const SplitXProv jump = SplitScalarProvider(sy.S,sy.C,sy.E,sy.thetaLin,h,hp);
+
+        SplitXOpt slackOpt = si.optEx;
+        slackOpt.eta = 1e-3;
+        slackOpt.slackMultiplier = 0.25;
+        const SplitXProv slack = si.provider(si.gammaLin * si.m22);
+
+        sy.fx.split->resetCounters();
+        SplitRepeatParallel(N,[&]() { sy.run(sy.optEx,false,nan); });
+        SplitCheckExactCounters(*sy.fx.split,N,0,0,0,0,0);
+
+        sy.fx.split->resetCounters();
+        SplitRepeatParallel(N,[&]() { sy.run(sy.optEx,false,saddle); });
+        SplitCheckExactCounters(*sy.fx.split,0,N,0,0,0,0);
+
+        sy.fx.split->resetCounters();
+        SplitRepeatParallel(N,[&]() { sy.run(sy.optEx,false,wrong); });
+        SplitCheckExactCounters(*sy.fx.split,0,0,N,0,0,0);
+
+        sy.fx.split->resetCounters();
+        SplitRepeatParallel(N,[&]() { sy.run(sy.optEx,false,taut); });
+        SplitCheckExactCounters(*sy.fx.split,0,0,0,N,0,0);
+
+        sy.fx.split->resetCounters();
+        SplitRepeatParallel(N,[&]() { sy.fx.split->wrinkle(sy.S,negC,sy.E,sy.I2,sy.optEx,false,SplitSynthetic::SplitType::dC_provider(),affine); });
+        SplitCheckExactCounters(*sy.fx.split,0,0,0,0,0,N);
+
+        sy.fx.split->resetCounters();
+        SplitRepeatParallel(N,[&]() { sy.run(sy.optEx,false,sw2x2); });
+        SplitCheckExactCounters(*sy.fx.split,0,0,0,0,0,0);
+        CHECK_EQUAL(N,sy.fx.split->numExactUsed2x2());
+
+        sy.fx.split->resetCounters();
+        SplitRepeatParallel(N,[&]() { sy.run(sy.optEx,false,jump); });
+        SplitCheckExactCounters(*sy.fx.split,0,0,0,0,0,0);
+        CHECK_EQUAL(N,sy.fx.split->numExactStagnated());
+
+        si.fx.split->resetCounters();
+        SplitRepeatParallel(N,[&]() { si.run(slackOpt,false,slack); });
+        SplitCheckExactCounters(*si.fx.split,0,0,0,0,N,0);
+    }
+
+    /// (i) The exact tangent against an explicit central finite difference of the exact stress with step 1e-6; the
+    /// solve is polished to round-off, so the stress carries no tolerance-sized noise of order tol/h
+    TEST(Exact_FD_C_h1e6)
+    {
+        const real_t pi = static_cast<real_t>(EIGEN_PI);
+        const real_t h = 1e-6;
+        const SplitMaterial mats[2] = { SplitMatNHIncomp, SplitMatMRIncomp };
+        const gsVector<real_t> pt = SplitPoint();
+        for (index_t im = 0; im!=2; ++im)
+        {
+            gsInfo << "material " << im << "\n";
+            SplitFixture<2,false> fx(mats[im],SplitSkewedJref(),1.2,0.8/math::sqrt(1.2),pi/6);
+            fx.split->options().setSwitch("Exact",true);
+            fx.split->options().setReal("Eta",0);
+            fx.split->resetCounters();
+            const gsMatrix<real_t> Eeng = fx.EengDef();
+
+            gsMatrix<real_t> J_FD(3,3);
+            for (index_t j = 0; j!=3; ++j)
+            {
+                gsMatrix<real_t> Ep = Eeng, Em = Eeng;
+                Ep(j,0) += h;
+                Em(j,0) -= h;
+                const gsMatrix<real_t> Cp = fx.CmatFromE(Ep), Cm = fx.CmatFromE(Em);
+                CHECK_EQUAL(0,fx.stateAt(Cp,pt,0));
+                CHECK_EQUAL(0,fx.stateAt(Cm,pt,0));
+                const gsMatrix<real_t> Sp = fx.split->eval3D_vector_C(Cp,0,pt,0,MaterialOutput::Generic);
+                const gsMatrix<real_t> Sm = fx.split->eval3D_vector_C(Cm,0,pt,0,MaterialOutput::Generic);
+                J_FD.col(j) = (Sp - Sm) / (2*h);
+
+                gsMatrix<real_t> S3p, S3m;
+                const SplitXRes rp = SplitPointwise(fx,Ep,0,SplitExactOptions(),false,&S3p);
+                const SplitXRes rm = SplitPointwise(fx,Em,0,SplitExactOptions(),false,&S3m);
+                CHECK(rp.exactIterations >= 1);
+                CHECK(rm.exactIterations >= 1);
+                gsInfo << "  stencil e_" << j << ": residual / ||S||: " << rp.residual / S3p.norm() << " (+), " << rm.residual / S3m.norm() << " (-)\n";
+            }
+            const gsMatrix<real_t> Ceff = fx.split->eval3D_matrix_C(fx.CmatDef(),0,pt,0,MaterialOutput::Generic).reshape(3,3);
+            SPLIT_CHECK_REL("exact C vs FD h 1e-6",Ceff,J_FD,1e-7);
+            CHECK_EQUAL(0,fx.split->numExactFallbacks());
+            CHECK_EQUAL(0,fx.split->numExactReclassified());
+        }
+    }
+
+    /// (j) The exact tangent annihilates the wrinkle direction: C_t n1 = 0 and C_t^T n1 = 0 relative to ||C_t||
+    TEST(Exact_Ct_n1_zero)
+    {
+        const real_t pi = static_cast<real_t>(EIGEN_PI);
+        const SplitStateSpec w = SplitWrinkledSpec();
+        const SplitMaterial mats[2] = { SplitMatNHIncomp, SplitMatMRIncomp };
+        for (index_t im = 0; im!=2; ++im)
+            for (index_t ij = 0; ij!=2; ++ij)
+            {
+                gsInfo << "material " << im << ", Jref " << (ij==0 ? "identity" : "skewed") << "\n";
+                SplitFixture<2,false> fx(mats[im],(ij==0) ? SplitIdentity2() : SplitSkewedJref(),w.lam1,w.lam2,pi/6);
+                fx.split->resetCounters();
+                const SplitXRes res = SplitPointwise(fx,fx.EengDef(),0,SplitExactOptions(),true);
+                CHECK_EQUAL(0,res.state);
+                CHECK(!res.exactFallback);
+                CHECK(!res.exactReclassified);
+                CHECK(!res.exactSkipped);
+                CHECK(res.exactIterations >= 1);
+                SplitCheckExactCounters(*fx.split,0,0,0,0,0,0);
+                CHECK_EQUAL(3,res.C.rows());
+                CHECK_EQUAL(3,res.C.cols());
+                gsMatrix<real_t> Sp, Cp;
+                SplitWrappedProvider(fx,0)(res.E,Sp,Cp);
+                const gsVector<real_t,3> n1 = SplitN1(res.theta);
+                const gsVector<real_t,3> Cn1 = res.C * n1;
+                const gsVector<real_t,3> CTn1 = res.C.transpose() * n1;
+                const real_t Cnorm = res.C.norm();
+                gsInfo << "  ||C'||_F / ||C_t||_F = " << Cp.norm() / Cnorm << ", ||C_t n1|| / ||C_t|| = " << Cn1.norm() / Cnorm
+                       << ", ||C_t^T n1|| / ||C_t|| = " << CTn1.norm() / Cnorm << "\n";
+                CHECK(Cn1.norm() <= 1e-12 * Cnorm);
+                CHECK(CTn1.norm() <= 1e-12 * Cnorm);
+            }
+    }
+
+    /// (j) Continuity of the exact stress as the wrinkle amplitude gamma -> 0 (wrinkled -> taut): the distance to the
+    /// wrapped stress decays linearly in delta
+    TEST(Exact_continuity_boundaries)
+    {
+        const real_t pi = static_cast<real_t>(EIGEN_PI);
+        const gsVector<real_t> pt = SplitPoint();
+        const gsMatrix<real_t> zmat = SplitZ(0);
+        {
+            const real_t deltas[4] = { 1e-2, 1e-4, 1e-6, 1e-8 };
+            real_t slope0 = 0;
+            for (index_t i = 0; i!=4; ++i)
+            {
+                SplitFixture<2,false> fx(SplitMatNHIncomp,SplitSkewedJref(),1.2,(1-deltas[i])/math::sqrt(1.2),pi/6);
+                fx.split->options().setSwitch("Exact",true);
+                fx.split->options().setReal("Eta",0);
+                fx.split->options().setReal("SlackMultiplier",0);
+                fx.split->resetCounters();
+                CHECK_EQUAL(0,fx.displayedState(pt,0));
+                const gsMatrix<real_t> Sex = fx.split->eval3D_vector(0,pt,zmat,MaterialOutput::VectorN);
+                const gsMatrix<real_t> Sw = fx.wrapped->eval3D_vector(0,pt,zmat,MaterialOutput::VectorN);
+                const real_t d = (Sex - Sw).norm() / Sw.norm();
+                gsInfo << "  taut boundary, delta " << deltas[i] << ": d = " << d << ", d / delta = " << d / deltas[i] << "\n";
+                if (i==0)
+                    slope0 = d / deltas[i];
+                else
+                {
+                    CHECK(d / deltas[i] <= 2 * slope0);
+                    CHECK(d / deltas[i] >= 0.5 * slope0);
+                }
+                CHECK_EQUAL(0,fx.split->numExactFallbacks());
+                CHECK_EQUAL(0,fx.split->numExactReclassified());
+            }
+        }
+        {
+            // Wrinkled -> slack: the strain along the wrinkles Emax = eps -> 0 and so does the whole stress
+            const real_t epss[3] = { 1e-2, 1e-4, 1e-6 };
+            real_t slope0 = 0;
+            for (index_t i = 0; i!=3; ++i)
+            {
+                SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),math::sqrt(1 + 2*epss[i]),0.9,pi/6);
+                fx.split->options().setSwitch("Exact",true);
+                fx.split->options().setReal("Eta",0);
+                fx.split->options().setReal("SlackMultiplier",0);
+                fx.split->resetCounters();
+                CHECK_EQUAL(0,fx.displayedState(pt,0));
+                const gsMatrix<real_t> Sex = fx.split->eval3D_vector(0,pt,zmat,MaterialOutput::VectorN);
+                const gsMatrix<real_t> Sw = fx.wrapped->eval3D_vector(0,pt,zmat,MaterialOutput::VectorN);
+                const real_t d = Sex.norm() / Sw.norm();
+                gsInfo << "  slack boundary, eps " << epss[i] << ": d = " << d << ", d / eps = " << d / epss[i] << "\n";
+                if (i==0)
+                    slope0 = d / epss[i];
+                else
+                {
+                    CHECK(d / epss[i] <= 2 * slope0);
+                    CHECK(d / epss[i] >= 0.5 * slope0);
+                }
+                CHECK_EQUAL(0,fx.split->numExactFallbacks());
+                CHECK_EQUAL(0,fx.split->numExactReclassified());
+            }
+        }
+    }
+
+    /// (k) The exact solve rejects options with ExactStagTol < ExactTol, ExactTol <= 0, ExactMaxIt < 1 or NaN, but only
+    /// where it is used; the option list carries the documented defaults
+    TEST(Exact_option_validation)
+    {
+        SplitSynthetic sy(false);
+        const SplitSynthetic::Provider prov = sy.provider(SplitSynthetic::Affine);
+        const real_t nan = std::numeric_limits<real_t>::quiet_NaN();
+        auto badOptions = [&](const index_t k)
+        {
+            SplitXOpt o = sy.optEx;
+            switch (k)
+            {
+            case 0: o.exactTol = nan; break;
+            case 1: o.exactStagTol = nan; break;
+            case 2: o.exactTol = 1e-10; o.exactStagTol = 1e-12; break;
+            case 3: o.exactTol = 0; break;
+            case 4: o.exactTol = -1e-12; break;
+            case 5: o.exactMaxIt = 0; break;
+            default: o.exactMaxIt = -1; break;
+            }
+            return o;
+        };
+        auto runs = [&](const SplitXOpt & o, const gsMatrix<real_t> & S, const gsMatrix<real_t> & E, const bool tangent)
+        {
+            bool thrown = false;
+            try { sy.fx.split->wrinkle(S,sy.C,E,sy.I2,o,tangent,SplitSynthetic::SplitType::dC_provider(),prov); }
+            catch (...) { thrown = true; }
+            return !thrown;
+        };
+
+        for (index_t k = 0; k!=7; ++k)
+        {
+            const SplitXOpt o = badOptions(k);
+            CHECK_THROW(sy.run(o,true,prov), std::runtime_error);
+            CHECK_THROW(sy.run(o,false,prov), std::runtime_error);
+
+            // Not in the linearised mode
+            SplitXOpt ol = o;
+            ol.exact = false;
+            CHECK(runs(ol,sy.S,sy.E,true));
+
+            // Not at a taut point, which returns before the exact branch
+            gsMatrix<real_t> E(3,1);
+            E << 0.02, 0.01, 0.0;
+            const gsMatrix<real_t> S = sy.C * E;
+            CHECK(runs(o,S,E,true));
+            CHECK_EQUAL(1,sy.fx.split->wrinkle(S,sy.C,E,sy.I2,o,true).state);
+        }
+
+        // The boundary values are valid
+        SplitXOpt eq = sy.optEx;
+        eq.exactTol = 1e-12;
+        eq.exactStagTol = 1e-12;
+        CHECK(runs(eq,sy.S,sy.E,true));
+        SplitXOpt one = sy.optEx;
+        one.exactMaxIt = 1;
+        CHECK(runs(one,sy.S,sy.E,true));
+        CHECK(runs(one,sy.S,sy.E,false));
+
+        // Option list defaults and the options read by the pointwise core
+        gsOptionList & ol = sy.fx.split->options();
+        CHECK(ol.getReal("ExactTol") == real_t(1e-12));
+        CHECK(ol.getReal("ExactStagTol") == real_t(1e-9));
+        CHECK_EQUAL(50,ol.getInt("ExactMaxIt"));
+        const SplitXOpt wd = sy.fx.split->wrinkleOptions();
+        CHECK(wd.exactTol == real_t(1e-12));
+        CHECK(wd.exactStagTol == real_t(1e-9));
+        CHECK_EQUAL(50,wd.exactMaxIt);
+        const SplitXOpt def;
+        CHECK(def.exactTol == real_t(1e-12));
+        CHECK(def.exactStagTol == real_t(1e-9));
+        CHECK_EQUAL(50,def.exactMaxIt);
+
+        ol.setReal("ExactTol",1e-10);
+        ol.setReal("ExactStagTol",1e-8);
+        ol.setInt("ExactMaxIt",7);
+        const SplitXOpt ws = sy.fx.split->wrinkleOptions();
+        CHECK(ws.exactTol == real_t(1e-10));
+        CHECK(ws.exactStagTol == real_t(1e-8));
+        CHECK_EQUAL(7,ws.exactMaxIt);
+    }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #   undef SPLIT_CHECK_SAME
 #   undef SPLIT_CHECK_REL

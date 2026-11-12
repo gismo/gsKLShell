@@ -211,6 +211,11 @@ inline void principalStressFrame(const gsMatrix<T> & S, const gsMatrix<T> & Gbas
  * 117955, Eq. 72-73). This is exact for a wrapped law that is linear in E and a first-order Taylor
  * truncation for hyperelastic laws. See \ref gsMaterialMatrixTFTSplit (option Exact) for the
  * non-truncated state and the error order.
+ * For linear=false the truncated stress S + gamma C n_1 is not the gradient of an energy for a non-quadratic
+ * law: the model is non-variational at O(gamma). The tangent C_wr is the consistent linearisation of that stress
+ * (Newton keeps its rate), but it is not symmetric for a non-quadratic law. The asymmetry is O(gamma) and vanishes
+ * when the third derivative of W vanishes, i.e. for SvK (and for linear=true). A symmetric (variational) tangent
+ * requires the exact model, \ref gsMaterialMatrixTFTSplit with option Exact.
  *
  * Residual stiffness (option Eta, 0 <= Eta <= 1, default 0). With S, C the stress and tangent of the wrapped law and
  * S_wr, C_wr the tension-field stress and (consistent) tangent, the points of the three states carry
