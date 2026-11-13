@@ -26,7 +26,9 @@ namespace {
 
 // Saint Venant-Kirchhoff shell on the unit square (E = 1, nu = 0.3), with an
 // orthonormal reference metric G = I or a sheared one, G = [1 0.4; 0.4 1.16]
-// (coefficient column 0 += 0.4 * column 1). The parameter functions are members
+// (coefficient column 0 += 0.4 * column 1). With dim = 3 the patch is embedded
+// in R^3 (z = 0) and the law is built through getMaterialMatrix<3,real_t>; the
+// metric is unchanged by the embedding. The parameter functions are members
 // because the material keeps references to them.
 struct EnergyLinear
 {
@@ -34,7 +36,7 @@ struct EnergyLinear
     gsFunctionExpr<real_t> t, E, nu;
     gsMaterialMatrixBase<real_t>::uPtr materialMatrix;
 
-    explicit EnergyLinear(bool skewed)
+    explicit EnergyLinear(bool skewed, short_t dim = 2)
     :
     t("1e-1",2), E("1.0",2), nu("0.3",2)
     {
@@ -42,6 +44,8 @@ struct EnergyLinear
         if (skewed)
             mp.patch(0).coefs().col(0) += 0.4 * mp.patch(0).coefs().col(1);
         mp.addAutoBoundaries();
+        if (dim == 3)
+            mp.embed(3);
 
         std::vector<gsFunctionSet<real_t>*> parameters(2);
         parameters[0] = &E;
@@ -50,7 +54,10 @@ struct EnergyLinear
         gsOptionList options;
         options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
         options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
-        materialMatrix = getMaterialMatrix<2,real_t>(mp,t,parameters,options);
+        if (dim == 3)
+            materialMatrix = getMaterialMatrix<3,real_t>(mp,t,parameters,options);
+        else
+            materialMatrix = getMaterialMatrix<2,real_t>(mp,t,parameters,options);
         materialMatrix->setDeformed(&mp);
     }
 
@@ -67,15 +74,14 @@ struct EnergyLinear
     }
 };
 
-// Metric G = g^T g of patch 0 of mp at pt
+// Metric G = g^T g (2x2) of patch 0 of mp at pt, for a 2D or an embedded patch
 gsMatrix<real_t> energyLinMetric(const gsMultiPatch<real_t> & mp, const gsVector<real_t> & pt)
 {
     gsMapData<real_t> map;
     map.flags = NEED_JACOBIAN;
     map.points = pt;
     static_cast<const gsFunction<real_t>&>(mp.patch(0)).computeMap(map);
-    gsMatrix<real_t> g = map.jacobian(0);
-    g.resize(2,2);
+    const gsMatrix<real_t> g = map.jacobian(0);
     return g.transpose() * g;
 }
 
@@ -99,14 +105,65 @@ gsVector<real_t> energyLinStrain(index_t i)
     return E;
 }
 
-real_t energyLinAt(const gsMaterialMatrixBase<real_t> & mm, const gsMatrix<real_t> & Cm, const gsVector<real_t> & pt)
+// The three states above plus a large strain (i == 3)
+gsVector<real_t> energyLinStrainLarge(index_t i)
 {
-    return mm.eval3D_energy_C(Cm,0,pt,0.0,MaterialOutput::Generic)(0,0);
+    if (i < 3)
+        return energyLinStrain(i);
+    gsVector<real_t> E(3);
+    E << 0.3, 0.15, 0.2;
+    return E;
+}
+
+real_t energyLinAt(const gsMaterialMatrixBase<real_t> & mm, const gsMatrix<real_t> & Cm, const gsVector<real_t> & pt,
+                   enum MaterialOutput out = MaterialOutput::Generic)
+{
+    return mm.eval3D_energy_C(Cm,0,pt,0.0,out)(0,0);
 }
 
 real_t energyLinMaxC(const gsMaterialMatrixBase<real_t> & mm, const gsMatrix<real_t> & Cm, const gsVector<real_t> & pt)
 {
     return mm.eval3D_matrix_C(Cm,0,pt,0.0,MaterialOutput::Generic).cwiseAbs().maxCoeff();
+}
+
+// Result of comparing S = eval3D_vector_C with the central finite difference
+// (h = 1e-6) of W(Cm(E)) over the engineering strain
+struct EnergyLinFDResult
+{
+    index_t rows;    // rows of S, 3 expected
+    real_t  err;     // max_j |S_j - FD_j|
+    real_t  Smax;    // max_j |S_j|
+    real_t  S2;      // |S_2|, the shear entry
+    real_t  tol;     // 1e-6 max|S| + 1e-10 max|C|
+};
+
+EnergyLinFDResult energyLinFD(const gsMaterialMatrixBase<real_t> & mm,
+                              const gsMatrix<real_t> & G,
+                              const gsVector<real_t> & E,
+                              const gsVector<real_t> & pt,
+                              enum MaterialOutput out)
+{
+    const real_t h = 1e-6;
+    const gsMatrix<real_t> Cm = energyLinCm(G,E);
+    const gsMatrix<real_t> S = mm.eval3D_vector_C(Cm,0,pt,0.0,out);
+    EnergyLinFDResult r;
+    r.rows = S.rows();
+    r.err = 0; r.Smax = 0; r.S2 = 0; r.tol = 0;
+    if (r.rows != 3)
+        return r;
+    for (index_t j = 0; j != 3; ++j)
+    {
+        gsVector<real_t> Ep = E, Em = E;
+        Ep(j) += h;
+        Em(j) -= h;
+        const real_t fd = ( energyLinAt(mm,energyLinCm(G,Ep),pt,out)
+                          - energyLinAt(mm,energyLinCm(G,Em),pt,out) ) / (2*h);
+        r.err = std::max(r.err,math::abs(S(j,0)-fd));
+    }
+    r.Smax = S.cwiseAbs().maxCoeff();
+    r.S2   = math::abs(S(2,0));
+    r.tol  = 1e-6*r.Smax + 1e-10*energyLinMaxC(mm,Cm,pt);
+    return r;
 }
 
 } // namespace
@@ -1100,6 +1157,99 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
         }
         gsInfo<<"Energy_Linear_FD: worst |S-FD|/max|S| = "<<worstRel<<", worst |S-FD|/tol = "<<worstRatio
               <<", smallest |S_2|/max|S| = "<<worstShear<<"\n";
+    }
+
+    // The dim 3 counterpart of Energy_Linear_FD: the law is built through
+    // getMaterialMatrix<3> on the unit square embedded in R^3, with the
+    // additional large strain E = (0.3, 0.15, 0.2), and W(E=0) = 0 is checked.
+    TEST(Energy_Linear_FD_3D)
+    {
+        gsVector<real_t> pt(2);
+        pt << 0.25, 0.25;
+
+        real_t worstRel = 0, worstRatio = 0, worstShear = 1, worstZero = 0;
+        for (index_t skew = 0; skew != 2; ++skew)
+        {
+            EnergyLinear law(skew==1,3);
+            CHECK_EQUAL(3,(int)law.mp.geoDim());
+            const gsMatrix<real_t> G = energyLinMetric(law.mp,pt);
+            CHECK_CLOSE(skew==1 ? 0.4 : 0.0, G(0,1), 1e-12);
+
+            const real_t W0 = energyLinAt(*law.materialMatrix,energyLinCm(G,gsVector<real_t>::Zero(3)),pt);
+            if (!(math::abs(W0) <= 1e-14))
+                gsInfo<<"  W(0) = "<<W0<<" at "<<(skew ? "skewed" : "orthonormal")<<"\n";
+            CHECK(math::abs(W0) <= 1e-14);
+            worstZero = std::max(worstZero,math::abs(W0));
+
+            for (index_t s = 0; s != 4; ++s)
+            {
+                const gsVector<real_t> E = energyLinStrainLarge(s);
+                const gsMatrix<real_t> Cm = energyLinCm(G,E);
+                CHECK(Cm(0,0) > 0 && Cm(0,0)*Cm(1,0) - Cm(2,0)*Cm(2,0) > 0);
+                const EnergyLinFDResult r = energyLinFD(*law.materialMatrix,G,E,pt,MaterialOutput::Generic);
+                CHECK_EQUAL(3,r.rows);
+                if (r.rows!=3)
+                    continue;
+                const real_t W = energyLinAt(*law.materialMatrix,Cm,pt);
+                if (!(r.err <= r.tol) || !(W > 0) || !(r.S2 >= 1e-3*r.Smax))
+                    gsInfo<<"  failed at "<<(skew ? "skewed" : "orthonormal")<<" state "<<s<<": W="<<W<<", |S-FD|="<<r.err<<", tol="<<r.tol<<", |S_2|/max|S|="<<r.S2/r.Smax<<"\n";
+                CHECK(r.err <= r.tol);
+                CHECK(W > 0);
+                CHECK(r.S2 >= 1e-3*r.Smax);
+                worstRel   = std::max(worstRel,r.err/r.Smax);
+                worstRatio = std::max(worstRatio,r.err/r.tol);
+                worstShear = std::min(worstShear,r.S2/r.Smax);
+            }
+        }
+        gsInfo<<"Energy_Linear_FD_3D: worst |S-FD|/max|S| = "<<worstRel<<", worst |S-FD|/tol = "<<worstRatio
+              <<", smallest |S_2|/max|S| = "<<worstShear<<", worst |W(0)| = "<<worstZero<<"\n";
+    }
+
+    // The same check as Energy_Linear_FD_3D with MaterialOutput::VectorN in
+    // eval3D_vector_C and eval3D_energy_C, for the 2D and the embedded law.
+    TEST(Energy_Linear_FD_VectorN)
+    {
+        gsVector<real_t> pt(2);
+        pt << 0.25, 0.25;
+
+        real_t worstRel = 0, worstRatio = 0, worstShear = 1, worstZero = 0;
+        for (short_t dim = 2; dim != 4; ++dim)
+            for (index_t skew = 0; skew != 2; ++skew)
+            {
+                EnergyLinear law(skew==1,dim);
+                CHECK_EQUAL((int)dim,(int)law.mp.geoDim());
+                const gsMatrix<real_t> G = energyLinMetric(law.mp,pt);
+                CHECK_CLOSE(skew==1 ? 0.4 : 0.0, G(0,1), 1e-12);
+                const std::string ctx = std::string("dim ") + std::to_string((int)dim) + (skew ? " skewed" : " orthonormal");
+
+                const real_t W0 = energyLinAt(*law.materialMatrix,energyLinCm(G,gsVector<real_t>::Zero(3)),pt,MaterialOutput::VectorN);
+                if (!(math::abs(W0) <= 1e-14))
+                    gsInfo<<"  W(0) = "<<W0<<" at "<<ctx<<"\n";
+                CHECK(math::abs(W0) <= 1e-14);
+                worstZero = std::max(worstZero,math::abs(W0));
+
+                for (index_t s = 0; s != 4; ++s)
+                {
+                    const gsVector<real_t> E = energyLinStrainLarge(s);
+                    const gsMatrix<real_t> Cm = energyLinCm(G,E);
+                    CHECK(Cm(0,0) > 0 && Cm(0,0)*Cm(1,0) - Cm(2,0)*Cm(2,0) > 0);
+                    const EnergyLinFDResult r = energyLinFD(*law.materialMatrix,G,E,pt,MaterialOutput::VectorN);
+                    CHECK_EQUAL(3,r.rows);
+                    if (r.rows!=3)
+                        continue;
+                    const real_t W = energyLinAt(*law.materialMatrix,Cm,pt,MaterialOutput::VectorN);
+                    if (!(r.err <= r.tol) || !(W > 0) || !(r.S2 >= 1e-3*r.Smax))
+                        gsInfo<<"  failed at "<<ctx<<" state "<<s<<": W="<<W<<", |S-FD|="<<r.err<<", tol="<<r.tol<<", |S_2|/max|S|="<<r.S2/r.Smax<<"\n";
+                    CHECK(r.err <= r.tol);
+                    CHECK(W > 0);
+                    CHECK(r.S2 >= 1e-3*r.Smax);
+                    worstRel   = std::max(worstRel,r.err/r.Smax);
+                    worstRatio = std::max(worstRatio,r.err/r.tol);
+                    worstShear = std::min(worstShear,r.S2/r.Smax);
+                }
+            }
+        gsInfo<<"Energy_Linear_FD_VectorN: worst |S-FD|/max|S| = "<<worstRel<<", worst |S-FD|/tol = "<<worstRatio
+              <<", smallest |S_2|/max|S| = "<<worstShear<<", worst |W(0)| = "<<worstZero<<"\n";
     }
 
     // The geometry-based eval3D_energy packs column j*u.cols()+k for point k and

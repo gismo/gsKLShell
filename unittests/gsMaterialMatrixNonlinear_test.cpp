@@ -78,6 +78,9 @@
       - Energy_FD_Nonlinear compares S with the central finite difference of
         W(Cm(E)) for all 17 (material, implementation, compressibility)
         variants; each state must also discriminate the shear entry of S.
+      - Energy_FD_Nonlinear_3D repeats that comparison for five variants
+        built through getMaterialMatrix<3> on an embedded patch, with an
+        additional large strain E = (0.3, 0.15, 0.2), and pins W(E=0) = 0.
       - Energy_Zero_Nonlinear pins W = 0 at Cm = G.
       - Energy_ImplementationIndependence compares W of the Analytical,
         Generalized and Spectral implementations of the same material.
@@ -729,6 +732,8 @@ std::vector<EnergyVariant> energyVariants()
 // Unit-square shell with E = 1, nu = 0.5 (incompressible) or 0.3, MR ratio 1.5
 // and the normalised Treloar Ogden set. The reference patch is orthonormal
 // (G = I) or sheared (coefficient column 0 += 0.4 * column 1, G = [1 0.4; 0.4 1.16]).
+// With dim = 3 the patch is embedded in R^3 (z = 0) and the law is built through
+// getMaterialMatrix<3,real_t>; the metric is unchanged by the embedding.
 // The parameter functions are members for the lifetime reason given for CompressibleNH.
 struct EnergyLaw
 {
@@ -740,7 +745,7 @@ struct EnergyLaw
     gsConstantFunction<real_t> mu1, alpha1, mu2, alpha2, mu3, alpha3;
     gsMaterialMatrixBase<real_t>::uPtr materialMatrix;
 
-    EnergyLaw(const EnergyVariant & v, bool skewed)
+    EnergyLaw(const EnergyVariant & v, bool skewed, short_t dim = 2)
     :
     variant(v),
     t("1e-1",2),
@@ -755,6 +760,8 @@ struct EnergyLaw
         if (skewed)
             mp.patch(0).coefs().col(0) += 0.4 * mp.patch(0).coefs().col(1);
         mp.addAutoBoundaries();
+        if (dim == 3)
+            mp.embed(3);
 
         std::vector<gsFunctionSet<real_t>*> parameters;
         parameters.push_back(&E);
@@ -772,7 +779,10 @@ struct EnergyLaw
         options.addInt("Material","Material model: (1): NH, (2): NH_ext, (3): MR, (4): OG",v.material);
         options.addInt("Implementation","Implementation: (1): Analytical, (2): Generalized, (3): Spectral",v.impl);
         options.addSwitch("Compressibility","Compressibility: (true): Compressible",v.compressible);
-        materialMatrix = getMaterialMatrix<2,real_t>(mp,t,parameters,options);
+        if (dim == 3)
+            materialMatrix = getMaterialMatrix<3,real_t>(mp,t,parameters,options);
+        else
+            materialMatrix = getMaterialMatrix<2,real_t>(mp,t,parameters,options);
         materialMatrix->setDeformed(&mp);
     }
 
@@ -789,15 +799,14 @@ struct EnergyLaw
     }
 };
 
-// Metric G = g^T g of patch 0 of mp at pt
+// Metric G = g^T g (2x2) of patch 0 of mp at pt, for a 2D or an embedded patch
 gsMatrix<real_t> energyMetric(const gsMultiPatch<real_t> & mp, const gsVector<real_t> & pt)
 {
     gsMapData<real_t> map;
     map.flags = NEED_JACOBIAN;
     map.points = pt;
     static_cast<const gsFunction<real_t>&>(mp.patch(0)).computeMap(map);
-    gsMatrix<real_t> g = map.jacobian(0);
-    g.resize(2,2);
+    const gsMatrix<real_t> g = map.jacobian(0);
     return g.transpose() * g;
 }
 
@@ -826,6 +835,17 @@ gsVector<real_t> energyStrain(index_t i)
     if      (i == 0) E <<  0.05, -0.02,  0.03;
     else if (i == 1) E <<  0.12,  0.08, -0.06;
     else             E << -0.03, -0.02,  0.015;
+    return E;
+}
+
+// The three states above plus a large strain (i == 3), where the shear entry
+// of the Voigt stress is small relative to the normal entries
+gsVector<real_t> energyStrainLarge(index_t i)
+{
+    if (i < 3)
+        return energyStrain(i);
+    gsVector<real_t> E(3);
+    E << 0.3, 0.15, 0.2;
     return E;
 }
 
@@ -1370,6 +1390,67 @@ TEST(Energy_FD_Nonlinear)
     gsInfo<<"Energy_FD_Nonlinear: worst |S-FD|/max|S| = "<<worstRel<<" ("<<worstLabel
           <<"), worst |S-FD|/tol = "<<worstRatio
           <<", smallest |S_2|/max|S| = "<<worstShear<<" ("<<worstShearLabel<<")\n";
+}
+
+// The dim 3 counterpart of Energy_FD_Nonlinear: laws built through
+// getMaterialMatrix<3> on the unit square embedded in R^3, for five variants that
+// together cover every material and every implementation, with the additional large strain
+// E = (0.3, 0.15, 0.2). The shear guard is 1e-3 instead of 1e-2 because the
+// shear entry of S is small at the large state (incompressible Mooney-Rivlin
+// on the orthonormal metric: |S_2|/max|S| = 6e-3). W(E=0) = 0 is checked as well.
+TEST(Energy_FD_Nonlinear_3D)
+{
+    const std::vector<EnergyVariant> variants = {
+        {1,1,false},  // NH incompressible, Analytical
+        {1,2,true},   // NH compressible, Generalized
+        {3,1,false},  // MR incompressible, Analytical
+        {4,3,false},  // Ogden incompressible, Spectral
+        {2,3,true}    // NH_ext compressible, Spectral
+    };
+
+    gsVector<real_t> pt(2);
+    pt << 0.25, 0.25;
+
+    real_t worstRel = 0, worstRatio = 0, worstShear = 1, worstZero = 0;
+    std::string worstLabel, worstShearLabel;
+    for (const EnergyVariant & v : variants)
+        for (index_t skew = 0; skew != 2; ++skew)
+        {
+            EnergyLaw law(v,skew==1,3);
+            CHECK_EQUAL(3,(int)law.mp.geoDim());
+            const gsMatrix<real_t> G = energyMetric(law.mp,pt);
+            CHECK_CLOSE(skew==1 ? 0.4 : 0.0, G(0,1), 1e-12);
+
+            const real_t W0 = energyAt(*law.materialMatrix,energyCm(G,gsVector<real_t>::Zero(3)),pt);
+            if (!(math::abs(W0) <= 1e-14))
+                gsInfo<<"  W(0) = "<<W0<<" at "<<energyLabel(v)<<(skew ? " skewed" : " orthonormal")<<"\n";
+            CHECK(math::abs(W0) <= 1e-14);
+            worstZero = std::max(worstZero,math::abs(W0));
+
+            for (index_t s = 0; s != 4; ++s)
+            {
+                const std::string ctx = energyLabel(v) + (skew ? " skewed" : " orthonormal") + " state " + std::to_string(s);
+                CHECK(energyIsPD(energyCm(G,energyStrainLarge(s))));
+                const EnergyFDResult r = energyFD(*law.materialMatrix,G,energyStrainLarge(s),pt);
+                if (!r.finite)
+                    gsInfo<<"  non-finite at "<<ctx<<"\n";
+                CHECK(r.finite);
+                if (!r.finite)
+                    continue;
+                if (!(r.err <= r.tol) || !(r.W > 0) || !(r.S2 >= 1e-3*r.Smax))
+                    gsInfo<<"  failed at "<<ctx<<": W="<<r.W<<", |S-FD|="<<r.err<<", tol="<<r.tol<<", |S_2|/max|S|="<<r.S2/r.Smax<<"\n";
+                CHECK(r.err <= r.tol);
+                CHECK(r.W > 0);
+                CHECK(r.S2 >= 1e-3 * r.Smax);
+                if (r.err/r.Smax > worstRel)     { worstRel = r.err/r.Smax; worstLabel = ctx; }
+                if (r.err/r.tol  > worstRatio)   worstRatio = r.err/r.tol;
+                if (r.S2/r.Smax  < worstShear)   { worstShear = r.S2/r.Smax; worstShearLabel = ctx; }
+            }
+        }
+    gsInfo<<"Energy_FD_Nonlinear_3D: worst |S-FD|/max|S| = "<<worstRel<<" ("<<worstLabel
+          <<"), worst |S-FD|/tol = "<<worstRatio
+          <<", smallest |S_2|/max|S| = "<<worstShear<<" ("<<worstShearLabel
+          <<"), worst |W(0)| = "<<worstZero<<"\n";
 }
 
 // W vanishes at the reference configuration Cm = G.

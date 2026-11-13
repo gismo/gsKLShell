@@ -214,6 +214,35 @@ gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_stress(const index_t patch
 }
 
 template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_energy(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput /*out*/) const
+{
+    // Output layout as in eval3D_stress: 1 x (u.cols()*z.rows()), column j*u.cols()+k
+    gsMatrix<T> result = m_materialMat->eval3D_energy(patch,u,z,MaterialOutput::VectorN);
+    gsMatrix<T> TF = this->_compute_TF(patch,u,z);
+    const T etaS = m_options.getSwitch("EtaTangentOnly") ? T(0) : this->_eta();
+    const T slackFac = this->_slackFactor(etaS);
+    index_t colIdx;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            colIdx = j*u.cols()+k;
+            if (TF(0,colIdx) == 1) // taut
+            {
+                // do nothing
+            }
+            else if (TF(0,colIdx) == -1) // slack
+                result.col(colIdx) *= slackFac;
+            else if (TF(0,colIdx) == 0) // wrinkled: no potential
+                result(0,colIdx) = std::numeric_limits<T>::quiet_NaN();
+            else
+                GISMO_ERROR("Tension field data not understood: "<<TF(0,colIdx));
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T, bool linear >
 gsMatrix<T> gsMaterialMatrixTFT<dim,T,linear>::eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
     // Input: u in-plane points

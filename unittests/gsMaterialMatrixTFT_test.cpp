@@ -1472,4 +1472,485 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         TFT_eta_affine_CHECK<true>(true);
     }
 
+    /// Curved d = 3 setup of TFT_curved_setup with an incompressible Neo-Hookean wrapped law and the nonlinear
+    /// decorator (linear = false), whose wrapped energy and wrinkle state depend on the through-thickness position.
+    struct TFT_energy_curved_NH_setup
+    {
+        typedef real_t T;
+
+        gsMultiPatch<T> ref, def;
+        gsConstantFunction<T> t, E, nu;
+        gsMaterialMatrixBase<T>::uPtr wrapped;
+        memory::unique_ptr< gsMaterialMatrixTFT<3,T,false> > tft;
+        gsMatrix<T> u, z;
+
+        TFT_energy_curved_NH_setup(const T stretch1, const T stretch2)
+        :
+        t(0.01,3), E(1e5,3), nu(0.5,3)
+        {
+            const T bump = 0.15;
+            ref.addPatch(gsNurbsCreator<T>::BSplineSquare(1));
+            ref.patch(0).degreeElevate(1);
+            ref.embed(3);
+            def = ref;
+            gsMatrix<T> & c = def.patch(0).coefs();
+            for (index_t i=0; i!=c.rows(); ++i)
+            {
+                const T x = c(i,0), y = c(i,1);
+                c(i,0) = stretch1 * x;
+                c(i,1) = stretch2 * y;
+                c(i,2) = bump * (x*(1-x) + y*(1-y) + 2*x*y);
+            }
+            ref.addAutoBoundaries();
+            def.addAutoBoundaries();
+
+            std::vector<gsFunctionSet<T>*> par(2);
+            par[0] = &E;
+            par[1] = &nu;
+            gsOptionList o;
+            o.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",1);
+            o.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",false);
+            o.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+            wrapped = getMaterialMatrix<3,T>(ref,t,par,o);
+
+            tft = memory::make_unique(new gsMaterialMatrixTFT<3,T,false>(wrapped.get()));
+            gsMaterialMatrixBase<T> * all[2] = { tft.get(), wrapped.get() };
+            for (index_t i=0; i!=2; ++i)
+            {
+                all[i]->setUndeformed(&ref);
+                all[i]->setDeformed(&def);
+            }
+
+            u.resize(2,3);
+            u << 0.3, 0.7, 0.5,
+                 0.4, 0.6, 0.2;
+            z.resize(4,3);
+            z << -0.5,  -0.4,  -0.3,
+                  0.0,   0.1,  -0.1,
+                  0.25,  0.3,   0.2,
+                  0.5,   0.45,  0.35;
+        }
+    };
+
+    /// Flat d = 3 SvK patch whose in-plane stretch varies along the first parametric direction, so that three
+    /// in-plane points of one patch are slack (x = 0.1: stretches 0.95, 0.90), taut (x = 0.5: 1.2, 0.97) and
+    /// wrinkled (x = 0.9: 1.45, 0.73). The deformation is x' = a(x), y' = b(x) y with quadratic a, b (exactly
+    /// representable by the degree-2 patch), so the stretches are the derivatives a'(x) and b(x) up to a small
+    /// shear y b'(x).
+    struct TFT_energy_mixed_setup
+    {
+        typedef real_t T;
+
+        gsMultiPatch<T> ref, def;
+        gsConstantFunction<T> t, E, nu;
+        gsMaterialMatrixBase<T>::uPtr wrapped;
+        memory::unique_ptr< gsMaterialMatrixTFT<3,T,true> > tft;
+        gsMatrix<T> u, z;
+
+        /// Control point of the quadratic q(x) = q0 + q1 x + q2 x^2 on [0,1] at the Greville abscissa \a xg
+        static T quadCtrl(const T q0, const T q1, const T q2, const T xg)
+        {
+            const T P0 = q0, P2 = q0 + q1 + q2;
+            const T qh = q0 + T(0.5)*q1 + T(0.25)*q2;
+            if (xg == 0) return P0;
+            if (xg == 1) return P2;
+            return 2*qh - T(0.5)*(P0 + P2);
+        }
+
+        TFT_energy_mixed_setup()
+        :
+        t(0.01,3), E(1e5,3), nu(0.3,3)
+        {
+            ref.addPatch(gsNurbsCreator<T>::BSplineSquare(1));
+            ref.patch(0).degreeElevate(1);
+            ref.embed(3);
+            def = ref;
+            gsMatrix<T> & c = def.patch(0).coefs();
+            for (index_t i=0; i!=c.rows(); ++i)
+            {
+                const T x = c(i,0), y = c(i,1);
+                c(i,0) = quadCtrl(0,0.8875,0.3125,x);
+                c(i,1) = quadCtrl(0.8340625,0.75625,-0.96875,x) * y;
+                c(i,2) = 0;
+            }
+            ref.addAutoBoundaries();
+            def.addAutoBoundaries();
+
+            std::vector<gsFunctionSet<T>*> par(2);
+            par[0] = &E;
+            par[1] = &nu;
+            gsOptionList o;
+            o.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
+            o.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+            wrapped = getMaterialMatrix<3,T>(ref,t,par,o);
+
+            tft = memory::make_unique(new gsMaterialMatrixTFT<3,T,true>(wrapped.get()));
+            gsMaterialMatrixBase<T> * all[2] = { tft.get(), wrapped.get() };
+            for (index_t i=0; i!=2; ++i)
+            {
+                all[i]->setUndeformed(&ref);
+                all[i]->setDeformed(&def);
+            }
+
+            u.resize(2,3);
+            u << 0.1, 0.5, 0.9,
+                 0.05, 0.05, 0.05;
+            z.resize(4,3);
+            z << -0.5,  -0.4,  -0.3,
+                  0.0,   0.1,  -0.1,
+                  0.25,  0.3,   0.2,
+                  0.5,   0.45,  0.35;
+        }
+    };
+
+    /// Sets the three options that enter the slack factor of the decorator.
+    template<class S>
+    static void TFT_energy_options(S & s, const real_t eta, const real_t slackMultiplier, const bool tangentOnly)
+    {
+        s.tft->options().setReal("Eta",eta);
+        s.tft->options().setReal("SlackMultiplier",slackMultiplier);
+        s.tft->options().setSwitch("EtaTangentOnly",tangentOnly);
+    }
+
+    /// Asserts that every column of the evaluation grid of \a s is in the wrinkle state \a expectedState
+    template<class S>
+    static void TFT_energy_state_CHECK(const S & s, const index_t expectedState)
+    {
+        const gsMatrix<real_t> TF = s.tft->eval3D_tensionfield(0,s.u,s.z);
+        CHECK_EQUAL(s.u.cols()*s.z.rows(),TF.cols());
+        for (index_t i=0; i!=TF.cols(); ++i)
+            CHECK_EQUAL(expectedState,(index_t)TF(0,i));
+    }
+
+    /// Taut state: the decorator energy is the wrapped membrane energy (VectorN output), column for column and
+    /// independent of the residual stiffness options.
+    template<class S>
+    static void TFT_energy_taut_CHECK(S & s)
+    {
+        typedef real_t T;
+        TFT_energy_state_CHECK(s,1);
+
+        const gsMatrix<T> Ww = s.wrapped->eval3D_energy(0,s.u,s.z,MaterialOutput::VectorN);
+        CHECK_EQUAL(1,Ww.rows());
+        CHECK_EQUAL(s.u.cols()*s.z.rows(),Ww.cols());
+        CHECK(Ww.cwiseAbs().maxCoeff() > 0);
+
+        const gsMatrix<T> W0 = s.tft->eval3D_energy(0,s.u,s.z);
+        CHECK_EQUAL(1,W0.rows());
+        CHECK_EQUAL(Ww.cols(),W0.cols());
+        CHECK_EQUAL(T(0),(W0-Ww).cwiseAbs().maxCoeff());
+
+        TFT_energy_options(s,0.1,1e-3,false);
+        CHECK_EQUAL(T(0),(s.tft->eval3D_energy(0,s.u,s.z)-Ww).cwiseAbs().maxCoeff());
+        TFT_energy_options(s,0.1,0,true);
+        CHECK_EQUAL(T(0),(s.tft->eval3D_energy(0,s.u,s.z,MaterialOutput::Generic)-Ww).cwiseAbs().maxCoeff());
+    }
+
+    /// Slack state: W = sigma W_wrapped, and the stress carries the same factor sigma, which ties the energy to the
+    /// stress path (the tangent uses the unswitched Eta). The slack factor of the decorator is
+    /// SlackMultiplier if Eta = 0 or SlackMultiplier > 0 and Eta otherwise, where EtaTangentOnly sets the Eta of the
+    /// stress path to 0.
+    template<class S>
+    static void TFT_energy_slack_CHECK(S & s)
+    {
+        typedef real_t T;
+        const MaterialOutput VN = MaterialOutput::VectorN;
+        TFT_energy_state_CHECK(s,-1);
+
+        const gsMatrix<T> Ww = s.wrapped->eval3D_energy(0,s.u,s.z,VN);
+        const gsMatrix<T> Sw = s.wrapped->eval3D_stress(0,s.u,s.z,VN);
+        CHECK(Ww.cwiseAbs().maxCoeff() > 0);
+        CHECK(Sw.cwiseAbs().maxCoeff() > 0);
+
+        struct Case { T eta, slackMultiplier; bool tangentOnly; T sigma; };
+        const Case cases[6] = {
+            { 0.0, 0.0,  false, 0.0  },   // no slack factor: zero energy
+            { 0.1, 0.0,  false, 0.1  },   // sigma = Eta
+            { 0.0, 1e-3, false, 1e-3 },   // sigma = SlackMultiplier
+            { 0.1, 1e-3, false, 1e-3 },   // SlackMultiplier overrides Eta
+            { 0.1, 0.0,  true,  0.0  },   // EtaTangentOnly: Eta taken as 0
+            { 0.1, 1e-3, true,  1e-3 } }; // EtaTangentOnly, SlackMultiplier > 0
+        for (index_t i=0; i!=6; ++i)
+        {
+            TFT_energy_options(s,cases[i].eta,cases[i].slackMultiplier,cases[i].tangentOnly);
+            const gsMatrix<T> W = s.tft->eval3D_energy(0,s.u,s.z);
+            const gsMatrix<T> St = s.tft->eval3D_stress(0,s.u,s.z,VN);
+            CHECK_EQUAL(1,W.rows());
+            CHECK_EQUAL(Ww.cols(),W.cols());
+            if (cases[i].sigma == 0)
+            {
+                CHECK_EQUAL(T(0),W.cwiseAbs().maxCoeff());
+                CHECK_EQUAL(T(0),St.cwiseAbs().maxCoeff());
+            }
+            else
+            {
+                TFT_eta_CLOSE(cases[i].sigma*Ww,W,1e-14);
+                TFT_eta_CLOSE(cases[i].sigma*Sw,St,1e-14);
+            }
+        }
+    }
+
+    /// Wrinkled state: the energy is NaN in every column, with and without residual stiffness, while the wrapped
+    /// energy is finite there.
+    template<class S>
+    static void TFT_energy_wrinkled_CHECK(S & s)
+    {
+        typedef real_t T;
+        TFT_energy_state_CHECK(s,0);
+
+        const gsMatrix<T> Ww = s.wrapped->eval3D_energy(0,s.u,s.z,MaterialOutput::VectorN);
+        for (index_t i=0; i!=Ww.cols(); ++i)
+            CHECK(!(std::isnan)(Ww(0,i)));
+
+        const T etas[2] = { 0.0, 0.1 };
+        for (index_t e=0; e!=2; ++e)
+        {
+            TFT_energy_options(s,etas[e],0,false);
+            const gsMatrix<T> W = s.tft->eval3D_energy(0,s.u,s.z);
+            CHECK_EQUAL(1,W.rows());
+            CHECK_EQUAL(Ww.cols(),W.cols());
+            for (index_t i=0; i!=W.cols(); ++i)
+                CHECK((std::isnan)(W(0,i)));
+        }
+    }
+
+    /// Output layout 1 x (n nz), column j*n+k = point k at row j of z: the block call equals the calls with a single
+    /// in-plane point and the matching column of z.
+    template<class S>
+    static void TFT_energy_shape_CHECK(S & s)
+    {
+        typedef real_t T;
+        const index_t n = s.u.cols(), nz = s.z.rows();
+        const gsMatrix<T> W = s.tft->eval3D_energy(0,s.u,s.z);
+        CHECK_EQUAL(1,W.rows());
+        CHECK_EQUAL(n*nz,W.cols());
+        const T tol = 1e-14 * W.cwiseAbs().maxCoeff();
+        CHECK(W.cwiseAbs().maxCoeff() > 0);
+        for (index_t k=0; k!=n; ++k)
+        {
+            const gsMatrix<T> uk = s.u.col(k), zk = s.z.col(k);
+            const gsMatrix<T> W1 = s.tft->eval3D_energy(0,uk,zk);
+            CHECK_EQUAL(1,W1.rows());
+            CHECK_EQUAL(nz,W1.cols());
+            for (index_t j=0; j!=nz; ++j)
+                CHECK_CLOSE(W1(0,j),W(0,j*n+k),tol);
+        }
+    }
+
+    TEST(TFT_energy_taut_linear)
+    {
+        TFT_curved_setup s(1.2,0.97);
+        TFT_energy_taut_CHECK(s);
+    }
+
+    TEST(TFT_energy_slack_linear)
+    {
+        TFT_curved_setup s(0.95,0.90);
+        TFT_energy_slack_CHECK(s);
+    }
+
+    TEST(TFT_energy_wrinkled_linear)
+    {
+        TFT_curved_setup s(1.2,0.8/math::sqrt(1.2));
+        TFT_energy_wrinkled_CHECK(s);
+    }
+
+    TEST(TFT_energy_taut_nonlinear)
+    {
+        TFT_energy_curved_NH_setup s(1.2,0.97);
+        TFT_energy_taut_CHECK(s);
+    }
+
+    TEST(TFT_energy_slack_nonlinear)
+    {
+        TFT_energy_curved_NH_setup s(0.95,0.90);
+        TFT_energy_slack_CHECK(s);
+    }
+
+    TEST(TFT_energy_wrinkled_nonlinear)
+    {
+        TFT_energy_curved_NH_setup s(1.2,0.8/math::sqrt(1.2));
+        TFT_energy_wrinkled_CHECK(s);
+    }
+
+    /// One call with three in-plane points in the slack, taut and wrinkled state: each column is checked against
+    /// its own expectation (sigma W_wrapped, W_wrapped, NaN).
+    TEST(TFT_energy_mixed_states_linear)
+    {
+        typedef real_t T;
+        TFT_energy_mixed_setup s;
+        const index_t n = s.u.cols(), nz = s.z.rows();
+        const T sigma = 0.1;
+        s.tft->options().setReal("Eta",sigma);
+
+        const gsMatrix<T> TF = s.tft->eval3D_tensionfield(0,s.u,s.z);
+        const gsMatrix<T> Ww = s.wrapped->eval3D_energy(0,s.u,s.z,MaterialOutput::VectorN);
+        const gsMatrix<T> W  = s.tft->eval3D_energy(0,s.u,s.z);
+        CHECK_EQUAL(1,W.rows());
+        CHECK_EQUAL(n*nz,W.cols());
+        const index_t state[3] = { -1, 1, 0 };
+        for (index_t j=0; j!=nz; ++j)
+        {
+            for (index_t k=0; k!=n; ++k)
+            {
+                const index_t c = j*n+k;
+                CHECK_EQUAL(state[k],(index_t)TF(0,c));
+                CHECK(Ww(0,c) > 0);
+                if (state[k] == 1)
+                    CHECK_EQUAL(T(0),math::abs(W(0,c)-Ww(0,c)));
+                else if (state[k] == -1)
+                    CHECK_CLOSE(sigma*Ww(0,c),W(0,c),1e-14*Ww(0,c));
+                else
+                    CHECK((std::isnan)(W(0,c)));
+            }
+        }
+    }
+
+    /// Output shape and per-point consistency; the linear wrapped energy is the membrane one and so does not vary
+    /// through the thickness.
+    TEST(TFT_energy_shape_linear)
+    {
+        TFT_curved_setup s(1.2,0.97);
+        TFT_energy_state_CHECK(s,1);
+        TFT_energy_shape_CHECK(s);
+        const gsMatrix<real_t> W = s.tft->eval3D_energy(0,s.u,s.z);
+        CHECK_EQUAL(real_t(0),TFT_zVariation(W,s.u.cols(),s.z.rows()));
+    }
+
+    /// As TFT_energy_shape_linear; for the Neo-Hookean wrapped law the energy depends on z, which makes the
+    /// z-ordering of the columns observable. In the taut state the decorator output is the wrapped one column
+    /// for column.
+    TEST(TFT_energy_shape_nonlinear)
+    {
+        typedef real_t T;
+        TFT_energy_curved_NH_setup s(1.2,0.97);
+        TFT_energy_state_CHECK(s,1);
+        TFT_energy_shape_CHECK(s);
+        const gsMatrix<T> W  = s.tft->eval3D_energy(0,s.u,s.z);
+        const gsMatrix<T> Ww = s.wrapped->eval3D_energy(0,s.u,s.z,MaterialOutput::VectorN);
+        CHECK_EQUAL(T(0),(W-Ww).cwiseAbs().maxCoeff());
+        CHECK(TFT_zVariation(W,s.u.cols(),s.z.rows()) > 0);
+    }
+
+    /// Directional derivative of the energy along a metric path G(t) = G0 + t dG at fixed reference metric I:
+    /// with the engineering Green-Lagrange strain E = (E11, E22, 2 E12) = ((G11-1)/2, (G22-1)/2, G12) one has
+    /// dW/dt = S . dE/dt = S . (dG11/2, dG22/2, dG12), S the VectorN stress of the decorator. Fourth-order central
+    /// differences of the decorator energy at z = 0 are compared with the contraction, in the taut state and in
+    /// the slack state (with a nonzero slack factor, otherwise both sides vanish). The state is asserted at the
+    /// base point and at every stencil point.
+    template<bool linear>
+    static void TFT_energy_FD_CHECK(const bool slack)
+    {
+        typedef real_t T;
+        const MaterialOutput VN = MaterialOutput::VectorN;
+        const index_t expectedState = slack ? -1 : 1;
+
+        const T al = 0.9;
+        gsMatrix<T> R(2,2);
+        R << math::cos(al), -math::sin(al), math::sin(al), math::cos(al);
+        gsMatrix<T> D(2,2);
+        D << (slack ? 0.95 : 1.2), 0.0, 0.0, (slack ? 0.90 : 0.97);
+        const gsMatrix<T> Jdef = R * D * R.transpose();
+        const gsMatrix<T> G0 = Jdef.transpose() * Jdef;
+
+        gsMultiPatch<T> mp, mp_def, m;
+        mp.addPatch( gsNurbsCreator<T>::BSplineSquare(1) );
+        mp.addAutoBoundaries();
+        mp_def.addPatch( gsNurbsCreator<T>::BSplineSquare(1) );
+        mp_def.patch(0).coefs() = mp_def.patch(0).coefs() * Jdef.transpose();
+        mp_def.addAutoBoundaries();
+
+        const T mu = 4.225e5;
+        const T PoissonRatio = linear ? 0.45 : 0.5;
+        gsConstantFunction<T> t(0.01,2), E(2*mu*(1+PoissonRatio),2), nu(PoissonRatio,2);
+        std::vector<gsFunctionSet<T>*> parameters(2);
+        parameters[0] = &E;
+        parameters[1] = &nu;
+        gsOptionList options;
+        if (linear)
+        {
+            options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
+            options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+        }
+        else
+        {
+            options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",1);
+            options.addSwitch("Compressibility","Compressibility: (false): Imcompressible | (true): Compressible",false);
+            options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+        }
+        gsMaterialMatrixBase<T>::uPtr materialMatrix = getMaterialMatrix<2,T>(mp,t,parameters,options);
+        materialMatrix->setDeformed(&mp_def);
+        gsMaterialMatrixTFT<2,T,linear> tft(*materialMatrix);
+        tft.setDeformed(&mp_def);
+
+        gsVector<T> pt(2);
+        pt.setConstant(0.25);
+        gsMatrix<T> z(1,1);
+        z.setZero();
+
+        // Deformed metric G as the upper Cholesky factor U (U^T U = G): patch coefs * U^T has metric G exactly
+        auto setMetric = [&](const gsMatrix<T> & G)
+        {
+            gsMatrix<T> U(2,2);
+            U << math::sqrt(G(0,0)), G(0,1)/math::sqrt(G(0,0)),
+                 0.0,                math::sqrt(G(1,1) - G(0,1)*G(0,1)/G(0,0));
+            m.clear();
+            m.addPatch( gsNurbsCreator<T>::BSplineSquare(1) );
+            m.patch(0).coefs() = m.patch(0).coefs() * U.transpose();
+            m.addAutoBoundaries();
+            tft.setDeformed(&m);
+        };
+        auto energyAt = [&](const gsMatrix<T> & G) -> T
+        {
+            setMetric(G);
+            CHECK_EQUAL(expectedState,(index_t)tft.eval3D_tensionfield(0,pt,z)(0,0));
+            return tft.eval3D_energy(0,pt,z)(0,0);
+        };
+
+        gsMatrix<T> dG(2,2);
+        dG << 0.3, 0.15, 0.15, -0.2;
+        gsVector<T> dEhat(3);
+        dEhat << 0.5*dG(0,0), 0.5*dG(1,1), dG(0,1);
+
+        // Slack factors sigma of the two ways to make the slack energy nonzero
+        const index_t nsets = slack ? 2 : 1;
+        const T etas[2] = { 0.1, 0.0 }, slackMults[2] = { 0.0, 1e-3 };
+        const T h = 1e-5;
+        for (index_t i=0; i!=nsets; ++i)
+        {
+            tft.options().setReal("Eta",slack ? etas[i] : 0.0);
+            tft.options().setReal("SlackMultiplier",slack ? slackMults[i] : 0.0);
+
+            const T W0 = energyAt(G0);
+            const gsMatrix<T> S = tft.eval3D_stress(0,pt,z,VN);
+            CHECK_EQUAL(3,S.rows());
+            CHECK(math::abs(W0) > 0);
+
+            const T dWdt = S.col(0).dot(dEhat);
+            const T scale = S.cwiseAbs().maxCoeff() * dEhat.cwiseAbs().maxCoeff();
+            CHECK(math::abs(dWdt) > 1e-3 * scale);
+
+            // Fourth-order central stencil (-W(2h) + 8 W(h) - 8 W(-h) + W(-2h)) / (12 h), truncation O(h^4)
+            const T mult[4] = {-2.0, -1.0, 1.0, 2.0};
+            T Wst[4];
+            for (index_t s=0; s!=4; ++s)
+                Wst[s] = energyAt(G0 + mult[s]*h*dG);
+            const T dWdt_FD = (-Wst[3] + 8*Wst[2] - 8*Wst[1] + Wst[0]) / (12*h);
+            CHECK_CLOSE(dWdt,dWdt_FD,1e-6*scale);
+        }
+        tft.setDeformed(&mp_def);
+    }
+
+    TEST(TFT_energy_FD_linear)
+    {
+        TFT_energy_FD_CHECK<true>(false);
+        TFT_energy_FD_CHECK<true>(true);
+    }
+
+    TEST(TFT_energy_FD_nonlinear)
+    {
+        TFT_energy_FD_CHECK<false>(false);
+        TFT_energy_FD_CHECK<false>(true);
+    }
+
 }

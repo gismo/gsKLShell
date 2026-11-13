@@ -380,6 +380,19 @@ public:
     gsMatrix<T> eval3D_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
     using Base::eval3D_stress;
 
+    /// Strain energy per unit reference volume at fibre z (size 1 x u.cols()*z.rows()), paired with the stress of eval3D_stress:
+    /// - taut points: the energy W of the wrapped law;
+    /// - slack points: sigma*W, with sigma the slack factor used by eval3D_stress (SlackMultiplier if > 0, else Eta; Eta is taken as 0 under EtaTangentOnly);
+    /// - wrinkled points: NaN for every Eta, since the truncated tension-field stress is not the gradient of a potential there
+    ///   (use gsMaterialMatrixTFTSplit for a variational formulation).
+    ///
+    /// The argument \a out is ignored; the wrapped law is evaluated with MaterialOutput::VectorN, as in eval3D_stress
+    /// (for a wrapped gsMaterialMatrixLinear this is the mid-surface membrane energy at every z).
+    /// A wrapped law without an energy (e.g. gsMaterialMatrixNonlinear with Material::SvK) raises its GISMO_NO_IMPLEMENTATION,
+    /// also when all points are wrinkled. There is no prescribed-metric (_C) energy path.
+    gsMatrix<T> eval3D_energy(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_energy;
+
     /// Cauchy stress from the modified (tension-field) stress: S'/J with J the wrapped material's eval3D_detF
     gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
     using Base::eval3D_CauchyStress;

@@ -4878,6 +4878,202 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    /// Effective energy W_eff against a central finite difference of the effective stress S_eff,
+    /// dW_eff/dE_i = S_eff,i (engineering Voigt strain), over the three criterion states and eta in {0,1e-3}.
+    /// The slack state at eta = 0 (zero slack multiplier) is identically zero and is checked as such.
+    template<bool linear>
+    static void SplitEnergyFDCheck(const SplitMaterial mat)
+    {
+        const SplitStateSpec specs[3] = { SplitWrinkledSpec(), SplitTautSpec(), SplitSlackSpec() };
+        const real_t etas[2] = { 0.0, 1e-3 };
+        const gsVector<real_t> pt = SplitPoint();
+        const real_t z = 0;
+        const real_t h = 1e-6;
+        const real_t tol = 1e-6;
+        const char * names[3] = { "wrinkled", "taut", "slack" };
+
+        for (index_t s = 0; s!=3; ++s)
+            for (index_t e = 0; e!=2; ++e)
+            {
+                gsInfo << "state " << names[s] << ", eta " << etas[e] << "\n";
+                SplitFixture<2,linear> fx(mat,SplitSkewedJref(),specs[s].lam1,specs[s].lam2,static_cast<real_t>(EIGEN_PI)/6);
+                fx.split->options().setReal("Eta",etas[e]);
+                fx.split->options().setReal("SlackMultiplier",0);
+                if (!linear)
+                    fx.split->options().setSwitch("Exact",true);
+                fx.split->resetCounters();
+
+                const gsMatrix<real_t> Cmat = fx.CmatDef();
+                const gsMatrix<real_t> E0 = fx.EengDef();
+                CHECK_EQUAL(specs[s].state, fx.stateAt(Cmat,pt,z));
+
+                const gsMatrix<real_t> S = fx.split->eval3D_vector_C(Cmat,0,pt,z);
+                const real_t W0 = fx.split->eval3D_energy_C(Cmat,0,pt,z)(0,0);
+                CHECK(S.allFinite());
+                CHECK(math::isfinite(W0));
+
+                if (specs[s].state==-1 && etas[e]==0)
+                {
+                    CHECK(W0 == 0);
+                    CHECK(S.cwiseAbs().maxCoeff() == 0);
+                }
+                else
+                {
+                    const real_t Smax = S.cwiseAbs().maxCoeff();
+                    CHECK(Smax > 0);
+                    for (index_t i = 0; i!=3; ++i)
+                    {
+                        gsMatrix<real_t> Ep = E0, Em = E0;
+                        Ep(i,0) += h;
+                        Em(i,0) -= h;
+                        const gsMatrix<real_t> Cp = fx.CmatFromE(Ep), Cm = fx.CmatFromE(Em);
+                        CHECK_EQUAL(specs[s].state, fx.stateAt(Cp,pt,z));
+                        CHECK_EQUAL(specs[s].state, fx.stateAt(Cm,pt,z));
+                        const real_t Wp = fx.split->eval3D_energy_C(Cp,0,pt,z)(0,0);
+                        const real_t Wm = fx.split->eval3D_energy_C(Cm,0,pt,z)(0,0);
+                        CHECK(math::isfinite(Wp));
+                        CHECK(math::isfinite(Wm));
+                        const real_t fd = (Wp - Wm) / (2*h);
+                        gsInfo << "  component " << i << ": S = " << S(i,0) << ", FD = " << fd
+                               << ", rel.err = " << math::abs(S(i,0) - fd) / Smax << " (tol " << tol << ")\n";
+                        CHECK(math::abs(S(i,0) - fd) <= tol * Smax);
+                    }
+                }
+                CHECK_EQUAL(0,fx.split->numTFTFailures());
+                if (!linear && specs[s].state==0)
+                {
+                    CHECK_EQUAL(0,fx.split->numExactFallbacks());
+                    CHECK_EQUAL(0,fx.split->numExactReclassified());
+                    CHECK_EQUAL(0,fx.split->numExactSkipped());
+                }
+            }
+    }
+
+    TEST(Energy_FD_class_C)
+    {
+        gsInfo << "NH incompressible, exact\n";
+        SplitEnergyFDCheck<false>(SplitMatNHIncomp);
+        gsInfo << "SvK (linear)\n";
+        SplitEnergyFDCheck<true>(SplitMatSvK);
+    }
+
+    TEST(Energy_NaN_linearised_class)
+    {
+        const SplitStateSpec spec = SplitWrinkledSpec();
+        const gsVector<real_t> pt = SplitPoint();
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitSkewedJref(),spec.lam1,spec.lam2,static_cast<real_t>(EIGEN_PI)/6);
+        fx.split->options().setSwitch("Exact",false);
+        const gsMatrix<real_t> Cmat = fx.CmatDef();
+        CHECK_EQUAL(0, fx.stateAt(Cmat,pt,0));
+        const real_t W = fx.split->eval3D_energy_C(Cmat,0,pt,0)(0,0);
+        gsInfo << "  W_eff (linearised wrinkled) = " << W << "\n";
+        CHECK(math::isnan(W));
+    }
+
+    TEST(ExactLocalSolve_mode1_equals_mode0_class)
+    {
+        const SplitMaterial mats[2] = { SplitMatNHIncomp, SplitMatNHComp };
+        const SplitStateSpec specs[3] = { SplitWrinkledSpec(), SplitTautSpec(), SplitSlackSpec() };
+        const gsVector<real_t> pt = SplitPoint();
+        index_t nCmp = 0;
+
+        for (index_t m = 0; m!=2; ++m)
+            for (index_t s = 0; s!=3; ++s)
+            {
+                SplitFixture<2,false> fx(mats[m],SplitSkewedJref(),specs[s].lam1,specs[s].lam2,static_cast<real_t>(EIGEN_PI)/6);
+                fx.split->options().setSwitch("Exact",true);
+                fx.split->options().setReal("Eta",1e-3);
+                const gsMatrix<real_t> Cc = fx.CmatDef();
+
+                fx.split->options().setInt("ExactLocalSolve",0);
+                fx.split->resetCounters();
+                const gsMatrix<real_t> S0 = fx.split->eval3D_vector_C(Cc,0,pt,0);
+                const gsMatrix<real_t> C0 = fx.split->eval3D_matrix_C(Cc,0,pt,0);
+                const index_t u2 = fx.split->numExactUsed2x2();
+                const index_t tf = fx.split->numTFTFailures();
+
+                fx.split->options().setInt("ExactLocalSolve",1);
+                fx.split->resetCounters();
+                const gsMatrix<real_t> S1 = fx.split->eval3D_vector_C(Cc,0,pt,0);
+                const gsMatrix<real_t> C1 = fx.split->eval3D_matrix_C(Cc,0,pt,0);
+                CHECK_EQUAL(0,fx.split->numExactMinimised());
+
+                gsInfo << "  material " << m << ", state " << specs[s].state << ": 2x2 pass " << u2
+                       << ", TFT failures " << tf << "\n";
+                if (m==0 && s==0)
+                    CHECK_EQUAL(0,u2);
+                if (u2==0 && tf==0)
+                {
+                    SPLIT_CHECK_SAME(S1,S0);
+                    SPLIT_CHECK_SAME(C1,C0);
+                    ++nCmp;
+                }
+            }
+        gsInfo << "  bitwise-compared cases: " << nCmp << " of 6\n";
+        CHECK(nCmp >= 5);
+    }
+
+    TEST(ExactLocalSolve_mode2_vs_mode1_class)
+    {
+        const SplitMaterial mats[2] = { SplitMatNHIncomp, SplitMatNHComp };
+        const SplitStateSpec spec = SplitWrinkledSpec();
+        const gsVector<real_t> pt = SplitPoint();
+        const gsMatrix<real_t> ptm = pt;
+        const gsMatrix<real_t> zmat = SplitZ(0);
+
+        for (index_t m = 0; m!=2; ++m)
+            for (index_t path = 0; path!=2; ++path)
+            {
+                gsInfo << "material " << m << (path==0 ? ", prescribed metric\n" : ", geometry\n");
+                SplitFixture<2,false> fx(mats[m],SplitSkewedJref(),spec.lam1,spec.lam2,static_cast<real_t>(EIGEN_PI)/6);
+                fx.split->options().setSwitch("Exact",true);
+                fx.split->options().setReal("Eta",1e-3);
+                const gsMatrix<real_t> Cc = fx.CmatDef();
+
+                gsMatrix<real_t> S[3];
+                for (index_t mode = 1; mode!=3; ++mode)
+                {
+                    fx.split->options().setInt("ExactLocalSolve",mode);
+                    fx.split->resetCounters();
+                    S[mode] = (path==0) ? fx.split->eval3D_vector_C(Cc,0,pt,0.0)
+                                        : fx.split->eval3D_vector(0,ptm,zmat,MaterialOutput::VectorN);
+                }
+                CHECK(fx.split->numExactMinimised() > 0);
+                CHECK_EQUAL(0,fx.split->numExactFallbacks());
+                CHECK_EQUAL(0,fx.split->numExactSkipped());
+                SPLIT_CHECK_REL("mode 2 vs mode 1",S[2],S[1],1e-6);
+            }
+    }
+
+    TEST(ExactLocalSolve_invalid_class)
+    {
+        const SplitStateSpec spec = SplitWrinkledSpec();
+        const gsVector<real_t> pt = SplitPoint();
+        const gsMatrix<real_t> ptm = pt;
+        const gsMatrix<real_t> zmat = SplitZ(0);
+
+        {
+            SplitFixture<2,false> fx(SplitMatNHIncomp,SplitSkewedJref(),spec.lam1,spec.lam2,static_cast<real_t>(EIGEN_PI)/6);
+            fx.split->options().setSwitch("Exact",true);
+            fx.split->options().setInt("ExactLocalSolve",3);
+            CHECK_THROW(fx.split->eval3D_vector_C(fx.CmatDef(),0,pt,0.0), std::runtime_error);
+        }
+        {
+            SplitFixture<2,false> fx(SplitMatNHIncomp,SplitSkewedJref(),spec.lam1,spec.lam2,static_cast<real_t>(EIGEN_PI)/6);
+            fx.split->options().setSwitch("Exact",false);
+            fx.split->options().setInt("ExactLocalSolve",3);
+            CHECK_THROW(fx.split->eval3D_vector_C(fx.CmatDef(),0,pt,0.0), std::runtime_error);
+        }
+        {
+            SplitFixture<2,false> fx(SplitMatNHIncomp,SplitSkewedJref(),spec.lam1,spec.lam2,static_cast<real_t>(EIGEN_PI)/6);
+            fx.split->options().setSwitch("Exact",false);
+            fx.split->options().setInt("ExactLocalSolve",3);
+            CHECK_THROW(fx.split->eval3D_vector(0,ptm,zmat,MaterialOutput::VectorN), std::runtime_error);
+        }
+    }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #   undef SPLIT_CHECK_SAME
 #   undef SPLIT_CHECK_REL
 }

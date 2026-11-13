@@ -721,7 +721,8 @@ public:
      * For plane stress, W is evaluated at the same condensed state as the stress: C33 = 1/J0^2 for
      * incompressible laws and the C33 of the through-thickness Newton iteration for compressible laws.
      * The default raises GISMO_NO_IMPLEMENTATION; gsMaterialMatrixLinear, gsMaterialMatrixNonlinear (except
-     * Material::SvK) and gsMaterialMatrixTFTSplit implement it.
+     * Material::SvK), gsMaterialMatrixTFTSplit, gsMaterialMatrixTFT (NaN at wrinkled points) and
+     * gsMaterialMatrixComposite (thickness-integrated, per unit reference area; see its documentation) implement it.
      *
      * @param[in]  patch  The patch
      * @param[in]  u      The in-plane shell coordinates to be evaluated on
