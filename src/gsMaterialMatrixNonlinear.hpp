@@ -941,6 +941,318 @@ gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Incompr
     return result;
 }
 
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::eval3D_energy(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput ) const
+{
+    this->_computePoints(patch,u);
+    return this->_eval3D_energy_impl<mat,comp>(patch,u,z);
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat, bool _comp>
+typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type
+gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_energy_impl(const index_t /*patch*/, const gsMatrix<T> & /*u*/, const gsMatrix<T>& /*z*/) const
+{
+    GISMO_NO_IMPLEMENTATION;
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat, bool _comp>
+typename std::enable_if<!_comp && !(_mat==Material::SvK), gsMatrix<T>>::type
+gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_energy_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
+{
+    return _eval3D_Incompressible_energy(patch, u, z);
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat, bool _comp>
+typename std::enable_if<_comp && !(_mat==Material::SvK), gsMatrix<T>>::type
+gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_energy_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
+{
+    return _eval3D_Compressible_energy(patch, u, z);
+}
+
+template <short_t dim, class T, index_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::eval3D_energy_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput /*out*/) const
+{
+    this->_computePoints(patch,u);
+    return this->_eval3D_energy_C_impl<mat,comp>(Cmat,patch,u,z);
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat, bool _comp>
+typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type
+gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_energy_C_impl(const gsMatrix<T> & /*Cmat*/, const index_t /*patch*/, const gsVector<T> & /*u*/, const T /*z*/) const
+{
+    GISMO_NO_IMPLEMENTATION;
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat, bool _comp>
+typename std::enable_if<!_comp && !(_mat==Material::SvK), gsMatrix<T>>::type
+gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_energy_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const
+{
+    return _eval3D_Incompressible_energy_C(Cmat, patch, u, z);
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat, bool _comp>
+typename std::enable_if<_comp && !(_mat==Material::SvK), gsMatrix<T>>::type
+gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_energy_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const
+{
+    return _eval3D_Compressible_energy_C(Cmat, patch, u, z);
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_energy(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const
+{
+    // Output: 1 x (u.cols()*z.rows()), column j*u.cols()+k for point k, fibre j
+    // C33 solves S^33 = 0, so dW/dg_ab = dPsi/dg_ab at fixed C33 (envelope theorem): S = dW/dE holds for the condensed energy.
+    gsMatrix<T> result(1, u.cols() * z.rows());
+    result.setZero();
+    gsMatrix<T> C33s = _eval3D_Compressible_C33(patch,u,z);
+    gsMatrix<T,3,3> c;
+    index_t colIdx;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
+
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            colIdx = j*u.cols()+k;
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k));
+
+            if (gsAllCloseRelativeToMax(m_data.mine().m_Gcon_ori,m_data.mine().m_Gcon_def,1e-12))
+                result(0,colIdx) = 0.0;
+            else
+            {
+                c.setZero();
+                c.block(0,0,2,2) = m_data.mine().m_Gcov_def.block(0,0,2,2);
+                c(2,2) = C33s(0,colIdx);
+                m_data.mine().m_J_sq = m_data.mine().m_J0_sq * c(2,2);
+
+                result(0,colIdx) = _Psi(c);
+            }
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Compressible_energy_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const
+{
+    gsMatrix<T> result(1, u.cols());
+    result.setZero();
+
+    gsMatrix<T> zmat(1,1);
+    zmat<<z;
+
+    gsMatrix<T> C33s = _eval3D_Compressible_C33(Cmat,patch,u,zmat);
+    gsMatrix<T,3,3> c;
+
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
+
+        this->_getMetric(0, z * m_data.mine().m_Tmat(0, 0), Cmat);
+
+        if (gsAllCloseRelativeToMax(m_data.mine().m_Gcon_ori,m_data.mine().m_Gcon_def,1e-12))
+            result(0,k) = 0.0;
+        else
+        {
+            c.setZero();
+            c.block(0,0,2,2) = m_data.mine().m_Gcov_def.block(0,0,2,2);
+            c(2,2) = C33s(0,k);
+            m_data.mine().m_J_sq = m_data.mine().m_J0_sq * c(2,2);
+
+            result(0,k) = _Psi(c);
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Incompressible_energy(const index_t /*patch*/, const gsMatrix<T> & u, const gsMatrix<T>& z) const
+{
+    // Output: 1 x (u.cols()*z.rows()), column j*u.cols()+k for point k, fibre j
+    gsMatrix<T> result(1, u.cols() * z.rows());
+    result.setZero();
+    index_t colIdx;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
+
+        for( index_t j=0; j < z.rows(); ++j ) // through-thickness points
+        {
+            colIdx = j * u.cols() + k;
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k));
+
+            if (gsAllCloseRelativeToMax(m_data.mine().m_Gcon_ori,m_data.mine().m_Gcon_def,1e-12))
+                result(0,colIdx) = 0.0;
+            else
+                result(0,colIdx) = _Psi();
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_eval3D_Incompressible_energy_C(const gsMatrix<T> & Cmat, const index_t /*patch*/, const gsVector<T> & u, const T z) const
+{
+    gsMatrix<T> result(1, u.cols());
+    result.setZero();
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
+
+        this->_getMetric(0, z * m_data.mine().m_Tmat(0, 0), Cmat);
+
+        if (gsAllCloseRelativeToMax(m_data.mine().m_Gcon_ori,m_data.mine().m_Gcon_def,1e-12))
+            result(0,k) = 0.0;
+        else
+            result(0,k) = _Psi();
+    }
+    return result;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------------
+// Strain energy density Psi. S = 2 dPsi/dC, with d(J^2)/dC = J^2 C^-1 and dI_1/dC = G^-1.
+// I_1 = G^{ab} g_ab + C33, I_2 = C33 G^{ab} g_ab + J0^2, J^2 = J0^2 C33 (J0^2: det of the in-plane metric ratio).
+// Compressible laws are evaluated at the C33 of the plane-stress condition; incompressible laws at C33 = 1/J0^2.
+//--------------------------------------------------------------------------------------------------------------------------------------
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+inline T gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_Psi(const gsMatrix<T> & c) const
+{
+    return _Psi_impl<mat>(c);
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+inline T gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_Psi() const
+{
+    return _Psi_impl<mat>();
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+inline typename std::enable_if<_mat==Material::NH, T>::type
+gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_Psi_impl(const gsMatrix<T> & c) const
+{
+    T mu = m_data.mine().m_parvals.at(0) / (2.*(1. + m_data.mine().m_parvals.at(1)));
+    T K  = m_data.mine().m_parvals.at(0) / ( 3 - 6 * m_data.mine().m_parvals.at(1));
+    T traceCt = (m_data.mine().m_Gcon_ori.block(0,0,2,2).array() * m_data.mine().m_Gcov_def.block(0,0,2,2).array()).sum();
+    T I_1   = traceCt + c(2,2);
+    T J_sq  = m_data.mine().m_J0_sq * c(2,2);
+    return mu / 2.0 * ( math::pow(J_sq,-1.0/3.0) * I_1 - 3.0 ) + K / 4.0 * ( J_sq - 1.0 - math::log(J_sq) );
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+inline typename std::enable_if<_mat==Material::NH, T>::type
+gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_Psi_impl() const
+{
+    T mu = m_data.mine().m_parvals.at(0) / (2.*(1. + m_data.mine().m_parvals.at(1)));
+    T traceCt = (m_data.mine().m_Gcon_ori.block(0,0,2,2).array() * m_data.mine().m_Gcov_def.block(0,0,2,2).array()).sum();
+    T I_1   = traceCt + 1.0 / m_data.mine().m_J0_sq;
+    return mu / 2.0 * ( I_1 - 3.0 );
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+inline typename std::enable_if<_mat==Material::MR, T>::type
+gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_Psi_impl(const gsMatrix<T> & c) const
+{
+    GISMO_ENSURE(m_pars.size()==3,"Mooney-Rivlin model needs to be a 3 parameter model");
+    T mu = m_data.mine().m_parvals.at(0) / (2.*(1. + m_data.mine().m_parvals.at(1)));
+    T K  = m_data.mine().m_parvals.at(0) / ( 3 - 6 * m_data.mine().m_parvals.at(1));
+    T c2 = mu/(m_data.mine().m_parvals.at(2)+1);
+    T c1 = m_data.mine().m_parvals.at(2)*c2;
+    T traceCt = (m_data.mine().m_Gcon_ori.block(0,0,2,2).array() * m_data.mine().m_Gcov_def.block(0,0,2,2).array()).sum();
+    T I_1   = traceCt + c(2,2);
+    T I_2   = c(2,2) * traceCt + m_data.mine().m_J0_sq;
+    T J_sq  = m_data.mine().m_J0_sq * c(2,2);
+    return c1 / 2.0 * ( math::pow(J_sq,-1.0/3.0) * I_1 - 3.0 )
+         + c2 / 2.0 * ( math::pow(J_sq,-2.0/3.0) * I_2 - 3.0 )
+         + K / 4.0 * ( J_sq - 1.0 - math::log(J_sq) );
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+inline typename std::enable_if<_mat==Material::MR, T>::type
+gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_Psi_impl() const
+{
+    GISMO_ENSURE(m_pars.size()==3,"Mooney-Rivlin model needs to be a 3 parameter model");
+    T mu = m_data.mine().m_parvals.at(0) / (2.*(1. + m_data.mine().m_parvals.at(1)));
+    T c2 = mu/(m_data.mine().m_parvals.at(2)+1);
+    T c1 = m_data.mine().m_parvals.at(2)*c2;
+    T traceCt = (m_data.mine().m_Gcon_ori.block(0,0,2,2).array() * m_data.mine().m_Gcov_def.block(0,0,2,2).array()).sum();
+    T I_1   = traceCt + 1.0 / m_data.mine().m_J0_sq;
+    T I_2   = traceCt / m_data.mine().m_J0_sq + m_data.mine().m_J0_sq;
+    return c1 / 2.0 * ( I_1 - 3.0 ) + c2 / 2.0 * ( I_2 - 3.0 );
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+inline typename std::enable_if<_mat==Material::NH_ext, T>::type
+gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_Psi_impl(const gsMatrix<T> & c) const
+{
+    T mu = m_data.mine().m_parvals.at(0) / (2.*(1. + m_data.mine().m_parvals.at(1)));
+    T lambda = m_data.mine().m_parvals.at(0) * m_data.mine().m_parvals.at(1) / ( (1. + m_data.mine().m_parvals.at(1))*(1.-2.*m_data.mine().m_parvals.at(1)));
+    T traceCt = (m_data.mine().m_Gcon_ori.block(0,0,2,2).array() * m_data.mine().m_Gcov_def.block(0,0,2,2).array()).sum();
+    T I_1   = traceCt + c(2,2);
+    T J_sq  = m_data.mine().m_J0_sq * c(2,2);
+    T lnJ_sq = math::log(J_sq);
+    return mu / 2.0 * ( I_1 - 3.0 - lnJ_sq ) + lambda / 4.0 * ( J_sq - 1.0 - lnJ_sq );
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+inline typename std::enable_if<_mat==Material::OG, T>::type
+gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_Psi_impl(const gsMatrix<T> & c) const
+{
+    GISMO_ENSURE(3 - 6 * m_data.mine().m_parvals.at(1) != 0, "Bulk modulus is infinity for compressible material model. Try to use incompressible models.");
+    T K  = m_data.mine().m_parvals.at(0) / ( 3 - 6 * m_data.mine().m_parvals.at(1));
+    T J_sq  = m_data.mine().m_J0_sq * c(2,2);
+    this->_computeStretch(c,m_data.mine().m_gcon_ori);
+
+    T tmp = 0.0, Lambda;
+    index_t n = (m_pars.size()-2)/2;
+    for (index_t k=0; k!=n; k++)
+    {
+        T alpha_i = m_data.mine().m_parvals.at(2*(k+1)+1);
+        T mu_i = m_data.mine().m_parvals.at(2*(k+1));
+        Lambda = math::pow(m_data.mine().m_stretches(0),alpha_i) + math::pow(m_data.mine().m_stretches(1),alpha_i) + math::pow(m_data.mine().m_stretches(2),alpha_i);
+        tmp += mu_i / alpha_i * ( math::pow(J_sq,-alpha_i/6.0) * Lambda - 3.0 );
+    }
+    return tmp + K / 4.0 * ( J_sq - 1.0 - math::log(J_sq) );
+}
+
+template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
+template <enum Material _mat>
+inline typename std::enable_if<_mat==Material::OG, T>::type
+gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::_Psi_impl() const
+{
+    gsMatrix<T> C(3,3);
+    C.setZero();
+    C.block(0,0,2,2) = m_data.mine().m_Gcov_def.block(0,0,2,2);
+    C(2,2) = 1./m_data.mine().m_J0_sq;
+    this->_computeStretch(C,m_data.mine().m_gcon_ori);
+
+    T tmp = 0.0;
+    index_t n = (m_pars.size()-2)/2;
+    for (index_t k=0; k!=n; k++)
+    {
+        T alpha_i = m_data.mine().m_parvals.at(2*(k+1)+1);
+        T mu_i = m_data.mine().m_parvals.at(2*(k+1));
+        tmp += mu_i / alpha_i * ( math::pow(m_data.mine().m_stretches(0),alpha_i) + math::pow(m_data.mine().m_stretches(1),alpha_i) + math::pow(m_data.mine().m_stretches(2),alpha_i) - 3.0 );
+    }
+    return tmp;
+}
+
 template <short_t dim, class T, short_t matId, bool comp, enum Material mat, enum Implementation imp >
 gsMatrix<T> gsMaterialMatrixNonlinear<dim,T,matId,comp,mat,imp>::eval3D_detF(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput ) const
 {

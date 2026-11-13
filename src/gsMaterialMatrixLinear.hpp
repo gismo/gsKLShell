@@ -496,6 +496,59 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_stress(const index_t patch, co
 }
 
 template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_energy(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+{
+    // Quadratic energy W = 1/2 E:C:E = 1/2 E:S with constant C. In engineering Voigt form,
+    // E:S = E_11 S^11 + E_22 S^22 + 2 E_12 S^12.
+    // Output: 1 x (u.cols()*z.rows()), column j*u.cols()+k for point k, fibre j
+
+    this->_computePoints(patch,u);
+
+    gsMatrix<T> result(1, u.cols() * z.rows());
+    result.setZero();
+    gsMatrix<T,2,2> E;
+    for (index_t k=0; k!=u.cols(); k++)
+    {
+        for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+            m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,k);
+
+        for( index_t j=0; j < z.rows(); ++j )
+        {
+            this->_getMetric(k, z(j, k) * m_data.mine().m_Tmat(0, k));
+
+            E.block(0,0,2,2) = _E(0,out);
+            result(0, j * u.cols() + k) = 0.5 * ( E(0,0) * _Sij(0,0,E) + E(1,1) * _Sij(1,1,E) + 2.0 * E(0,1) * _Sij(0,1,E) );
+        }
+    }
+    return result;
+}
+
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_energy_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out) const
+{
+    this->_computePoints(patch,u);
+
+    for (index_t v=0; v!=m_data.mine().m_parmat.rows(); v++)
+        m_data.mine().m_parvals.at(v) = m_data.mine().m_parmat(v,0);
+
+    this->_getMetricUndeformed(0, z * m_data.mine().m_Tmat(0, 0));
+    this->_getMetricDeformed(Cmat);
+
+    GISMO_ASSERT(z==0.0,"This only works for z=0");
+
+    m_data.mine().m_Acov_def = m_data.mine().m_Gcov_def.block(0,0,2,2);
+    m_data.mine().m_Acon_def = m_data.mine().m_Gcon_def.block(0,0,2,2);
+    m_data.mine().m_Bcov_def.setZero();
+    m_data.mine().m_Bcon_def.setZero();
+
+    gsMatrix<T> E = _E(z * m_data.mine().m_Tmat(0, 0),out);
+
+    gsMatrix<T> result(1, 1);
+    result(0, 0) = 0.5 * ( E(0,0) * _Sij(0,0,E) + E(1,1) * _Sij(1,1,E) + 2.0 * E(0,1) * _Sij(0,1,E) );
+    return result;
+}
+
+template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixLinear<dim,T>::eval3D_detF(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput /*out*/) const
 {
     this->_computePoints(patch,u);
@@ -620,6 +673,7 @@ gsMatrix<T> gsMaterialMatrixLinear<dim,T>::_E(const T /*z*/, enum MaterialOutput
     else if (   out == MaterialOutput::Generic          ||
                 out == MaterialOutput::Strain           ||
                 out == MaterialOutput::Stress           ||
+                out == MaterialOutput::Energy           ||
                 out == MaterialOutput::PStress             ) // To be used with multiplyLinZ_into or integrateZ_into
         strain = 0.5*(m_data.mine().m_Gcov_def.block(0,0,2,2) - m_data.mine().m_Gcov_ori.block(0,0,2,2));
     else

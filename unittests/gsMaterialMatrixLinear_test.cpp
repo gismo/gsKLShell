@@ -22,6 +22,95 @@
 
 using namespace gismo;
 
+namespace {
+
+// Saint Venant-Kirchhoff shell on the unit square (E = 1, nu = 0.3), with an
+// orthonormal reference metric G = I or a sheared one, G = [1 0.4; 0.4 1.16]
+// (coefficient column 0 += 0.4 * column 1). The parameter functions are members
+// because the material keeps references to them.
+struct EnergyLinear
+{
+    gsMultiPatch<real_t> mp, def;
+    gsFunctionExpr<real_t> t, E, nu;
+    gsMaterialMatrixBase<real_t>::uPtr materialMatrix;
+
+    explicit EnergyLinear(bool skewed)
+    :
+    t("1e-1",2), E("1.0",2), nu("0.3",2)
+    {
+        mp.addPatch( gsNurbsCreator<real_t>::BSplineSquare(1) );
+        if (skewed)
+            mp.patch(0).coefs().col(0) += 0.4 * mp.patch(0).coefs().col(1);
+        mp.addAutoBoundaries();
+
+        std::vector<gsFunctionSet<real_t>*> parameters(2);
+        parameters[0] = &E;
+        parameters[1] = &nu;
+
+        gsOptionList options;
+        options.addInt("Material","Material model: (0): SvK | (1): NH | (2): NH_ext | (3): MR | (4): Ogden",0);
+        options.addInt("Implementation","Implementation: (0): Composites | (1): Analytical | (2): Generalized | (3): Spectral",1);
+        materialMatrix = getMaterialMatrix<2,real_t>(mp,t,parameters,options);
+        materialMatrix->setDeformed(&mp);
+    }
+
+    // Deformed configuration x <- x + 0.3*y, x <- 1.1*x, and the corner (1,1)
+    // moved by (0.15,-0.1), so that the strain varies over the patch.
+    void deform()
+    {
+        def = mp;
+        def.patch(0).coefs().col(0) += 0.3 * def.patch(0).coefs().col(1);
+        def.patch(0).coefs() *= 1.1;
+        def.patch(0).coefs()(3,0) += 0.15;
+        def.patch(0).coefs()(3,1) -= 0.1;
+        materialMatrix->setDeformed(&def);
+    }
+};
+
+// Metric G = g^T g of patch 0 of mp at pt
+gsMatrix<real_t> energyLinMetric(const gsMultiPatch<real_t> & mp, const gsVector<real_t> & pt)
+{
+    gsMapData<real_t> map;
+    map.flags = NEED_JACOBIAN;
+    map.points = pt;
+    static_cast<const gsFunction<real_t>&>(mp.patch(0)).computeMap(map);
+    gsMatrix<real_t> g = map.jacobian(0);
+    g.resize(2,2);
+    return g.transpose() * g;
+}
+
+// Deformed Voigt metric [G11+2E1, G22+2E2, G12+E3] of the engineering strain E = [E11, E22, 2 E12]
+gsMatrix<real_t> energyLinCm(const gsMatrix<real_t> & G, const gsVector<real_t> & E)
+{
+    gsMatrix<real_t> Cm(3,1);
+    Cm(0,0) = G(0,0) + 2 * E(0);
+    Cm(1,0) = G(1,1) + 2 * E(1);
+    Cm(2,0) = G(0,1) +     E(2);
+    return Cm;
+}
+
+// Test strains: every component is at least 1e-2 in magnitude
+gsVector<real_t> energyLinStrain(index_t i)
+{
+    gsVector<real_t> E(3);
+    if      (i == 0) E <<  0.05, -0.02,  0.03;
+    else if (i == 1) E <<  0.12,  0.08, -0.06;
+    else             E << -0.03, -0.02,  0.015;
+    return E;
+}
+
+real_t energyLinAt(const gsMaterialMatrixBase<real_t> & mm, const gsMatrix<real_t> & Cm, const gsVector<real_t> & pt)
+{
+    return mm.eval3D_energy_C(Cm,0,pt,0.0,MaterialOutput::Generic)(0,0);
+}
+
+real_t energyLinMaxC(const gsMaterialMatrixBase<real_t> & mm, const gsMatrix<real_t> & Cm, const gsVector<real_t> & pt)
+{
+    return mm.eval3D_matrix_C(Cm,0,pt,0.0,MaterialOutput::Generic).cwiseAbs().maxCoeff();
+}
+
+} // namespace
+
 SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the same name as the file
 {
     /// Reference and deformed flat patches with a clearly non-orthonormal reference metric.
@@ -912,5 +1001,146 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
             CHECK(std::abs(v0.dot(n)) <= 1e-12);
             CHECK(std::abs(v1.dot(n)) <= 1e-12);
         }
+    }
+
+    // The energy of the quadratic law is W = 1/2 E.S in engineering Voigt form
+    // (E3 S3 = 2 E12 S12), W(2E) = 4 W(E) and W(0) = 0.
+    TEST(Energy_Linear_HalfES)
+    {
+        gsVector<real_t> pt(2);
+        pt << 0.25, 0.25;
+
+        real_t worstHalf = 0, worstQuad = 0, worstZero = 0;
+        for (index_t skew = 0; skew != 2; ++skew)
+        {
+            EnergyLinear law(skew==1);
+            const gsMatrix<real_t> G = energyLinMetric(law.mp,pt);
+            CHECK_CLOSE(skew==1 ? 0.4 : 0.0, G(0,1), 1e-12);
+            for (index_t s = 0; s != 3; ++s)
+            {
+                const gsVector<real_t> E = energyLinStrain(s);
+                const gsMatrix<real_t> Cm = energyLinCm(G,E);
+                const gsMatrix<real_t> S = law.materialMatrix->eval3D_vector_C(Cm,0,pt,0.0,MaterialOutput::Generic);
+                CHECK_EQUAL(3,S.rows());
+                if (S.rows()!=3)
+                    continue;
+                CHECK(S.cwiseAbs().maxCoeff() > 0);
+
+                const real_t W = energyLinAt(*law.materialMatrix,Cm,pt);
+                const real_t WES = 0.5 * ( E(0)*S(0,0) + E(1)*S(1,0) + E(2)*S(2,0) );
+                const real_t relHalf = math::abs(W-WES) / math::abs(WES);
+                CHECK(WES > 0);
+                CHECK(relHalf <= 1e-12);
+
+                const real_t W2 = energyLinAt(*law.materialMatrix,energyLinCm(G,2.0*E),pt);
+                const real_t relQuad = math::abs(W2-4*W) / math::abs(4*W);
+                CHECK(relQuad <= 1e-12);
+
+                worstHalf = std::max(worstHalf,relHalf);
+                worstQuad = std::max(worstQuad,relQuad);
+            }
+            const gsMatrix<real_t> Cm0 = energyLinCm(G,gsVector<real_t>::Zero(3));
+            const real_t W0 = energyLinAt(*law.materialMatrix,Cm0,pt);
+            const real_t cmax = energyLinMaxC(*law.materialMatrix,Cm0,pt);
+            CHECK(cmax > 0);
+            CHECK(math::abs(W0) <= 1e-14*cmax);
+            worstZero = std::max(worstZero,math::abs(W0)/cmax);
+        }
+        gsInfo<<"Energy_Linear_HalfES: worst |W - 1/2 E.S|/|1/2 E.S| = "<<worstHalf
+              <<", worst |W(2E) - 4W(E)|/|4W(E)| = "<<worstQuad
+              <<", worst |W(0)|/max|C| = "<<worstZero<<"\n";
+    }
+
+    // S = dW/dE by central finite differences, with the criterion
+    // |S - FD| <= 1e-6 max|S| + 1e-10 max|C|. The shear entry of S must be at
+    // least 1e-3 max|S|, i.e. a wrong shear factor would miss the criterion by
+    // three orders of magnitude (on the sheared reference the shear stress of
+    // state 0 is only 2e-3 max|S| because the contravariant metric couples it
+    // to the normal stresses).
+    TEST(Energy_Linear_FD)
+    {
+        gsVector<real_t> pt(2);
+        pt << 0.25, 0.25;
+        const real_t h = 1e-6;
+
+        real_t worstRel = 0, worstRatio = 0, worstShear = 1;
+        for (index_t skew = 0; skew != 2; ++skew)
+        {
+            EnergyLinear law(skew==1);
+            const gsMatrix<real_t> G = energyLinMetric(law.mp,pt);
+            for (index_t s = 0; s != 3; ++s)
+            {
+                const gsVector<real_t> E = energyLinStrain(s);
+                const gsMatrix<real_t> Cm = energyLinCm(G,E);
+                CHECK(Cm(0,0) > 0 && Cm(0,0)*Cm(1,0) - Cm(2,0)*Cm(2,0) > 0);
+                const gsMatrix<real_t> S = law.materialMatrix->eval3D_vector_C(Cm,0,pt,0.0,MaterialOutput::Generic);
+                CHECK_EQUAL(3,S.rows());
+                if (S.rows()!=3)
+                    continue;
+                real_t err = 0;
+                for (index_t j = 0; j != 3; ++j)
+                {
+                    gsVector<real_t> Ep = E, Em = E;
+                    Ep(j) += h;
+                    Em(j) -= h;
+                    const real_t fd = ( energyLinAt(*law.materialMatrix,energyLinCm(G,Ep),pt)
+                                      - energyLinAt(*law.materialMatrix,energyLinCm(G,Em),pt) ) / (2*h);
+                    err = std::max(err,math::abs(S(j,0)-fd));
+                }
+                const real_t Smax = S.cwiseAbs().maxCoeff();
+                const real_t tol = 1e-6*Smax + 1e-10*energyLinMaxC(*law.materialMatrix,Cm,pt);
+                if (!(err <= tol) || !(math::abs(S(2,0)) >= 1e-3*Smax))
+                    gsInfo<<"  failed at "<<(skew ? "skewed" : "orthonormal")<<" state "<<s<<": |S-FD|="<<err<<", tol="<<tol<<"\n";
+                CHECK(err <= tol);
+                CHECK(math::abs(S(2,0)) >= 1e-3*Smax);
+                worstRel   = std::max(worstRel,err/Smax);
+                worstRatio = std::max(worstRatio,err/tol);
+                worstShear = std::min(worstShear,math::abs(S(2,0))/Smax);
+            }
+        }
+        gsInfo<<"Energy_Linear_FD: worst |S-FD|/max|S| = "<<worstRel<<", worst |S-FD|/tol = "<<worstRatio
+              <<", smallest |S_2|/max|S| = "<<worstShear<<"\n";
+    }
+
+    // The geometry-based eval3D_energy packs column j*u.cols()+k for point k and
+    // fibre row j, and agrees with eval3D_energy_C at the deformed metric.
+    TEST(Energy_Linear_GeometryPath)
+    {
+        gsMatrix<real_t> u(2,3);
+        u << 0.2, 0.55, 0.8,
+             0.35, 0.1, 0.7;
+        gsMatrix<real_t> z(2,3);
+        z.row(0).setZero();
+        z.row(1).setConstant(0.03);
+
+        real_t worst = 0;
+        for (index_t skew = 0; skew != 2; ++skew)
+        {
+            EnergyLinear law(skew==1);
+            law.deform();
+
+            const gsMatrix<real_t> W = law.materialMatrix->eval3D_energy(0,u,z);
+            CHECK_EQUAL(1,W.rows());
+            CHECK_EQUAL(u.cols()*z.rows(),W.cols());
+            if (W.rows()!=1 || W.cols()!=u.cols()*z.rows())
+                continue;
+            CHECK(W.allFinite());
+            // the energy varies over the points, so a packing error cannot go unnoticed
+            CHECK(W.leftCols(u.cols()).maxCoeff() - W.leftCols(u.cols()).minCoeff() >= 1e-2 * W.leftCols(u.cols()).maxCoeff());
+
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                const gsVector<real_t> pt = u.col(k);
+                const gsMatrix<real_t> Cm = energyLinCm(energyLinMetric(law.def,pt),gsVector<real_t>::Zero(3));
+                const real_t Wc = energyLinAt(*law.materialMatrix,Cm,pt);
+                CHECK(Wc > 0);
+                const real_t rel = math::abs(W(0,k)-Wc) / math::abs(Wc);
+                if (!(rel <= 1e-12))
+                    gsInfo<<"  failed at "<<(skew ? "skewed" : "orthonormal")<<", point "<<k<<": W="<<W(0,k)<<", W_C="<<Wc<<"\n";
+                CHECK(rel <= 1e-12);
+                worst = std::max(worst,rel);
+            }
+        }
+        gsInfo<<"Energy_Linear_GeometryPath: worst relative difference to eval3D_energy_C = "<<worst<<"\n";
     }
 }

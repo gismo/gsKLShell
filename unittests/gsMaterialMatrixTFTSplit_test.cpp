@@ -1261,6 +1261,7 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         SplitFixture<2,false> fx(mat,SplitSkewedJref(),w.lam1,w.lam2,pi/6);
         SplitFixture<2,false> lin(mat,SplitSkewedJref(),w.lam1,w.lam2,pi/6);
         fx.split->options().setSwitch("Exact",true);
+        fx.split->options().setInt("ExactLocalSolve",0);
         fx.split->resetCounters();
 
         const gsMatrix<real_t> Ep = fx.split->eval3D_strain(0,pt,zmat);
@@ -1329,6 +1330,7 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         const SplitStateSpec w = SplitWrinkledSpec();
         SplitFixture<2,false> fx(mat,Jref,w.lam1,w.lam2,pi/6);
         fx.split->options().setSwitch("Exact",true);
+        fx.split->options().setInt("ExactLocalSolve",0);
         fx.split->resetCounters();
         const gsVector<real_t> pt = SplitPoint();
         const gsMatrix<real_t> zmat = SplitZ(0);
@@ -1401,6 +1403,7 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
                 gsInfo << "state " << names[s] << ", eta " << etas[e] << "\n";
                 SplitFixture<2,false> fx(mat,SplitSkewedJref(),specs[s].lam1,specs[s].lam2,pi/6);
                 fx.split->options().setSwitch("Exact",true);
+                fx.split->options().setInt("ExactLocalSolve",0);
                 fx.split->options().setReal("Eta",etas[e]);
                 fx.split->resetCounters();
 
@@ -1475,6 +1478,7 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         SplitFixture<2,false> ex(SplitMatSvK,SplitSkewedJref(),w.lam1,w.lam2,pi/6);
         SplitFixture<2,false> li(SplitMatSvK,SplitSkewedJref(),w.lam1,w.lam2,pi/6);
         ex.split->options().setSwitch("Exact",true);
+        ex.split->options().setInt("ExactLocalSolve",0);
         ex.split->resetCounters();
         const gsVector<real_t> pt = SplitPoint();
         const gsMatrix<real_t> zmat = SplitZ(0);
@@ -1546,6 +1550,7 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
             gl[i] = fx.split->eval3D_gamma(0,pt,zmat,MaterialOutput::Generic)(0,0);
 
             fx.split->options().setSwitch("Exact",true);
+            fx.split->options().setInt("ExactLocalSolve",0);
             CHECK_EQUAL(0,fx.displayedState(pt,0));
             const gsMatrix<real_t> Sx = fx.split->eval3D_vector(0,pt,zmat,MaterialOutput::VectorN);
             const gsMatrix<real_t> Ax = fx.split->eval3D_matrix(0,pt,zmat,MaterialOutput::MatrixA);
@@ -1606,6 +1611,7 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
             const gsMatrix<real_t> Al = fx.split->eval3D_matrix(0,pt,zmat,MaterialOutput::MatrixA);
 
             fx.split->options().setSwitch("Exact",true);
+            fx.split->options().setInt("ExactLocalSolve",0);
             CHECK_EQUAL(0,fx.displayedState(pt,0));
             const gsMatrix<real_t> Sx = fx.split->eval3D_vector(0,pt,zmat,MaterialOutput::VectorN);
             const gsMatrix<real_t> Ax = fx.split->eval3D_matrix(0,pt,zmat,MaterialOutput::MatrixA);
@@ -2178,6 +2184,7 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
             gsInfo << "state " << names[s] << "\n";
             SplitFixture<2,false> fx(SplitMatNHComp,SplitSkewedJref(),specs[s].lam1,specs[s].lam2,pi/6);
             fx.split->options().setSwitch("Exact",exact);
+            fx.split->options().setInt("ExactLocalSolve",0);
             fx.split->options().setReal("Eta",etas[s]);
             fx.split->options().setReal("SlackMultiplier",0.0);
             fx.split->resetCounters();
@@ -3262,6 +3269,7 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
             gsInfo << "material " << im << "\n";
             SplitFixture<2,false> fx(mats[im],SplitSkewedJref(),1.2,0.8/math::sqrt(1.2),pi/6);
             fx.split->options().setSwitch("Exact",true);
+            fx.split->options().setInt("ExactLocalSolve",0);
             fx.split->options().setReal("Eta",0);
             fx.split->resetCounters();
             const gsMatrix<real_t> Eeng = fx.EengDef();
@@ -3341,6 +3349,7 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
             {
                 SplitFixture<2,false> fx(SplitMatNHIncomp,SplitSkewedJref(),1.2,(1-deltas[i])/math::sqrt(1.2),pi/6);
                 fx.split->options().setSwitch("Exact",true);
+                fx.split->options().setInt("ExactLocalSolve",0);
                 fx.split->options().setReal("Eta",0);
                 fx.split->options().setReal("SlackMultiplier",0);
                 fx.split->resetCounters();
@@ -3368,6 +3377,7 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
             {
                 SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),math::sqrt(1 + 2*epss[i]),0.9,pi/6);
                 fx.split->options().setSwitch("Exact",true);
+                fx.split->options().setInt("ExactLocalSolve",0);
                 fx.split->options().setReal("Eta",0);
                 fx.split->options().setReal("SlackMultiplier",0);
                 fx.split->resetCounters();
@@ -3469,6 +3479,1401 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         CHECK(ws.exactTol == real_t(1e-10));
         CHECK(ws.exactStagTol == real_t(1e-8));
         CHECK_EQUAL(7,ws.exactMaxIt);
+    }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    typedef SplitFixture<2,false>::SplitType::W_provider   SplitXWProv;
+    typedef SplitFixture<2,false>::SplitType::dC_provider  SplitXdCProv;
+
+    /**
+     * Hyperelastic laws with closed-form W, S = dW/dE and C = dS/dE in engineering Voigt notation
+     * E = (E_11, E_22, 2 E_12), S = (S^11, S^22, S^12). The evaluation allocates nothing for W, so that the
+     * brute-force searches stay cheap. A non-finite intermediate result gives NaN entries.
+     *
+     * Ortho: W = 1/2 E^T D E, S = D E, C = D with D = Rot^T D0 Rot, D0 = [[10,3,0],[3,2,0],[0,0,1.5]]
+     * rotated by phi0 (symmetric positive definite, quadratic).
+     *
+     * NHFibre: incompressible plane-stress neo-Hookean (mu = 1) on the reference metric G plus an exponential
+     * fibre. With g = G + 2 E_t the deformed covariant metric, r = det G / det g:
+     *   W_NH = mu/2 (tr(G^{-1} g) + r - 3),  S^{ab} = mu (G^{ab} - r g^{ab}),
+     *   C^{abcd} = mu r (2 g^{ab} g^{cd} + g^{ac} g^{bd} + g^{ad} g^{bc}),
+     * and, with the G-unit fibre a (a^T G a = 1), I4 = a^T g a, x = I4 - 1, A = (a_1^2, a_2^2, a_1 a_2),
+     *   W_f = k1/(2 k2) (exp(k2 x^2) - 1),  S_f = 2 k1 x exp(k2 x^2) A,
+     *   C_f = 4 k1 exp(k2 x^2) (1 + 2 k2 x^2) A A^T.
+     * The law is strictly convex in E where g is positive definite, with W(0) = 0 and S(0) = 0.
+     */
+    struct SplitAniso
+    {
+        enum Kind { Ortho, NHFibre };
+
+        Kind kind;
+        real_t D[9];
+        real_t G00, G01, G11, detG, Gi00, Gi01, Gi11;
+        real_t mu, k1, k2, a0, a1;
+
+        SplitAniso() : kind(Ortho), G00(1), G01(0), G11(1), detG(1), Gi00(1), Gi01(0), Gi11(1), mu(1), k1(0), k2(1), a0(1), a1(0)
+        {
+            for (index_t i = 0; i!=9; ++i)
+                D[i] = 0;
+        }
+
+        /// Orthotropic quadratic law, material axes rotated by \a phi0
+        static SplitAniso Orthotropic(const real_t phi0)
+        {
+            SplitAniso L;
+            L.kind = Ortho;
+            const real_t c = math::cos(phi0), s = math::sin(phi0);
+            gsMatrix<real_t> Rt(3,3), D0(3,3);
+            Rt << c*c,    s*s,   c*s,
+                  s*s,    c*c,  -c*s,
+                 -2*c*s,  2*c*s, c*c-s*s;
+            D0 << 10, 3, 0,
+                  3,  2, 0,
+                  0,  0, 1.5;
+            const gsMatrix<real_t> Dm = Rt.transpose() * D0 * Rt;
+            for (index_t i = 0; i!=3; ++i)
+                for (index_t j = 0; j!=3; ++j)
+                    L.D[3*i+j] = Dm(i,j);
+            return L;
+        }
+
+        /// Neo-Hooke on the reference metric G = Jref^T Jref plus a fibre along the Cartesian direction \a beta
+        static SplitAniso NeoHookeFibre(const gsMatrix<real_t> & Jref, const real_t k1, const real_t k2, const real_t beta)
+        {
+            SplitAniso L;
+            L.kind = NHFibre;
+            L.k1 = k1;
+            L.k2 = k2;
+            const gsMatrix<real_t> G = Jref.transpose() * Jref;
+            const gsMatrix<real_t> Gi = G.inverse();
+            L.G00 = G(0,0); L.G01 = G(0,1); L.G11 = G(1,1);
+            L.detG = G(0,0)*G(1,1) - G(0,1)*G(0,1);
+            L.Gi00 = Gi(0,0); L.Gi01 = Gi(0,1); L.Gi11 = Gi(1,1);
+            gsMatrix<real_t> dir(2,1);
+            dir << math::cos(beta), math::sin(beta);
+            const gsMatrix<real_t> a = Jref.inverse() * dir;
+            L.a0 = a(0,0);
+            L.a1 = a(1,0);
+            return L;
+        }
+
+        real_t W(const real_t E0, const real_t E1, const real_t E2) const
+        {
+            const real_t nan = std::numeric_limits<real_t>::quiet_NaN();
+            if (kind==Ortho)
+            {
+                const real_t E[3] = { E0, E1, E2 };
+                real_t w = 0;
+                for (index_t i = 0; i!=3; ++i)
+                    for (index_t j = 0; j!=3; ++j)
+                        w += E[i] * D[3*i+j] * E[j];
+                return real_t(0.5) * w;
+            }
+            const real_t g00 = G00 + 2*E0, g11 = G11 + 2*E1, g01 = G01 + E2;
+            const real_t dg = g00*g11 - g01*g01;
+            if (!(dg > 0 && g00 > 0))
+                return nan;
+            const real_t r = detG / dg;
+            real_t w = real_t(0.5) * mu * (Gi00*g00 + 2*Gi01*g01 + Gi11*g11 + r - 3);
+            if (k1 > 0)
+            {
+                const real_t x = a0*a0*g00 + 2*a0*a1*g01 + a1*a1*g11 - 1;
+                w += k1 / (2*k2) * (std::exp(k2*x*x) - 1);
+            }
+            return math::isfinite(w) ? w : nan;
+        }
+
+        real_t W(const gsMatrix<real_t> & E) const { return W(E.data()[0],E.data()[1],E.data()[2]); }
+
+        gsMatrix<real_t> S(const gsMatrix<real_t> & E) const
+        {
+            gsMatrix<real_t> s(3,1);
+            if (kind==Ortho)
+            {
+                for (index_t i = 0; i!=3; ++i)
+                    s(i,0) = D[3*i]*E.data()[0] + D[3*i+1]*E.data()[1] + D[3*i+2]*E.data()[2];
+                return s;
+            }
+            const real_t g00 = G00 + 2*E.data()[0], g11 = G11 + 2*E.data()[1], g01 = G01 + E.data()[2];
+            const real_t dg = g00*g11 - g01*g01;
+            if (!(dg > 0 && g00 > 0))
+            {
+                s.setConstant(std::numeric_limits<real_t>::quiet_NaN());
+                return s;
+            }
+            const real_t r = detG / dg;
+            s(0,0) = mu * (Gi00 - r * g11 / dg);
+            s(1,0) = mu * (Gi11 - r * g00 / dg);
+            s(2,0) = mu * (Gi01 + r * g01 / dg);
+            if (k1 > 0)
+            {
+                const real_t x = a0*a0*g00 + 2*a0*a1*g01 + a1*a1*g11 - 1;
+                const real_t f = 2 * k1 * x * std::exp(k2*x*x);
+                s(0,0) += f * a0*a0;
+                s(1,0) += f * a1*a1;
+                s(2,0) += f * a0*a1;
+            }
+            if (!s.allFinite())
+                s.setConstant(std::numeric_limits<real_t>::quiet_NaN());
+            return s;
+        }
+
+        gsMatrix<real_t> C(const gsMatrix<real_t> & E) const
+        {
+            gsMatrix<real_t> c(3,3);
+            if (kind==Ortho)
+            {
+                for (index_t i = 0; i!=3; ++i)
+                    for (index_t j = 0; j!=3; ++j)
+                        c(i,j) = D[3*i+j];
+                return c;
+            }
+            const real_t g00 = G00 + 2*E.data()[0], g11 = G11 + 2*E.data()[1], g01 = G01 + E.data()[2];
+            const real_t dg = g00*g11 - g01*g01;
+            if (!(dg > 0 && g00 > 0))
+            {
+                c.setConstant(std::numeric_limits<real_t>::quiet_NaN());
+                return c;
+            }
+            const real_t r = detG / dg;
+            const real_t gi[2][2] = { { g11/dg, -g01/dg }, { -g01/dg, g00/dg } };
+            const index_t pa[3] = { 0, 1, 0 }, pb[3] = { 0, 1, 1 };
+            for (index_t i = 0; i!=3; ++i)
+                for (index_t j = 0; j!=3; ++j)
+                {
+                    const index_t a = pa[i], b = pb[i], cc = pa[j], d = pb[j];
+                    c(i,j) = mu * r * (2*gi[a][b]*gi[cc][d] + gi[a][cc]*gi[b][d] + gi[a][d]*gi[b][cc]);
+                }
+            if (k1 > 0)
+            {
+                const real_t x = a0*a0*g00 + 2*a0*a1*g01 + a1*a1*g11 - 1;
+                const real_t f = 4 * k1 * std::exp(k2*x*x) * (1 + 2*k2*x*x);
+                const real_t A[3] = { a0*a0, a1*a1, a0*a1 };
+                for (index_t i = 0; i!=3; ++i)
+                    for (index_t j = 0; j!=3; ++j)
+                        c(i,j) += f * A[i] * A[j];
+            }
+            if (!c.allFinite())
+                c.setConstant(std::numeric_limits<real_t>::quiet_NaN());
+            return c;
+        }
+
+        /// Provider of S and C at an elastic strain
+        SplitXProv SCprov() const
+        {
+            const SplitAniso L = *this;
+            return [L](const gsMatrix<real_t> & Eel, gsMatrix<real_t> & Se, gsMatrix<real_t> & Ce)
+            {
+                Se = L.S(Eel);
+                Ce = L.C(Eel);
+            };
+        }
+
+        /// Provider of W at an elastic strain
+        SplitXWProv Wprov() const
+        {
+            const SplitAniso L = *this;
+            return [L](const gsMatrix<real_t> & Eel) -> real_t { return L.W(Eel); };
+        }
+    };
+
+    /// Orthotropic law (a) of the reference set (material axes rotated by pi/6) or the neo-Hooke-plus-fibre law (b)
+    /// (k1 = 10, k2 = 20, fibre at 0.35 rad) on the reference Jacobian \a J
+    static SplitAniso SplitAnisoLaw(const bool lawB, const gsMatrix<real_t> & J)
+    {
+        return lawB ? SplitAniso::NeoHookeFibre(J,10,20,0.35) : SplitAniso::Orthotropic(static_cast<real_t>(EIGEN_PI)/6);
+    }
+
+    /// Covariant engineering strain Jref^T eps Jref of the Cartesian strain Rot(alpha) diag(e1,e2) Rot(alpha)^T. Its
+    /// principal values with respect to G = Jref^T Jref are e1 and e2.
+    static gsMatrix<real_t> SplitAnisoE(const gsMatrix<real_t> & J, const real_t e1, const real_t e2, const real_t alpha)
+    {
+        gsMatrix<real_t> R(2,2), D(2,2);
+        R << math::cos(alpha), -math::sin(alpha), math::sin(alpha), math::cos(alpha);
+        D << e1, 0, 0, e2;
+        const gsMatrix<real_t> eps = R * D * R.transpose();
+        const gsMatrix<real_t> Et = J.transpose() * eps * J;
+        gsMatrix<real_t> E(3,1);
+        E << Et(0,0), Et(1,1), 2*Et(0,1);
+        return E;
+    }
+
+    /// Ascending principal stresses of S with respect to G (pencil S x = lambda G^{-1} x)
+    static gsMatrix<real_t> SplitAnisoStressPencil(const gsMatrix<real_t> & S, const gsMatrix<real_t> & G)
+    {
+        const gsMatrix<real_t> Gi = G.inverse();
+        return SplitPencilEigenvalues(SplitSym2(S(0,0),S(2,0),S(1,0)),Gi);
+    }
+
+    /// Ascending principal strains of E with respect to G (pencil E x = lambda G x)
+    static gsMatrix<real_t> SplitAnisoStrainPencil(const gsMatrix<real_t> & E, const gsMatrix<real_t> & G)
+    {
+        return SplitPencilEigenvalues(SplitSym2(E(0,0),E(2,0)/2,E(1,0)),G);
+    }
+
+    /// Criterion state of TensionField 2 from the closed-form stress: 1 if the minor principal stress is not
+    /// negative, else -1 if the major principal strain is negative, else 0
+    static index_t SplitAnisoClassify(const SplitAniso & law, const gsMatrix<real_t> & E, const gsMatrix<real_t> & G)
+    {
+        const gsMatrix<real_t> S = law.S(E);
+        if (SplitAnisoStressPencil(S,G)(0,0) >= 0)
+            return 1;
+        return SplitAnisoStrainPencil(E,G)(1,0) < 0 ? -1 : 0;
+    }
+
+    /// Candidate strain of a state set. kind: 0 wrinkled candidate, 1 taut, 2 slack, 3 near-taut, 4 near-slack;
+    /// cls is the closed-form classification
+    struct SplitAnisoState
+    {
+        real_t e1, e2, alpha;
+        gsMatrix<real_t> E;
+        index_t kind, cls;
+    };
+
+    /// The taut/wrinkled boundary on the path E(s) = (1-s) E0 + s E1, E0 = E[(0.05,0.02,alpha)] and
+    /// E1 = E[(0.05,e2,alpha)], by bisection to |ds| <= 1e-14 on the sign of the closed-form minor principal
+    /// stress. e2 starts at -0.05 and is doubled until E1 is not taut.
+    static real_t SplitAnisoTautBoundary(const SplitAniso & law, const gsMatrix<real_t> & J, const gsMatrix<real_t> & G,
+                                         const real_t alpha, gsMatrix<real_t> & E0, gsMatrix<real_t> & E1)
+    {
+        E0 = SplitAnisoE(J,0.05,0.02,alpha);
+        real_t e2 = -0.05;
+        E1 = SplitAnisoE(J,0.05,e2,alpha);
+        for (index_t k = 0; k!=6 && SplitAnisoClassify(law,E1,G)==1; ++k)
+        {
+            e2 *= 2;
+            E1 = SplitAnisoE(J,0.05,e2,alpha);
+        }
+        CHECK_EQUAL(1,SplitAnisoClassify(law,E0,G));
+        CHECK(SplitAnisoClassify(law,E1,G)!=1);
+        real_t lo = 0, hi = 1;
+        while (hi - lo > 1e-14)
+        {
+            const real_t mid = real_t(0.5) * (lo + hi);
+            const gsMatrix<real_t> E = (1-mid) * E0 + mid * E1;
+            if (SplitAnisoStressPencil(law.S(E),G)(0,0) >= 0)
+                lo = mid;
+            else
+                hi = mid;
+        }
+        return real_t(0.5) * (lo + hi);
+    }
+
+    /// The fixed state set of a law and a metric: 16 wrinkled candidates, 4 taut, 4 slack, the near-taut state
+    /// E(s_b + 1e-3) and the near-slack state (5e-4,-0.05,0.9)
+    static std::vector<SplitAnisoState> SplitAnisoStates(const SplitAniso & law, const gsMatrix<real_t> & J, const gsMatrix<real_t> & G)
+    {
+        std::vector<SplitAnisoState> out;
+        const real_t wr[4][2] = { { 0.05, -0.03 }, { 0.02, -0.05 }, { 0.08, -0.02 }, { 0.03, -0.06 } };
+        const real_t wa[4] = { 0.2, 0.9, 1.4, 2.5 };
+        const real_t ta[2][2] = { { 0.05, 0.02 }, { 0.04, 0.03 } };
+        const real_t taa[2] = { 0.2, 1.4 };
+        const real_t sl[2][2] = { { -0.02, -0.04 }, { -0.05, -0.01 } };
+        const real_t sla[2] = { 0.9, 2.5 };
+        auto add = [&](const real_t e1, const real_t e2, const real_t al, const index_t kind)
+        {
+            SplitAnisoState s;
+            s.e1 = e1; s.e2 = e2; s.alpha = al; s.kind = kind;
+            s.E = SplitAnisoE(J,e1,e2,al);
+            s.cls = SplitAnisoClassify(law,s.E,G);
+            out.push_back(s);
+        };
+        for (index_t i = 0; i!=4; ++i)
+            for (index_t j = 0; j!=4; ++j)
+                add(wr[i][0],wr[i][1],wa[j],0);
+        for (index_t i = 0; i!=2; ++i)
+            for (index_t j = 0; j!=2; ++j)
+                add(ta[i][0],ta[i][1],taa[j],1);
+        for (index_t i = 0; i!=2; ++i)
+            for (index_t j = 0; j!=2; ++j)
+                add(sl[i][0],sl[i][1],sla[j],2);
+
+        gsMatrix<real_t> E0, E1;
+        const real_t sb = SplitAnisoTautBoundary(law,J,G,0.9,E0,E1);
+        SplitAnisoState nt;
+        nt.e1 = nt.e2 = nt.alpha = std::numeric_limits<real_t>::quiet_NaN();
+        nt.kind = 3;
+        nt.E = (1 - (sb + 1e-3)) * E0 + (sb + 1e-3) * E1;
+        nt.cls = SplitAnisoClassify(law,nt.E,G);
+        out.push_back(nt);
+        add(5e-4,-0.05,0.9,4);
+        return out;
+    }
+
+    /// The state set with the counts asserted: at least 6 wrinkled candidates, near-boundary states wrinkled
+    static std::vector<SplitAnisoState> SplitAnisoStatesChecked(const SplitAniso & law, const gsMatrix<real_t> & J, const gsMatrix<real_t> & G)
+    {
+        const std::vector<SplitAnisoState> st = SplitAnisoStates(law,J,G);
+        index_t nw = 0;
+        for (size_t i = 0; i!=st.size(); ++i)
+        {
+            if (st[i].kind==0 && st[i].cls==0)
+                ++nw;
+            if (st[i].kind>=3)
+                CHECK_EQUAL(0,st[i].cls);
+        }
+        gsInfo << "  wrinkled candidates: " << nw << " of 16\n";
+        CHECK(nw >= 6);
+        return st;
+    }
+
+    static bool SplitAnisoWrinkledCand(const SplitAnisoState & s) { return s.kind==0 && s.cls==0; }
+
+    /// Pencil Smin(S(E)) <= -1e-2 Sref and Emax(E) >= 1e-2 Eref: far from both interfaces
+    static bool SplitAnisoAway(const SplitAniso & law, const gsMatrix<real_t> & E, const gsMatrix<real_t> & G)
+    {
+        const gsMatrix<real_t> lS = SplitAnisoStressPencil(law.S(E),G);
+        const gsMatrix<real_t> lE = SplitAnisoStrainPencil(E,G);
+        const real_t Sref = math::max(math::abs(lS(0,0)),math::abs(lS(1,0)));
+        const real_t Eref = math::max(math::abs(lE(0,0)),math::abs(lE(1,0)));
+        return lS(0,0) <= -1e-2 * Sref && lE(1,0) >= 1e-2 * Eref;
+    }
+
+    /// Exact-mode options with the local solver \a mode, regularisation \a eta and no slack multiplier
+    static SplitXOpt SplitAnisoOpt(const index_t mode, const real_t eta = 0)
+    {
+        SplitXOpt opt = SplitExactOptions();
+        opt.exactLocalSolve = mode;
+        opt.slackMultiplier = 0;
+        opt.eta = eta;
+        return opt;
+    }
+
+    /// The pointwise core with S = S(E) of the law, the tangent argument \a Cin and the S/C provider of the law;
+    /// the W provider only if \a withW
+    static SplitXRes SplitAnisoCall(const SplitFixture<2,false> & fx, const SplitAniso & law, const gsMatrix<real_t> & E,
+                                    const gsMatrix<real_t> & G, const SplitXOpt & opt, const bool tangent, const bool energy,
+                                    const gsMatrix<real_t> & Cin, const bool withW)
+    {
+        const gsMatrix<real_t> S = law.S(E);
+        const SplitXWProv Wp = withW ? law.Wprov() : SplitXWProv();
+        return fx.split->wrinkle(S,Cin,E,G,opt,tangent,SplitXdCProv(),law.SCprov(),Wp,energy);
+    }
+
+    /// The pointwise core with the consistent tangent C(E) and the W provider
+    static SplitXRes SplitAnisoRun(const SplitFixture<2,false> & fx, const SplitAniso & law, const gsMatrix<real_t> & E,
+                                   const gsMatrix<real_t> & G, const index_t mode, const real_t eta = 0,
+                                   const bool tangent = true, const bool energy = true)
+    {
+        return SplitAnisoCall(fx,law,E,G,SplitAnisoOpt(mode,eta),tangent,energy,law.C(E),true);
+    }
+
+    /// Round-off floor of the residual at an iterate: 64 eps ||C'||_F max(1,||E'||)
+    static real_t SplitAnisoFloorR(const gsMatrix<real_t> & Cp, const gsMatrix<real_t> & Ep)
+    {
+        return 64 * std::numeric_limits<real_t>::epsilon() * Cp.norm() * math::max(real_t(1),Ep.norm());
+    }
+
+    /// Independent residual check at an accepted wrinkled result (Eta 0): the closed-form law at
+    /// E' = E + gamma n1(theta) has n1.S' and n2.S' within the stall tolerance, and S_eff is S'
+    static bool SplitAnisoResidualOK(const SplitAniso & law, const gsMatrix<real_t> & E, const SplitXRes & r)
+    {
+        if (!(r.state==0 && r.gamma > 0 && math::isfinite(r.theta)))
+        {
+            gsInfo << "  residual check: not a wrinkled result (state " << r.state << ")\n";
+            return false;
+        }
+        const gsVector<real_t,3> n1 = SplitN1(r.theta), n2 = SplitN2(r.theta);
+        const gsMatrix<real_t> Ep = E + r.gamma * n1;
+        const gsMatrix<real_t> Sp = law.S(Ep), Cp = law.C(Ep);
+        if (!(Sp.allFinite() && Cp.allFinite()))
+            return false;
+        const real_t R1 = n1.dot(Sp.col(0)), R2 = n2.dot(Sp.col(0));
+        const real_t tolS = SplitExactTolAt(Sp,Cp,Ep,real_t(1e-9));
+        const real_t floorR = SplitAnisoFloorR(Cp,Ep);
+        const real_t dS = (r.S - Sp).cwiseAbs().maxCoeff();
+        const bool ok = math::max(math::abs(R1),math::abs(R2)) <= tolS && dS <= 1e-12 * Sp.norm() + floorR;
+        if (!ok)
+            gsInfo << "  residual check failed: |R1| = " << math::abs(R1) << ", |R2| = " << math::abs(R2) << " (tolS " << tolS
+                   << "), |S_eff - S'|_inf = " << dS << " (tol " << 1e-12 * Sp.norm() + floorR << ")\n";
+        return ok;
+    }
+
+    /// KKT certificate of the global minimum of W(E + P) over the PSD cone at Eta 0: P* is 0 (taut), gamma n1(theta)
+    /// (wrinkled) or -E (slack) according to the state, which must be \a expected. Checks that S' = S(E + P*) is
+    /// positive semidefinite, P* is positive semidefinite and complementarity S'.P* = 0.
+    static bool SplitAnisoKKT(const SplitAniso & law, const gsMatrix<real_t> & E, const gsMatrix<real_t> & G,
+                              const SplitXRes & r, const index_t expected)
+    {
+        bool ok = (r.state == expected);
+        gsMatrix<real_t> P(3,1);
+        P.setZero();
+        if (r.state==0)
+        {
+            if (r.gamma > 0)
+            {
+                const gsVector<real_t,3> n1 = SplitN1(r.theta);
+                P = r.gamma * n1;
+            }
+            else
+                ok = false;
+        }
+        else if (r.state==-1)
+        {
+            P = -E;
+            ok = ok && SplitAnisoStrainPencil(E,G)(1,0) < 0;
+        }
+        const gsMatrix<real_t> Ep = E + P;
+        const gsMatrix<real_t> Sp = law.S(Ep), Cp = law.C(Ep);
+        if (!(Sp.allFinite() && Cp.allFinite()))
+            return false;
+        const real_t floorR = SplitAnisoFloorR(Cp,Ep);
+        const gsMatrix<real_t> lam = SplitAnisoStressPencil(Sp,G);
+        const real_t lmax = math::max(math::abs(lam(0,0)),math::abs(lam(1,0)));
+        const bool psd = lam(0,0) >= -(1e-10 * lmax + floorR * G.norm());
+        const real_t comp = math::abs(Sp.col(0).dot(P.col(0)));
+        const bool compl0 = comp <= 1e-10 * Sp.norm() * P.norm() + floorR * P.norm();
+        ok = ok && psd && compl0;
+        if (!ok)
+            gsInfo << "  KKT failed: state " << r.state << " (expected " << expected << "), lmin(S') = " << lam(0,0) << " (lmax " << lmax
+                   << "), |S'.P*| = " << comp << " (||S'|| ||P*|| " << Sp.norm() * P.norm() << ")\n";
+        return ok;
+    }
+
+    /// kappa = ||C'||_2 ||X||_2 with X = diag(1,2 gamma) Jac0^{-1}, and the tolerance tolC of the exact solve, from the
+    /// closed-form law at the elastic strain of the wrinkled result \a r
+    static void SplitAnisoKappa(const SplitAniso & law, const SplitXRes & r, real_t & kappa, real_t & tolC)
+    {
+        const real_t c = math::cos(r.theta), s = math::sin(r.theta);
+        const gsVector<real_t,3> n1 = SplitN1(r.theta), n2 = SplitN2(r.theta);
+        gsVector<real_t,3> n4;
+        n4 << s*s, c*c, -2*c*s;
+        const gsMatrix<real_t> Sp = law.S(r.E), Cp = law.C(r.E);
+        const gsVector<real_t,3> Cn1 = Cp * n1, Cn2 = Cp * n2;
+        const real_t sw = n4.dot(Sp.col(0));
+        gsMatrix<real_t> Jac(2,2), Dg(2,2);
+        Jac << n1.dot(Cn1), 2*r.gamma*n1.dot(Cn2), n2.dot(Cn1), sw + 2*r.gamma*n2.dot(Cn2);
+        Dg << 1, 0, 0, 2*r.gamma;
+        const gsMatrix<real_t> X = Dg * Jac.inverse();
+        kappa = Cp.operatorNorm() * X.operatorNorm();
+        tolC = SplitExactTolAt(Sp,Cp,r.E,real_t(1e-12));
+    }
+
+    static bool SplitAnisoSameScalar(const real_t a, const real_t b)
+    {
+        return a == b || (std::isnan(a) && std::isnan(b));
+    }
+
+    static bool SplitAnisoSameMatrix(const gsMatrix<real_t> & A, const gsMatrix<real_t> & B)
+    {
+        if (A.rows()!=B.rows() || A.cols()!=B.cols())
+            return false;
+        for (index_t i = 0; i!=A.size(); ++i)
+            if (!SplitAnisoSameScalar(A.data()[i],B.data()[i]))
+                return false;
+        return true;
+    }
+
+    /// Names of the fields in which two results differ bitwise (NaN equals NaN); empty if none. The energy is compared
+    /// if \a withW and the outcome flags if \a withFlags.
+    static std::string SplitAnisoDiff(const SplitXRes & a, const SplitXRes & b, const bool withW, const bool withFlags)
+    {
+        std::string d;
+        if (a.state != b.state) d += " state";
+        if (!SplitAnisoSameMatrix(a.S,b.S)) d += " S";
+        if (!SplitAnisoSameMatrix(a.C,b.C)) d += " C";
+        if (!SplitAnisoSameMatrix(a.E,b.E)) d += " E";
+        if (!SplitAnisoSameScalar(a.theta,b.theta)) d += " theta";
+        if (!SplitAnisoSameScalar(a.gamma,b.gamma)) d += " gamma";
+        if (!SplitAnisoSameScalar(a.gammaHat,b.gammaHat)) d += " gammaHat";
+        if (!SplitAnisoSameScalar(a.residual,b.residual)) d += " residual";
+        if (withW && !SplitAnisoSameScalar(a.W,b.W)) d += " W";
+        if (a.exactIterations != b.exactIterations) d += " exactIterations";
+        if (withFlags)
+        {
+            if (a.guardFallback != b.guardFallback) d += " guardFallback";
+            if (a.tftFailure != b.tftFailure) d += " tftFailure";
+            if (a.exactFallback != b.exactFallback) d += " exactFallback";
+            if (a.exactReclassified != b.exactReclassified) d += " exactReclassified";
+            if (a.exactSaddle != b.exactSaddle) d += " exactSaddle";
+            if (a.exactWrongBranch != b.exactWrongBranch) d += " exactWrongBranch";
+            if (a.exactStagnated != b.exactStagnated) d += " exactStagnated";
+            if (a.exactSkipped != b.exactSkipped) d += " exactSkipped";
+            if (a.exactUsed2x2 != b.exactUsed2x2) d += " exactUsed2x2";
+            if (a.exactMinimised != b.exactMinimised) d += " exactMinimised";
+        }
+        return d;
+    }
+
+    /// Minimum of W(E + P) over a grid and compass-search polish of the PSD matrices
+    /// P = Rot(phi) diag(p1,p2) Rot(phi)^T (components, engineering Voigt (P_11,P_22,2 P_12) added to E). Grid:
+    /// phi = k pi/36 (k = 0..35), p_i in {0} and pmax (j/12)^2 (j = 1..12) with
+    /// pmax = 2 max(lambda_max(-E_t), \a gammaW, ||E_t||_2), E_t the component matrix of E. The polish starts
+    /// from the 3 best grid points with p_i = s_i^2; steps pi/72 and sqrt(pmax)/24, halved on failure down to a
+    /// phi step of 1e-10, at most 2000 evaluations per start. A NaN W counts as +inf.
+    static real_t SplitAnisoBruteMin(const SplitAniso & law, const gsMatrix<real_t> & E, const real_t gammaW)
+    {
+        const real_t pi = static_cast<real_t>(EIGEN_PI);
+        const real_t inf = std::numeric_limits<real_t>::infinity();
+        const real_t E0 = E(0,0), E1 = E(1,0), E2 = E(2,0);
+        const real_t mid = real_t(0.5) * (E0 + E1);
+        const real_t rad = math::sqrt(real_t(0.25) * (E0-E1) * (E0-E1) + real_t(0.25) * E2 * E2);
+        const real_t lmin = mid - rad, lmax = mid + rad;
+        const real_t pmax = 2 * math::max(math::max(-lmin,gammaW),math::max(math::abs(lmin),math::abs(lmax)));
+
+        auto Wat = [&](const real_t phi, const real_t p1, const real_t p2) -> real_t
+        {
+            const real_t c = math::cos(phi), s = math::sin(phi);
+            const real_t P00 = p1*c*c + p2*s*s, P11 = p1*s*s + p2*c*c, P01 = (p1-p2)*c*s;
+            const real_t w = law.W(E0 + P00,E1 + P11,E2 + 2*P01);
+            return math::isfinite(w) ? w : inf;
+        };
+
+        struct Pt { real_t w, phi, s1, s2; };
+        Pt best[3];
+        for (index_t i = 0; i!=3; ++i)
+        {
+            best[i].w = inf; best[i].phi = best[i].s1 = best[i].s2 = 0;
+        }
+        for (index_t k = 0; k!=36; ++k)
+            for (index_t j1 = 0; j1!=13; ++j1)
+                for (index_t j2 = 0; j2!=13; ++j2)
+                {
+                    const real_t q1 = real_t(j1)/12, q2 = real_t(j2)/12;
+                    const real_t p1 = pmax * q1 * q1, p2 = pmax * q2 * q2;
+                    Pt t;
+                    t.phi = k * pi / 36;
+                    t.s1 = math::sqrt(p1);
+                    t.s2 = math::sqrt(p2);
+                    t.w = Wat(t.phi,p1,p2);
+                    for (index_t i = 0; i!=3; ++i)
+                        if (t.w < best[i].w)
+                        {
+                            for (index_t m = 2; m > i; --m)
+                                best[m] = best[m-1];
+                            best[i] = t;
+                            break;
+                        }
+                }
+
+        real_t wmin = best[0].w;
+        for (index_t m = 0; m!=3; ++m)
+        {
+            Pt x = best[m];
+            if (!math::isfinite(x.w))
+                continue;
+            real_t dphi = pi / 72, ds = real_t(0.5) * math::sqrt(pmax) / 12;
+            index_t nev = 0;
+            while (dphi > 1e-10 && nev < 2000)
+            {
+                bool improved = false;
+                for (index_t mv = 0; mv!=6 && nev < 2000; ++mv)
+                {
+                    Pt t = x;
+                    const real_t sg = (mv%2==0) ? 1 : -1;
+                    if (mv/2==0) t.phi += sg * dphi;
+                    else if (mv/2==1) t.s1 += sg * ds;
+                    else t.s2 += sg * ds;
+                    t.w = Wat(t.phi,t.s1*t.s1,t.s2*t.s2);
+                    ++nev;
+                    if (t.w < x.w)
+                    {
+                        x = t;
+                        improved = true;
+                        break;
+                    }
+                }
+                if (!improved)
+                {
+                    dphi *= real_t(0.5);
+                    ds *= real_t(0.5);
+                }
+            }
+            wmin = math::min(wmin,x.w);
+        }
+        return wmin;
+    }
+
+    /// Hessian B^T C' B + 2 Shat' of Phi(v) = W(E + v (x) v) for the stress \a Sp and tangent \a Cp at E + v (x) v
+    static gsMatrix<real_t> SplitAnisoHes(const gsMatrix<real_t> & Cp, const gsMatrix<real_t> & Sp, const real_t v0, const real_t v1)
+    {
+        gsMatrix<real_t> B(3,2), Sh(2,2);
+        B << 2*v0, 0, 0, 2*v1, 2*v1, 2*v0;
+        Sh << Sp(0,0), Sp(2,0), Sp(2,0), Sp(1,0);
+        const gsMatrix<real_t> H = B.transpose() * Cp * B + 2 * Sh;
+        const gsMatrix<real_t> Hs = real_t(0.5) * (H + H.transpose());
+        return Hs;
+    }
+
+    /// M11 = n1.C'n1 and Jac0 = [[M11, 2 gamma M12], [M21, sw + 2 gamma M22]] of the acceptance test at theta, gamma
+    static gsMatrix<real_t> SplitAnisoJac0(const gsMatrix<real_t> & Cp, const gsMatrix<real_t> & Sp, const real_t theta,
+                                           const real_t gamma, real_t & M11)
+    {
+        const real_t c = math::cos(theta), s = math::sin(theta);
+        const gsVector<real_t,3> n1 = SplitN1(theta), n2 = SplitN2(theta);
+        gsVector<real_t,3> n4;
+        n4 << s*s, c*c, -2*c*s;
+        const gsVector<real_t,3> Cn1 = Cp * n1, Cn2 = Cp * n2;
+        M11 = n1.dot(Cn1);
+        gsMatrix<real_t> Jac(2,2);
+        Jac << M11, 2*gamma*n1.dot(Cn2), n2.dot(Cn1), n4.dot(Sp.col(0)) + 2*gamma*n2.dot(Cn2);
+        return Jac;
+    }
+
+    static real_t SplitAnisoLambdaMin(const gsMatrix<real_t> & H)
+    {
+        const real_t mid = real_t(0.5) * (H(0,0) + H(1,1));
+        const real_t rad = math::sqrt(real_t(0.25) * (H(0,0)-H(1,1)) * (H(0,0)-H(1,1)) + H(0,1)*H(0,1));
+        return mid - rad;
+    }
+
+    /// Isotropic (pure neo-Hooke) and coaxial states, where the closed-form direction passes the isotropy guard and
+    /// ExactLocalSolve 1 runs the scalar pass
+    struct SplitAnisoCase
+    {
+        SplitAniso law;
+        gsMatrix<real_t> G, E;
+        real_t e1, e2, alpha;
+        index_t id;
+    };
+
+    /// id 0: pure neo-Hooke on both metrics; id 1: law (b) with the fibre along e1 (beta = alpha), orthonormal G;
+    /// id 2: law (a) with phi0 = 0 at alpha = 0, orthonormal G. Only states that classify as wrinkled.
+    static std::vector<SplitAnisoCase> SplitAnisoIsoCases()
+    {
+        std::vector<SplitAnisoCase> out;
+        const real_t wr[4][2] = { { 0.05, -0.03 }, { 0.02, -0.05 }, { 0.08, -0.02 }, { 0.03, -0.06 } };
+        const real_t wa[4] = { 0.2, 0.9, 1.4, 2.5 };
+        auto push = [&](const SplitAniso & law, const gsMatrix<real_t> & J, const real_t e1, const real_t e2, const real_t al, const index_t id)
+        {
+            SplitAnisoCase c;
+            c.law = law;
+            c.G = J.transpose() * J;
+            c.E = SplitAnisoE(J,e1,e2,al);
+            c.e1 = e1; c.e2 = e2; c.alpha = al; c.id = id;
+            if (SplitAnisoClassify(law,c.E,c.G)==0)
+                out.push_back(c);
+        };
+        for (index_t ig = 0; ig!=2; ++ig)
+        {
+            const gsMatrix<real_t> J = ig==0 ? SplitIdentity2() : SplitSkewedJref();
+            const SplitAniso nh = SplitAniso::NeoHookeFibre(J,0,20,0.35);
+            for (index_t i = 0; i!=4; ++i)
+                for (index_t j = 0; j!=4; ++j)
+                    push(nh,J,wr[i][0],wr[i][1],wa[j],0);
+        }
+        const gsMatrix<real_t> I2 = SplitIdentity2();
+        for (index_t i = 0; i!=4; ++i)
+            for (index_t j = 0; j!=4; ++j)
+                push(SplitAniso::NeoHookeFibre(I2,10,20,wa[j]),I2,wr[i][0],wr[i][1],wa[j],1);
+        for (index_t i = 0; i!=4; ++i)
+            push(SplitAniso::Orthotropic(0),I2,wr[i][0],wr[i][1],0,2);
+        return out;
+    }
+
+    /// W(0) = 0, S = grad W and C = dS/dE by central differences (h = 1e-6) for both laws, both metrics, at a wrinkled,
+    /// a taut and a slack candidate: the oracle laws are mutually consistent
+    TEST(SynthLaws_FD_selfcheck)
+    {
+        const real_t eps = std::numeric_limits<real_t>::epsilon();
+        const real_t h = 1e-6;
+        const real_t st[3][3] = { { 0.02, -0.05, 0.9 }, { 0.05, 0.02, 0.2 }, { -0.02, -0.04, 0.9 } };
+        for (index_t lb = 0; lb!=2; ++lb)
+            for (index_t ig = 0; ig!=2; ++ig)
+            {
+                const gsMatrix<real_t> J = ig==0 ? SplitIdentity2() : SplitSkewedJref();
+                const SplitAniso law = SplitAnisoLaw(lb==1,J);
+                const gsMatrix<real_t> Z = gsMatrix<real_t>::Zero(3,1);
+                const real_t floor0 = 1e3 * eps * law.C(Z).cwiseAbs().maxCoeff();
+                CHECK(math::abs(law.W(Z)) <= floor0);
+                CHECK(law.S(Z).cwiseAbs().maxCoeff() <= floor0);
+                for (index_t k = 0; k!=3; ++k)
+                {
+                    const gsMatrix<real_t> E = SplitAnisoE(J,st[k][0],st[k][1],st[k][2]);
+                    const gsMatrix<real_t> S = law.S(E), C = law.C(E);
+                    gsMatrix<real_t> Sfd(3,1), Cfd(3,3);
+                    for (index_t j = 0; j!=3; ++j)
+                    {
+                        gsMatrix<real_t> Ep = E, Em = E;
+                        Ep(j,0) += h;
+                        Em(j,0) -= h;
+                        Sfd(j,0) = (law.W(Ep) - law.W(Em)) / (2*h);
+                        Cfd.col(j) = (law.S(Ep) - law.S(Em)) / (2*h);
+                    }
+                    const real_t floorC = 1e3 * eps * C.cwiseAbs().maxCoeff();
+                    const real_t errS = (Sfd - S).cwiseAbs().maxCoeff(), errC = (Cfd - C).cwiseAbs().maxCoeff();
+                    gsInfo << "  law " << (lb==1 ? "b" : "a") << ", G " << ig << ", state " << k << ": |S - FD W| = " << errS
+                           << ", |C - FD S| = " << errC << "\n";
+                    CHECK(S.allFinite() && C.allFinite());
+                    CHECK(errS <= 1e-6 * S.cwiseAbs().maxCoeff() + floorC);
+                    CHECK(errC <= 1e-6 * C.cwiseAbs().maxCoeff() + floorC);
+                }
+            }
+    }
+
+    /// Global-minimum certificate at Eta 0 for the exact mode: P* is 0, gamma n1 or -E; S(E + P*) and P* are positive
+    /// semidefinite and complementary. A KKT point of the convex problem is its global minimum.
+    static void SplitAnisoKKTRun(const bool lawB)
+    {
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0);
+        index_t nWr = 0, nAll = 0;
+        for (index_t ig = 0; ig!=2; ++ig)
+        {
+            const gsMatrix<real_t> J = ig==0 ? SplitIdentity2() : SplitSkewedJref();
+            const gsMatrix<real_t> G = J.transpose() * J;
+            const SplitAniso law = SplitAnisoLaw(lawB,J);
+            const std::vector<SplitAnisoState> st = SplitAnisoStatesChecked(law,J,G);
+            for (size_t i = 0; i!=st.size(); ++i)
+            {
+                const SplitXRes r = SplitAnisoRun(fx,law,st[i].E,G,1);
+                ++nAll;
+                CHECK_EQUAL(st[i].cls,r.state);
+                CHECK(SplitAnisoKKT(law,st[i].E,G,r,st[i].cls));
+                if (r.state==0)
+                {
+                    ++nWr;
+                    CHECK(!r.exactFallback);
+                    CHECK(SplitAnisoResidualOK(law,st[i].E,r));
+                }
+            }
+            if (lawB)
+            {
+                // A failed direction (indefinite tangent argument): the minimisation starts away from the solution
+                const real_t alphas[3] = { 0.2, 1.4, 2.5 };
+                for (index_t a = 0; a!=3; ++a)
+                {
+                    const gsMatrix<real_t> E = SplitAnisoE(J,0.05,-0.03,alphas[a]);
+                    const gsMatrix<real_t> negC = -law.C(E);
+                    const SplitXRes r = SplitAnisoCall(fx,law,E,G,SplitAnisoOpt(1),true,true,negC,true);
+                    ++nAll;
+                    CHECK(SplitAnisoKKT(law,E,G,r,0));
+                    CHECK(SplitAnisoResidualOK(law,E,r));
+                }
+            }
+        }
+        gsInfo << "  KKT certificates: " << nAll << " states, " << nWr << " wrinkled\n";
+    }
+
+    TEST(ExactMin_KKT_certificate_lawA)
+    {
+        SplitAnisoKKTRun(false);
+    }
+
+    TEST(ExactMin_KKT_certificate_lawB)
+    {
+        SplitAnisoKKTRun(true);
+    }
+
+    /// The accepted energy is not beaten by any PSD P found by a grid search with local polish
+    static void SplitAnisoBruteRun(const bool lawB)
+    {
+        const real_t eps = std::numeric_limits<real_t>::epsilon();
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0);
+        real_t minMargin = std::numeric_limits<real_t>::infinity();
+        for (index_t ig = 0; ig!=2; ++ig)
+        {
+            const gsMatrix<real_t> J = ig==0 ? SplitIdentity2() : SplitSkewedJref();
+            const gsMatrix<real_t> G = J.transpose() * J;
+            const SplitAniso law = SplitAnisoLaw(lawB,J);
+            const std::vector<SplitAnisoState> st = SplitAnisoStatesChecked(law,J,G);
+            for (size_t i = 0; i!=st.size(); ++i)
+            {
+                const SplitXRes r = SplitAnisoRun(fx,law,st[i].E,G,1);
+                CHECK_EQUAL(st[i].cls,r.state);
+                CHECK(math::isfinite(r.W));
+                const real_t Wmin = SplitAnisoBruteMin(law,st[i].E,r.state==0 ? r.gamma : real_t(0));
+                const real_t tol = 1e-8 * math::abs(r.W) + 1e3 * eps * law.C(st[i].E).norm();
+                minMargin = math::min(minMargin,Wmin - r.W);
+                CHECK(Wmin >= r.W - tol);
+            }
+        }
+        gsInfo << "  smallest (search minimum - W_eff) = " << minMargin << " (negative only within the tolerance)\n";
+    }
+
+    TEST(ExactMin_bruteForce_lawA)
+    {
+        SplitAnisoBruteRun(false);
+    }
+
+    TEST(ExactMin_bruteForce_lawB)
+    {
+        SplitAnisoBruteRun(true);
+    }
+
+    /// S_eff = grad W_eff: central differences of the energy of the minimisation, every evaluation a new direct call
+    TEST(ExactMin_energy_gradient)
+    {
+        const real_t eps = std::numeric_limits<real_t>::epsilon();
+        const real_t h = 1e-6;
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0);
+        const real_t etas[2] = { 0, 1e-3 };
+        index_t nChecked = 0;
+        for (index_t lb = 0; lb!=2; ++lb)
+            for (index_t ig = 0; ig!=2; ++ig)
+            {
+                const gsMatrix<real_t> J = ig==0 ? SplitIdentity2() : SplitSkewedJref();
+                const gsMatrix<real_t> G = J.transpose() * J;
+                const SplitAniso law = SplitAnisoLaw(lb==1,J);
+                const std::vector<SplitAnisoState> st = SplitAnisoStatesChecked(law,J,G);
+                for (size_t i = 0; i!=st.size(); ++i)
+                {
+                    if (st[i].kind > 1)
+                        continue;
+                    for (index_t ie = 0; ie!=2; ++ie)
+                    {
+                        const SplitXRes r0 = SplitAnisoRun(fx,law,st[i].E,G,1,etas[ie]);
+                        CHECK_EQUAL(st[i].cls,r0.state);
+                        CHECK(!r0.exactFallback);
+                        gsMatrix<real_t> g(3,1);
+                        bool stable = true;
+                        for (index_t j = 0; j!=3; ++j)
+                        {
+                            gsMatrix<real_t> Ep = st[i].E, Em = st[i].E;
+                            Ep(j,0) += h;
+                            Em(j,0) -= h;
+                            const SplitXRes rp = SplitAnisoRun(fx,law,Ep,G,1,etas[ie],false,true);
+                            const SplitXRes rm = SplitAnisoRun(fx,law,Em,G,1,etas[ie],false,true);
+                            stable = stable && rp.state==r0.state && rm.state==r0.state && !rp.exactFallback && !rm.exactFallback;
+                            g(j,0) = (rp.W - rm.W) / (2*h);
+                        }
+                        CHECK(stable);
+                        const real_t err = (g - r0.S).cwiseAbs().maxCoeff();
+                        const real_t tol = 1e-6 * r0.S.norm() + 1e3 * eps * law.C(st[i].E).norm();
+                        if (!(err <= tol))
+                            gsInfo << "  law " << (lb==1 ? "b" : "a") << ", G " << ig << ", state " << i << ", eta " << etas[ie]
+                                   << ": |S_eff - FD W_eff| = " << err << " (tol " << tol << ")\n";
+                        CHECK(err <= tol);
+                        ++nChecked;
+                    }
+                }
+            }
+
+        // Synthetic affine and switched laws with the wrapped W of the SplitSynthetic input
+        SplitSynthetic sy(true);
+        for (index_t k = 0; k!=2; ++k)
+            for (index_t ie = 0; ie!=2; ++ie)
+            {
+                const SplitSynthetic::Kind kind = k==0 ? SplitSynthetic::Affine : SplitSynthetic::Switch;
+                const real_t par = k==0 ? real_t(0) : real_t(1e-2);
+                const SplitSynthetic::Provider prov = sy.provider(kind,par);
+                const gsMatrix<real_t> S0 = sy.S, C0 = sy.C, E0 = sy.E, w0 = sy.w;
+                const real_t lin = par * sy.sNorm;
+                const SplitXWProv Wp = [=](const gsMatrix<real_t> & Ee) -> real_t
+                {
+                    const gsMatrix<real_t> d = Ee - E0;
+                    const gsMatrix<real_t> Cd = C0 * d;
+                    return S0.col(0).dot(d.col(0)) + real_t(0.5) * d.col(0).dot(Cd.col(0)) + lin * w0.col(0).dot(d.col(0));
+                };
+                SplitXOpt opt = sy.optEx;
+                opt.eta = etas[ie];
+                opt.exactLocalSolve = 1;
+                auto call = [&](const gsMatrix<real_t> & Ee) -> SplitXRes
+                {
+                    gsMatrix<real_t> S, C;
+                    prov(Ee,S,C);
+                    return sy.fx.split->wrinkle(S,C,Ee,sy.I2,opt,true,SplitXdCProv(),prov,Wp,true);
+                };
+                const SplitXRes r0 = call(E0);
+                CHECK_EQUAL(0,r0.state);
+                CHECK(!r0.exactFallback);
+                gsMatrix<real_t> g(3,1);
+                bool stable = true;
+                for (index_t j = 0; j!=3; ++j)
+                {
+                    gsMatrix<real_t> Ep = E0, Em = E0;
+                    Ep(j,0) += h;
+                    Em(j,0) -= h;
+                    const SplitXRes rp = call(Ep), rm = call(Em);
+                    stable = stable && rp.state==r0.state && rm.state==r0.state && !rp.exactFallback && !rm.exactFallback;
+                    g(j,0) = (rp.W - rm.W) / (2*h);
+                }
+                CHECK(stable);
+                const real_t err = (g - r0.S).cwiseAbs().maxCoeff();
+                const real_t tol = 1e-6 * r0.S.norm() + 1e3 * eps * C0.norm();
+                gsInfo << "  synthetic " << (k==0 ? "affine" : "switch") << ", eta " << etas[ie] << ": |S_eff - FD W_eff| = " << err
+                       << " (tol " << tol << ")\n";
+                CHECK(err <= tol);
+                ++nChecked;
+            }
+        gsInfo << "  gradient checks: " << nChecked << "\n";
+    }
+
+    /// J_ex = dS_eff/dE by central differences of S_eff, at wrinkled states away from both interfaces; symmetric, with
+    /// the wrinkle direction in its kernel
+    TEST(ExactMin_tangent_FD)
+    {
+        const real_t h = 1e-6;
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0);
+        for (index_t lb = 0; lb!=2; ++lb)
+            for (index_t ig = 0; ig!=2; ++ig)
+            {
+                const gsMatrix<real_t> J = ig==0 ? SplitIdentity2() : SplitSkewedJref();
+                const gsMatrix<real_t> G = J.transpose() * J;
+                const SplitAniso law = SplitAnisoLaw(lb==1,J);
+                const std::vector<SplitAnisoState> st = SplitAnisoStatesChecked(law,J,G);
+                index_t nUsed = 0;
+                for (size_t i = 0; i!=st.size(); ++i)
+                {
+                    if (!SplitAnisoWrinkledCand(st[i]) || !SplitAnisoAway(law,st[i].E,G))
+                        continue;
+                    ++nUsed;
+                    const SplitXRes r = SplitAnisoRun(fx,law,st[i].E,G,1);
+                    CHECK_EQUAL(0,r.state);
+                    gsMatrix<real_t> Jfd(3,3);
+                    bool stable = true;
+                    for (index_t j = 0; j!=3; ++j)
+                    {
+                        gsMatrix<real_t> Ep = st[i].E, Em = st[i].E;
+                        Ep(j,0) += h;
+                        Em(j,0) -= h;
+                        const SplitXRes rp = SplitAnisoRun(fx,law,Ep,G,1,0,false,false);
+                        const SplitXRes rm = SplitAnisoRun(fx,law,Em,G,1,0,false,false);
+                        stable = stable && rp.state==0 && rm.state==0 && !rp.exactFallback && !rm.exactFallback
+                                 && !rp.exactStagnated && !rm.exactStagnated;
+                        Jfd.col(j) = (rp.S - rm.S) / (2*h);
+                    }
+                    CHECK(stable);
+                    const real_t Jmax = r.C.cwiseAbs().maxCoeff();
+                    const real_t err = (r.C - Jfd).cwiseAbs().maxCoeff();
+                    if (!(err <= 1e-6 * Jmax))
+                        gsInfo << "  law " << (lb==1 ? "b" : "a") << ", G " << ig << ", state " << i << ": |J_ex - FD| = " << err
+                               << " (tol " << 1e-6 * Jmax << ")\n";
+                    CHECK(err <= 1e-6 * Jmax);
+                    CHECK(SplitAsymmetry(r.C) <= 1e-12);
+                    const gsVector<real_t,3> n1 = SplitN1(r.theta);
+                    const gsMatrix<real_t> Jn1 = r.C * n1;
+                    CHECK(Jn1.cwiseAbs().maxCoeff() <= 1e-10 * Jmax * n1.cwiseAbs().maxCoeff());
+                }
+                gsInfo << "  law " << (lb==1 ? "b" : "a") << ", G " << ig << ": " << nUsed << " states away from the interfaces\n";
+                CHECK(nUsed >= 4);
+            }
+    }
+
+    /// W_eff and S_eff are continuous across the taut and the slack interface (Eta 0, no slack multiplier)
+    TEST(ExactMin_continuity_interfaces)
+    {
+        const real_t eps = std::numeric_limits<real_t>::epsilon();
+        const real_t delta = 1e-6, dSlack = 1e-7;
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0);
+        for (index_t lb = 0; lb!=2; ++lb)
+            for (index_t ig = 0; ig!=2; ++ig)
+            {
+                const gsMatrix<real_t> J = ig==0 ? SplitIdentity2() : SplitSkewedJref();
+                const gsMatrix<real_t> G = J.transpose() * J;
+                const SplitAniso law = SplitAnisoLaw(lb==1,J);
+
+                gsMatrix<real_t> E0, E1;
+                const real_t sb = SplitAnisoTautBoundary(law,J,G,0.9,E0,E1);
+                const gsMatrix<real_t> dE = E1 - E0;
+                const gsMatrix<real_t> Em = E0 + (sb - delta) * dE, Ep = E0 + (sb + delta) * dE, Eb = E0 + sb * dE;
+                const SplitXRes rm = SplitAnisoRun(fx,law,Em,G,1);
+                const SplitXRes rp = SplitAnisoRun(fx,law,Ep,G,1);
+                CHECK_EQUAL(1,rm.state);
+                CHECK_EQUAL(0,rp.state);
+                CHECK(!rp.exactFallback);
+                const real_t dS = (rp.S - rm.S).cwiseAbs().maxCoeff();
+                const real_t dW = math::abs(rp.W - rm.W);
+                const real_t boundS = 10 * law.C(Eb).norm() * dE.norm() * 2 * delta;
+                const real_t boundW = 10 * law.S(Eb).norm() * dE.norm() * 2 * delta;
+                gsInfo << "  law " << (lb==1 ? "b" : "a") << ", G " << ig << ", taut interface: |dS| = " << dS << " (bound " << boundS
+                       << "), |dW| = " << dW << " (bound " << boundW << ")\n";
+                CHECK(dS <= boundS);
+                CHECK(dW <= boundW);
+
+                const gsMatrix<real_t> Eneg = SplitAnisoE(J,-dSlack,-0.05,0.9), Epos = SplitAnisoE(J,dSlack,-0.05,0.9);
+                const gsMatrix<real_t> Z = gsMatrix<real_t>::Zero(3,1);
+                const real_t C0n = law.C(Z).norm();
+                const SplitXRes sm = SplitAnisoRun(fx,law,Eneg,G,1);
+                const SplitXRes sp = SplitAnisoRun(fx,law,Epos,G,1);
+                CHECK_EQUAL(-1,sm.state);
+                CHECK(sm.S.cwiseAbs().maxCoeff() == 0);
+                CHECK(sm.W == 0);
+                CHECK(sp.state==0 || sp.state==-1);
+                CHECK(!sp.exactFallback);
+                const real_t Sp = sp.S.cwiseAbs().maxCoeff();
+                const real_t Wp = math::abs(sp.W);
+                gsInfo << "  law " << (lb==1 ? "b" : "a") << ", G " << ig << ", slack interface: |S+| = " << Sp << " (bound "
+                       << 10 * C0n * dSlack << "), |W+| = " << Wp << " (bound " << 10 * C0n * dSlack * dSlack + 1e3 * eps * C0n << ")\n";
+                CHECK(Sp <= 10 * C0n * dSlack);
+                CHECK(Wp <= 10 * C0n * dSlack * dSlack + 1e3 * eps * C0n);
+            }
+    }
+
+    /// Anisotropic wrinkled states, where the isotropy guard rejects the closed-form direction: the minimisation runs
+    /// and is accepted without fallback
+    TEST(ExactMin_aniso_wrinkled_noFallback_minimised)
+    {
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0);
+        index_t nIt3 = 0;
+        for (index_t lb = 0; lb!=2; ++lb)
+            for (index_t ig = 0; ig!=2; ++ig)
+            {
+                const gsMatrix<real_t> J = ig==0 ? SplitIdentity2() : SplitSkewedJref();
+                const gsMatrix<real_t> G = J.transpose() * J;
+                const SplitAniso law = SplitAnisoLaw(lb==1,J);
+                const std::vector<SplitAnisoState> st = SplitAnisoStatesChecked(law,J,G);
+                for (size_t i = 0; i!=st.size(); ++i)
+                {
+                    if (!SplitAnisoWrinkledCand(st[i]) && st[i].kind!=3)
+                        continue;
+                    const SplitXRes r = SplitAnisoRun(fx,law,st[i].E,G,1);
+                    CHECK_EQUAL(0,r.state);
+                    CHECK(r.guardFallback);
+                    CHECK(r.exactMinimised);
+                    CHECK(!r.exactFallback);
+                    CHECK(!r.exactSkipped);
+                    CHECK(SplitAnisoResidualOK(law,st[i].E,r));
+                    if (lb==1 && r.exactIterations >= 3)
+                        ++nIt3;
+                    gsInfo << "  law " << (lb==1 ? "b" : "a") << " G " << ig << " (" << st[i].e1 << "," << st[i].e2 << "," << st[i].alpha
+                           << "): iterations " << r.exactIterations << ", gamma " << r.gamma << ", theta " << r.theta << "\n";
+                }
+            }
+        gsInfo << "  law (b) states with at least 3 iterations: " << nIt3 << "\n";
+        CHECK(nIt3 >= 4);
+    }
+
+    /// A tangent argument that is indefinite along every direction (-C) is a failed direction: mode 0 skips the exact
+    /// solve and returns S, mode 1 minimises from the eigenvector start and agrees with the run on the consistent tangent
+    TEST(ExactMin_hard_forcedFailedDirection_lawB)
+    {
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0);
+        const real_t alphas[3] = { 0.2, 1.4, 2.5 };
+        for (index_t ig = 0; ig!=2; ++ig)
+        {
+            const gsMatrix<real_t> J = ig==0 ? SplitIdentity2() : SplitSkewedJref();
+            const gsMatrix<real_t> G = J.transpose() * J;
+            const SplitAniso law = SplitAnisoLaw(true,J);
+            for (index_t a = 0; a!=3; ++a)
+            {
+                const gsMatrix<real_t> E = SplitAnisoE(J,0.05,-0.03,alphas[a]);
+                CHECK_EQUAL(0,SplitAnisoClassify(law,E,G));
+                const gsMatrix<real_t> negC = -law.C(E);
+
+                const SplitXRes r0 = SplitAnisoCall(fx,law,E,G,SplitAnisoOpt(0),true,true,negC,true);
+                CHECK(r0.tftFailure);
+                CHECK(r0.exactSkipped);
+                CHECK(!r0.exactMinimised);
+                CHECK(!r0.exactFallback);
+                CHECK((r0.S - law.S(E)).cwiseAbs().maxCoeff() == 0);
+
+                const SplitXRes r1 = SplitAnisoCall(fx,law,E,G,SplitAnisoOpt(1),true,true,negC,true);
+                CHECK(r1.tftFailure);
+                CHECK(!r1.exactSkipped);
+                CHECK(r1.exactMinimised);
+                CHECK(!r1.exactFallback);
+                CHECK_EQUAL(0,r1.state);
+                CHECK(r1.exactIterations >= 3);
+                CHECK(SplitAnisoResidualOK(law,E,r1));
+
+                const SplitXRes rc = SplitAnisoRun(fx,law,E,G,1);
+                CHECK_EQUAL(0,rc.state);
+                real_t kappa, kappa1, tol1, tol2;
+                SplitAnisoKappa(law,rc,kappa,tol2);
+                SplitAnisoKappa(law,r1,kappa1,tol1);
+                const real_t dS = (r1.S - rc.S).cwiseAbs().maxCoeff();
+                gsInfo << "  G " << ig << ", alpha " << alphas[a] << ": iterations " << r1.exactIterations << ", |S1 - S1consistent| = " << dS
+                       << " (bound " << 4 * kappa * math::max(tol1,tol2) << ")\n";
+                CHECK(dS <= 4 * kappa * math::max(tol1,tol2));
+            }
+        }
+    }
+
+    /// Stiff fibre with the tangent argument scaled by f (the direction search is scale-invariant, the linearised
+    /// gamma is multiplied by 1/f): the states where mode 0 fails and mode 1 is accepted
+    TEST(ExactMin_hard_mode0Fails_lawB)
+    {
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0);
+        const real_t fs[2] = { 0.01, 0.003 };
+        index_t nHits = 0, nCand = 0;
+        bool allAccepted = true;
+        for (index_t ig = 0; ig!=2; ++ig)
+        {
+            const gsMatrix<real_t> J = ig==0 ? SplitIdentity2() : SplitSkewedJref();
+            const gsMatrix<real_t> G = J.transpose() * J;
+            const SplitAniso law = SplitAniso::NeoHookeFibre(J,10,100,0.35);
+            const std::vector<SplitAnisoState> st = SplitAnisoStates(law,J,G);
+            for (size_t i = 0; i!=st.size(); ++i)
+            {
+                if (st[i].kind!=0)
+                    continue;
+                for (index_t k = 0; k!=2; ++k)
+                {
+                    const gsMatrix<real_t> Cin = fs[k] * law.C(st[i].E);
+                    const SplitXRes r0 = SplitAnisoCall(fx,law,st[i].E,G,SplitAnisoOpt(0),true,true,Cin,true);
+                    const SplitXRes r1 = SplitAnisoCall(fx,law,st[i].E,G,SplitAnisoOpt(1),true,true,Cin,true);
+                    ++nCand;
+                    const bool fail0 = r0.exactFallback && !r0.exactWrongBranch;
+                    const bool acc1 = r1.state==0 && !r1.exactFallback && r1.exactMinimised && SplitAnisoResidualOK(law,st[i].E,r1);
+                    if (st[i].cls==0)
+                        allAccepted = allAccepted && acc1;
+                    if (fail0 && acc1)
+                        ++nHits;
+                    gsInfo << "  G " << ig << " (" << st[i].e1 << "," << st[i].e2 << "," << st[i].alpha << ") f " << fs[k]
+                           << ": class " << st[i].cls << ", mode 0: state " << r0.state << " fallback " << r0.exactFallback << " saddle " << r0.exactSaddle
+                           << " wrong " << r0.exactWrongBranch << " it " << r0.exactIterations << "; mode 1: state " << r1.state
+                           << " fallback " << r1.exactFallback << " min " << r1.exactMinimised << " it " << r1.exactIterations << " accepted " << acc1 << "\n";
+                }
+            }
+        }
+        gsInfo << "  hard states (mode 0 nonconverged or saddle, mode 1 accepted): " << nHits << " of " << nCand << " candidates\n";
+        CHECK(allAccepted);
+        CHECK(nHits >= 1);
+    }
+
+    /// Modes 1 and 2 are bitwise equal at the anisotropic states: the closed-form direction is guard-rejected, so mode 1
+    /// skips the scalar/2x2 solve (cfOK is false) and runs the same start rule and minimisation as mode 2. At isotropic and
+    /// coaxial states mode 1 runs the scalar pass and the two modes agree to the conditioning of the solve.
+    TEST(ExactMin_mode1_vs_mode2)
+    {
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0);
+        index_t nAniso = 0;
+        for (index_t lb = 0; lb!=2; ++lb)
+            for (index_t ig = 0; ig!=2; ++ig)
+            {
+                const gsMatrix<real_t> J = ig==0 ? SplitIdentity2() : SplitSkewedJref();
+                const gsMatrix<real_t> G = J.transpose() * J;
+                const SplitAniso law = SplitAnisoLaw(lb==1,J);
+                const std::vector<SplitAnisoState> st = SplitAnisoStatesChecked(law,J,G);
+                for (size_t i = 0; i!=st.size(); ++i)
+                {
+                    if (!SplitAnisoWrinkledCand(st[i]))
+                        continue;
+                    const SplitXRes r1 = SplitAnisoRun(fx,law,st[i].E,G,1);
+                    const SplitXRes r2 = SplitAnisoRun(fx,law,st[i].E,G,2);
+                    const std::string d = SplitAnisoDiff(r1,r2,true,true);
+                    if (!d.empty())
+                        gsInfo << "  law " << (lb==1 ? "b" : "a") << " G " << ig << " state " << i << ": modes 1 and 2 differ in" << d << "\n";
+                    CHECK(d.empty());
+                    CHECK(r1.guardFallback);
+                    CHECK(r1.exactMinimised && r2.exactMinimised);
+                    ++nAniso;
+                }
+            }
+        gsInfo << "  anisotropic states compared bitwise: " << nAniso << "\n";
+
+        const std::vector<SplitAnisoCase> cases = SplitAnisoIsoCases();
+        for (size_t i = 0; i!=cases.size(); ++i)
+        {
+            const SplitAnisoCase & c = cases[i];
+            const SplitXRes r1 = SplitAnisoRun(fx,c.law,c.E,c.G,1);
+            const SplitXRes r2 = SplitAnisoRun(fx,c.law,c.E,c.G,2);
+            CHECK_EQUAL(0,r1.state);
+            CHECK_EQUAL(0,r2.state);
+            CHECK(!r1.exactFallback && !r2.exactFallback);
+            CHECK(r2.exactMinimised);
+            real_t kappa, tolC1, tolC2, k2;
+            SplitAnisoKappa(c.law,r1,kappa,tolC1);
+            SplitAnisoKappa(c.law,r2,k2,tolC2);
+            const real_t dS = (r1.S - r2.S).cwiseAbs().maxCoeff();
+            const real_t bound = 4 * kappa * math::max(tolC1,tolC2);
+            gsInfo << "  case " << c.id << " (" << c.e1 << "," << c.e2 << "," << c.alpha << "): minimised in mode 1 " << r1.exactMinimised
+                   << ", |S1 - S2| = " << dS << " (bound " << bound << ")\n";
+            CHECK(dS <= bound);
+        }
+    }
+
+    /// Without a W provider mode 1 is mode 0, bit for bit, including the skipped failed direction
+    TEST(ExactMin_noW_mode1_equals_mode0)
+    {
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0);
+        index_t nCmp = 0;
+        auto compare = [&](const SplitAniso & law, const gsMatrix<real_t> & E, const gsMatrix<real_t> & G, const gsMatrix<real_t> & Cin) -> SplitXRes
+        {
+            const SplitXRes r0 = SplitAnisoCall(fx,law,E,G,SplitAnisoOpt(0),true,false,Cin,false);
+            const SplitXRes r1 = SplitAnisoCall(fx,law,E,G,SplitAnisoOpt(1),true,false,Cin,false);
+            const std::string d = SplitAnisoDiff(r1,r0,true,true);
+            if (!d.empty())
+                gsInfo << "  modes 1 and 0 differ in" << d << "\n";
+            CHECK(d.empty());
+            CHECK(!r1.exactMinimised);
+            ++nCmp;
+            return r1;
+        };
+        for (index_t lb = 0; lb!=2; ++lb)
+            for (index_t ig = 0; ig!=2; ++ig)
+            {
+                const gsMatrix<real_t> J = ig==0 ? SplitIdentity2() : SplitSkewedJref();
+                const gsMatrix<real_t> G = J.transpose() * J;
+                const SplitAniso law = SplitAnisoLaw(lb==1,J);
+                const std::vector<SplitAnisoState> st = SplitAnisoStatesChecked(law,J,G);
+                for (size_t i = 0; i!=st.size(); ++i)
+                    if (SplitAnisoWrinkledCand(st[i]))
+                        compare(law,st[i].E,G,law.C(st[i].E));
+                if (lb==1)
+                {
+                    const gsMatrix<real_t> E = SplitAnisoE(J,0.05,-0.03,0.2);
+                    const SplitXRes r = compare(law,E,G,-law.C(E));
+                    CHECK(r.exactSkipped);
+                }
+            }
+        gsInfo << "  compared states: " << nCmp << "\n";
+    }
+
+    /// Where mode 0 needs no 2x2 pass and has an admissible direction, mode 1 is mode 0, bit for bit
+    TEST(ExactMin_mode1_equals_mode0_without2x2)
+    {
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0);
+        const std::vector<SplitAnisoCase> cases = SplitAnisoIsoCases();
+        index_t nCmp = 0;
+        for (size_t i = 0; i!=cases.size(); ++i)
+        {
+            const SplitAnisoCase & c = cases[i];
+            const SplitXRes r0 = SplitAnisoRun(fx,c.law,c.E,c.G,0);
+            if (r0.exactUsed2x2 || r0.tftFailure)
+                continue;
+            const SplitXRes r1 = SplitAnisoRun(fx,c.law,c.E,c.G,1);
+            const std::string d = SplitAnisoDiff(r1,r0,true,true);
+            if (!d.empty())
+                gsInfo << "  case " << c.id << " state " << i << ": modes 1 and 0 differ in" << d << "\n";
+            CHECK(d.empty());
+            CHECK(!r1.exactMinimised);
+            ++nCmp;
+        }
+        gsInfo << "  compared states: " << nCmp << " of " << cases.size() << "\n";
+        CHECK(nCmp >= 4);
+    }
+
+    /// Hes of Phi(v) = W(E + v (x) v) is positive definite iff n1.C'n1 > 0 and det Jac0 > 0 (the minimum test), with
+    /// det Hes = 8 gamma det Jac0 and (Q^T Hes Q)_11 = 4 gamma M11 at R = 0
+    TEST(ExactMin_HesPD_iff_minimumTest)
+    {
+        // (A) accepted wrinkled states of the exact mode
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0);
+        index_t nA = 0;
+        for (index_t lb = 0; lb!=2; ++lb)
+            for (index_t ig = 0; ig!=2; ++ig)
+            {
+                const gsMatrix<real_t> J = ig==0 ? SplitIdentity2() : SplitSkewedJref();
+                const gsMatrix<real_t> G = J.transpose() * J;
+                const SplitAniso law = SplitAnisoLaw(lb==1,J);
+                const std::vector<SplitAnisoState> st = SplitAnisoStatesChecked(law,J,G);
+                for (size_t i = 0; i!=st.size(); ++i)
+                {
+                    if (!SplitAnisoWrinkledCand(st[i]) && st[i].kind < 3)
+                        continue;
+                    const SplitXRes r = SplitAnisoRun(fx,law,st[i].E,G,1);
+                    CHECK_EQUAL(0,r.state);
+                    if (r.state!=0)
+                        continue;
+                    const real_t c = math::cos(r.theta), s = math::sin(r.theta);
+                    const real_t v0 = math::sqrt(r.gamma) * c, v1 = math::sqrt(r.gamma) * s;
+                    gsMatrix<real_t> Pv(3,1);
+                    Pv << v0*v0, v1*v1, 2*v0*v1;
+                    const gsMatrix<real_t> Ep = st[i].E + Pv;
+                    const gsMatrix<real_t> Sp = law.S(Ep), Cp = law.C(Ep);
+                    const gsMatrix<real_t> Hes = SplitAnisoHes(Cp,Sp,v0,v1);
+                    real_t M11;
+                    const gsMatrix<real_t> Jac = SplitAnisoJac0(Cp,Sp,r.theta,r.gamma,M11);
+                    const real_t detJ = Jac.determinant();
+                    gsVector<real_t,2> nn;
+                    nn << c, s;
+                    const real_t q11 = nn.dot(Hes * nn);
+                    const real_t detH = Hes.determinant();
+                    const bool pd = SplitAnisoLambdaMin(Hes) > 0;
+                    gsInfo << "  law " << (lb==1 ? "b" : "a") << " G " << ig << " state " << i << ": det Hes / (8 gamma det Jac0) = "
+                           << detH / (8 * r.gamma * detJ) << ", Q11 / (4 gamma M11) = " << q11 / (4 * r.gamma * M11)
+                           << ", Hes PD " << pd << ", minimum test " << (M11 > 0 && detJ > 0) << "\n";
+                    CHECK(math::abs(detH - 8 * r.gamma * detJ) <= 1e-8 * math::abs(8 * r.gamma * detJ));
+                    CHECK(math::abs(q11 - 4 * r.gamma * M11) <= 1e-8 * math::abs(4 * r.gamma * M11));
+                    CHECK_EQUAL(M11 > 0 && detJ > 0,pd);
+                    ++nA;
+                }
+            }
+        gsInfo << "  accepted states checked: " << nA << "\n";
+        CHECK(nA >= 20);
+
+        // (B) algebraic sweep at R = 0: n1.S' = n2.S' = 0, S' = sw Tm, C' = C0 + t w w^T
+        index_t nPD = 0, nNotPD = 0;
+        const real_t thetas[2] = { 0.3, 1.1 };
+        const real_t gammas[2] = { 1e-3, 0.1 };
+        const real_t sws[2] = { 0.5, -0.5 };
+        const real_t ts[4] = { 0, -0.3, -3, -30 };
+        for (index_t it = 0; it!=2; ++it)
+            for (index_t ig = 0; ig!=2; ++ig)
+                for (index_t is = 0; is!=2; ++is)
+                    for (index_t k = 0; k!=4; ++k)
+                    {
+                        gsMatrix<real_t> v, w, Tm;
+                        SplitDualVectors(thetas[it],v,w,Tm);
+                        const gsMatrix<real_t> Sp = sws[is] * Tm;
+                        const gsMatrix<real_t> Cp = SplitIsoC() + ts[k] * (w * w.transpose());
+                        const real_t gam = gammas[ig];
+                        const real_t v0 = math::sqrt(gam) * math::cos(thetas[it]), v1 = math::sqrt(gam) * math::sin(thetas[it]);
+                        const gsMatrix<real_t> Hes = SplitAnisoHes(Cp,Sp,v0,v1);
+                        real_t M11;
+                        const gsMatrix<real_t> Jac = SplitAnisoJac0(Cp,Sp,thetas[it],gam,M11);
+                        const real_t detJ = Jac.determinant();
+                        const bool pd = SplitAnisoLambdaMin(Hes) > 0;
+                        CHECK(math::abs(Hes.determinant() - 8 * gam * detJ) <= 1e-8 * math::abs(8 * gam * detJ));
+                        CHECK_EQUAL(M11 > 0 && detJ > 0,pd);
+                        if (pd) ++nPD; else ++nNotPD;
+                    }
+        gsInfo << "  sweep: " << nPD << " positive definite, " << nNotPD << " not\n";
+        CHECK(nPD > 0);
+        CHECK(nNotPD > 0);
+    }
+
+    /// The truncated (linearised) wrinkled tangent is asymmetric at the taut interface by O(gamma) when the wrapped
+    /// tangent varies with E, and symmetric where it does not
+    TEST(Linearised_asymmetry_gammaScaling)
+    {
+        const real_t h = 1e-6;
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitIdentity2(),1.0,1.0,0.0);
+        const gsMatrix<real_t> I2 = SplitIdentity2();
+        SplitXOpt opt = SplitExactOptions();
+        opt.exact = false;
+        opt.eta = 0;
+        opt.slackMultiplier = 0;
+
+        // Orthotropic law with phi0 = 0 at alpha = 0: the closed-form direction passes the guard and C is constant
+        {
+            const SplitAniso law = SplitAniso::Orthotropic(0);
+            gsMatrix<real_t> E0, E1;
+            const real_t sb = SplitAnisoTautBoundary(law,I2,I2,0.0,E0,E1);
+            const gsMatrix<real_t> Eb = E0 + sb * (E1 - E0);
+            const gsMatrix<real_t> Delta = SplitAnisoE(I2,0,-1,0.0);
+            const real_t ts[2] = { 0.005, 0.01 };
+            for (index_t k = 0; k!=2; ++k)
+            {
+                const gsMatrix<real_t> E = Eb + ts[k] * Delta;
+                const SplitXRes r = fx.split->wrinkle(law.S(E),law.C(E),E,I2,opt,true);
+                gsInfo << "  orthotropic, t " << ts[k] << ": asymmetry " << SplitAsymmetry(r.C) << "\n";
+                CHECK_EQUAL(0,r.state);
+                CHECK(!r.guardFallback);
+                CHECK(SplitAsymmetry(r.C) <= 1e-12);
+            }
+        }
+
+        // Pure neo-Hooke: dC/dE by central differences of the closed-form tangent
+        {
+            const SplitAniso law = SplitAniso::NeoHookeFibre(I2,0,20,0.35);
+            gsMatrix<real_t> E0, E1;
+            const real_t sb = SplitAnisoTautBoundary(law,I2,I2,0.9,E0,E1);
+            const gsMatrix<real_t> Eb = E0 + sb * (E1 - E0);
+            const gsMatrix<real_t> Delta = SplitAnisoE(I2,0,-1,0.9);
+            auto run = [&](const real_t t, real_t & gamma) -> real_t
+            {
+                const gsMatrix<real_t> E = Eb + t * Delta;
+                const SplitAniso L = law;
+                const SplitXdCProv dC = [L,E,h](std::vector<gsMatrix<real_t> > & dCs)
+                {
+                    dCs.resize(3);
+                    for (index_t d = 0; d!=3; ++d)
+                    {
+                        gsMatrix<real_t> Ep = E, Em = E;
+                        Ep(d,0) += h;
+                        Em(d,0) -= h;
+                        dCs[d] = (L.C(Ep) - L.C(Em)) / (2*h);
+                    }
+                };
+                const SplitXRes r = fx.split->wrinkle(law.S(E),law.C(E),E,I2,opt,true,dC);
+                CHECK_EQUAL(0,r.state);
+                CHECK(!r.guardFallback);
+                gamma = r.gamma;
+                return SplitAsymmetry(r.C);
+            };
+            real_t g0;
+            run(0.01,g0);
+            real_t g1, g2;
+            const real_t t1 = 0.01 * 5e-3 / g0, t2 = 0.01 * 1e-2 / g0;
+            const real_t a1 = run(t1,g1), a2 = run(t2,g2);
+            const real_t rel = (a2 / a1) / (g2 / g1);
+            gsInfo << "  neo-Hooke: gamma " << g1 << ", " << g2 << "; asymmetry " << a1 << ", " << a2 << "; (a2/a1)/(g2/g1) = " << rel << "\n";
+            CHECK(math::abs(rel - 1) <= 0.2);
+            CHECK(a1 >= 1e-7);
+        }
     }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -68,6 +68,27 @@
         at g12/2 instead of g12 differs from the true one by far more than the
         tolerance).
 
+    The Energy_* tests gate the strain energy W of every instantiated law
+    (eval3D_energy, eval3D_energy_C, MaterialOutput::Energy): W is the energy per
+    unit reference volume at the fibre point, S = dW/dE with S the Voigt vector
+    of eval3D_vector_C and E the engineering strain (E3 = 2 E12), and W(E=0) = 0.
+    A test state is an engineering strain E mapped to the deformed metric
+    Cm = [G11+2E1, G22+2E2, G12+E3], for an orthonormal and a skewed reference
+    metric G.
+      - Energy_FD_Nonlinear compares S with the central finite difference of
+        W(Cm(E)) for all 17 (material, implementation, compressibility)
+        variants; each state must also discriminate the shear entry of S.
+      - Energy_Zero_Nonlinear pins W = 0 at Cm = G.
+      - Energy_ImplementationIndependence compares W of the Analytical,
+        Generalized and Spectral implementations of the same material.
+      - Energy_GeometryPath_MatchesCmat compares the geometry-based
+        eval3D_energy (column packing j*u.cols()+k, convenience overload) with
+        eval3D_energy_C at the deformed metric of each point.
+      - Energy_Eval_OutputShape pins the targetDim and the values of the
+        gsMaterialMatrixEval wrappers of MaterialOutput::Energy.
+      - Energy_SmallStrain_Quadratic compares W at a small nonzero strain with
+        1/2 E^T C(0) E, which exercises the energy formula close to E = 0.
+
     TEST(CauchyStress_Compressible_IsStressOverDetF) gates the compressible
     Cauchy stress: eval3D_CauchyStress must equal the second Piola-Kirchhoff
     components eval3D_stress divided column-wise by eval3D_detF, for
@@ -670,6 +691,205 @@ void PSDirNL_run(const bool compressible)
     PSDirNL_check<d>(*mm,sc,false,(name + " undeformed").c_str());
 }
 
+// Option codes as in gsMaterialMatrixUtils.h: material NH 1, NH_ext 2, MR 3,
+// OG 4; implementation Analytical 1, Generalized 2, Spectral 3.
+struct EnergyVariant
+{
+    index_t material;
+    index_t impl;
+    bool    compressible;
+};
+
+std::string energyLabel(const EnergyVariant & v)
+{
+    static const char * const mats[] = {"SvK","NH","NH_ext","MR","OG"};
+    static const char * const imps[] = {"-","Analytical","Generalized","Spectral"};
+    return std::string(v.compressible ? "compressible " : "incompressible ")
+         + mats[v.material] + "/" + imps[v.impl];
+}
+
+// Every law instantiated through getMaterialMatrix<2,real_t>: NH_ext exists
+// for compressible materials only and Ogden for the Spectral implementation only.
+std::vector<EnergyVariant> energyVariants()
+{
+    std::vector<EnergyVariant> variants;
+    for (index_t comp = 0; comp != 2; ++comp)
+        for (index_t mat = 1; mat <= 4; ++mat)
+        {
+            if (mat == 2 && comp == 0) continue;
+            for (index_t imp = 1; imp <= 3; ++imp)
+            {
+                if (mat == 4 && imp != 3) continue;
+                variants.push_back({mat,imp,comp==1});
+            }
+        }
+    return variants;
+}
+
+// Unit-square shell with E = 1, nu = 0.5 (incompressible) or 0.3, MR ratio 1.5
+// and the normalised Treloar Ogden set. The reference patch is orthonormal
+// (G = I) or sheared (coefficient column 0 += 0.4 * column 1, G = [1 0.4; 0.4 1.16]).
+// The parameter functions are members for the lifetime reason given for CompressibleNH.
+struct EnergyLaw
+{
+    EnergyVariant variant;
+    gsMultiPatch<real_t> mp;
+    gsMultiPatch<real_t> def;
+    gsFunctionExpr<real_t> t;
+    gsConstantFunction<real_t> E, nu, ratio;
+    gsConstantFunction<real_t> mu1, alpha1, mu2, alpha2, mu3, alpha3;
+    gsMaterialMatrixBase<real_t>::uPtr materialMatrix;
+
+    EnergyLaw(const EnergyVariant & v, bool skewed)
+    :
+    variant(v),
+    t("1e-1",2),
+    E(1.0,2),
+    nu(v.compressible ? 0.3 : 0.5,2),
+    ratio(1.5,2),
+    mu1(1.491,2), alpha1(1.3,2),
+    mu2(0.00284,2), alpha2(5.0,2),
+    mu3(-0.02367,2), alpha3(-2.0,2)
+    {
+        mp.addPatch( gsNurbsCreator<real_t>::BSplineSquare(1) );
+        if (skewed)
+            mp.patch(0).coefs().col(0) += 0.4 * mp.patch(0).coefs().col(1);
+        mp.addAutoBoundaries();
+
+        std::vector<gsFunctionSet<real_t>*> parameters;
+        parameters.push_back(&E);
+        parameters.push_back(&nu);
+        if (v.material == 3)
+            parameters.push_back(&ratio);
+        if (v.material == 4)
+        {
+            parameters.push_back(&mu1); parameters.push_back(&alpha1);
+            parameters.push_back(&mu2); parameters.push_back(&alpha2);
+            parameters.push_back(&mu3); parameters.push_back(&alpha3);
+        }
+
+        gsOptionList options;
+        options.addInt("Material","Material model: (1): NH, (2): NH_ext, (3): MR, (4): OG",v.material);
+        options.addInt("Implementation","Implementation: (1): Analytical, (2): Generalized, (3): Spectral",v.impl);
+        options.addSwitch("Compressibility","Compressibility: (true): Compressible",v.compressible);
+        materialMatrix = getMaterialMatrix<2,real_t>(mp,t,parameters,options);
+        materialMatrix->setDeformed(&mp);
+    }
+
+    // Deformed configuration x <- x + shear*y, x <- scale*x, and the corner
+    // (1,1) moved by (0.15,-0.1), so that the strain varies over the patch.
+    void deform(real_t shear, real_t scale)
+    {
+        def = mp;
+        def.patch(0).coefs().col(0) += shear * def.patch(0).coefs().col(1);
+        def.patch(0).coefs() *= scale;
+        def.patch(0).coefs()(3,0) += 0.15;
+        def.patch(0).coefs()(3,1) -= 0.1;
+        materialMatrix->setDeformed(&def);
+    }
+};
+
+// Metric G = g^T g of patch 0 of mp at pt
+gsMatrix<real_t> energyMetric(const gsMultiPatch<real_t> & mp, const gsVector<real_t> & pt)
+{
+    gsMapData<real_t> map;
+    map.flags = NEED_JACOBIAN;
+    map.points = pt;
+    static_cast<const gsFunction<real_t>&>(mp.patch(0)).computeMap(map);
+    gsMatrix<real_t> g = map.jacobian(0);
+    g.resize(2,2);
+    return g.transpose() * g;
+}
+
+// Unhalved Voigt metric [G11, G22, G12] as taken by the _C overloads
+gsMatrix<real_t> energyVoigt(const gsMatrix<real_t> & G)
+{
+    gsMatrix<real_t> Cm(3,1);
+    Cm << G(0,0), G(1,1), G(0,1);
+    return Cm;
+}
+
+// Deformed metric of the engineering strain E = [E11, E22, 2 E12] on top of G
+gsMatrix<real_t> energyCm(const gsMatrix<real_t> & G, const gsVector<real_t> & E)
+{
+    gsMatrix<real_t> Cm(3,1);
+    Cm(0,0) = G(0,0) + 2 * E(0);
+    Cm(1,0) = G(1,1) + 2 * E(1);
+    Cm(2,0) = G(0,1) +     E(2);
+    return Cm;
+}
+
+// Test strains: every component is at least 1e-2 in magnitude
+gsVector<real_t> energyStrain(index_t i)
+{
+    gsVector<real_t> E(3);
+    if      (i == 0) E <<  0.05, -0.02,  0.03;
+    else if (i == 1) E <<  0.12,  0.08, -0.06;
+    else             E << -0.03, -0.02,  0.015;
+    return E;
+}
+
+bool energyIsPD(const gsMatrix<real_t> & Cm)
+{
+    return Cm(0,0) > 0 && Cm(0,0)*Cm(1,0) - Cm(2,0)*Cm(2,0) > 0;
+}
+
+real_t energyMaxAbs(const gsMatrix<real_t> & A)
+{
+    return A.cwiseAbs().maxCoeff();
+}
+
+real_t energyAt(const gsMaterialMatrixBase<real_t> & mm, const gsMatrix<real_t> & Cm, const gsVector<real_t> & pt)
+{
+    return mm.eval3D_energy_C(Cm,0,pt,0.0,MaterialOutput::Generic)(0,0);
+}
+
+// Result of comparing S = eval3D_vector_C with the central finite difference
+// of W(Cm(E)) over the engineering strain
+struct EnergyFDResult
+{
+    real_t W;        // energy at the state
+    real_t err;      // max_j |S_j - FD_j|
+    real_t Smax;     // max_j |S_j|
+    real_t S2;       // |S_2|, the shear entry
+    real_t tol;      // 1e-6 max|S| + 1e-10 max|C|
+    bool   finite;
+};
+
+EnergyFDResult energyFD(const gsMaterialMatrixBase<real_t> & mm,
+                        const gsMatrix<real_t> & G,
+                        const gsVector<real_t> & E,
+                        const gsVector<real_t> & pt)
+{
+    const real_t h = 1e-6;
+    const gsMatrix<real_t> Cm = energyCm(G,E);
+    EnergyFDResult r;
+    const gsMatrix<real_t> S = mm.eval3D_vector_C(Cm,0,pt,0.0,MaterialOutput::Generic);
+    const gsMatrix<real_t> C = mm.eval3D_matrix_C(Cm,0,pt,0.0,MaterialOutput::Generic);
+    r.W = energyAt(mm,Cm,pt);
+    r.finite = S.allFinite() && C.allFinite() && math::isfinite(r.W) && S.rows()==3;
+    r.err = 0; r.Smax = 0; r.S2 = 0; r.tol = 0;
+    if (!r.finite)
+        return r;
+    for (index_t j = 0; j != 3; ++j)
+    {
+        gsVector<real_t> Ep = E, Em = E;
+        Ep(j) += h;
+        Em(j) -= h;
+        const real_t fd = ( energyAt(mm,energyCm(G,Ep),pt) - energyAt(mm,energyCm(G,Em),pt) ) / (2*h);
+        r.err = std::max(r.err, math::abs(S(j,0) - fd));
+    }
+    r.Smax = energyMaxAbs(S);
+    r.S2   = math::abs(S(2,0));
+    r.tol  = 1e-6 * r.Smax + 1e-10 * energyMaxAbs(C);
+    return r;
+}
+
+real_t energyRel(real_t a, real_t b)
+{
+    return math::abs(a-b) / std::max(math::abs(b), real_t(1e-300));
+}
+
 } // namespace
 
 SUITE(gsMaterialMatrixNonlinear_test)
@@ -1104,6 +1324,261 @@ TEST(dCdC_EvalPoint_CompNH)
     gsInfo<<"dCdC_EvalPoint_CompNH: err(true point)="<<err<<", discrimination (g12/2 vs g12)="<<errWrong<<"\n";
     CHECK(err < tol);
     CHECK(errWrong > 100*tol);
+}
+
+// S = dW/dE: the Voigt stress of eval3D_vector_C equals the central finite
+// difference of the energy over the engineering strain, for all 17 variants,
+// two reference metrics and three strain states. The shear entry of S must be
+// non-negligible, so that a wrong shear factor (dW/dg12 instead of
+// dW/d(2 g12)) cannot pass.
+TEST(Energy_FD_Nonlinear)
+{
+    const std::vector<EnergyVariant> variants = energyVariants();
+    CHECK_EQUAL(17,(int)variants.size());
+
+    gsVector<real_t> pt(2);
+    pt << 0.25, 0.25;
+
+    real_t worstRel = 0, worstRatio = 0, worstShear = 1;
+    std::string worstLabel, worstShearLabel;
+    for (const EnergyVariant & v : variants)
+        for (index_t skew = 0; skew != 2; ++skew)
+        {
+            EnergyLaw law(v,skew==1);
+            const gsMatrix<real_t> G = energyMetric(law.mp,pt);
+            CHECK_CLOSE(skew==1 ? 0.4 : 0.0, G(0,1), 1e-12);
+            for (index_t s = 0; s != 3; ++s)
+            {
+                const std::string ctx = energyLabel(v) + (skew ? " skewed" : " orthonormal") + " state " + std::to_string(s);
+                CHECK(energyIsPD(energyCm(G,energyStrain(s))));
+                const EnergyFDResult r = energyFD(*law.materialMatrix,G,energyStrain(s),pt);
+                if (!r.finite)
+                    gsInfo<<"  non-finite at "<<ctx<<"\n";
+                CHECK(r.finite);
+                if (!r.finite)
+                    continue;
+                if (!(r.err <= r.tol) || !(r.W > 0) || !(r.S2 >= 1e-2*r.Smax))
+                    gsInfo<<"  failed at "<<ctx<<": W="<<r.W<<", |S-FD|="<<r.err<<", tol="<<r.tol<<", |S_2|/max|S|="<<r.S2/r.Smax<<"\n";
+                CHECK(r.err <= r.tol);
+                CHECK(r.W > 0);
+                CHECK(r.S2 >= 1e-2 * r.Smax);
+                if (r.err/r.Smax > worstRel)     { worstRel = r.err/r.Smax; worstLabel = ctx; }
+                if (r.err/r.tol  > worstRatio)   worstRatio = r.err/r.tol;
+                if (r.S2/r.Smax  < worstShear)   { worstShear = r.S2/r.Smax; worstShearLabel = ctx; }
+            }
+        }
+    gsInfo<<"Energy_FD_Nonlinear: worst |S-FD|/max|S| = "<<worstRel<<" ("<<worstLabel
+          <<"), worst |S-FD|/tol = "<<worstRatio
+          <<", smallest |S_2|/max|S| = "<<worstShear<<" ("<<worstShearLabel<<")\n";
+}
+
+// W vanishes at the reference configuration Cm = G.
+TEST(Energy_Zero_Nonlinear)
+{
+    gsVector<real_t> pt(2);
+    pt << 0.25, 0.25;
+
+    real_t worst = 0;
+    for (const EnergyVariant & v : energyVariants())
+        for (index_t skew = 0; skew != 2; ++skew)
+        {
+            EnergyLaw law(v,skew==1);
+            const gsMatrix<real_t> G = energyMetric(law.mp,pt);
+            const gsMatrix<real_t> Cm = energyVoigt(G);
+            const gsMatrix<real_t> C0 = law.materialMatrix->eval3D_matrix_C(Cm,0,pt,0.0,MaterialOutput::Generic);
+            CHECK(C0.allFinite());
+            CHECK(energyMaxAbs(C0) > 0);
+            const real_t W = energyAt(*law.materialMatrix,Cm,pt);
+            const real_t rel = math::abs(W) / energyMaxAbs(C0);
+            if (!(rel <= 1e-12))
+                gsInfo<<"  failed at "<<energyLabel(v)<<(skew ? " skewed" : " orthonormal")<<": W(0)="<<W<<"\n";
+            CHECK(rel <= 1e-12);
+            worst = std::max(worst,rel);
+        }
+    gsInfo<<"Energy_Zero_Nonlinear: worst |W(0)|/max|C(0)| = "<<worst<<"\n";
+}
+
+// The Analytical, Generalized and Spectral implementations of one material
+// describe the same energy.
+TEST(Energy_ImplementationIndependence)
+{
+    // {material, (implementation, set below), compressible}
+    const EnergyVariant laws[] = { {1,0,false}, {3,0,false}, {1,0,true}, {2,0,true}, {3,0,true} };
+    gsVector<real_t> pt(2);
+    pt << 0.25, 0.25;
+
+    real_t worst = 0;
+    for (const EnergyVariant & base : laws)
+        for (index_t skew = 0; skew != 2; ++skew)
+        {
+            std::vector< std::unique_ptr<EnergyLaw> > impls;
+            for (index_t imp = 1; imp <= 3; ++imp)
+                impls.emplace_back(new EnergyLaw({base.material,imp,base.compressible},skew==1));
+
+            // three distinct material classes, built with three distinct options
+            const auto & m0 = *impls[0]->materialMatrix;
+            const auto & m1 = *impls[1]->materialMatrix;
+            const auto & m2 = *impls[2]->materialMatrix;
+            CHECK(typeid(m0) != typeid(m1));
+            CHECK(typeid(m0) != typeid(m2));
+            CHECK(typeid(m1) != typeid(m2));
+
+            const gsMatrix<real_t> G = energyMetric(impls[0]->mp,pt);
+            const real_t Cmax = energyMaxAbs(impls[0]->materialMatrix->eval3D_matrix_C(energyVoigt(G),0,pt,0.0,MaterialOutput::Generic));
+            for (index_t s = 0; s != 3; ++s)
+            {
+                const gsMatrix<real_t> Cm = energyCm(G,energyStrain(s));
+                const real_t WA = energyAt(*impls[0]->materialMatrix,Cm,pt);
+                CHECK(WA > 0);
+                for (index_t imp = 1; imp != 3; ++imp)
+                {
+                    const real_t W = energyAt(*impls[imp]->materialMatrix,Cm,pt);
+                    const real_t err = math::abs(W-WA);
+                    const real_t tol = 1e-9*math::abs(WA) + 1e-12*Cmax;
+                    if (!(err <= tol))
+                        gsInfo<<"  failed at "<<energyLabel(impls[imp]->variant)<<(skew ? " skewed" : " orthonormal")
+                              <<" state "<<s<<": W="<<W<<", W_Analytical="<<WA<<"\n";
+                    CHECK(err <= tol);
+                    worst = std::max(worst,err/math::abs(WA));
+                }
+            }
+        }
+    gsInfo<<"Energy_ImplementationIndependence: worst |W-W_Analytical|/|W_Analytical| = "<<worst<<"\n";
+}
+
+// The geometry-based eval3D_energy packs its output as column j*u.cols()+k for
+// point k and fibre row j, and agrees with eval3D_energy_C at the deformed
+// metric of each point. In dim 2 the metric carries no z term.
+TEST(Energy_GeometryPath_MatchesCmat)
+{
+    const EnergyVariant cases[] = { {1,1,false}, {1,1,true}, {4,3,true} };
+
+    gsMatrix<real_t> u(2,3);
+    u << 0.2, 0.55, 0.8,
+         0.35, 0.1, 0.7;
+    gsMatrix<real_t> z(2,3);
+    z.row(0).setZero();
+    z.row(1).setConstant(0.03);
+
+    real_t worstC = 0, worstZ = 0;
+    for (const EnergyVariant & v : cases)
+    {
+        EnergyLaw law(v,false);
+        law.deform(0.3,1.1);
+        const std::string label = energyLabel(v);
+
+        const gsMatrix<real_t> W = law.materialMatrix->eval3D_energy(0,u,z);
+        CHECK_EQUAL(1,W.rows());
+        CHECK_EQUAL(u.cols()*z.rows(),W.cols());
+        if (W.rows()!=1 || W.cols()!=u.cols()*z.rows())
+            continue;
+        CHECK(W.allFinite());
+        // the energy varies over the points, so a packing error cannot go unnoticed
+        CHECK(W.leftCols(u.cols()).maxCoeff() - W.leftCols(u.cols()).minCoeff() >= 1e-2 * W.leftCols(u.cols()).maxCoeff());
+
+        for (index_t k = 0; k != u.cols(); ++k)
+        {
+            const gsVector<real_t> pt = u.col(k);
+            const gsMatrix<real_t> Gdef = energyMetric(law.def,pt);
+            const real_t Wc = energyAt(*law.materialMatrix,energyVoigt(Gdef),pt);
+            CHECK(Wc > 0);
+            const real_t relC = energyRel(W(0,k),Wc);
+            const real_t relZ = energyRel(W(0,u.cols()+k),W(0,k));
+            if (!(relC <= 1e-10) || !(relZ <= 1e-10))
+                gsInfo<<"  failed at "<<label<<", point "<<k<<": W="<<W(0,k)<<", W_C="<<Wc<<", W(z=0.03)="<<W(0,u.cols()+k)<<"\n";
+            CHECK(relC <= 1e-10);
+            CHECK(relZ <= 1e-10);
+            worstC = std::max(worstC,relC);
+            worstZ = std::max(worstZ,relZ);
+        }
+
+        // convenience overload
+        const gsVector<real_t> p0 = u.col(0);
+        const gsMatrix<real_t> Wv = law.materialMatrix->eval3D_energy(0,p0,real_t(0.0));
+        CHECK_EQUAL(1,Wv.rows());
+        CHECK_EQUAL(1,Wv.cols());
+        if (Wv.rows()==1 && Wv.cols()==1)
+            CHECK(energyRel(Wv(0,0),W(0,0)) <= 1e-12);
+    }
+    gsInfo<<"Energy_GeometryPath_MatchesCmat: worst relative difference to eval3D_energy_C = "<<worstC
+          <<", between the two fibre rows = "<<worstZ<<"\n";
+}
+
+// gsMaterialMatrixEvalSingle and gsMaterialMatrixEval of MaterialOutput::Energy
+// are 1-dimensional and return eval3D_energy at the given points.
+TEST(Energy_Eval_OutputShape)
+{
+    EnergyLaw law({1,1,false},false);
+    law.deform(0.3,1.1);
+
+    gsMatrix<real_t> z(1,1);
+    z.setZero();
+    gsMatrix<real_t> pts(2,3);
+    pts << 0.1, 0.4, 0.8,
+           0.2, 0.5, 0.9;
+    const gsMatrix<real_t> Wref = law.materialMatrix->eval3D_energy(0,pts,z.replicate(1,pts.cols()));
+    CHECK_EQUAL(1,Wref.rows());
+    CHECK_EQUAL(3,Wref.cols());
+    CHECK(Wref.maxCoeff() - Wref.minCoeff() >= 1e-2 * Wref.maxCoeff());
+
+    gsMaterialMatrixEvalSingle<real_t,MaterialOutput::Energy> eSingle(0,law.materialMatrix.get(),&law.def,z);
+    CHECK_EQUAL(1,eSingle.targetDim());
+    const gsMatrix<real_t> Ws = eSingle.eval(pts);
+
+    gsMaterialMatrixEval<real_t,MaterialOutput::Energy> eAll(law.materialMatrix.get(),&law.def,z);
+    CHECK_EQUAL(1,eAll.targetDim());
+    const gsMatrix<real_t> Wa = eAll.piece(0).eval(pts);
+
+    real_t worst = 0;
+    for (const gsMatrix<real_t> * We : {&Ws,&Wa})
+    {
+        CHECK_EQUAL(1,We->rows());
+        CHECK_EQUAL(3,We->cols());
+        if (We->rows()!=1 || We->cols()!=3)
+            continue;
+        for (index_t k = 0; k != 3; ++k)
+        {
+            const real_t rel = energyRel((*We)(0,k),Wref(0,k));
+            CHECK(rel <= 1e-12);
+            worst = std::max(worst,rel);
+        }
+    }
+    gsInfo<<"Energy_Eval_OutputShape: worst relative difference to eval3D_energy = "<<worst<<"\n";
+}
+
+// At a small nonzero strain the energy is quadratic, W ~ 1/2 E^T C(0) E, with
+// C(0) the material matrix at the reference metric (engineering E3 = 2 E12);
+// the cubic remainder is O(|E|) relative.
+TEST(Energy_SmallStrain_Quadratic)
+{
+    const EnergyVariant cases[] = { {1,1,false}, {1,1,true}, {3,1,true}, {4,3,true} };
+    gsVector<real_t> pt(2);
+    pt << 0.25, 0.25;
+    const real_t s = 1e-3;
+
+    real_t worst = 0;
+    for (const EnergyVariant & v : cases)
+        for (index_t skew = 0; skew != 2; ++skew)
+        {
+            EnergyLaw law(v,skew==1);
+            const gsMatrix<real_t> G = energyMetric(law.mp,pt);
+            const gsMatrix<real_t> C0 = law.materialMatrix->eval3D_matrix_C(energyVoigt(G),0,pt,0.0,MaterialOutput::Generic);
+            CHECK_EQUAL(9,C0.rows());
+            if (C0.rows()!=9)
+                continue;
+            const gsMatrix<real_t> C3 = C0.reshape(3,3);
+
+            const gsVector<real_t> E = s * energyStrain(0);
+            const real_t W = energyAt(*law.materialMatrix,energyCm(G,E),pt);
+            const real_t Wq = 0.5 * E.dot(C3*E);
+            const real_t rel = energyRel(W,Wq);
+            if (!(rel <= 1e-2) || !(W > 0))
+                gsInfo<<"  failed at "<<energyLabel(v)<<(skew ? " skewed" : " orthonormal")<<": W="<<W<<", 1/2 E.C.E="<<Wq<<"\n";
+            CHECK(W > 0);
+            CHECK(rel <= 1e-2);
+            worst = std::max(worst,rel);
+        }
+    gsInfo<<"Energy_SmallStrain_Quadratic: worst |W - 1/2 E.C(0).E|/(1/2 E.C(0).E) = "<<worst<<"\n";
 }
 
 // The compressible Cauchy stress is S/detF.

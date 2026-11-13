@@ -35,7 +35,8 @@ m_nExactStagnated(0),
 m_nExactReclassifiedTaut(0),
 m_nExactReclassifiedSlack(0),
 m_nExactSkipped(0),
-m_nExactUsed2x2(0)
+m_nExactUsed2x2(0),
+m_nExactMinimised(0)
 {
     if (m_materialMat->hasUndeformed())
         this->setUndeformed(m_materialMat->getUndeformed());
@@ -55,6 +56,7 @@ m_nExactUsed2x2(0)
     m_options.addReal("ExactTol","Exact solve: residual tolerance relative to the relaxed stress at the iterate (with a round-off floor)",1e-12);
     m_options.addReal("ExactStagTol","Exact solve: relative residual tolerance up to which a stalled iteration is accepted",1e-9);
     m_options.addInt("ExactMaxIt","Exact solve: budget of provider calls (S/C evaluations) per pass",50);
+    m_options.addInt("ExactLocalSolve","Exact solve: local solver; 0: scalar pass + 2x2 Newton (legacy); 1: scalar pass + globalised minimisation over P = v (x) v where the 2x2 pass ran and at failed directions (default); 2: minimisation only. Modes 1 and 2 need the wrapped law's energy (eval3D_energy_C); without a W provider the legacy path runs",1);
 }
 
 template <short_t dim, class T, bool linear >
@@ -76,8 +78,11 @@ detail_tftsplit::WrinkleOptions<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrink
     opt.exactTol        = m_options.getReal("ExactTol");
     opt.exactStagTol    = m_options.getReal("ExactStagTol");
     opt.exactMaxIt      = m_options.getInt("ExactMaxIt");
+    opt.exactLocalSolve = m_options.getInt("ExactLocalSolve");
     GISMO_ENSURE(opt.tensionField==0 || opt.tensionField==1 || opt.tensionField==2,
                  "gsMaterialMatrixTFTSplit: TensionField must be 0, 1 or 2, got "<<opt.tensionField);
+    GISMO_ENSURE(opt.exactLocalSolve==0 || opt.exactLocalSolve==1 || opt.exactLocalSolve==2,
+                 "gsMaterialMatrixTFTSplit: ExactLocalSolve must be 0, 1 or 2, got "<<opt.exactLocalSolve);
     return opt;
 }
 
@@ -168,7 +173,9 @@ gsMatrix<T> gsMaterialMatrixTFTSplit<dim,T,linear>::eval3D_detF(const index_t pa
     at R = 0 the Hessian of W(gamma,th) is diag(1, 2 gamma) Jac0.
     For a material isotropic w.r.t. G, S and C are coaxial, R2 vanishes along gamma at the closed-form th
     and a scalar Newton step -R1/J11 in gamma suffices; the 2x2 system is used if the guard rejected the
-    closed form or if |R2| exceeds the tolerance at the scalar solution.
+    closed form or if |R2| exceeds the tolerance at the scalar solution (ExactLocalSolve = 0; under
+    ExactLocalSolve 1 the minimisation of _exactMinimise takes over at those points, and under 2 it replaces
+    both passes).
 
     Tolerance. At an iterate E' = E + gamma n1 with S' = S(E'), C' = C(E'), a residual is judged against
         floorR = 64 eps ||C'||_F max(1,||E'||_2),   tol(k) = max(k ||S'||_2, floorR),
@@ -191,7 +198,8 @@ gsMatrix<T> gsMaterialMatrixTFTSplit<dim,T,linear>::eval3D_detF(const index_t pa
     Newton step that fails to reduce |g| below the three previous evaluations, or when the bracket has
     collapsed to round-off, on the best iterate if its |g| is within its own tolS (stall acceptance). If
     n2.S' is within the tolerance at which the scalar iterate was accepted the solve is done, else the 2x2
-    pass continues from (gamma, th).
+    pass continues from (gamma, th) (ExactLocalSolve = 0; under ExactLocalSolve 1 the scalar pass hands off
+    to the minimisation instead, see _exactSolve and _exactMinimise).
 
     2x2 pass. Plain Newton in (gamma,th), converged on ||R||_inf <= tolC (followed by one polishing step); a
     residual that does not decrease over two iterations after the third ends it with the best iterate if
@@ -223,9 +231,22 @@ gsMatrix<T> gsMaterialMatrixTFTSplit<dim,T,linear>::eval3D_detF(const index_t pa
     non-coaxial th, where R2 != 0 at gamma = 0). In every mode the tangent jumps at the taut/wrinkled
     boundary (W_r is C^1, not C^2).
 
+    Energy. With W the energy of the wrapped material (S = dW/dE) the effective energy is
+        taut:   W_eff = W(E),                       slack:  W_eff = sigma W(E),
+        exact wrinkled:  W_eff = (1-Eta) W(E') + Eta W(E),
+    sigma = SlackMultiplier if > 0, else Eta. At an accepted exact state R = 0, so by the envelope theorem
+    d/dE W(E') = S' (the wrinkle variables drop out), and dW_eff/dE = (1-Eta) S' + Eta S = S_eff. For linear=true
+    W is quadratic, W(E) = 1/2 E.S, the linearised state is the exact minimiser along n1 and
+    W(E') = W(E) + gamma n1.S + 1/2 gamma^2 b, with b = n1.C n1 (no cancellation of the E'-quadratic form).
+    The remaining wrinkled points (linearised mode of linear=false, exact fallbacks, and under
+    ExactLocalSolve = 0 indefinite b or a failed direction) have a non-symmetric tangent, hence no potential:
+    W_eff is NaN there, as for non-finite data. Under ExactLocalSolve 1 or 2 such a point enters the
+    minimisation and, if accepted, has W_eff like any accepted exact state.
+
     Complexity: two wrapped _C evaluations per provider call (each with an inner thickness Newton for
     compressible laws); typically 2-5 calls from the linearised start plus one polishing call per accepted
-    solve, at most ExactMaxIt calls per pass.
+    solve, at most ExactMaxIt calls per pass. Under ExactLocalSolve 1 and 2 the minimisation adds one wrapped
+    eval3D_energy_C evaluation per W call and has its own budget of ExactMaxIt S/C calls (see _exactMinimise).
 */
 template <short_t dim, class T, bool linear >
 detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkle(
@@ -236,13 +257,17 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
                                                 const detail_tftsplit::WrinkleOptions<T> & opt,
                                                 bool needTangent,
                                                 const dC_provider & dCdE,
-                                                const SC_provider & SCatE) const
+                                                const SC_provider & SCatE,
+                                                const W_provider & WatE,
+                                                bool needEnergy) const
 {
     using namespace detail_tftsplit;
     GISMO_ASSERT(S.rows()*S.cols()==3,"S must have 3 entries");
     GISMO_ASSERT(E.rows()*E.cols()==3,"E must have 3 entries");
     GISMO_ASSERT(Gcov.rows()==2 && Gcov.cols()==2,"Gcov must be 2x2");
     GISMO_ASSERT((C.rows()==3 && C.cols()==3) || (C.rows()*C.cols()==9),"C must be 3x3 or 9x1");
+    if (needEnergy && !linear && !WatE)
+        GISMO_ERROR("gsMaterialMatrixTFTSplit::wrinkle: the energy was requested without a W provider");
 
     const T nan = std::numeric_limits<T>::quiet_NaN();
     const T pi  = static_cast<T>(EIGEN_PI);
@@ -266,9 +291,11 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
     WrinkleResult<T> res;
     res.state = 1;
     res.theta = res.gamma = res.gammaHat = res.residual = nan;
+    res.W = nan;
     res.guardFallback = res.tftFailure = false;
     res.exactFallback = res.exactReclassified = false;
     res.exactSaddle = res.exactWrongBranch = res.exactStagnated = res.exactSkipped = res.exactUsed2x2 = false;
+    res.exactMinimised = false;
     res.exactIterations = 0;
     res.Gcov = Gcov;
 
@@ -301,11 +328,20 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
 
     // Non-finite data (e.g. an inverted element) is passed through unmodified, so that it stays
     // visible downstream instead of being fed to the root finder.
+    bool finiteData = true;
     if (!(math::isfinite(res.Smin) && math::isfinite(res.Smax) && math::isfinite(res.Emin) && math::isfinite(res.Emax)))
     {
+        finiteData = false;
         taut  = true;
         slack = false;
     }
+
+    // W of the wrapped material at the elastic strain Ee; only called if needEnergy
+    auto energyAt = [&](const gsVector<T,3> & Ee) -> T
+    {   // linear: S3 = C3 E3, so W = 1/2 E.S is the wrapped law's potential
+        if (linear) return T(0.5) * Ee.dot(S3);   // only ever called with Ee = E3 for linear
+        gsMatrix<T> Em(3,1); Em = Ee; return WatE(Em);
+    };
 
     if (taut)
     {
@@ -314,6 +350,8 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
         res.E = E3;
         if (needTangent)
             res.C = C3;
+        if (needEnergy && finiteData)
+            res.W = energyAt(E3);
         return res;
     }
 
@@ -325,6 +363,8 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
         res.E = sigma * E3;
         if (needTangent)
             res.C = sigma * C3;
+        if (needEnergy)
+            res.W = sigma * energyAt(E3);
         return res;
     }
 
@@ -462,14 +502,18 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
     res.theta    = theta;
     res.residual = math::abs(f);
 
-    if (!linear && opt.exact && (indefinite || tftFailed))
+    // An empty W provider runs the legacy local solver in every mode
+    const index_t localSolve = WatE ? opt.exactLocalSolve : 0;
+    const bool directionOK = !indefinite && !tftFailed;
+
+    if (!linear && opt.exact && !directionOK && localSolve == 0)
     {
         res.exactSkipped = true;
 #       pragma omp atomic
         ++m_nExactSkipped;
     }
 
-    if (!linear && opt.exact && !indefinite && !tftFailed)
+    if (!linear && opt.exact && (directionOK || localSolve != 0))
     {
         if (!SCatE)
             GISMO_ERROR("gsMaterialMatrixTFTSplit::wrinkle: exact mode requires an S/C provider");
@@ -477,17 +521,92 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
             GISMO_ERROR("gsMaterialMatrixTFTSplit::wrinkle: the options ExactTol, ExactStagTol and ExactMaxIt must satisfy "
                         "ExactStagTol >= ExactTol > 0 and ExactMaxIt >= 1, got ExactTol = "<<opt.exactTol
                         <<", ExactStagTol = "<<opt.exactStagTol<<", ExactMaxIt = "<<opt.exactMaxIt);
+        if (!(opt.exactLocalSolve >= 0 && opt.exactLocalSolve <= 2))
+            GISMO_ERROR("gsMaterialMatrixTFTSplit::wrinkle: ExactLocalSolve must be 0, 1 or 2, got "<<opt.exactLocalSolve);
 
         T gE = gam, thE = theta, resNorm = nan;
         gsVector<T,3> Spx;
         gsMatrix<T,3,3> Cpx;
         index_t nEval = 0;
         bool tautAtZero = false, stagnated = false, used2x2 = false;
-        const bool solved = this->template _exactSolve<linear>(E3,opt,SCatE,cfOK,gE,thE,Spx,Cpx,resNorm,nEval,
-                                                               tautAtZero,stagnated,used2x2);
+
+        // Taut/slack bands: a stationary point of the wrong kind is still accepted as taut/slack if the
+        // classifier's own quantity is within band of the criterion boundary (relative to the larger principal value)
+        const T band = T(1e-8);
+        const T Sref = math::max(math::abs(res.Smin),math::abs(res.Smax));
+        const T Eref = math::max(math::abs(res.Emin),math::abs(res.Emax));
+        const bool tautBand  = (opt.tensionField==0) ? (res.Emin >= -band * Eref) : (res.Smin >= -band * Sref);
+        const bool slackBand = (opt.tensionField==1) ? (res.Smax <=  band * Sref) : (res.Emax <=  band * Eref);
+
+        bool minimised = false, solved = false;
+        if (localSolve == 0)
+            solved = this->template _exactSolve<linear>(E3,opt,SCatE,cfOK,gE,thE,Spx,Cpx,resNorm,nEval,
+                                                         tautAtZero,stagnated,used2x2);
+        else
+        {
+            index_t handOff = 0;
+            if (localSolve == 1 && directionOK && cfOK)
+                solved = this->template _exactSolve<linear>(E3,opt,SCatE,cfOK,gE,thE,Spx,Cpx,resNorm,nEval,
+                                                             tautAtZero,stagnated,used2x2,&handOff);
+            if (localSolve == 2 || !directionOK || !cfOK || handOff != 0)
+            {
+                // Start of the minimisation: the first matching rule wins
+                bool haveStart = false, admissible = false;
+                T theta0 = nan, gamma0 = nan;
+                if (handOff == 1 || handOff == 2)
+                {
+                    theta0 = thE; gamma0 = gE; admissible = (handOff == 1);
+                    haveStart = true;
+                }
+                else if (!indefinite && gam > 0)
+                {
+                    theta0 = theta; gamma0 = gam; admissible = false;
+                    haveStart = true;
+                }
+                else if (res.Smin >= -band * Sref)
+                {
+                    tautAtZero = true;
+                    solved = true;
+                }
+                else
+                {
+                    const T mid = T(0.5) * (S3(0) + S3(1));
+                    const T dif = T(0.5) * (S3(0) - S3(1));
+                    const T q   = S3(2);
+                    const T rad = math::sqrt(dif*dif + q*q);
+                    const T lamS = mid - rad;
+                    if (lamS < 0)
+                    {
+                        // Eigenvector of Shat(E) = [[S0,S2],[S2,S1]] for lamS
+                        const T ph = T(0.5) * math::atan2(2*q,S3(0) - S3(1));
+                        theta0 = math::atan2(math::cos(ph),-math::sin(ph));
+                        const VoigtDirs<T> n0(math::cos(theta0),math::sin(theta0));
+                        const T b0 = n0.n1.dot(C3 * n0.n1);
+                        if (b0 > 0 && math::isfinite(b0))
+                            gamma0 = -lamS / b0;
+                        else
+                            gamma0 = (math::abs(res.Emin) > 0) ? math::abs(res.Emin) : Eref;
+                        admissible = false;
+                        haveStart = true;
+                    }
+                }
+                if (haveStart)
+                {
+                    minimised = true;
+                    solved = this->template _exactMinimise<linear>(E3,opt,SCatE,WatE,theta0,gamma0,admissible,gE,thE,Spx,Cpx,
+                                                                   resNorm,nEval,stagnated);
+                }
+            }
+        }
         res.exactIterations = nEval;
         res.exactStagnated  = stagnated;
         res.exactUsed2x2    = used2x2;
+        res.exactMinimised  = minimised;
+        if (minimised)
+        {
+#           pragma omp atomic
+            ++m_nExactMinimised;
+        }
         if (stagnated)
         {
 #           pragma omp atomic
@@ -498,14 +617,6 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
 #           pragma omp atomic
             ++m_nExactUsed2x2;
         }
-
-        // Taut/slack bands: a stationary point of the wrong kind is still accepted as taut/slack if the
-        // classifier's own quantity is within band of the criterion boundary (relative to the larger principal value)
-        const T band = T(1e-8);
-        const T Sref = math::max(math::abs(res.Smin),math::abs(res.Smax));
-        const T Eref = math::max(math::abs(res.Emin),math::abs(res.Emax));
-        const bool tautBand  = (opt.tensionField==0) ? (res.Emin >= -band * Eref) : (res.Smin >= -band * Sref);
-        const bool slackBand = (opt.tensionField==1) ? (res.Smax <=  band * Sref) : (res.Emax <=  band * Eref);
 
         // Taut: the unmodified point; slack: scaled by SlackMultiplier (or Eta)
         auto reclassify = [&](const bool toTaut)
@@ -519,6 +630,8 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
             res.E = fac * E3;
             if (needTangent)
                 res.C = fac * C3;
+            if (needEnergy)
+                res.W = fac * energyAt(E3);
         };
 
         // 0: accepted, 1: not converged, 2: saddle, 3: wrong branch, 4: slack within the slack band
@@ -581,6 +694,8 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
 
                 res.S = (1 - opt.eta) * Spx + opt.eta * S3;
                 res.E = E3 + gE * ne.n1;
+                if (needEnergy)
+                    res.W = (1 - opt.eta) * WatE(res.E) + opt.eta * energyAt(E3);
                 if (needTangent)
                 {
                     // X = diag(1,2 gamma) Jac0^{-1}
@@ -650,6 +765,12 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
         res.gamma    = gam;
         res.gammaHat = gam * (c*(Gcon.a*c + Gcon.b*s) + s*(Gcon.c*c + Gcon.d*s));
 
+        if (linear && needEnergy && !tftFailed)
+        {
+            const T WE = T(0.5) * E3.dot(S3);
+            res.W = (1 - opt.eta) * (WE + gam * n1.dot(S3) + T(0.5) * gam * gam * b) + opt.eta * WE;
+        }
+
         if (needTangent)
         {
             gsMatrix<T,3,3> H = gsMatrix<T,3,3>::Zero();
@@ -698,7 +819,10 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
     incoming linearised gamma. It ends with a taut-at-zero verdict (tautAtZero, g(0) >= 0), a converged
     iterate (|g| <= tolC, followed by one polishing Newton step), or the best iterate accepted at the
     stall tolerance (stagnated). If n2.S' at the result is within the tolerance the iterate was accepted
-    at, the solve is done; otherwise the 2x2 pass continues from (gamma, theta).
+    at, the solve is done; otherwise the 2x2 pass continues from (gamma, theta). With \a handOff, the routine
+    instead returns false at that point, with *handOff = 1 (the scalar pass converged) or 2 (it was accepted
+    at the stall tolerance) and gamma set to the kept scalar iterate; the 2x2 pass does not run and used2x2
+    stays false. *handOff is 0 on every other exit; \a handOff requires \a scalar0.
 
     2x2 pass (Newton in (gamma,theta), not globalised): converged when ||R||_inf <= tolC, followed by one
     polishing step; a stalled residual ends it with the best iterate if that is within the stall tolerance.
@@ -714,14 +838,17 @@ typename std::enable_if<!_linear, bool>::type
 gsMaterialMatrixTFTSplit<dim,T,linear>::_exactSolve(const gsVector<T,3> & E3, const detail_tftsplit::WrinkleOptions<T> & opt,
                                                     const SC_provider & SCatE, const bool scalar0,
                                                     T & gamma, T & theta, gsVector<T,3> & Sp, gsMatrix<T,3,3> & Cp, T & resNorm,
-                                                    index_t & nEval, bool & tautAtZero, bool & stagnated, bool & used2x2) const
+                                                    index_t & nEval, bool & tautAtZero, bool & stagnated, bool & used2x2, index_t * handOff) const
 {
     using namespace detail_tftsplit;
     const T nan = std::numeric_limits<T>::quiet_NaN();
     const T eps = std::numeric_limits<T>::epsilon();
     const index_t maxIt = opt.exactMaxIt;
 
+    GISMO_ASSERT(!handOff || scalar0,"gsMaterialMatrixTFTSplit::_exactSolve: handOff requires the scalar pass");
     tautAtZero = stagnated = used2x2 = false;
+    if (handOff)
+        *handOff = 0;
 
     T g = gamma, th = theta;
     gsMatrix<T> Eel(3,1), Se, Ce;
@@ -958,6 +1085,15 @@ gsMaterialMatrixTFTSplit<dim,T,linear>::_exactSolve(const gsVector<T,3> & E3, co
             return true;
         }
 
+        if (handOff)
+        {
+            // 1: the scalar pass converged at tolC; 2: it was accepted at the stall tolerance
+            *handOff = stagnated ? 2 : 1;
+            gamma = kept.g;
+            stagnated = false;
+            return false;
+        }
+
         g = kept.g;
         stagnated = false;
     }
@@ -1069,9 +1205,375 @@ template <bool _linear>
 typename std::enable_if< _linear, bool>::type
 gsMaterialMatrixTFTSplit<dim,T,linear>::_exactSolve(const gsVector<T,3> &, const detail_tftsplit::WrinkleOptions<T> &, const SC_provider &, const bool,
                                                     T &, T &, gsVector<T,3> &, gsMatrix<T,3,3> &, T &, index_t &,
-                                                    bool &, bool &, bool &) const
+                                                    bool &, bool &, bool &, index_t *) const
 {
     GISMO_ERROR("gsMaterialMatrixTFTSplit: exact solve called for linear=true");
+}
+
+/*
+    Exact wrinkled state by minimisation of Phi(v) = W(E + P(v)), P(v) = (v1^2, v2^2, 2 v1 v2) = v (x) v in
+    engineering Voigt notation, over the covector v = sqrt(gamma) n in R^2 (gamma = |v|^2, n = (cos theta, sin theta)),
+    with W the potential of the wrapped law. A stationary point with gamma > 0 is the wrinkled state S(E + gamma n1);
+    unlike the (gamma,theta) parametrisation, v is regular at gamma = 0. The iteration is regular there;
+    theta = atan2(v2,v1) itself has a condition number ~ 1/sqrt(gamma).
+
+    Derivatives. With E' = E + P(v), S' = S(E'), C' = C(E'), Shat' = [[S'_0, S'_2], [S'_2, S'_1]] and
+    B = dP/dv = [[2 v1, 0], [0, 2 v2], [2 v2, 2 v1]] (3x2):
+        grad Phi = B^T S' = 2 Shat' v,
+        Hes      = B^T C' B + 2 Shat'   (the second derivative of P contracted with S' is 2 Shat').
+
+    Relations. With n = v/|v| = (c,s), m = (-s,c), Q = [n m] and R = (R1,R2) = (n1.S', n2.S'):
+        n.Shat' n = R1, m.Shat' n = R2, hence grad Phi = 2 sqrt(gamma) Q R, so that
+        |grad Phi| = 2 sqrt(gamma) |R| and, for v != 0, grad Phi = 0 iff R = 0;
+        B n = 2 sqrt(gamma) n1, B m = 2 sqrt(gamma) n2, hence
+        Q^T Hes Q = 4 gamma M + 2 [[R1, R2], [R2, sw]],
+        M = [[n1.C'n1, n1.C'n2], [n2.C'n1, n2.C'n2]], sw = m.Shat' m = n4.S', n4 = n3 + n1.
+
+    Lemma. At R = 0, gamma > 0 and symmetric C': Q^T Hes Q = Jac0 diag(4 gamma, 2), with
+    Jac0 = [[M11, 2 gamma M12], [M21, sw + 2 gamma M22]] the matrix of the acceptance test in wrinkle().
+    Proof: at R = 0 the second summand is 2 diag(0, sw), and Q^T Hes Q = 4 gamma M + 2 diag(0, sw) has the
+    columns 4 gamma (M11, M21) and (4 gamma M12, 4 gamma M22 + 2 sw) = 2 (2 gamma M12, sw + 2 gamma M22),
+    which are the columns of Jac0 scaled by 4 gamma and 2. Hence det Hes = 8 gamma det Jac0
+    and (Q^T Hes Q)_11 = 4 gamma n1.C'n1: Hes is positive definite iff M11 > 0 and det Jac0 > 0, which is the
+    minimum test of wrinkle(). The test does not imply n4.S' >= 0: a rank-one minimum with n4.S' < 0 is reported
+    as a wrong branch by wrinkle().
+    At v = 0, Hes = 2 Shat(E): a direction with n.Shat(E) n < 0 is a direction of negative curvature of Phi
+    at v = 0, and S(E) positive definite makes v = 0 a strict local minimum.
+
+    Start rule (in wrinkle(); the first match wins). (1) ExactLocalSolve 1, scalar pass converged at tolC but
+    n2.S' not within it (hand-off 1): its (gamma, theta), admissible. (2) Scalar pass accepted at the stall
+    tolerance (hand-off 2): its (gamma, theta), with the sign test. (3) n1.C n1 > 0 and the linearised
+    gamma > 0, i.e. n1.S(E) < 0, a direction of negative curvature at v = 0 (also the direction kept after a
+    failed direction search): the linearised (gamma, theta), with the sign test. (4) The pencil
+    S_min >= -band max(|S_min|,|S_max|) (band = 1e-8), for every TensionField: taut at gamma = 0, the minimisation does not
+    run; this includes S(E) positive definite, where v = 0 is a strict local minimum. (5) Otherwise theta0 is
+    the Euclidean eigenvector of Shat(E) for its smaller eigenvalue lamS; the congruence with G preserves
+    inertia, so S_min < 0 in the pencil iff lamS < 0. gamma0 = -lamS/(n1.C n1) if n1.C n1 at theta0 is positive and
+    finite, else |E_min|, or max(|E_min|,|E_max|) if E_min = 0; with the sign test. If round-off gives lamS >= 0
+    there, the solve is counted as not converged.
+
+    Start (gamma0, theta0). If \a admissible, the start is used as is (it lies on the ray minimiser, which
+    has Phi < W(E)); otherwise the sign test n1.S(E + gamma0 n1) < 0 must hold, and gamma0 is halved
+    (at most ten times) until it does.
+
+    Iteration. At the iterate, ||R||_inf <= tolC ends the iteration (polish below). Otherwise the Newton step
+    is taken with eigenvalue flipping: with Hes = lam1 q1 q1^T + lam2 q2 q2^T (closed form, lam1 <= lam2),
+    d = -sum_i q_i (q_i.grad Phi)/max(|lam_i|, 1e-8 ||Hes||), ||Hes|| = max|lam_i|; the step is a descent direction
+    even where Hes is indefinite. Where the gradient is at round-off level and lam1 < 0, d = |v| q1 (signed to
+    descend) leaves the saddle. The step is capped at |d| <= |v| (trust radius), which keeps v from
+    crossing the origin, where theta is undefined. Where grad Phi is above round-off, the line search is Armijo
+    backtracking on Phi, Phi(v + a d) <= Phi(v) + 1e-4 a grad Phi.d, a = 2^-j, j <= 10.
+
+    Floor. Phi is only known to floorW = 64 eps (||C'||_F max(1,||E'||)^2 + |Phi|). Once the predicted decrease
+    |grad Phi.d| is below floorW and Hes is positive definite, Phi cannot discriminate between trial points:
+    the unit step is judged on the residual (accepted iff ||R||_inf does not grow, without an energy
+    evaluation) and Armijo is used only if it is rejected.
+
+    Polish. After convergence one Newton step is tried and kept iff ||R||_inf does not grow.
+
+    Stall. Three consecutive iterates that do not reduce the best ||R||_inf, or a failed line search, end
+    the pass: the best iterate is accepted (\a stagnated) iff its residual is within the stall tolerance.
+    All tolerances follow the pattern of _exactSolve: tolC = max(ExactTol ||S'||, floorR), tolS likewise with
+    ExactStagTol, floorR = 64 eps ||C'||_F max(1,||E'||).
+
+    Budget. At most ExactMaxIt trial points (provider calls S/C) per call; reaching it is non-convergence.
+    Energy evaluations are not counted. The budget is separate from that of the scalar pass, so a handed-off
+    point can make up to 2 ExactMaxIt S/C calls in total.
+
+    Returns true if converged or accepted at the stall tolerance. On true, gamma = |v|^2, theta = atan2(v2,v1)
+    (not wrapped), Sp, Cp are S', C' and resNorm = ||R||_inf there; on false they are not modified. nEval
+    counts every S/C call.
+
+    Complexity: O(1) 2x2 algebra per trial. An iteration whose unit step is accepted costs one S/C call, plus one
+    W call above the floor; one with a full backtrack up to 11 S/C and 12 W calls. Every W call is at a point that
+    already had its S/C call, so a pass makes at most ExactMaxIt S/C calls and at most as many W calls. Each S/C call
+    is two wrapped _C evaluations and each W call one, each with its own thickness Newton for compressible laws.
+
+    The energy is the wrapped law's eval3D_energy_C through \a WatE; a law without one (gsMaterialMatrixNonlinear
+    with Material::SvK, or any law that keeps the gsMaterialMatrixBase default) raises GISMO_NO_IMPLEMENTATION at
+    the first evalEnergy call and needs ExactLocalSolve = 0.
+*/
+template <short_t dim, class T, bool linear >
+template <bool _linear>
+typename std::enable_if<!_linear, bool>::type
+gsMaterialMatrixTFTSplit<dim,T,linear>::_exactMinimise(const gsVector<T,3> & E3, const detail_tftsplit::WrinkleOptions<T> & opt,
+                                                       const SC_provider & SCatE, const W_provider & WatE,
+                                                       const T theta0, const T gamma0, const bool admissible,
+                                                       T & gamma, T & theta, gsVector<T,3> & Sp, gsMatrix<T,3,3> & Cp, T & resNorm,
+                                                       index_t & nEval, bool & stagnated) const
+{
+    using namespace detail_tftsplit;
+    const T nan = std::numeric_limits<T>::quiet_NaN();
+    const T eps = std::numeric_limits<T>::epsilon();
+    const index_t maxIt = opt.exactMaxIt;
+    const T delta = T(1e-8), c1 = T(1e-4);
+
+    index_t nPass = 0;
+
+    // An evaluated trial point; R1 = n1.S', Rn = ||R||_inf, Phi valid iff haveW
+    struct Trial
+    {
+        gsVector<T,2> v;
+        gsVector<T,3> E, S;
+        gsMatrix<T,3,3> C;
+        T R1, Rn, tolC, tolS, Phi;
+        bool haveW;
+    };
+
+    gsMatrix<T> Eel(3,1), Se, Ce;
+    gsVector<T,3> Pv;
+
+    // The only place that calls SCatE; false if S', C' or the residual is not finite
+    auto evalTrial = [&](const gsVector<T,2> & v, Trial & tr) -> bool
+    {
+        Pv << v(0)*v(0), v(1)*v(1), 2*v(0)*v(1);   // P(v) = v (x) v, engineering Voigt
+        Eel = E3 + Pv;
+        SCatE(Eel,Se,Ce); ++nEval; ++nPass;
+
+        tr.v = v;
+        tr.E = Eel;
+        tr.haveW = false;
+        tr.Phi = nan;
+        for (index_t i = 0; i != 3; ++i)
+            tr.S(i) = Se.data()[i];
+        if (Ce.rows() == 3 && Ce.cols() == 3)
+            for (index_t l = 0; l != 3; ++l)
+                for (index_t i = 0; i != 3; ++i)
+                    tr.C(i,l) = Ce(i,l);
+        else
+            for (index_t l = 0; l != 3; ++l)
+                for (index_t i = 0; i != 3; ++i)
+                    tr.C(i,l) = Ce.data()[i+3*l];
+
+        tr.R1 = tr.Rn = tr.tolC = tr.tolS = nan;
+        if (!(tr.S.allFinite() && tr.C.allFinite()))
+            return false;
+
+        const T r = v.norm();
+        const VoigtDirs<T> nd(v(0)/r,v(1)/r);
+        tr.R1 = nd.n1.dot(tr.S);
+        tr.Rn = math::max(math::abs(tr.R1),math::abs(nd.n2.dot(tr.S)));
+
+        const T Sn     = tr.S.norm();
+        const T floorR = 64 * eps * tr.C.norm() * math::max(T(1),Eel.norm());
+        tr.tolC = math::max(opt.exactTol * Sn,floorR);
+        tr.tolS = math::max(opt.exactStagTol * Sn,floorR);
+        return math::isfinite(tr.Rn);
+    };
+
+    // Phi at a trial; false if not finite
+    auto evalEnergy = [&](Trial & tr) -> bool
+    {
+        gsMatrix<T> Em(3,1);
+        Em = tr.E;
+        tr.Phi = WatE(Em);
+        tr.haveW = math::isfinite(tr.Phi);
+        return tr.haveW;
+    };
+
+    // Step at a trial: 0 = ok, 1 = non-finite Hessian (abort), 2 = stationary with a zero Hessian (stall)
+    gsVector<T,2> gradPhi;
+    bool HesPD = false;
+    auto stepAt = [&](const Trial & tr, gsVector<T,2> & d) -> int
+    {
+        const gsVector<T,2> & v = tr.v;
+        gsMatrix<T,2,2> Shat, Hes;
+        gsMatrix<T,3,2> B;
+        Shat << tr.S(0), tr.S(2), tr.S(2), tr.S(1);
+        gradPhi = 2 * Shat * v;
+        B << 2*v(0), 0, 0, 2*v(1), 2*v(1), 2*v(0);
+        Hes = B.transpose() * tr.C * B + 2 * Shat;
+        Hes = T(0.5) * (Hes + Hes.transpose());
+
+        // Eigen-decomposition of [[a,q],[q,d]]: lam1 <= lam2, q1 and q2 the unit eigenvectors
+        const T a = Hes(0,0), dd = Hes(1,1), q = Hes(0,1);
+        const T mid = T(0.5) * (a + dd);
+        const T rad = math::sqrt(T(0.25) * (a - dd) * (a - dd) + q * q);
+        const T lam1 = mid - rad, lam2 = mid + rad;
+        const T phi = T(0.5) * math::atan2(2*q,a - dd);
+        gsVector<T,2> q2, q1;
+        q2 << math::cos(phi), math::sin(phi);
+        q1 << -math::sin(phi), math::cos(phi);
+        const T nHes = math::max(math::abs(lam1),math::abs(lam2));
+        HesPD = lam1 > 0;
+        if (!math::isfinite(nHes))
+            return 1;
+
+        const T nv = v.norm();
+        const T ng = gradPhi.norm();
+        if (nHes == 0)
+        {
+            if (ng == 0)
+                return 2;
+            d = -(nv / ng) * gradPhi;
+        }
+        else if (lam1 < 0 && ng <= 64 * eps * nHes * nv)
+        {
+            d = nv * q1;
+            if (gradPhi.dot(d) > 0)
+                d = -d;
+        }
+        else
+        {
+            const T lt1 = math::max(math::abs(lam1),delta * nHes);
+            const T lt2 = math::max(math::abs(lam2),delta * nHes);
+            d = -(q1 * (q1.dot(gradPhi)) / lt1 + q2 * (q2.dot(gradPhi)) / lt2);
+        }
+
+        const T nd = d.norm();
+        if (nd > nv)
+            d *= nv / nd;
+        return 0;
+    };
+
+    if (!(gamma0 > 0 && math::isfinite(gamma0)))
+        return false;
+
+    // Start: the sign test n1.S(E + gamma0 n1) < 0 unless admissible
+    Trial cur, best, next;
+    {
+        gsVector<T,2> v;
+        v << math::sqrt(gamma0) * math::cos(theta0), math::sqrt(gamma0) * math::sin(theta0);
+        for (index_t k = 0; ; ++k)
+        {
+            if (nPass >= maxIt)
+                return false;
+            const bool fin = evalTrial(v,cur);
+            if (fin && (admissible || cur.R1 < 0))
+                break;
+            if (admissible || k == 10)
+                return false;
+            v *= math::sqrt(T(0.5));
+        }
+    }
+    if (!evalEnergy(cur))
+        return false;
+    best = cur;
+    index_t noRed = 0;
+    T PhiRef = cur.Phi;
+    bool polish = false;
+
+    for (;;)
+    {
+        if (cur.Rn <= cur.tolC)
+        {
+            polish = true;
+            break;
+        }
+        if (noRed >= 3)
+            break;
+
+        gsVector<T,2> d;
+        const int sc = stepAt(cur,d);
+        if (sc == 1)
+            return false;
+        if (sc == 2)
+            break;
+
+        const T pred = gradPhi.dot(d);
+        const T enorm  = math::max(T(1),cur.E.norm());
+        const T floorW = 64 * eps * (cur.C.norm() * enorm * enorm + math::abs(PhiRef));
+
+        bool accepted = false, haveReuse = false, reuseFinite = false;
+        Trial reuse;
+        if (math::abs(pred) <= floorW && HesPD)
+        {
+            if (nPass >= maxIt)
+                return false;
+            reuseFinite = evalTrial(cur.v + d,reuse);
+            haveReuse = true;
+            if (reuseFinite && reuse.Rn <= cur.Rn)
+            {
+                next = reuse;
+                accepted = true;
+            }
+        }
+
+        if (!accepted)
+        {
+            if (!cur.haveW)
+            {
+                if (!evalEnergy(cur))
+                    return false;
+                PhiRef = cur.Phi;
+            }
+            T a = 1;
+            for (index_t j = 0; j != 11 && !accepted; ++j, a *= T(0.5))
+            {
+                Trial tt;
+                bool fin;
+                if (j == 0 && haveReuse)
+                {
+                    tt = reuse;
+                    fin = reuseFinite;
+                }
+                else
+                {
+                    if (nPass >= maxIt)
+                        return false;
+                    fin = evalTrial(cur.v + a * d,tt);
+                }
+                if (fin && evalEnergy(tt) && tt.Phi <= cur.Phi + c1 * a * pred)
+                {
+                    next = tt;
+                    accepted = true;
+                }
+            }
+            if (!accepted)
+                break;
+        }
+
+        if (next.Rn < best.Rn)
+        {
+            noRed = 0;
+            best = next;
+        }
+        else
+            ++noRed;
+        if (next.haveW)
+            PhiRef = next.Phi;
+        cur = next;
+    }
+
+    const Trial * kept = &best;
+    Trial polished;
+    if (polish)
+    {
+        polished = cur;
+        gsVector<T,2> d;
+        if (nPass < maxIt && stepAt(cur,d) == 0 && HesPD)
+        {
+            Trial tt;
+            if (evalTrial(cur.v + d,tt) && tt.Rn <= cur.Rn)
+                polished = tt;
+        }
+        kept = &polished;
+    }
+    else
+    {
+        if (!(best.Rn <= best.tolS))
+            return false;
+        stagnated = true;
+    }
+
+    gamma   = kept->v.squaredNorm();
+    theta   = math::atan2(kept->v(1),kept->v(0));
+    Sp      = kept->S;
+    Cp      = kept->C;
+    resNorm = kept->Rn;
+    return true;
+}
+
+template <short_t dim, class T, bool linear >
+template <bool _linear>
+typename std::enable_if< _linear, bool>::type
+gsMaterialMatrixTFTSplit<dim,T,linear>::_exactMinimise(const gsVector<T,3> &, const detail_tftsplit::WrinkleOptions<T> &,
+                                                       const SC_provider &, const W_provider &,
+                                                       const T, const T, const bool,
+                                                       T &, T &, gsVector<T,3> &, gsMatrix<T,3,3> &, T &,
+                                                       index_t &, bool &) const
+{
+    GISMO_ERROR("gsMaterialMatrixTFTSplit: exact minimisation called for linear=true");
 }
 
 template <short_t dim, class T, bool linear >
@@ -1079,7 +1581,8 @@ std::vector<detail_tftsplit::WrinkleResult<T>> gsMaterialMatrixTFTSplit<dim,T,li
                                                 const index_t patch,
                                                 const gsMatrix<T> & u,
                                                 const gsMatrix<T> & z,
-                                                bool needTangent) const
+                                                bool needTangent,
+                                                bool needEnergy) const
 {
     const detail_tftsplit::WrinkleOptions<T> opt = this->wrinkleOptions();
 
@@ -1153,7 +1656,18 @@ std::vector<detail_tftsplit::WrinkleResult<T>> gsMaterialMatrixTFTSplit<dim,T,li
                     Ce = m_materialMat->eval3D_matrix_C(Cm,patch,uk,zz,MaterialOutput::MatrixA);
                 };
 
-            res[colIdx] = this->wrinkle(S,C,Ev,Gori,opt,needTangent,provider,scProvider);
+            W_provider wProvider;
+            if (!linear && (needEnergy || opt.exact))
+                wProvider = [&](const gsMatrix<T> & Eel) -> T
+                {
+                    gsMatrix<T> Cm(3,1);
+                    Cm(0,0) = Gori(0,0) + 2 * Eel(0,0);
+                    Cm(1,0) = Gori(1,1) + 2 * Eel(1,0);
+                    Cm(2,0) = Gori(0,1) +     Eel(2,0);
+                    return m_materialMat->eval3D_energy_C(Cm,patch,uk,zz,MaterialOutput::Generic)(0,0);
+                };
+
+            res[colIdx] = this->wrinkle(S,C,Ev,Gori,opt,needTangent,provider,scProvider,wProvider,needEnergy);
             res[colIdx].gdef = Gdef;
             res[colIdx].Gbasis = Gb;
             res[colIdx].gbasis = gb;
@@ -1176,7 +1690,8 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::_evalC
                                                 const index_t patch,
                                                 const gsVector<T> & u,
                                                 const T z,
-                                                bool needTangent) const
+                                                bool needTangent,
+                                                bool needEnergy) const
 {
     const detail_tftsplit::WrinkleOptions<T> opt = this->wrinkleOptions();
 
@@ -1230,7 +1745,18 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::_evalC
             Ce = m_materialMat->eval3D_matrix_C(Cm,patch,u,z,MaterialOutput::MatrixA);
         };
 
-    return this->wrinkle(S,C,Ev,Gori,opt,needTangent,provider,scProvider);
+    W_provider wProvider;
+    if (!linear && (needEnergy || opt.exact))
+        wProvider = [&](const gsMatrix<T> & Eel) -> T
+        {
+            gsMatrix<T> Cm(3,1);
+            Cm(0,0) = Gori(0,0) + 2 * Eel(0,0);
+            Cm(1,0) = Gori(1,1) + 2 * Eel(1,0);
+            Cm(2,0) = Gori(0,1) +     Eel(2,0);
+            return m_materialMat->eval3D_energy_C(Cm,patch,u,z,MaterialOutput::Generic)(0,0);
+        };
+
+    return this->wrinkle(S,C,Ev,Gori,opt,needTangent,provider,scProvider,wProvider,needEnergy);
 }
 
 template <short_t dim, class T, bool linear >
@@ -1410,6 +1936,24 @@ gsMatrix<T> gsMaterialMatrixTFTSplit<dim,T,linear>::eval3D_gammaHat(const index_
     gsMatrix<T> result(1,res.size());
     for (size_t c = 0; c!=res.size(); ++c)
         result(0,c) = res[c].gammaHat;
+    return result;
+}
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFTSplit<dim,T,linear>::eval3D_energy(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput /*out*/) const
+{
+    const std::vector<detail_tftsplit::WrinkleResult<T>> res = this->_evalCore(patch,u,z,false,true);
+    gsMatrix<T> result(1,res.size());
+    for (size_t c = 0; c!=res.size(); ++c)
+        result(0,c) = res[c].W;
+    return result;
+}
+
+template <short_t dim, class T, bool linear >
+gsMatrix<T> gsMaterialMatrixTFTSplit<dim,T,linear>::eval3D_energy_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput /*out*/) const
+{
+    gsMatrix<T> result(1,1);
+    result(0,0) = this->_evalCore_C(Cmat,patch,u,z,false,true).W;
     return result;
 }
 

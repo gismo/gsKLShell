@@ -194,6 +194,13 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_vector_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
+    /// Strain energy W = 1/2 E:S with the strain used by the stress for the same \a out. See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_energy(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_energy;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_energy_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_pstress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 

@@ -156,6 +156,13 @@ public:
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_vector_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
+    /// Strain energy density \f$\Psi\f$ of the material law at the condensed plane-stress state, independent of \a out. See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_energy(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_energy;
+
+    /// See \ref gsMaterialMatrixBase for details
+    gsMatrix<T> eval3D_energy_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+
     /// See \ref gsMaterialMatrixBase for details
     gsMatrix<T> eval3D_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
 
@@ -307,6 +314,10 @@ protected:
     gsMatrix<T> _eval3D_Incompressible_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     gsMatrix<T> _eval3D_Incompressible_stress_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
 
+    /// Same as \ref _eval3D_Incompressible_stress, returning the strain energy density (1 row); exactly 0 at the undeformed state
+    gsMatrix<T> _eval3D_Incompressible_energy(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    gsMatrix<T> _eval3D_Incompressible_energy_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
+
     gsMatrix<T> _eval3D_Incompressible_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
     /// Equivalent to  \ref _eval_Incompressible_vector but for the Cauchy Vector
@@ -372,6 +383,10 @@ protected:
      */
     gsMatrix<T> _eval3D_Compressible_stress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     gsMatrix<T> _eval3D_Compressible_stress_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
+
+    /// Same as \ref _eval3D_Compressible_stress, returning the strain energy density (1 row) at the C33 of the through-thickness Newton iteration. NaN C33 propagates to NaN; exactly 0 at the undeformed state
+    gsMatrix<T> _eval3D_Compressible_energy(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    gsMatrix<T> _eval3D_Compressible_energy_C(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
 
     gsMatrix<T> _eval3D_Compressible_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
@@ -491,6 +506,20 @@ private:
     typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_detF_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     template<enum Material _mat, bool _com>
     typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_detF_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+
+    /// Dispatch of the strain energy evaluation (not implemented for SvK), same selection as for the stress
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_energy_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_energy_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_energy_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_energy_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_energy_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_energy_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
 
     /// Same as \ref _eval3D_vector_impl for the Cauchy stress
     template<enum Material _mat, bool _com>
@@ -855,6 +884,57 @@ private:
     _Sij_impl(const index_t i, const index_t j, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
 
 protected:
+    /**
+     * @brief      Strain energy density of the compressible model per unit reference volume
+     *
+     * The state is given by the in-plane covariant metric of the member data and the full tensor \a c, whose
+     * entry c(2,2) = C33 is the through-thickness stretch (squared). One formula per material, shared by all
+     * implementations. All forms vanish at C = G and satisfy S = 2 dPsi/dC.
+     *
+     * @param[in]  c     The deformation tensor (3x3, c(2,2) = C33)
+     *
+     * @return     Psi
+     */
+    inline T _Psi(const gsMatrix<T> & c) const;
+
+    /**
+     * @brief      Strain energy density of the incompressible model per unit reference volume, at C33 = 1/J0^2
+     *
+     * @return     Psi
+     */
+    inline T _Psi() const;
+
+    /// Implementation of _Psi(c) for NH materials: mu/2 (J^(-2/3) I_1 - 3) + K/4 (J^2 - 1 - ln J^2)
+    template<enum Material _mat>
+    inline typename std::enable_if<_mat==Material::NH, T>::type _Psi_impl(const gsMatrix<T> & c) const;
+    /// Implementation of _Psi(c) for MR materials: c1/2 (J^(-2/3) I_1 - 3) + c2/2 (J^(-4/3) I_2 - 3) + K/4 (J^2 - 1 - ln J^2)
+    template<enum Material _mat>
+    inline typename std::enable_if<_mat==Material::MR, T>::type _Psi_impl(const gsMatrix<T> & c) const;
+    /// Implementation of _Psi(c) for Extended NH materials: mu/2 (I_1 - 3 - ln J^2) + lambda/4 (J^2 - 1 - ln J^2)
+    template<enum Material _mat>
+    inline typename std::enable_if<_mat==Material::NH_ext, T>::type _Psi_impl(const gsMatrix<T> & c) const;
+    /// Implementation of _Psi(c) for Ogden materials, in terms of the principal stretches
+    template<enum Material _mat>
+    inline typename std::enable_if<_mat==Material::OG, T>::type _Psi_impl(const gsMatrix<T> & c) const;
+    // other
+    template<enum Material _mat>
+    inline typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR || _mat==Material::NH_ext || _mat==Material::OG), T>::type _Psi_impl(const gsMatrix<T> & /*c*/) const
+    {GISMO_NO_IMPLEMENTATION;}
+
+    /// Implementation of _Psi() for NH materials: mu/2 (I_1 - 3)
+    template<enum Material _mat>
+    inline typename std::enable_if<_mat==Material::NH, T>::type _Psi_impl() const;
+    /// Implementation of _Psi() for MR materials: c1/2 (I_1 - 3) + c2/2 (I_2 - 3)
+    template<enum Material _mat>
+    inline typename std::enable_if<_mat==Material::MR, T>::type _Psi_impl() const;
+    /// Implementation of _Psi() for Ogden materials, in terms of the principal stretches
+    template<enum Material _mat>
+    inline typename std::enable_if<_mat==Material::OG, T>::type _Psi_impl() const;
+    // other
+    template<enum Material _mat>
+    inline typename std::enable_if<!(_mat==Material::NH || _mat==Material::MR || _mat==Material::OG), T>::type _Psi_impl() const
+    {GISMO_NO_IMPLEMENTATION;}
+
     /**
      * @brief      Provides the derivative of the incompressible strain energy density function w.r.t. component C_{ij} of the deformation tensor
      *

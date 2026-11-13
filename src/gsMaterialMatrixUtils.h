@@ -94,6 +94,7 @@ enum class Implementation : short_t
  * WrinkleDir: Unit vector along the wrinkles on the deformed surface (zero where not wrinkled)
  * WrinkleIntensity: Wrinkling intensity max(0,-E_min) of the total strain (zero where not wrinkled)
  * GammaHat: Parametrisation-independent wrinkle strain gamma G^{ab} n_a n_b (NaN where not wrinkled)
+ * Energy: Strain energy per unit reference volume at the fibre point (S = dW/dE, W(E=0) = 0)
  *
  * @ingroup    KLShell
  *
@@ -135,6 +136,7 @@ enum class MaterialOutput : short_t
     WrinkleDir       = 32,  // Unit vector along the wrinkles on the deformed surface (3 Cartesian components); zero where not wrinkled
     WrinkleIntensity = 33,  // max(0,-E_min) of the total strain at wrinkled points (Zhang 2024 |E_2|); zero elsewhere
     GammaHat         = 34,  // gamma * G^{ab} n_a n_b (parametrisation-independent wrinkle strain); NaN where not wrinkled
+    Energy           = 35,  // Strain energy W per unit reference volume at the fibre point, S = dW/dE
     Spec2CovTransform = 101,  // Transformation matrix from spectral to covariant basis
     Spec2ConTransform = 102,  // Transformation matrix from spectral to contravariant basis
     Cov2CartTransform = 103,  // Transformation matrix from covariant basis to cartesian basis

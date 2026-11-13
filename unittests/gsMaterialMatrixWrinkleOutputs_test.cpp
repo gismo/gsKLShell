@@ -643,6 +643,7 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
     {
         const WOStateSpec w = WOWrinkledSpec();
         WOFixture<dim,linear> fx(mat,WOSkewedJref(),w.lam1,w.lam2,static_cast<real_t>(EIGEN_PI)/6,0.4);
+        fx.split->options().setInt("ExactLocalSolve",0);
         if (exact)
             fx.split->options().setSwitch("Exact",true);
         const gsVector<real_t> pt = WOPoint();
@@ -855,6 +856,7 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
     {
         const WOStateSpec w = WOWrinkledSpec();
         WOFixture<dim,linear> fx(mat,Jref,w.lam1,w.lam2,static_cast<real_t>(EIGEN_PI)/6,0.4);
+        fx.split->options().setInt("ExactLocalSolve",0);
         if (exact)
             fx.split->options().setSwitch("Exact",true);
         if (eta > 0)
@@ -905,6 +907,7 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
     {
         const WOStateSpec w = WOWrinkledSpec();
         WOFixture<dim,false> fx(mat,WOSkewedJref(),w.lam1,w.lam2,static_cast<real_t>(EIGEN_PI)/6,0.4);
+        fx.split->options().setInt("ExactLocalSolve",0);
         if (exact)
             fx.split->options().setSwitch("Exact",true);
         const gsVector<real_t> pt = WOPoint();
@@ -1459,6 +1462,7 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
         WOFixture<2,false> fx(mat,WOSkewedJref(),w.lam1,w.lam2,pi/6,0.0);
         WOFixture<2,false> lin(mat,WOSkewedJref(),w.lam1,w.lam2,pi/6,0.0);
         fx.split->options().setSwitch("Exact",true);
+        fx.split->options().setInt("ExactLocalSolve",0);
         fx.split->options().setReal("Eta",eta);
         lin.split->options().setReal("Eta",eta);
         fx.split->resetCounters();
@@ -1524,6 +1528,7 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
         WOFixture<3,false> fx(WOMatNHComp,WOCurvedRef(),WOCurvedDef(false),thickness);
         WOFixture<3,false> lin(WOMatNHComp,WOCurvedRef(),WOCurvedDef(false),thickness);
         fx.split->options().setSwitch("Exact",true);
+        fx.split->options().setInt("ExactLocalSolve",0);
         fx.split->options().setReal("Eta",0);
         lin.split->options().setReal("Eta",0);
         fx.split->resetCounters();
