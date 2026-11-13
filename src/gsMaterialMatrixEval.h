@@ -196,7 +196,17 @@ private:
     /// Implementation of \ref targetDim for TFT variables
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Theta ||
-                            _out==MaterialOutput::Gamma   , short_t>::type targetDim_impl() const { return 1; };
+                            _out==MaterialOutput::Gamma ||
+                            _out==MaterialOutput::WrinkleIntensity ||
+                            _out==MaterialOutput::GammaHat, short_t>::type targetDim_impl() const { return 1; };
+
+    /// Implementation of \ref targetDim for the strain energy
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Energy, short_t>::type targetDim_impl() const { return 1; };
+
+    /// Implementation of \ref targetDim for the wrinkle direction
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::WrinkleDir, short_t>::type targetDim_impl() const { return 3; };
 
     /// Specialisation of \ref targetDim for strain
     template<enum MaterialOutput _out>
@@ -320,6 +330,22 @@ private:
     /// Specialisation of \ref eval_into for theta
     template<enum MaterialOutput _out>
     typename std::enable_if<_out==MaterialOutput::Gamma, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the wrinkle direction
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::WrinkleDir, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the wrinkling intensity
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::WrinkleIntensity, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for gammaHat
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::GammaHat, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
+
+    /// Specialisation of \ref eval_into for the strain energy
+    template<enum MaterialOutput _out>
+    typename std::enable_if<_out==MaterialOutput::Energy, void>::type eval_into_impl(const gsMatrix<T>& u, gsMatrix<T>& result) const;
 
     /// Specialisation of \ref eval_into for strain
     template<enum MaterialOutput _out>

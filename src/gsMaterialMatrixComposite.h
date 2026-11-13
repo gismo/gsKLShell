@@ -110,6 +110,32 @@ public:
     gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
     using Base::eval3D_vector;
 
+    /// Thickness-integrated strain energy per unit reference (mid-surface) area.
+    ///
+    /// For each in-plane point k,
+    /// \f[ W_k = \tfrac12 \varepsilon^T A \varepsilon + \varepsilon^T B \kappa + \tfrac12 \kappa^T D \kappa . \f]
+    /// This is an exception to the normalisation of the Base class (energy per unit
+    /// reference volume at fibre z): the law reports isMatIntegrated() = MatIntegration::Integrated,
+    /// i.e. it works with laminate resultants rather than fibre-point stresses.
+    ///
+    /// A, B and D are the matrices returned by eval3D_matrix (MaterialOutput::MatrixA, MatrixB, MatrixD).
+    /// \f$\varepsilon\f$ is the membrane strain and \f$\kappa\f$ the curvature change, in engineering
+    /// Voigt form [E11, E22, E12+E21] and [K11, K22, K12+K21], formed as in eval3D_vector
+    /// for VectorN and VectorM.
+    ///
+    /// W vanishes when the deformed and the undeformed geometry coincide.
+    /// For B = 0 and symmetric A and D, dW/d\f$\varepsilon\f$ and dW/d\f$\kappa\f$ equal the
+    /// VectorN and VectorM resultants of eval3D_vector.
+    ///
+    /// \param patch the patch index
+    /// \param u     in-plane parametric points (one per column)
+    /// \param z     only z.rows() is used, it sets the output width; the values are ignored
+    /// \param out   ignored
+    /// \returns a 1 x (z.rows()*u.cols()) matrix; column j*u.cols()+k holds W of point k,
+    ///          identical for every fibre row j
+    gsMatrix<T> eval3D_energy(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
+    using Base::eval3D_energy;
+
     std::ostream &print(std::ostream &os) const override;
 
     bool initialized() const override

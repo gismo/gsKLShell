@@ -65,6 +65,11 @@ struct stress_type
         principal_stress_dir2  = 92,  /// principal stress directions
         principal_stress_dir3  = 93,  /// principal stress directions
         tension_field  = 99,
+        wrinkle_theta      = 100, /// wrinkle normal angle theta (NaN where not wrinkled)
+        wrinkle_gamma      = 101, /// wrinkle strain gamma, |n|_Euclid = 1 (NaN where not wrinkled)
+        wrinkle_dir        = 102, /// unit vector along the wrinkles, deformed surface (zero where not wrinkled)
+        wrinkle_intensity  = 103, /// wrinkling intensity max(0,-E_min) (zero where not wrinkled)
+        wrinkle_gamma_hat  = 104, /// parametrisation-independent wrinkle strain (NaN where not wrinkled)
     };
 };
 
@@ -214,6 +219,21 @@ public:
             case stress_type::principal_stress_dir3 :
                 return 3;
             case stress_type::tension_field :
+                return 1;
+                break;
+            case stress_type::wrinkle_theta :
+                return 1;
+                break;
+            case stress_type::wrinkle_gamma :
+                return 1;
+                break;
+            case stress_type::wrinkle_dir :
+                return 3;
+                break;
+            case stress_type::wrinkle_intensity :
+                return 1;
+                break;
+            case stress_type::wrinkle_gamma_hat :
                 return 1;
                 break;
             /*

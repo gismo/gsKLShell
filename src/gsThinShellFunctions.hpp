@@ -75,6 +75,17 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
     gsMaterialMatrixEval<real_t,MaterialOutput::TensionField> m_TF(m_materialMatrices,m_defpatches,z);
     variable TF  = ev.getVariable(m_TF);
 
+    gsMaterialMatrixEval<T,MaterialOutput::Theta> m_theta(m_materialMatrices,m_defpatches,z);
+    variable wtheta = ev.getVariable(m_theta);
+    gsMaterialMatrixEval<T,MaterialOutput::Gamma> m_gamma(m_materialMatrices,m_defpatches,z);
+    variable wgamma = ev.getVariable(m_gamma);
+    gsMaterialMatrixEval<T,MaterialOutput::WrinkleDir> m_wdir(m_materialMatrices,m_defpatches,z);
+    variable wdir = ev.getVariable(m_wdir);
+    gsMaterialMatrixEval<T,MaterialOutput::WrinkleIntensity> m_wint(m_materialMatrices,m_defpatches,z);
+    variable wint = ev.getVariable(m_wint);
+    gsMaterialMatrixEval<T,MaterialOutput::GammaHat> m_gammahat(m_materialMatrices,m_defpatches,z);
+    variable wgammahat = ev.getVariable(m_gammahat);
+
     gsMaterialMatrixEval<T,MaterialOutput::Stretch> m_lambda(m_materialMatrices,m_defpatches,z);
     variable lambda = ev.getVariable(m_lambda);
     gsMaterialMatrixEval<T,MaterialOutput::StretchDir> m_lambdadir(m_materialMatrices,m_defpatches,z);
@@ -262,6 +273,36 @@ void gsShellStressFunction<T>::eval_into(const gsMatrix<T> & u, gsMatrix<T> & re
             for (index_t k = 0; k != u.cols(); ++k)
             {
                 result.col(k) = ev.eval(TF,u.col(k),m_patchID);
+            }
+            break;
+        case stress_type::wrinkle_theta :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                result.col(k) = ev.eval(wtheta,u.col(k),m_patchID);
+            }
+            break;
+        case stress_type::wrinkle_gamma :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                result.col(k) = ev.eval(wgamma,u.col(k),m_patchID);
+            }
+            break;
+        case stress_type::wrinkle_dir :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                result.col(k) = ev.eval(wdir,u.col(k),m_patchID);
+            }
+            break;
+        case stress_type::wrinkle_intensity :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                result.col(k) = ev.eval(wint,u.col(k),m_patchID);
+            }
+            break;
+        case stress_type::wrinkle_gamma_hat :
+            for (index_t k = 0; k != u.cols(); ++k)
+            {
+                result.col(k) = ev.eval(wgammahat,u.col(k),m_patchID);
             }
             break;
         case stress_type::total :

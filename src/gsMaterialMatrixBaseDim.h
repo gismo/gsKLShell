@@ -235,13 +235,48 @@ public:
     /// Gets metric quantities on the undeformed geometry
     void _getMetricUndeformed(const index_t k, const T z) const;
 
-    /// Computes the stretch given deformation tensor C, into a pair
+    /// Computes the in-plane principal stretches and directions of the deformation tensor \a C (3x3 symmetric,
+    /// covariant components of the deformed metric; only the entries (0:1,0:1) and (2,2) are read).
+    ///
+    /// \a gcon_ori is the reference contravariant basis. It must be the \a m_gcon_ori loaded by the last call of
+    /// \a _getMetricUndeformed or \a _getMetric, whose \a m_gcov_ori.col(0) is also used.
+    ///
+    /// Returns a pair: \a first = (lambda_1, lambda_2, sqrt(C(2,2))) with the in-plane stretches ascending, and
+    /// \a second the 3x3 matrix [v_1 | v_2 | gcon_ori.col(2)] of the in-plane principal directions followed by
+    /// the reference normal column as passed.
+    ///
+    /// The in-plane tensor is B = sum_kl C_kl g^k (x) g^l. When B equals the tangent projector P = I - n n^T
+    /// (n the normalised reference normal) to ||B - P||_F <= 10 eps ||P||_F, i.e. the undeformed in-plane state,
+    /// the stretches are (1,1) and the directions are e1 = P G_1 / |P G_1|, with G_1 = \a m_gcov_ori.col(0), and
+    /// n x e1. Otherwise they follow from a symmetric eigensolve of B.
     std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C, const gsMatrix<T> & gcon_ori ) const;
 
-    /// Computes the principal strain given deformation tensor C, into a pair
+    /// Computes the in-plane principal Green-Lagrange strains of the strain tensor \a C (3x3 symmetric, covariant
+    /// components w.r.t. the contravariant reference basis; only the entries (0:1,0:1) and (2,2) are read),
+    /// with the reference frame loaded by the last call of \a _getMetricUndeformed or \a _getMetric.
+    ///
+    /// Returns a pair: \a first = (E_min, E_max, E(2,2)) with the in-plane pair ascending, and \a second the 3x3
+    /// matrix [d_min | d_max | n] of unit vectors, with the two in-plane directions tangent to the surface and n
+    /// the stored unit normal.
+    ///
+    /// The frame is degenerate when |G_1 x G_2| <= 10 eps (|G_1|^2 + |G_2|^2) or is non-finite (collapsed edge,
+    /// pole). Then the contravariant basis does not exist and the in-plane values and both directions are
+    /// quiet NaN, in both dimensions; E(2,2) and n are still returned. The same NaN is returned if the in-plane
+    /// block of \a C is non-finite, or if the contravariant basis G^a is non-finite on a regular frame.
     std::pair<gsVector<T>,gsMatrix<T>> _evalPStrain(const gsMatrix<T> & C ) const;
 
-    /// Computes the principal stress given stress tensor S, into a pair
+    /// Computes the principal stresses of the in-plane stress tensor S^{ab} G_a (x) G_b (S: 3x3 symmetric,
+    /// contravariant components; only the entries (0:1,0:1) are read), with the reference frame loaded by the
+    /// last call of \a _getMetricUndeformed or \a _getMetric.
+    ///
+    /// Returns a pair: \a first = the two principal values, ascending, and \a second the 3x3 matrix
+    /// [d_min | d_max | N] of Cartesian unit vectors, with N = G_1 x G_2/|G_1 x G_2| and d_max = N x d_min.
+    ///
+    /// The frame is degenerate when |G_1 x G_2| <= 10 eps (|G_1|^2 + |G_2|^2) or is non-finite (collapsed edge,
+    /// pole). For \a dim = 2 the plane is known and the principal decomposition of the finite tensor is returned
+    /// with N = e_3 (also for a left-handed parametrisation); NaN is returned only if either G_a is non-finite or
+    /// both vanish. For \a dim = 3 the tangent plane is undefined and the two values and all nine frame entries
+    /// are quiet NaN. The same NaN is returned in both dimensions if the in-plane block of \a S is non-finite.
     std::pair<gsVector<T>,gsMatrix<T>> _evalPStress(const gsMatrix<T> & S ) const;
 
     /// Computes the stretch given deformation tensor C, into class members m_stretches and m_stretchDirs
