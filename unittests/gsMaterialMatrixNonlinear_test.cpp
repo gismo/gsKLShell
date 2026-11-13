@@ -92,6 +92,17 @@
       - Energy_SmallStrain_Quadratic compares W at a small nonzero strain with
         1/2 E^T C(0) E, which exercises the energy formula close to E = 0.
 
+    Two tests gate the principal stretches of the compressible Neo-Hookean law
+    through eval3D_pstretch and eval3D_pstretchDir:
+      - PStretch_FlatAnisotropic_NoFalseShortcut is a true regression gate for
+        the frame-invariant flat-state test of _evalStretch: a flat patch with
+        in-plane stretches (sqrt(1.5), sqrt(0.5)) must not be mistaken for the
+        undeformed state; a trace test on the Cartesian 2x2 block of B would
+        mistake it for the undeformed state.
+      - PStretch_TiltedUndeformed_Frame is a contract test, NOT a regression
+        gate: it pins the stretches (1,1,1) and an orthonormal tangent frame
+        for an undeformed tilted patch.
+
     TEST(CauchyStress_Compressible_IsStressOverDetF) gates the compressible
     Cauchy stress: eval3D_CauchyStress must equal the second Piola-Kirchhoff
     components eval3D_stress divided column-wise by eval3D_detF, for
@@ -1110,10 +1121,10 @@ TEST(C33_Assembler_Status)
 // compressible branch): result.col(colIdx) with colIdx=j*u.cols()+k must
 // carry through-thickness station j's own C33, not another station's.
 // Row 2 of the result is the sharpest instrument for this: inside
-// _evalStretch (gsMaterialMatrixBaseDim.hpp:1370-1419) the third slot is
+// gsMaterialMatrixBaseDim::_evalStretch the third slot is
 // assigned directly, stretches.at(2) = C(2,2), and then square-rooted --
 // so result(2,colIdx) == sqrt(C33 as read for that packed column), exactly,
-// with no eigenvector sort or near-identity branch (:1391) able to hide a
+// with no eigenvector sort or flat-state shortcut able to hide a
 // mis-indexed read. Rows 0-1 come from a SelfAdjointEigenSolver on the
 // in-plane block, which is refreshed per station regardless of the C33
 // packing, so they cannot fail under this defect; they are kept only as a
@@ -1199,6 +1210,105 @@ TEST(C33_MultiStation_pstretch)
             CHECK_CLOSE( ref[j](0,k), all(0,colIdx), tol );
             CHECK_CLOSE( ref[j](1,k), all(1,colIdx), tol );
         }
+    }
+}
+
+// Regression gate for the flat-state shortcut of
+// gsMaterialMatrixBaseDim::_evalStretch. A flat xy-patch stretched to
+// lambda^2 = (1.5, 0.5) has B = diag(1.5, 0.5, 0): its Cartesian 2x2 diagonal
+// sums to 2, so a trace test "B00 + B11 == 2" mistakes it for the undeformed
+// state and returns the stretches (1,1). The correct in-plane stretches are
+// (sqrt(0.5), sqrt(1.5)) in ascending order.
+TEST(PStretch_FlatAnisotropic_NoFalseShortcut)
+{
+    BentShellNH fix;
+
+    gsMultiPatch<real_t> mp_def = fix.mp;
+    mp_def.patch(0).coefs().col(0) *= math::sqrt(real_t(1.5));
+    mp_def.patch(0).coefs().col(1) *= math::sqrt(real_t(0.5));
+    fix.materialMatrix->setDeformed(&mp_def);
+
+    gsMatrix<real_t> u(2,2);
+    u.col(0) << 0.25, 0.25;
+    u.col(1) << 0.75, 0.6;
+    gsMatrix<real_t> z(2,2);
+    z.setZero();
+    z(1,0) = 0.1; z(1,1) = -0.1;
+
+    const gsMatrix<real_t> P = fix.materialMatrix->eval3D_pstretch(0,u,z);
+    CHECK_EQUAL(3, P.rows());
+    CHECK_EQUAL(u.cols()*z.rows(), P.cols());
+    CHECK(P.allFinite());
+
+    const real_t tol = 1e-10;
+    for (index_t c = 0; c!=P.cols(); c++)
+    {
+        CHECK_CLOSE(math::sqrt(real_t(0.5)), P(0,c), tol);
+        CHECK_CLOSE(math::sqrt(real_t(1.5)), P(1,c), tol);
+        CHECK(P(2,c) > 0.0);
+    }
+}
+
+// Contract test, NOT a regression gate: an undeformed patch tilted about the
+// x-axis by theta = pi/5 has stretches (1,1,1), an orthonormal in-plane frame
+// tangent to the patch, and a third direction parallel to the normal
+// n = (0,-sin(theta),cos(theta)). Here the trace of the Cartesian 2x2 block
+// of B is 1 + cos^2(theta) != 2, so a trace-based flat-state test does not
+// fire and the eigensolver alone already gives this result: the test passes
+// with either flat-state condition. A frame-invariant condition may take the
+// shortcut or the eigensolver here; both satisfy the checks.
+TEST(PStretch_TiltedUndeformed_Frame)
+{
+    BentShellNH fix;
+
+    const real_t theta = static_cast<real_t>(EIGEN_PI)/5;
+    const real_t s = math::sin(theta), c = math::cos(theta);
+    gsMultiPatch<real_t> mp_tilt = fix.mp;
+    gsMatrix<real_t> & coefs = mp_tilt.patch(0).coefs();
+    for (index_t i = 0; i!=coefs.rows(); i++)
+    {
+        const real_t y = coefs(i,1);
+        coefs(i,2) = s*y;
+        coefs(i,1) = c*y;
+    }
+    fix.materialMatrix->setUndeformed(&mp_tilt);
+    fix.materialMatrix->setDeformed(&mp_tilt);
+
+    gsMatrix<real_t> u(2,2);
+    u.col(0) << 0.25, 0.25;
+    u.col(1) << 0.75, 0.6;
+    gsMatrix<real_t> z(1,2);
+    z.setZero();
+
+    gsVector<real_t,3> n;
+    n << 0, -s, c;
+
+    const gsMatrix<real_t> P = fix.materialMatrix->eval3D_pstretch(0,u,z);
+    CHECK_EQUAL(3, P.rows());
+    CHECK_EQUAL(u.cols()*z.rows(), P.cols());
+    for (index_t col = 0; col!=P.cols(); col++)
+    {
+        CHECK_CLOSE(1.0, P(0,col), 1e-10);
+        CHECK_CLOSE(1.0, P(1,col), 1e-10);
+        CHECK_CLOSE(1.0, P(2,col), 1e-8);
+    }
+
+    const gsMatrix<real_t> D = fix.materialMatrix->eval3D_pstretchDir(0,u,z);
+    CHECK_EQUAL(9, D.rows());
+    CHECK_EQUAL(u.cols()*z.rows(), D.cols());
+    CHECK(D.allFinite());
+    for (index_t col = 0; col!=D.cols(); col++)
+    {
+        const gsVector<real_t,3> v1 = D.col(col).segment(0,3);
+        const gsVector<real_t,3> v2 = D.col(col).segment(3,3);
+        const gsVector<real_t,3> m  = D.col(col).segment(6,3);
+        CHECK_CLOSE(1.0, v1.norm(), 1e-10);
+        CHECK_CLOSE(1.0, v2.norm(), 1e-10);
+        CHECK_CLOSE(0.0, v1.dot(v2), 1e-10);
+        CHECK_CLOSE(0.0, v1.dot(n), 1e-10);
+        CHECK_CLOSE(0.0, v2.dot(n), 1e-10);
+        CHECK(m.norm() > 0.0);
+        CHECK_CLOSE(1.0, math::abs(m.dot(n))/m.norm(), 1e-10);
     }
 }
 

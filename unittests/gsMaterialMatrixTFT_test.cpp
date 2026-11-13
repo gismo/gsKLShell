@@ -1290,6 +1290,31 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         TFT_eta_CLOSE(S_eta*(slack/eta),S,1e-12);
     }
 
+    /// A negative SlackMultiplier is rejected at the first evaluation that reads it, with an admissible Eta and
+    /// also on the EtaTangentOnly path, where the slack factor is the SlackMultiplier itself.
+    TEST(TFT_slackmultiplier_negative_throws)
+    {
+        typedef real_t T;
+        TFT_curved_setup s(0.95,0.90);
+        const MaterialOutput MA = MaterialOutput::MatrixA;
+        const MaterialOutput VN = MaterialOutput::VectorN;
+
+        const gsMatrix<T> S0 = s.tft->eval3D_stress(0,s.u,s.z,VN);
+        CHECK(S0.allFinite());
+
+        s.tft->options().setReal("SlackMultiplier",-1e-3);
+        CHECK_THROW(s.tft->eval3D_stress(0,s.u,s.z,VN), std::runtime_error);
+        CHECK_THROW(s.tft->eval3D_matrix(0,s.u,s.z,MA), std::runtime_error);
+        CHECK_THROW(s.tft->eval3D_strain(0,s.u,s.z), std::runtime_error);
+        CHECK_THROW(s.tft->eval3D_energy(0,s.u,s.z), std::runtime_error);
+
+        s.tft->options().setReal("Eta",0.1);
+        CHECK_THROW(s.tft->eval3D_stress(0,s.u,s.z,VN), std::runtime_error);
+
+        s.tft->options().setSwitch("EtaTangentOnly",true);
+        CHECK_THROW(s.tft->eval3D_stress(0,s.u,s.z,VN), std::runtime_error);
+    }
+
     /// Affine d = 2 setup of TFT_tangent_CHECK (svk = linear): with \a zeroOnly, only the check that Eta = 0 with
     /// EtaTangentOnly set gives exactly the outputs of a default decorator; otherwise the tangent of the default
     /// variant at Eta = 0.1 against finite differences of the decorator's own stress with respect to the deformed

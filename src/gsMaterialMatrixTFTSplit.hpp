@@ -48,8 +48,8 @@ m_nExactMinimised(0)
     // Root finder for the fallback; it does not own the wrapped material, which m_materialMat keeps alive
     m_tft = memory::make_shared(new gsMaterialMatrixTFT<dim,T,linear>(m_materialMat.get()));
 
-    m_options.addReal("Eta","Regularisation: fraction of the unmodified stress/tangent kept in wrinkled and slack states (Zhang 2026 Eq. 40)",0);
-    m_options.addReal("SlackMultiplier","Slack state: S_eff = SlackMultiplier*S if > 0, else Eta*S",0);
+    m_options.addReal("Eta","Regularisation: fraction of the unmodified stress/tangent kept in wrinkled and slack states; must lie in [0,1] (Zhang 2026 Eq. 40)",0);
+    m_options.addReal("SlackMultiplier","Slack state: S_eff = SlackMultiplier*S if > 0, else Eta*S; must be >= 0",0);
     m_options.addReal("S2crit","Display-only threshold: a wrinkled point is reported wrinkled in eval3D_tensionfield iff Smin < S2crit",0);
     m_options.addSwitch("Midsurface","Evaluate the state on the mid-surface only (MatIntegration::Constant); membrane analysis only",false);
     m_options.addSwitch("Exact","Exact (non-truncated) wrinkled stress S(E + gamma n x n) by a local Newton solve (linear=false); no effect for linear=true, where both coincide",false);
@@ -83,6 +83,10 @@ detail_tftsplit::WrinkleOptions<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrink
                  "gsMaterialMatrixTFTSplit: TensionField must be 0, 1 or 2, got "<<opt.tensionField);
     GISMO_ENSURE(opt.exactLocalSolve==0 || opt.exactLocalSolve==1 || opt.exactLocalSolve==2,
                  "gsMaterialMatrixTFTSplit: ExactLocalSolve must be 0, 1 or 2, got "<<opt.exactLocalSolve);
+    GISMO_ENSURE(opt.eta>=0 && opt.eta<=1,
+                 "gsMaterialMatrixTFTSplit: Option Eta must lie in [0,1], got "<<opt.eta);
+    GISMO_ENSURE(opt.slackMultiplier>=0,
+                 "gsMaterialMatrixTFTSplit: Option SlackMultiplier must be >= 0, got "<<opt.slackMultiplier);
     return opt;
 }
 
@@ -1260,7 +1264,9 @@ gsMaterialMatrixTFTSplit<dim,T,linear>::_exactSolve(const gsVector<T,3> &, const
     is taken with eigenvalue flipping: with Hes = lam1 q1 q1^T + lam2 q2 q2^T (closed form, lam1 <= lam2),
     d = -sum_i q_i (q_i.grad Phi)/max(|lam_i|, 1e-8 ||Hes||), ||Hes|| = max|lam_i|; the step is a descent direction
     even where Hes is indefinite. Where the gradient is at round-off level and lam1 < 0, d = |v| q1 (signed to
-    descend) leaves the saddle. The step is capped at |d| <= |v| (trust radius), which keeps v from
+    descend) leaves the saddle. With Hes = 0 and grad Phi != 0 the step is the steepest-descent step
+    d = -|v| grad Phi/|grad Phi| (length |v|); with Hes = 0 and grad Phi = 0 the iterate is stationary and the
+    pass ends as a stall (see Stall). The step is capped at |d| <= |v| (trust radius), which keeps v from
     crossing the origin, where theta is undefined. Where grad Phi is above round-off, the line search is Armijo
     backtracking on Phi, Phi(v + a d) <= Phi(v) + 1e-4 a grad Phi.d, a = 2^-j, j <= 10.
 
@@ -1269,14 +1275,19 @@ gsMaterialMatrixTFTSplit<dim,T,linear>::_exactSolve(const gsVector<T,3> &, const
     the unit step is judged on the residual (accepted iff ||R||_inf does not grow, without an energy
     evaluation) and Armijo is used only if it is rejected.
 
-    Polish. After convergence one Newton step is tried and kept iff ||R||_inf does not grow.
+    Polish. After convergence one Newton step is tried only if budget is left (fewer than ExactMaxIt S/C calls
+    made) and Hes at the converged iterate is positive definite with a regular step (not the zero-Hessian
+    case); it is kept iff ||R||_inf does not grow. Otherwise the converged iterate is returned as is.
 
-    Stall. Three consecutive iterates that do not reduce the best ||R||_inf, or a failed line search, end
-    the pass: the best iterate is accepted (\a stagnated) iff its residual is within the stall tolerance.
+    Stall. Three consecutive iterates that do not reduce the best ||R||_inf, a failed line search, or a
+    stationary iterate with zero Hessian and zero gradient, end the pass: the best iterate is accepted
+    (\a stagnated) iff its residual is within the stall tolerance.
     All tolerances follow the pattern of _exactSolve: tolC = max(ExactTol ||S'||, floorR), tolS likewise with
     ExactStagTol, floorR = 64 eps ||C'||_F max(1,||E'||).
 
-    Budget. At most ExactMaxIt trial points (provider calls S/C) per call; reaching it is non-convergence.
+    Budget. At most ExactMaxIt trial points (provider calls S/C) per call. A budget exit (a further S/C call is
+    needed when none is left) before convergence is non-convergence; at convergence the budget only skips the polish.
+    A stall exit on the last allowed trial is judged by the stall rule above.
     Energy evaluations are not counted. The budget is separate from that of the scalar pass, so a handed-off
     point can make up to 2 ExactMaxIt S/C calls in total.
 
@@ -1289,9 +1300,9 @@ gsMaterialMatrixTFTSplit<dim,T,linear>::_exactSolve(const gsVector<T,3> &, const
     already had its S/C call, so a pass makes at most ExactMaxIt S/C calls and at most as many W calls. Each S/C call
     is two wrapped _C evaluations and each W call one, each with its own thickness Newton for compressible laws.
 
-    The energy is the wrapped law's eval3D_energy_C through \a WatE; a law without one (gsMaterialMatrixNonlinear
-    with Material::SvK, or any law that keeps the gsMaterialMatrixBase default) raises GISMO_NO_IMPLEMENTATION at
-    the first evalEnergy call and needs ExactLocalSolve = 0.
+    The energy is the wrapped law's eval3D_energy_C through \a WatE; a law without one (any law that keeps the
+    gsMaterialMatrixBase default) raises GISMO_NO_IMPLEMENTATION at the first evalEnergy call and needs
+    ExactLocalSolve = 0.
 */
 template <short_t dim, class T, bool linear >
 template <bool _linear>

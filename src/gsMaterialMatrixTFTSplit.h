@@ -32,8 +32,8 @@ template <class T>
 struct WrinkleOptions
 {
     index_t tensionField = 2;   ///< 0: strain-based, 1: stress-based, 2: mixed (default)
-    T       eta = 0;            ///< Zhang (2026) Eq. 40 regularisation
-    T       slackMultiplier = 0;///< slack stress factor; if <= 0, eta is used instead
+    T       eta = 0;            ///< Zhang (2026) Eq. 40 regularisation, in [0,1]
+    T       slackMultiplier = 0;///< slack stress factor if > 0, else eta; must be >= 0 (checked by wrinkleOptions())
     bool    exact = false;      ///< exact (non-truncated) wrinkled state; only honoured for linear=false
     T       exactTol = T(1e-12);///< exact solve: residual tolerance relative to ||S'||_2 at the iterate (with a round-off floor)
     T       exactStagTol = T(1e-9);///< exact solve: relative residual tolerance up to which a stalled iteration is accepted; >= exactTol
@@ -262,24 +262,28 @@ struct WrinkleResult
  *   minimisation are the points the minimum test accepts. Hes positive definite does not imply n_4.S' >= 0;
  *   such a minimum is reported as a wrong branch by the acceptance below.
  * - Start rule: (1) after a hand-off from a converged scalar pass, its (gamma, theta), if admissible; (2) after
- *   a stall-accepted scalar pass, the same with the sign test; (3) the linearised (gamma, theta) with gamma > 0,
- *   also the direction kept after a failed direction search, with the sign test; (4) pencil
+ *   a stall-accepted scalar pass, the same with the sign test; (3) the linearised (gamma, theta) if
+ *   n_1.C n_1 > 0 at the linearised direction and the linearised gamma > 0 (i.e. n_1.S(E) < 0), also the
+ *   direction kept after a failed direction search, with the sign test; (4) pencil
  *   S_min >= -1e-8 max(|S_min|,|S_max|), the stress test under every TensionField (also 0): taut at gamma = 0
- *   (reclassified taut), no minimisation; (5) otherwise the Euclidean eigenvector
- *   of Shat(E) for its negative eigenvalue lamS, with gamma0 = -lamS/(n_1.C n_1), or a strain scale |E_min| if
- *   that is not positive and finite; no negative eigenvalue (round-off) means no start: not converged. The sign
- *   test is n_1.S(E + gamma0 n_1) < 0, with gamma0 halved at most ten times.
+ *   (reclassified taut), no minimisation; (5) otherwise theta0 is the Euclidean eigenvector
+ *   of Shat(E) for its smaller eigenvalue lamS, used only if lamS < 0, with gamma0 = -lamS/(n_1.C n_1) if
+ *   n_1.C n_1 at theta0 is positive and finite, else gamma0 = |E_min|, or max(|E_min|,|E_max|) if E_min = 0;
+ *   lamS >= 0 (round-off) means no start: not converged, as does a gamma0 that is not positive and finite. The
+ *   sign test is n_1.S(E + gamma0 n_1) < 0, with gamma0 halved at most ten times.
  * - Step: Newton on Hes with eigenvalue flipping (|lam_i| floored at 1e-8 ||Hes||); a negative-curvature step
- *   d = +-|v| q_1 where the gradient is at round-off and lam_1 < 0; the cap |d| <= |v| keeps v from crossing
- *   the origin.
+ *   d = +-|v| q_1 where the gradient is at round-off and lam_1 < 0; with Hes = 0 and a non-zero gradient the
+ *   steepest-descent step of length |v|; the cap |d| <= |v| keeps v from crossing the origin.
  * - Line search and floor: floorW = 64 eps (||C'||_F max(1, ||E'||)^2 + |Phi|). Above the floor, Armijo
  *   backtracking Phi(v + a d) <= Phi(v) + 1e-4 a grad Phi.d, a = 2^-j, j <= 10; at or below it with Hes
  *   positive definite the unit step is accepted iff ||R||_inf does not grow (no energy evaluation), else
  *   Armijo.
- * - Convergence is ||R||_inf <= tolC, followed by one polishing Newton step (Hes positive definite, kept iff
- *   ||R||_inf does not grow). Stall is three iterates without reducing the best ||R||_inf, or a failed line
- *   search; the best iterate is accepted iff within tolS (exactStagnated).
- * - Budget and cost: ExactMaxIt S/C calls of its own (W calls are not counted), so a handed-off point can
+ * - Convergence is ||R||_inf <= tolC, followed by one polishing Newton step (budget left, Hes positive definite,
+ *   kept iff ||R||_inf does not grow). Stall is three iterates without reducing the best ||R||_inf, a failed line
+ *   search, or a stationary iterate with zero Hessian and zero gradient; the best iterate is accepted iff within
+ *   tolS (exactStagnated).
+ * - Budget and cost: ExactMaxIt S/C calls of its own (W calls are not counted; a budget reached at convergence
+ *   only skips the polish), so a handed-off point can
  *   spend up to 2 ExactMaxIt S/C calls. One iteration costs one S/C call, plus one W call above the floor,
  *   when the unit step is accepted, and up to 11 S/C and 12 W calls with a full backtrack.
  * - The resulting (gamma, theta) goes through the same acceptance (minimum test, n_4.S', bands, failure
@@ -350,9 +354,11 @@ struct WrinkleResult
  * - TensionField (int, 2): 0 strain-based, 1 stress-based, 2 mixed criterion. The decorator evaluates
  *   the criterion itself, with its own option (not the wrapped material's). 2 is the mixed criterion
  *   of Zhang & Kiendl (2026, Eq. 35) and Verhelst et al. (Eq. 34).
- * - Eta (real, 0): regularisation (Zhang & Kiendl 2026, Eq. 40). It blends wrinkled points only; taut
- *   points, including taut reclassifications of the exact mode, return the unmodified S, C, E.
- * - SlackMultiplier (real, 0): slack stress SlackMultiplier*S if > 0, else Eta*S; it does not
+ * - Eta (real, 0): regularisation (Zhang & Kiendl 2026, Eq. 40), in [0,1]. It blends wrinkled points only; taut
+ *   points, including taut reclassifications of the exact mode, return the unmodified S, C, E. A value outside
+ *   [0,1] (or NaN) raises a std::runtime_error at the first wrinkling evaluation, not at setOptions.
+ * - SlackMultiplier (real, 0): must be >= 0 (a negative value or NaN raises a std::runtime_error at the first
+ *   wrinkling evaluation, as for Eta); slack stress SlackMultiplier*S if > 0, else Eta*S; it does not
  *   affect wrinkled points. Slack points, including slack reclassifications, return sigma (S, C, E)
  *   with sigma the slack factor. Under TensionField 0 and 2, for SvK and in the exact mode, the
  *   wrinkled/slack stress is continuous iff sigma = Eta; a SlackMultiplier > 0 different from Eta jumps
@@ -366,10 +372,10 @@ struct WrinkleResult
  *   (gamma,theta); points without an admissible direction are skipped. 1: the scalar pass, then the
  *   globalised minimisation of W(E + v (x) v) over v in R^2 wherever the Newton pass would run, and at
  *   points whose direction search failed. 2: the minimisation only. Modes 1 and 2 evaluate the wrapped
- *   law's energy (eval3D_energy_C), which a law without one (gsMaterialMatrixNonlinear with
- *   Material::SvK, or any law that keeps the gsMaterialMatrixBase default) does not provide: with Exact on
- *   such a law raises GISMO_NO_IMPLEMENTATION at the first point that reaches the minimisation and needs
- *   ExactLocalSolve = 0. The class drivers bind the W provider whenever Exact is on (linear=false).
+ *   law's energy (eval3D_energy_C), which a law that keeps the gsMaterialMatrixBase default does not
+ *   provide: with Exact on such a law raises GISMO_NO_IMPLEMENTATION at the first point that reaches the
+ *   minimisation and needs ExactLocalSolve = 0. The class drivers bind the W provider whenever Exact is on
+ *   (linear=false).
  *   A direct wrinkle() call without a W provider runs mode 0.
  * - S2crit (real, 0): display-only (S_2,crit of Zhang & Kiendl 2026); a wrinkled point is reported
  *   wrinkled by eval3D_tensionfield iff its unmodified S_min < S2crit (S and C are not affected)
@@ -489,7 +495,8 @@ public:
     /// Updates the options (Exact is ignored, with a message, for linear=true)
     void setOptions(gsOptionList opt) override;
 
-    /// Reads TensionField, Eta, SlackMultiplier, Exact, ExactTol, ExactStagTol, ExactMaxIt and ExactLocalSolve from the option list
+    /// Reads TensionField, Eta, SlackMultiplier, Exact, ExactTol, ExactStagTol, ExactMaxIt and ExactLocalSolve from the option list;
+    /// throws (GISMO_ENSURE) unless TensionField and ExactLocalSolve are in {0,1,2}, Eta in [0,1] and SlackMultiplier >= 0
     detail_tftsplit::WrinkleOptions<T> wrinkleOptions() const;
 
     /// Number of wrinkled evaluations whose closed-form theta was rejected by the isotropy guard

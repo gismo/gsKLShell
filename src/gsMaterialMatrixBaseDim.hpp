@@ -1400,14 +1400,25 @@ std::pair<gsVector<T>,gsMatrix<T>> gsMaterialMatrixBaseDim<dim,T>::_evalStretch(
         for (index_t l = 0; l != 2; l++)
             B += C(k,l) * gcon_ori.col(k) * gcon_ori.col(l).transpose();
 
+    // Tangent-plane projector P = I - n n^T, with n the normalised reference normal gcon_ori.col(2).
+    const gsVector<T,3> nhat = gcon_ori.col(2) / gcon_ori.col(2).norm();
+    const gsMatrix<T> P = gsMatrix<T>::Identity(3,3) - nhat * nhat.transpose();
+    // e1: G_1 = m_gcov_ori.col(0) (a_1 + z n_{,1}), projected onto the tangent plane and normalised.
+    gsVector<T,3> e1 = P * m_data.mine().m_gcov_ori.col(0);
+    const T ne1 = e1.norm();
+    const T tol = 10 * std::numeric_limits<T>::epsilon();
+
     gsMatrix<T> eigVectors(3,3);
     gsMatrix<T> eigValues(3,1);
-    if (math::abs(((B.block(0,0,2,2).diagonal()).array()-1).sum()) < 10*std::numeric_limits<T>::epsilon())
+    // The test ||B - P||_F <= 10 eps ||P||_F is deliberately tight: a missed shortcut falls back to the
+    // eigensolver, which is correct (eigenvalues 0,1,1), whereas a false shortcut returns wrong stretches.
+    if ((B - P).norm() <= tol * P.norm() && ne1 > 0)
     {
-        eigValues<<0,1,1; // eigenvalues when B = [1 0 0; 0 1 0; 0 0 0]
-        eigVectors<<0,0,1,
-                    0,1,0,
-                    1,0,0;
+        e1 /= ne1;
+        eigValues << 0, 1, 1;          // B = P: eigenpair (0, n), double eigenvalue 1 on the tangent plane
+        eigVectors.col(0) = nhat;
+        eigVectors.col(1) = e1;
+        eigVectors.col(2) = nhat.cross(e1);
     }
     else
     {

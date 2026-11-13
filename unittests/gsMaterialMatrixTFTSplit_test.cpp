@@ -5072,6 +5072,65 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         }
     }
 
+    /// Eta outside [0,1] and a negative SlackMultiplier are not validated by setOptions; they throw at the first
+    /// wrinkling evaluation (wrinkleOptions()), each with all other options at their defaults.
+    TEST(WrinkleOptions_slackmultiplier_negative_throws)
+    {
+        const SplitStateSpec spec = SplitWrinkledSpec();
+        const gsVector<real_t> pt = SplitPoint();
+        const gsMatrix<real_t> ptm = pt;
+        const gsMatrix<real_t> zmat = SplitZ(0);
+
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitSkewedJref(),spec.lam1,spec.lam2,static_cast<real_t>(EIGEN_PI)/6);
+        fx.split->options().setReal("SlackMultiplier",-1e-3);
+        CHECK_THROW(fx.split->eval3D_vector(0,ptm,zmat,MaterialOutput::VectorN), std::runtime_error);
+        CHECK_THROW(fx.split->wrinkleOptions(), std::runtime_error);
+    }
+
+    TEST(WrinkleOptions_eta_negative_throws)
+    {
+        const SplitStateSpec spec = SplitWrinkledSpec();
+        const gsVector<real_t> pt = SplitPoint();
+        const gsMatrix<real_t> ptm = pt;
+        const gsMatrix<real_t> zmat = SplitZ(0);
+
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitSkewedJref(),spec.lam1,spec.lam2,static_cast<real_t>(EIGEN_PI)/6);
+        fx.split->options().setReal("Eta",-0.1);
+        CHECK_THROW(fx.split->eval3D_vector(0,ptm,zmat,MaterialOutput::VectorN), std::runtime_error);
+        CHECK_THROW(fx.split->wrinkleOptions(), std::runtime_error);
+    }
+
+    TEST(WrinkleOptions_eta_above_one_throws)
+    {
+        const SplitStateSpec spec = SplitWrinkledSpec();
+        const gsVector<real_t> pt = SplitPoint();
+        const gsMatrix<real_t> ptm = pt;
+        const gsMatrix<real_t> zmat = SplitZ(0);
+
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitSkewedJref(),spec.lam1,spec.lam2,static_cast<real_t>(EIGEN_PI)/6);
+        fx.split->options().setReal("Eta",1.1);
+        CHECK_THROW(fx.split->eval3D_vector(0,ptm,zmat,MaterialOutput::VectorN), std::runtime_error);
+        CHECK_THROW(fx.split->wrinkleOptions(), std::runtime_error);
+    }
+
+    /// eval3D_pstretch and eval3D_detF forward to the wrapped law and never read the wrinkling options.
+    TEST(WrinkleOptions_passthroughs_ignore_bad_options)
+    {
+        const SplitStateSpec spec = SplitWrinkledSpec();
+        const gsVector<real_t> pt = SplitPoint();
+        const gsMatrix<real_t> ptm = pt;
+        const gsMatrix<real_t> zmat = SplitZ(0);
+
+        SplitFixture<2,false> fx(SplitMatNHIncomp,SplitSkewedJref(),spec.lam1,spec.lam2,static_cast<real_t>(EIGEN_PI)/6);
+        CHECK(fx.split->eval3D_pstretch(0,ptm,zmat).allFinite());
+        CHECK(fx.split->eval3D_detF(0,ptm,zmat,MaterialOutput::Generic).allFinite());
+
+        fx.split->options().setReal("SlackMultiplier",-1e-3);
+        fx.split->options().setReal("Eta",1.1);
+        CHECK(fx.split->eval3D_pstretch(0,ptm,zmat).allFinite());
+        CHECK(fx.split->eval3D_detF(0,ptm,zmat,MaterialOutput::Generic).allFinite());
+    }
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #   undef SPLIT_CHECK_SAME

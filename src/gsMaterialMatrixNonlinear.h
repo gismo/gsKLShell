@@ -45,6 +45,7 @@ template <  short_t dim,
          >
 class gsMaterialMatrixNonlinear :    public gsMaterialMatrixBaseDim<dim,T>
 {
+    static_assert(mat != Material::SvK, "gsMaterialMatrixNonlinear does not implement Material::SvK; use gsMaterialMatrixLinear (getMaterialMatrix maps Material::SvK to it)");
 public:
 
     GISMO_CLONE_FUNCTION(gsMaterialMatrixNonlinear);
@@ -414,23 +415,6 @@ private:
 private:
 
     /**
-     * @brief      Implementation of the 3D (in-plane+thickness) evaluator of the material matrix, specialization for SvK material (incompressible)
-     *
-     * @param[in]  patch  The patch index
-     * @param[in]  u      The in-plane coordinates to be evaluated on
-     * @param[in]  z      The through-thickness coordinate
-     *
-     * @tparam     _mat   The material model
-     * @tparam     _com   Compressibility parameter (true: compressible, false: incompressible)
-     *
-     * @return     The material matrix (9x1 per column), stored per thickness per in-plane point [(u1,t1) (u2,t1),...,(u1,t2),(u2,t2)]
-     */
-    template<enum Material _mat, bool _com>
-    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-    template<enum Material _mat, bool _com>
-    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_matrix_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
-
-    /**
      * @brief      Implementation of the 3D (in-plane+thickness) evaluator of the material matrix, specialization compressible models
      *
      * @param[in]  patch  The patch index
@@ -443,9 +427,9 @@ private:
      * @return     The material matrix (9x1 per column), stored per thickness per in-plane point [(u1,t1) (u2,t1),...,(u1,t2),(u2,t2)]
      */
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<_com, gsMatrix<T>>::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_matrix_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
+    typename std::enable_if<_com, gsMatrix<T>>::type _eval3D_matrix_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
 
     /**
      * @brief      Implementation of the 3D (in-plane+thickness) evaluator of the material matrix, specialization for incompressible models
@@ -460,9 +444,9 @@ private:
      * @return     The material matrix (9x1 per column), stored per thickness per in-plane point [(u1,t1) (u2,t1),...,(u1,t2),(u2,t2)]
      */
     template<enum Material _mat, bool _com>
-    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<!_com, gsMatrix<T>>::type _eval3D_matrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_matrix_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
+    typename std::enable_if<!_com, gsMatrix<T>>::type _eval3D_matrix_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
 
 
     /**
@@ -484,10 +468,6 @@ private:
     template <enum Material _mat, bool _comp>
     typename std::enable_if< (!_comp && _mat==Material::NH), gsMatrix<T>>::type _eval3D_dmatrix_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const;
 
-    /// Same as \ref _eval3D_vector_impl for the Cauchy stress
-    template<enum Material _mat, bool _com>
-    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_CauchyVector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-
     /**
      * @brief      Implementation of jacobina determinant (detF)
      *
@@ -501,32 +481,30 @@ private:
      * @return     The stress vector (3x1 per column), stored per thickness per in-plane point [(u1,t1) (u2,t1),...,(u1,t2),(u2,t2)]
      */
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_detF_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<_com, gsMatrix<T>>::type _eval3D_detF_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_detF_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-    template<enum Material _mat, bool _com>
-    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_detF_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<!_com, gsMatrix<T>>::type _eval3D_detF_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
-    /// Dispatch of the strain energy evaluation (not implemented for SvK), same selection as for the stress
+    /// Dispatch of the strain energy evaluation, same selection as for the stress
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_energy_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<_com, gsMatrix<T>>::type _eval3D_energy_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_energy_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<!_com, gsMatrix<T>>::type _eval3D_energy_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_energy_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<_com, gsMatrix<T>>::type _eval3D_energy_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_energy_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
-    template<enum Material _mat, bool _com>
-    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_energy_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
-    template<enum Material _mat, bool _com>
-    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_energy_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
+    typename std::enable_if<!_com, gsMatrix<T>>::type _eval3D_energy_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
 
     /// Same as \ref _eval3D_vector_impl for the Cauchy stress
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_CauchyVector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<_com, gsMatrix<T>>::type _eval3D_CauchyVector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+
+    /// Same as \ref _eval3D_vector_impl for the Cauchy stress
+    template<enum Material _mat, bool _com>
+    typename std::enable_if<!_com, gsMatrix<T>>::type _eval3D_CauchyVector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
     /**
-     * @brief      Implementation of the 3D (in-plane+thickness) evaluator of the stress vector, specialization for SvK material (incompressible)
+     * @brief      Implementation of the 3D (in-plane+thickness) evaluator of the stress vector, specialization for compressible models
      *
      * @param[in]  patch  The patch index
      * @param[in]  u      The in-plane coordinates to be evaluated on
@@ -538,15 +516,11 @@ private:
      * @return     The stress vector (3x1 per column), stored per thickness per in-plane point [(u1,t1) (u2,t1),...,(u1,t2),(u2,t2)]
      */
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<_com, gsMatrix<T>>::type _eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_stress_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
+    typename std::enable_if<_com, gsMatrix<T>>::type _eval3D_stress_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z)const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_mat==Material::SvK, gsMatrix<T>>::type _eval3D_CauchyStress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-
-    /// Same as \ref _eval3D_vector_impl for the Cauchy stress
-    template<enum Material _mat, bool _com>
-    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_CauchyVector_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<_com, gsMatrix<T>>::type _eval3D_CauchyStress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
     /**
      * @brief      Implementation of the 3D (in-plane+thickness) evaluator of the stress vector, specialization for incompressible models
@@ -561,33 +535,14 @@ private:
      * @return     The stress vector (3x1 per column), stored per thickness per in-plane point [(u1,t1) (u2,t1),...,(u1,t2),(u2,t2)]
      */
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<!_com, gsMatrix<T>>::type _eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_stress_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z)const;
+    typename std::enable_if<!_com, gsMatrix<T>>::type _eval3D_stress_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
     template<enum Material _mat, bool _com>
-    typename std::enable_if<_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_CauchyStress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<!_com, gsMatrix<T>>::type _eval3D_CauchyStress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
     /**
-     * @brief      Implementation of the 3D (in-plane+thickness) evaluator of the stress vector, specialization for compressible models
-     *
-     * @param[in]  patch  The patch index
-     * @param[in]  u      The in-plane coordinates to be evaluated on
-     * @param[in]  z      The through-thickness coordinate
-     *
-     * @tparam     _mat   The material model
-     * @tparam     _com   Compressibility parameter (true: compressible, false: incompressible)
-     *
-     * @return     The stress vector (3x1 per column), stored per thickness per in-plane point [(u1,t1) (u2,t1),...,(u1,t2),(u2,t2)]
-     */
-    template<enum Material _mat, bool _com>
-    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_stress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-    template<enum Material _mat, bool _com>
-    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_stress_C_impl(const gsMatrix<T> & Cmat, const index_t patch, const gsVector<T> & u, const T z) const;
-    template<enum Material _mat, bool _com>
-    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_CauchyStress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
-
-    /**
-     * @brief      Implementation of the 3D (in-plane+thickness) evaluator of the stress vector, specialization for compressible models
+     * @brief      Implementation of the 3D (in-plane+thickness) evaluator of the principal stresses, specialization for incompressible models
      *
      * @param[in]  patch  The patch index
      * @param[in]  u      The in-plane coordinates to be evaluated on
@@ -599,7 +554,7 @@ private:
      * @return     The principal stresses (3x1 per column), stored per thickness per in-plane point [(u1,t1) (u2,t1),...,(u1,t2),(u2,t2)]
      */
     template<enum Material _mat, bool _com>
-    typename std::enable_if<!_com && !(_mat==Material::SvK), gsMatrix<T>>::type _eval3D_pstress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
+    typename std::enable_if<!_com, gsMatrix<T>>::type _eval3D_pstress_impl(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const;
 
     // Stretch overrides
     template<bool _com>
@@ -715,11 +670,6 @@ private:
     ///////////////////////////////////////////////////////
     // Incompressible formulations                       //
     ///////////////////////////////////////////////////////
-    /// Specialization for incompressible Cijkl(i,j,k,l) for SvK materials implemented analytically
-    template<enum Material _mat, enum Implementation _imp>
-    inline typename std::enable_if<_mat==Material::SvK && _imp==Implementation::Analytical, T>::type
-    _Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l) const;
-
     /// Specialization for incompressible Cijkl(i,j,k,l) for NH materials implemented analytically
     template<enum Material _mat, enum Implementation _imp>
     inline typename std::enable_if<_mat==Material::NH  && _imp==Implementation::Analytical, T>::type
@@ -771,11 +721,6 @@ private:
     inline typename std::enable_if<!(_imp==Implementation::Spectral),T>::type
     _Cijkl_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
 
-    /// Specialization for compressible Cijkl3D(i,j,k,l,c,cinv) for SvK materials implemented analytically
-    template<enum Material _mat, enum Implementation _imp>
-    inline typename std::enable_if<_mat==Material::SvK && _imp==Implementation::Analytical, T>::type
-    _Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
-
     /// Specialization for compressible Cijkl3D(i,j,k,l,c,cinv) for NH materials implemented analytically
     template<enum Material _mat, enum Implementation _imp>
     inline typename std::enable_if<_mat==Material::NH && _imp==Implementation::Analytical, T>::type
@@ -807,11 +752,6 @@ private:
     inline typename std::enable_if<_imp==Implementation::Generalized , T>::type
     _Cijkl3D_impl(const index_t i, const index_t j, const index_t k, const index_t l, const gsMatrix<T> & c, const gsMatrix<T> & cinv) const;
 
-
-    /// Specialization for incompressible Sij(i,j) for SvK materials implemented analytically
-    template<enum Material _mat, enum Implementation _imp>
-    inline typename std::enable_if<_mat==Material::SvK && _imp==Implementation::Analytical, T>::type
-    _Sij_impl(const index_t i, const index_t j) const;
 
     /// Specialization for incompressible Sij(i,j) for NH materials implemented analytically
     template<enum Material _mat, enum Implementation _imp>
@@ -845,12 +785,6 @@ private:
     inline typename std::enable_if<_imp==Implementation::Generalized , T>::type
     _Sij_impl(const index_t i, const index_t j) const;
 
-
-    /// Specialization for compressible Sij(i,j,c,cinv) for SvK materials implemented analytically
-    template<enum Material _mat, enum Implementation _imp>
-    inline typename std::enable_if<_mat==Material::SvK && _imp==Implementation::Analytical, T>::type
-    _Sij_impl(const index_t /*i*/, const index_t /*j*/, const gsMatrix<T> & /*c*/, const gsMatrix<T> & /*cinv*/) const
-    {GISMO_NO_IMPLEMENTATION;}
 
     /// Specialization for compressible Sij(i,j,c,cinv) for NH materials implemented analytically
     template<enum Material _mat, enum Implementation _imp>

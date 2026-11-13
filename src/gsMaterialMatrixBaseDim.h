@@ -235,7 +235,20 @@ public:
     /// Gets metric quantities on the undeformed geometry
     void _getMetricUndeformed(const index_t k, const T z) const;
 
-    /// Computes the stretch given deformation tensor C, into a pair
+    /// Computes the in-plane principal stretches and directions of the deformation tensor \a C (3x3 symmetric,
+    /// covariant components of the deformed metric; only the entries (0:1,0:1) and (2,2) are read).
+    ///
+    /// \a gcon_ori is the reference contravariant basis. It must be the \a m_gcon_ori loaded by the last call of
+    /// \a _getMetricUndeformed or \a _getMetric, whose \a m_gcov_ori.col(0) is also used.
+    ///
+    /// Returns a pair: \a first = (lambda_1, lambda_2, sqrt(C(2,2))) with the in-plane stretches ascending, and
+    /// \a second the 3x3 matrix [v_1 | v_2 | gcon_ori.col(2)] of the in-plane principal directions followed by
+    /// the reference normal column as passed.
+    ///
+    /// The in-plane tensor is B = sum_kl C_kl g^k (x) g^l. When B equals the tangent projector P = I - n n^T
+    /// (n the normalised reference normal) to ||B - P||_F <= 10 eps ||P||_F, i.e. the undeformed in-plane state,
+    /// the stretches are (1,1) and the directions are e1 = P G_1 / |P G_1|, with G_1 = \a m_gcov_ori.col(0), and
+    /// n x e1. Otherwise they follow from a symmetric eigensolve of B.
     std::pair<gsVector<T>,gsMatrix<T>> _evalStretch(const gsMatrix<T> & C, const gsMatrix<T> & gcon_ori ) const;
 
     /// Computes the in-plane principal Green-Lagrange strains of the strain tensor \a C (3x3 symmetric, covariant

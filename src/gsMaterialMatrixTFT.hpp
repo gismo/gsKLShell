@@ -465,6 +465,7 @@ template <short_t dim, class T, bool linear >
 T gsMaterialMatrixTFT<dim,T,linear>::_slackFactor(const T etaEff) const
 {
     const T slackMult = m_options.getReal("SlackMultiplier");
+    GISMO_ENSURE(slackMult>=0,"Option SlackMultiplier must be >= 0, got "<<slackMult);
     return etaEff == 0 ? slackMult : (slackMult > 0 ? slackMult : etaEff);
 }
 

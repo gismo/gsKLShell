@@ -317,8 +317,8 @@ public:
 
         this->setThickness(materialMatrix.get()->getThickness());
 
-        m_options.addReal("SlackMultiplier","Multiplies the original value of the matrix for the slack state",0);
-        m_options.addReal("Eta","Residual stiffness: fraction of the unmodified stress and tangent kept at wrinkled points, slack multiplier at slack points when SlackMultiplier is 0 (Zhang & Kiendl 2026, Eqs. 35, 40)",0);
+        m_options.addReal("SlackMultiplier","Slack state: stress, tangent and strain are multiplied by SlackMultiplier if > 0, else by Eta; must be >= 0",0);
+        m_options.addReal("Eta","Residual stiffness: fraction of the unmodified stress and tangent kept at wrinkled points, slack multiplier at slack points when SlackMultiplier is 0; must lie in [0,1] (Zhang & Kiendl 2026, Eqs. 35, 40)",0);
         m_options.addSwitch("EtaTangentOnly","Apply Eta to the tangent only; stress and strain remain those of the pure tension field",false);
         m_options.addSwitch("Explicit","Explicit iterations; use tension field from a fixed deformed geometry that does not change when calling setDeformed",false);
     }
@@ -388,7 +388,7 @@ public:
     ///
     /// The argument \a out is ignored; the wrapped law is evaluated with MaterialOutput::VectorN, as in eval3D_stress
     /// (for a wrapped gsMaterialMatrixLinear this is the mid-surface membrane energy at every z).
-    /// A wrapped law without an energy (e.g. gsMaterialMatrixNonlinear with Material::SvK) raises its GISMO_NO_IMPLEMENTATION,
+    /// A wrapped law without an energy (one that keeps the gsMaterialMatrixBase default) raises its GISMO_NO_IMPLEMENTATION,
     /// also when all points are wrinkled. There is no prescribed-metric (_C) energy path.
     gsMatrix<T> eval3D_energy(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out = MaterialOutput::Generic) const override;
     using Base::eval3D_energy;
@@ -547,6 +547,7 @@ protected:
 
     /// Factor applied to stress, tangent and strain at slack points for the effective residual fraction \a etaEff:
     /// SlackMultiplier if etaEff == 0 or SlackMultiplier > 0, else etaEff.
+    /// Option SlackMultiplier, checked to be >= 0.
     T _slackFactor(const T etaEff) const;
 
     T _compute_gamma(const T & theta, const gsMatrix<T> & C, const gsVector<T> & N, const gsVector<T> & E) const;
