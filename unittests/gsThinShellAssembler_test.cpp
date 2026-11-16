@@ -832,11 +832,11 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         Gs[0] = Gs[1] = Gs[2] = Gs[3] = Gs[4] = &Gfun;
 
         gsConstantFunction<> phi1, phi2, phi3, phi4, phi5;
-        phi1.setValue(0/kmax * pi / 2.0,3);
-        phi2.setValue(1/kmax * pi / 2.0,3);
-        phi3.setValue(2/kmax * pi / 2.0,3);
-        phi4.setValue(3/kmax * pi / 2.0,3);
-        phi5.setValue(4/kmax * pi / 2.0,3);
+        phi1.setValue(0.0/kmax * pi / 2.0,3);
+        phi2.setValue(1.0/kmax * pi / 2.0,3);
+        phi3.setValue(2.0/kmax * pi / 2.0,3);
+        phi4.setValue(3.0/kmax * pi / 2.0,3);
+        phi5.setValue(4.0/kmax * pi / 2.0,3);
 
         Phis[0] = &phi1;
         Phis[1] = &phi2;

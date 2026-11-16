@@ -200,7 +200,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
     gsMatrix<T> result(9, u.cols());
     gsMatrix<T,3,3> Dmat, Cmat, Tmat;
 
-    T t, t_tot, z_mid, t_temp, dz;
+    T t, t_tot, t_temp, z;
 
     std::vector<gsMatrix<T>> Tcontainer(m_nLayers);
     std::vector<gsMatrix<T>> Rcontainer(m_nLayers);
@@ -236,9 +236,6 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
         for (size_t i=0; i!=Tcontainer.size(); i++)
             t_tot += Tcontainer[i](0,k);
 
-        // compute mid-plane height of total plate
-        z_mid = t_tot / 2.0;
-
         // now we use t_temp to add the thickness of all plies iteratively
         t_temp = 0.0;
         t = 0.0;
@@ -251,16 +248,16 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
             // Transform the matrix: T^T D T
             Dmat = Acontainer[i].reshapeCol(k,3,3).transpose() * Gcontainer[i].reshapeCol(k,3,3) * Acontainer[i].reshapeCol(k,3,3);
 
-            // distance from mid of the ply to mid of the plate
-            // dz = math::abs(z_mid - (t/2.0 + t_temp) ); // distance from mid-plane of plate
-            dz = z_mid - (t/2.0 + t_temp); // distance from mid-plane of plate
+            // Signed height of the ply mid-surface above the laminate mid-plane, along the
+            // normal n; ply 0 is at the most negative z. B = +sum_i t_i z_i C_i = int z C dz.
+            z = (t_temp + t/2.0) - t_tot/2.0;
 
             if      (out==MaterialOutput::MatrixA)
                     Cmat += Dmat * t; // A
             else if (out==MaterialOutput::MatrixB || out==MaterialOutput::MatrixC)
-                    Cmat += Dmat * t*dz; // B
+                    Cmat += Dmat * t*z; // B
             else if (out==MaterialOutput::MatrixD)
-                    Cmat += Dmat * ( t*math::pow(dz,2) + math::pow(t,3)/12.0 ); // D
+                    Cmat += Dmat * ( t*math::pow(z,2) + math::pow(t,3)/12.0 ); // D
             else
                 GISMO_ERROR("MaterialOutput unknown");
             t_temp += t;
@@ -268,13 +265,21 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
 
         GISMO_ASSERT(std::abs(t_tot-t_temp)/t_tot < 1e-12,"Total thickness after loop is wrong. t_temp = "<<t_temp<<", sum(thickness) = "<<t_tot<<", difference = "<<t_tot-t_temp);
 
-        gsVector<T,3> a1,ac1,e1,a2,ac2,e2;
-        a1 = m_data.mine().m_gcov_ori.col(0);               a2 = m_data.mine().m_gcov_ori.col(1);
-        ac1 = m_data.mine().m_gcon_ori.col(0);              ac2 = m_data.mine().m_gcon_ori.col(1);
-        e1 = m_data.mine().m_gcov_ori.col(0).normalized();  e2 = m_data.mine().m_gcon_ori.col(1).normalized();
-
-        Cmat = _cart2cov(a1,a2,e1,e2) * Cmat;
-        Cmat = Cmat * _con2cart(ac1,ac2,e1,e2);
+        // Basis change from the local Cartesian frame {e1,e2} to the contravariant basis.
+        // The contravariant stiffness tensor is
+        //   C^{abcd} = C_{ijkl} (e_i.a^a)(e_j.a^b)(e_k.a^c)(e_l.a^d),
+        // with C_{ijkl} the ply stiffness in {e1,e2}, e1 = a1/|a1|, e2 = a^2/|a^2|.
+        // With the Voigt map eps_cart = Q eps_cov (engineering shear), invariance of the strain
+        // energy gives the contravariant Voigt matrix C^con = Q^T C_cart Q. Q carries the factor 2 on its shear row, so
+        // _transformation(E,gcon) = Q^T carries it on its shear column.
+        // The congruence of a symmetric matrix is symmetric and needs no matrix inversion.
+        const gsMatrix<T> & gcov = m_data.mine().m_gcov_ori;
+        const gsMatrix<T> & gcon = m_data.mine().m_gcon_ori;
+        gsMatrix<T> E(gcov.rows(),2);
+        E.col(0) = gcov.col(0).normalized();
+        E.col(1) = gcon.col(1).normalized();
+        const gsMatrix<T> Tc = this->_transformation(E,gcon);
+        Cmat = Tc * Cmat * Tc.transpose();
 
         result.reshapeCol(k,3,3) = Cmat;
 
@@ -285,43 +290,43 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
 template <short_t dim, class T >
 gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
 {
-    // gsInfo<<"TO DO: evaluate moments using thickness";
-    // Input: u in-plane points
-    //        z matrix with, per point, a column with z integration points
-    // Output: (n=u.cols(), m=z.cols())
-    //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+    // Resultants of the membrane strain eps = 0.5*(a_def - a_ori) and the curvature change
+    // kappa = b_ori - b_def:
+    //   N = A eps + B kappa,   M = B^T eps + D kappa.
+    // Input: u in-plane points; z is passed on to eval3D_matrix.
+    // Output: one column per point.
 
-    this->_computePoints(patch,u);
+    if (out!=MaterialOutput::VectorN && out!=MaterialOutput::VectorM)
+        GISMO_ERROR("Output type is not VectorN or VectorM!");
+
     gsMatrix<T> result(3, u.cols());
-    enum MaterialOutput _out;
-    if      (out==MaterialOutput::VectorN)
-        _out=MaterialOutput::MatrixA;
-    else if (out==MaterialOutput::VectorM)
-        _out=MaterialOutput::MatrixD;
-    else
-        GISMO_ERROR("Output unknown");
 
-    gsMatrix<T> Cmat = this->eval3D_matrix(patch,u,z,_out);
-    gsMatrix<T> Eij(2,2);
+    // N needs A and B, M needs B and D. Every eval3D_matrix call computes the points, which sets
+    // the metric state used by _getMetric below.
+    const bool isN = (out == MaterialOutput::VectorN);
+    gsMatrix<T> Cmat = this->eval3D_matrix(patch,u,z,isN ? MaterialOutput::MatrixA : MaterialOutput::MatrixD);
+    gsMatrix<T> Bmat = this->eval3D_matrix(patch,u,z,MaterialOutput::MatrixB);
+    gsMatrix<T,2,2> Eij, Kij;
+    gsMatrix<T,3,1> eps, kap;
+    gsMatrix<T,3,3> Ck, Bk;
 
     for (index_t k = 0; k != u.cols(); ++k)
     {
-        this->_getMetric(k,0.0); // on point i, with height 0.0
+        this->_getMetric(k,0.0); // on point k, with height 0.0
 
-        if      (out == MaterialOutput::VectorN) // To be used with multiplyZ_into
-            Eij = 0.5*(m_data.mine().m_Acov_def - m_data.mine().m_Acov_ori);
-        else if (out == MaterialOutput::VectorM) // To be used with multiplyZ_into
-            Eij = (m_data.mine().m_Bcov_ori - m_data.mine().m_Bcov_def);
-        else if (out == MaterialOutput::Generic) // To be used with multiplyLinZ_into or integrateZ_into
-            Eij = 0.5*(m_data.mine().m_Acov_def - m_data.mine().m_Acov_ori) + z*(m_data.mine().m_Bcov_ori - m_data.mine().m_Bcov_def);
+        Eij = 0.5*(m_data.mine().m_Acov_def - m_data.mine().m_Acov_ori);
+        Kij = (m_data.mine().m_Bcov_ori - m_data.mine().m_Bcov_def);
+
+        // Voigt fold with engineering shear: [E11, E22, 2E12]
+        eps << Eij(0,0), Eij(1,1), Eij(0,1) + Eij(1,0);
+        kap << Kij(0,0), Kij(1,1), Kij(0,1) + Kij(1,0);
+
+        Ck = Cmat.reshapeCol(k,3,3);
+        Bk = Bmat.reshapeCol(k,3,3);
+        if (isN)
+            result.col(k) = Ck * eps + Bk * kap;
         else
-            GISMO_ERROR("Output type is not VectorN, VectorM or Generic!");
-
-        Eij(0,1) += Eij(1,0);
-        std::swap(Eij(1,0), Eij(1,1));
-        Eij.resize(4,1);
-        Eij.conservativeResize(3,1);
-        result.col(k) = Cmat.reshapeCol(k,3,3) * Eij;
+            result.col(k) = Bk.transpose() * eps + Ck * kap;
     }
     return result;
 }
@@ -348,48 +353,6 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_transformationMatrix(const gsMatr
 
     // Compute laminate stiffness matrix
     return result;
-}
-
-template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_cart2cov(const gsVector<T> & a1, const gsVector<T> & a2, const gsVector<T> & e1, const gsVector<T> & e2) const
-{
-    gsMatrix<T,3,3> Tmat;
-    Tmat.setZero();
-    // Covariant to local cartesian
-    Tmat(0,0) = (e1.dot(a1))*(a1.dot(e1));
-    Tmat(0,1) = (e1.dot(a2))*(a2.dot(e2));
-    Tmat(0,2) = 2*(e1.dot(a1))*(a2.dot(e1));
-    // Row 1
-    Tmat(1,0) = (e2.dot(a1))*(a1.dot(e2));
-    Tmat(1,1) = (e2.dot(a2))*(a2.dot(e2));
-    Tmat(1,2) = 2*(e2.dot(a1))*(a2.dot(e2));
-    // Row 2
-    Tmat(2,0) = (e1.dot(a1))*(a1.dot(e2));
-    Tmat(2,1) = (e1.dot(a2))*(a2.dot(e2));
-    Tmat(2,2) = (e1.dot(a1))*(a2.dot(e2)) + (e1.dot(a2))*(a1.dot(e2));
-
-    Tmat = Tmat.template block<3,3>(0,0).inverse(); // !!!!
-    return Tmat;
-}
-
-template <short_t dim, class T>
-gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_con2cart(const gsVector<T> & ac1, const gsVector<T> & ac2, const gsVector<T> & e1, const gsVector<T> & e2) const
-{
-    gsMatrix<T,3,3> Tmat;
-    Tmat.setZero();
-    // Contravariant to local cartesian
-    Tmat(0,0) = (e1.dot(ac1))*(ac1.dot(e1));
-    Tmat(0,1) = (e1.dot(ac2))*(ac2.dot(e2));
-    Tmat(0,2) = 2*(e1.dot(ac1))*(ac2.dot(e1));
-    // Row 1
-    Tmat(1,0) = (e2.dot(ac1))*(ac1.dot(e2));
-    Tmat(1,1) = (e2.dot(ac2))*(ac2.dot(e2));
-    Tmat(1,2) = 2*(e2.dot(ac1))*(ac2.dot(e2));
-    // Row 2
-    Tmat(2,0) = (e1.dot(ac1))*(ac1.dot(e2));
-    Tmat(2,1) = (e1.dot(ac2))*(ac2.dot(e2));
-    Tmat(2,2) = (e1.dot(ac1))*(ac2.dot(e2)) + (e1.dot(ac2))*(ac1.dot(e2));
-    return Tmat;
 }
 
 
