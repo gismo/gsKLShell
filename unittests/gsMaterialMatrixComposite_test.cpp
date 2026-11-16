@@ -30,7 +30,8 @@ using namespace gismo;
 
 SUITE(gsMaterialMatrixComposite_test)                 // The suite should have the same name as the file
 {
-    namespace {
+    namespace
+    {
 
     const real_t compPi = math::atan(1)*4;
 
@@ -57,53 +58,53 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
     template <short_t d>
     struct Laminate
     {
-        gsMultiPatch<> ref, def;
-        std::vector<gsConstantFunction<> > thicks, Gfuns, phis;
-        std::vector<gsFunctionSet<>*> Ts, Gs, Phis;
-        real_t tTotal;
-        memory::unique_ptr<gsMaterialMatrixComposite<d,real_t> > mm;
+        gsMultiPatch<> m_ref, m_def;
+        std::vector<gsConstantFunction<> > m_thicks, m_Gfuns, m_phis;
+        std::vector<gsFunctionSet<>*> m_Ts, m_Gs, m_Phis;
+        real_t m_tTotal;
+        memory::unique_ptr<gsMaterialMatrixComposite<d,real_t> > m_mm;
 
         // Plies of equal thickness tply with the fibre angles and the 3x3 ply matrices, both listed from
         // ply 0 (most negative z along the normal) upwards.
         Laminate(const std::vector<real_t> & angles, real_t tply, const std::vector<gsMatrix<> > & G3x3,
                  bool skewed)
         :
-        tTotal(tply*angles.size())
+        m_tTotal(tply*angles.size())
         {
-            ref.addPatch( gsNurbsCreator<>::BSplineSquare(1) );
-            ref.degreeElevate(1);
+            m_ref.addPatch( gsNurbsCreator<>::BSplineSquare(1) );
+            m_ref.degreeElevate(1);
             if (d == 3)
-                ref.embed(3);
+                m_ref.embed(3);
 
             if (skewed)
             {
-                gsMatrix<> & c = ref.patch(0).coefs();
+                gsMatrix<> & c = m_ref.patch(0).coefs();
                 c.col(0) = 1.5*c.col(0) + 0.4*c.col(1);
                 if (d == 3)
                     c(4,2) += 0.3;
             }
-            def.addPatch( ref.patch(0).clone() );
+            m_def.addPatch( m_ref.patch(0).clone() );
 
             const size_t n = angles.size();
-            thicks.reserve(n);
-            Gfuns.reserve(n);
-            phis.reserve(n);
+            m_thicks.reserve(n);
+            m_Gfuns.reserve(n);
+            m_phis.reserve(n);
             for (size_t i = 0; i != n; ++i)
             {
                 gsMatrix<> Gmat = G3x3[i];
                 Gmat.resize(Gmat.rows()*Gmat.cols(),1);
-                thicks.push_back(gsConstantFunction<>(tply,d));
-                Gfuns.push_back(gsConstantFunction<>(Gmat,d));
-                phis.push_back(gsConstantFunction<>(angles[i],d));
+                m_thicks.push_back(gsConstantFunction<>(tply,d));
+                m_Gfuns.push_back(gsConstantFunction<>(Gmat,d));
+                m_phis.push_back(gsConstantFunction<>(angles[i],d));
             }
             for (size_t i = 0; i != n; ++i)
             {
-                Ts.push_back(&thicks[i]);
-                Gs.push_back(&Gfuns[i]);
-                Phis.push_back(&phis[i]);
+                m_Ts.push_back(&m_thicks[i]);
+                m_Gs.push_back(&m_Gfuns[i]);
+                m_Phis.push_back(&m_phis[i]);
             }
-            mm = memory::make_unique(new gsMaterialMatrixComposite<d,real_t>(ref,Ts,Gs,Phis));
-            mm->setDeformed(&def);
+            m_mm = memory::make_unique(new gsMaterialMatrixComposite<d,real_t>(m_ref,m_Ts,m_Gs,m_Phis));
+            m_mm->setDeformed(&m_def);
         }
 
         // The same ply matrix for every ply.
@@ -228,28 +229,28 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
     // Smallest values over the points of the quantities that make a skewed fixture meaningful.
     struct GeometryGuards
     {
-        real_t minCosAngle;      // |a1.a2|/(|a1||a2|): how far from orthogonal the basis is
-        real_t minLengthDefect;  // | |a1| - 1 |: how far from unit length a1 is
-        real_t minCurvature;     // Frobenius norm of the covariant second fundamental form (3D only)
+        real_t m_minCosAngle;      // |a1.a2|/(|a1||a2|): how far from orthogonal the basis is
+        real_t m_minLengthDefect;  // | |a1| - 1 |: how far from unit length a1 is
+        real_t m_minCurvature;     // Frobenius norm of the covariant second fundamental form (3D only)
     };
 
     GeometryGuards geometryGuards(const gsMultiPatch<> & ref, const gsMatrix<> & u, bool curved)
     {
         GeometryGuards g;
-        g.minCosAngle = g.minLengthDefect = g.minCurvature = std::numeric_limits<real_t>::max();
+        g.m_minCosAngle = g.m_minLengthDefect = g.m_minCurvature = std::numeric_limits<real_t>::max();
         const std::vector<gsMatrix<> > bases = covariantBases(ref,u);
         for (size_t k = 0; k != bases.size(); ++k)
         {
             const gsVector<> a1 = bases[k].col(0), a2 = bases[k].col(1);
-            g.minCosAngle     = std::min(g.minCosAngle,     math::abs(a1.dot(a2))/(a1.norm()*a2.norm()));
-            g.minLengthDefect = std::min(g.minLengthDefect, math::abs(a1.norm()-1));
+            g.m_minCosAngle     = std::min(g.m_minCosAngle,     math::abs(a1.dot(a2))/(a1.norm()*a2.norm()));
+            g.m_minLengthDefect = std::min(g.m_minLengthDefect, math::abs(a1.norm()-1));
         }
         if (curved)
         {
             std::vector<gsMatrix<> > Acov, Bcov;
             fundamentalForms(ref,u,Acov,Bcov);
             for (size_t k = 0; k != Bcov.size(); ++k)
-                g.minCurvature = std::min(g.minCurvature, Bcov[k].norm());
+                g.m_minCurvature = std::min(g.m_minCurvature, Bcov[k].norm());
         }
         return g;
     }
@@ -365,9 +366,9 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
     void compositeABD(const Laminate<d> & L, const gsMatrix<> & u,
                       gsMatrix<> & A, gsMatrix<> & B, gsMatrix<> & D)
     {
-        A = L.mm->eval3D_matrix(0,u,zeros(u),MaterialOutput::MatrixA);
-        B = L.mm->eval3D_matrix(0,u,zeros(u),MaterialOutput::MatrixB);
-        D = L.mm->eval3D_matrix(0,u,zeros(u),MaterialOutput::MatrixD);
+        A = L.m_mm->eval3D_matrix(0,u,zeros(u),MaterialOutput::MatrixA);
+        B = L.m_mm->eval3D_matrix(0,u,zeros(u),MaterialOutput::MatrixB);
+        D = L.m_mm->eval3D_matrix(0,u,zeros(u),MaterialOutput::MatrixD);
     }
 
     // Frobenius norm of the 3x3 matrix of point k.
@@ -428,10 +429,10 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
     //    has |b| at round-off level (about 1e-16), so 1e-3 only confirms that the lift was applied.
     void checkSkewGuards(const GeometryGuards & g, bool curved)
     {
-        CHECK(g.minCosAngle     >= 0.1);
-        CHECK(g.minLengthDefect >= 0.1);
+        CHECK(g.m_minCosAngle     >= 0.1);
+        CHECK(g.m_minLengthDefect >= 0.1);
         if (curved)
-            CHECK(g.minCurvature >= 1e-3);
+            CHECK(g.m_minCurvature >= 1e-3);
     }
 
     } // namespace
@@ -449,14 +450,14 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
         const real_t E = 100.0, nu = 0.3, t = 0.01, tol = identityTol();
         Laminate<3> L(std::vector<real_t>(1,0.0),t,isotropicPly(E,nu),false);
         const gsMatrix<> u = pointsInterior();
-        stretchedBent(L.ref,L.def);
-        L.mm->setDeformed(&L.def);
+        stretchedBent(L.m_ref,L.m_def);
+        L.m_mm->setDeformed(&L.m_def);
 
         // Act: the laminate matrices of the material and, as oracle, the matrix of
         // gsMaterialMatrixLinear for the same E, nu and t.
         gsMatrix<> A, B, D;
         compositeABD(L,u,A,B,D);
-        const gsMatrix<> Clin = linearMatrix(L.ref,L.def,u,E,nu,t);
+        const gsMatrix<> Clin = linearMatrix(L.m_ref,L.m_def,u,E,nu,t);
 
         // Check: at every point A and D equal the Linear integrals and B vanishes, each to identityTol().
         for (index_t k = 0; k != u.cols(); ++k)
@@ -482,15 +483,15 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
         const real_t E = 100.0, nu = 0.3, t = 0.01, tol = identityTol();
         Laminate<3> L(std::vector<real_t>(1,0.0),t,isotropicPly(E,nu),true);
         const gsMatrix<> u = pointsInterior();
-        checkSkewGuards(geometryGuards(L.ref,u,true),true);
-        stretchedBent(L.ref,L.def);
-        L.mm->setDeformed(&L.def);
+        checkSkewGuards(geometryGuards(L.m_ref,u,true),true);
+        stretchedBent(L.m_ref,L.m_def);
+        L.m_mm->setDeformed(&L.m_def);
 
         // Act: the laminate matrices of the material and the matrix of gsMaterialMatrixLinear, which
         // forms its tensor from the true inverse metric of the same patch.
         gsMatrix<> A, B, D;
         compositeABD(L,u,A,B,D);
-        const gsMatrix<> Clin = linearMatrix(L.ref,L.def,u,E,nu,t);
+        const gsMatrix<> Clin = linearMatrix(L.m_ref,L.m_def,u,E,nu,t);
 
         // Check: A = t C_lin, D = t^3/12 C_lin and B = 0 as in the control test, to identityTol()
         // relative to |A|, |D| and |A| t_tot respectively.
@@ -521,7 +522,7 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
             const std::vector<real_t> angles = layup == 0 ? twoPlyAngles() : symmetricAngles();
             const real_t tply = layup == 0 ? 0.05 : 0.025;
             Laminate<3> L(angles,tply,orthotropicPly(),true);
-            checkSkewGuards(geometryGuards(L.ref,u,true),true);
+            checkSkewGuards(geometryGuards(L.m_ref,u,true),true);
 
             // Act: the laminate matrices of the material; no oracle is needed because symmetry is
             // a property of each matrix alone.
@@ -534,7 +535,7 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
             {
                 CHECK_CLOSE(0.0, asymmetryAt(A,k)/normAt(A,k), tol);
                 CHECK_CLOSE(0.0, asymmetryAt(D,k)/normAt(D,k), tol);
-                CHECK_CLOSE(0.0, asymmetryAt(B,k)/(normAt(A,k)*L.tTotal), tol);
+                CHECK_CLOSE(0.0, asymmetryAt(B,k)/(normAt(A,k)*L.m_tTotal), tol);
             }
         }
     }
@@ -556,7 +557,7 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
         // plies, which rotates each ply matrix independently of the material code.
         gsMatrix<> A, B, D, Aor, Bor, Dor;
         compositeABD(L,u,A,B,D);
-        tensorOracleAtPoints(L.ref,u,orthotropicPly(),tply,angles,Aor,Bor,Dor);
+        tensorOracleAtPoints(L.m_ref,u,orthotropicPly(),tply,angles,Aor,Bor,Dor);
 
         // Check: A and D agree with the oracle to identityTol(), relative to the oracle norm.
         for (index_t k = 0; k != u.cols(); ++k)
@@ -582,7 +583,7 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
         // negative z upwards by construction.
         gsMatrix<> A, B, D, Aor, Bor, Dor;
         compositeABD(L,u,A,B,D);
-        tensorOracleAtPoints(L.ref,u,orthotropicPly(),tply,angles,Aor,Bor,Dor);
+        tensorOracleAtPoints(L.m_ref,u,orthotropicPly(),tply,angles,Aor,Bor,Dor);
 
         // Check: B is non-vacuous and equal to the oracle, so a sign or stacking error cannot hide.
         for (index_t k = 0; k != u.cols(); ++k)
@@ -593,10 +594,10 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
             // outer plies differ. 1e-3 lies far above round-off and seven orders above the 1e-10
             // tolerance, while a sign or stacking error moves B by 2|B|, so it cannot hide below the
             // tolerance.
-            CHECK(normAt(Bor,k) >= 1e-3*normAt(Aor,k)*L.tTotal);
+            CHECK(normAt(Bor,k) >= 1e-3*normAt(Aor,k)*L.m_tTotal);
             // B - B_or is measured in units of |A| t_tot, the natural scale of B, so that the same
             // check also holds for laminates where B is rounding noise.
-            CHECK_CLOSE(0.0, diffAt(B,Bor,k)/(normAt(A,k)*L.tTotal), tol);
+            CHECK_CLOSE(0.0, diffAt(B,Bor,k)/(normAt(A,k)*L.m_tTotal), tol);
         }
     }
 
@@ -611,12 +612,12 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
         const std::vector<real_t> angles = mixedAngles();
         Laminate<3> L(angles,tply,orthotropicPly(),true);
         const gsMatrix<> u = pointsInterior();
-        checkSkewGuards(geometryGuards(L.ref,u,true),true);
+        checkSkewGuards(geometryGuards(L.m_ref,u,true),true);
 
         // Act: the laminate matrices of the material and the tensor oracle on the same patch.
         gsMatrix<> A, B, D, Aor, Bor, Dor;
         compositeABD(L,u,A,B,D);
-        tensorOracleAtPoints(L.ref,u,orthotropicPly(),tply,angles,Aor,Bor,Dor);
+        tensorOracleAtPoints(L.m_ref,u,orthotropicPly(),tply,angles,Aor,Bor,Dor);
 
         // Check: A, B, D agree with the oracle to identityTol() (A and D relative to the oracle
         // norm, B relative to |A| t_tot), and B is non-vacuous (threshold as in the orthogonal B test).
@@ -624,8 +625,8 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
         {
             CHECK_CLOSE(0.0, diffAt(A,Aor,k)/normAt(Aor,k), tol);
             CHECK_CLOSE(0.0, diffAt(D,Dor,k)/normAt(Dor,k), tol);
-            CHECK(normAt(Bor,k) >= 1e-3*normAt(Aor,k)*L.tTotal);
-            CHECK_CLOSE(0.0, diffAt(B,Bor,k)/(normAt(A,k)*L.tTotal), tol);
+            CHECK(normAt(Bor,k) >= 1e-3*normAt(Aor,k)*L.m_tTotal);
+            CHECK_CLOSE(0.0, diffAt(B,Bor,k)/(normAt(A,k)*L.m_tTotal), tol);
         }
     }
 
@@ -642,19 +643,19 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
         const real_t tply = 0.05, tol = identityTol();
         Laminate<3> L(twoPlyAngles(),tply,orthotropicPly(),true);
         const gsMatrix<> u = pointsInterior();
-        checkSkewGuards(geometryGuards(L.ref,u,true),true);
-        stretchedBent(L.ref,L.def);
-        L.mm->setDeformed(&L.def);
+        checkSkewGuards(geometryGuards(L.m_ref,u,true),true);
+        stretchedBent(L.m_ref,L.m_def);
+        L.m_mm->setDeformed(&L.m_def);
 
         // Act: eps and kappa from the first and second fundamental forms of the two patches (not from
         // the material), the material's A, B, D, and its N and M.
         std::vector<gsVector<real_t,3> > eps, kap;
-        strains(L.ref,L.def,u,eps,kap);
+        strains(L.m_ref,L.m_def,u,eps,kap);
 
         gsMatrix<> A, B, D;
         compositeABD(L,u,A,B,D);
-        const gsMatrix<> N = L.mm->eval3D_vector(0,u,zeros(u),MaterialOutput::VectorN);
-        const gsMatrix<> M = L.mm->eval3D_vector(0,u,zeros(u),MaterialOutput::VectorM);
+        const gsMatrix<> N = L.m_mm->eval3D_vector(0,u,zeros(u),MaterialOutput::VectorN);
+        const gsMatrix<> M = L.m_mm->eval3D_vector(0,u,zeros(u),MaterialOutput::VectorM);
 
         // Check: N = A eps + B kappa and M = B^T eps + D kappa with all four terms present.
         for (index_t k = 0; k != u.cols(); ++k)
@@ -677,8 +678,8 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
             // sum of the C_i). Unlike |N| itself the scale cannot shrink through cancellation
             // between A eps and B kappa, so the relative error stays meaningful. Mscale is the same
             // construction for B^T eps + D kappa.
-            const real_t Nscale = Ak.norm()*eps[k].norm() + Ak.norm()*L.tTotal*kap[k].norm();
-            const real_t Mscale = Ak.norm()*L.tTotal*eps[k].norm() + Dk.norm()*kap[k].norm();
+            const real_t Nscale = Ak.norm()*eps[k].norm() + Ak.norm()*L.m_tTotal*kap[k].norm();
+            const real_t Mscale = Ak.norm()*L.m_tTotal*eps[k].norm() + Dk.norm()*kap[k].norm();
             CHECK_CLOSE(0.0, gsVector<>(N.col(k) - (Aeps + Bkap)).norm()/Nscale, tol);
             CHECK_CLOSE(0.0, gsVector<>(M.col(k) - (Beps + Dkap)).norm()/Mscale, tol);
         }
@@ -697,13 +698,13 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
         const std::vector<real_t> angles(1,compPi/4);
         Laminate<2> L(angles,tply,orthotropicPly(),true);
         const gsMatrix<> u = pointsInterior();
-        checkSkewGuards(geometryGuards(L.ref,u,false),false);
+        checkSkewGuards(geometryGuards(L.m_ref,u,false),false);
 
         // Act: A of the material and A of the tensor oracle, which contracts with the 2-vectors of
         // the planar basis.
-        const gsMatrix<> A = L.mm->eval3D_matrix(0,u,zeros(u),MaterialOutput::MatrixA);
+        const gsMatrix<> A = L.m_mm->eval3D_matrix(0,u,zeros(u),MaterialOutput::MatrixA);
         gsMatrix<> Aor, Bor, Dor;
-        tensorOracleAtPoints(L.ref,u,orthotropicPly(),tply,angles,Aor,Bor,Dor);
+        tensorOracleAtPoints(L.m_ref,u,orthotropicPly(),tply,angles,Aor,Bor,Dor);
 
         // Check: A agrees with the oracle and is symmetric, both to identityTol() relative to |A|.
         for (index_t k = 0; k != u.cols(); ++k)
@@ -739,17 +740,17 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
         }
         Laminate<3> L(angles,tply,G,true), Lmirror(angles,tply,Gmirror,true);
         const gsMatrix<> u = pointsInterior();
-        checkSkewGuards(geometryGuards(L.ref,u,true),true);
-        stretchedBent(L.ref,L.def);
-        L.mm->setDeformed(&L.def);
-        stretchedBent(Lmirror.ref,Lmirror.def);
-        Lmirror.mm->setDeformed(&Lmirror.def);
+        checkSkewGuards(geometryGuards(L.m_ref,u,true),true);
+        stretchedBent(L.m_ref,L.m_def);
+        L.m_mm->setDeformed(&L.m_def);
+        stretchedBent(Lmirror.m_ref,Lmirror.m_def);
+        Lmirror.m_mm->setDeformed(&Lmirror.m_def);
 
         // Act: the resultants N and M of the laminate and of its mirror image.
-        const gsMatrix<> N  = L.mm->eval3D_vector(0,u,zeros(u),MaterialOutput::VectorN);
-        const gsMatrix<> M  = L.mm->eval3D_vector(0,u,zeros(u),MaterialOutput::VectorM);
-        const gsMatrix<> Nm = Lmirror.mm->eval3D_vector(0,u,zeros(u),MaterialOutput::VectorN);
-        const gsMatrix<> Mm = Lmirror.mm->eval3D_vector(0,u,zeros(u),MaterialOutput::VectorM);
+        const gsMatrix<> N  = L.m_mm->eval3D_vector(0,u,zeros(u),MaterialOutput::VectorN);
+        const gsMatrix<> M  = L.m_mm->eval3D_vector(0,u,zeros(u),MaterialOutput::VectorM);
+        const gsMatrix<> Nm = Lmirror.m_mm->eval3D_vector(0,u,zeros(u),MaterialOutput::VectorN);
+        const gsMatrix<> Mm = Lmirror.m_mm->eval3D_vector(0,u,zeros(u),MaterialOutput::VectorM);
 
         // Reference: per ply, 2-point Gauss quadrature of the Linear stress at physical heights
         // (exact because S(z) = C(eps + z kappa + z^2 q) is quadratic in z, so the integrands of N
@@ -765,7 +766,7 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
         // strains whatever the height. Linear uses the mid-surface constitutive tensor, the same
         // Kirchhoff-Love assumption as the laminate, so only the z-dependence of the kinematics is tested.
         const index_t npts = u.cols();
-        const real_t tTot = L.tTotal, h = tTot/2, g = 1/math::sqrt(real_t(3));
+        const real_t tTot = L.m_tTotal, h = tTot/2, g = 1/math::sqrt(real_t(3));
         gsMatrix<> Nref = gsMatrix<>::Zero(3,npts), Mref = gsMatrix<>::Zero(3,npts);
         gsVector<> Nscale = gsVector<>::Zero(npts), Mscale = gsVector<>::Zero(npts);
         for (index_t i = 0; i != 2; ++i)
@@ -781,8 +782,8 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
                 Z.row(j).setConstant(zeta[j]/tTot);
 
             gsConstantFunction<> tfun(tTot,3), Efun(E[i],3), nufun(nu,3);
-            gsMaterialMatrixLinear<3,real_t> lin(L.ref,tfun,Efun,nufun);
-            lin.setDeformed(&L.def);
+            gsMaterialMatrixLinear<3,real_t> lin(L.m_ref,tfun,Efun,nufun);
+            lin.setDeformed(&L.m_def);
             const gsMatrix<> S = lin.eval3D_stress(0,u,Z,MaterialOutput::Stress);
 
             // I2 = int z^2 dz and I3 = int z^3 dz over the ply interval.
