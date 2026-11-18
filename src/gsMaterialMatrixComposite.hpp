@@ -202,13 +202,24 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
     GISMO_ENSURE(out==MaterialOutput::MatrixA || out==MaterialOutput::MatrixB ||
                  out==MaterialOutput::MatrixC || out==MaterialOutput::MatrixD,
                  "gsMaterialMatrixComposite::eval3D_matrix: MaterialOutput must be MatrixA, MatrixB, MatrixC or MatrixD");
+    gsMatrix<T> result;
+    this->_eval3D_laminate(patch,u,out,result,nullptr);
+    return result;
+}
+
+template <short_t dim, class T >
+void gsMaterialMatrixComposite<dim,T>::_eval3D_laminate(const index_t patch, const gsMatrix<T> & u, enum MaterialOutput out, gsMatrix<T> & primary, gsMatrix<T> * second) const
+{
+    // One pass over points and plies for both matrices; the optional second one is always B.
     const bool isA  = (out==MaterialOutput::MatrixA);
     const bool isBC = (out==MaterialOutput::MatrixB || out==MaterialOutput::MatrixC);
+    const bool withSecond = (second != nullptr);
 
     this->_computePoints(patch,u);
-    // Initialize and result
-    gsMatrix<T> result(9, u.cols());
-    gsMatrix<T,3,3> Dmat, Cmat, Tmat;
+    primary.resize(9, u.cols());
+    if (withSecond)
+        second->resize(9, u.cols());
+    gsMatrix<T,3,3> Dmat, Cmat, Bmat;
 
     T t, t_tot, t_temp, z;
 
@@ -239,6 +250,7 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
     for (index_t k = 0; k != u.cols(); ++k)
     {
         Cmat.setZero();
+        Bmat.setZero();
         this->_getMetric(k,0.0); // on point i, with height 0.0
 
         // Compute total thickness (sum of entries)
@@ -268,6 +280,8 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
                     Cmat += Dmat * t*z; // B
             else
                     Cmat += Dmat * ( t*math::pow(z,2) + math::pow(t,3)/12.0 ); // D
+            if (withSecond)
+                Bmat += Dmat * t*z; // B
             t_temp += t;
         }
 
@@ -288,20 +302,23 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
         E.col(1) = gcon.col(1).normalized();
         const gsMatrix<T> Tc = this->_transformation(E,gcon);
         Cmat = Tc * Cmat * Tc.transpose();
+        primary.reshapeCol(k,3,3) = Cmat;
 
-        result.reshapeCol(k,3,3) = Cmat;
-
+        if (withSecond)
+        {
+            Bmat = Tc * Bmat * Tc.transpose();
+            second->reshapeCol(k,3,3) = Bmat;
+        }
     }
-    return result;
 }
 
 template <short_t dim, class T >
-gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const
+gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & /*z*/, enum MaterialOutput out) const
 {
     // Resultants of the membrane strain eps = 0.5*(a_def - a_ori) and the curvature change
     // kappa = b_ori - b_def:
     //   N = A eps + B kappa,   M = B^T eps + D kappa.
-    // Input: u in-plane points; z is passed on to eval3D_matrix.
+    // Input: u in-plane points; z is ignored (the laminate is integrated through the thickness analytically).
     // Output: one column per point.
 
     if (out!=MaterialOutput::VectorN && out!=MaterialOutput::VectorM)
@@ -309,11 +326,11 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_vector(const index_t patch,
 
     gsMatrix<T> result(3, u.cols());
 
-    // N needs A and B, M needs B and D. Every eval3D_matrix call computes the points, which sets
+    // N needs A and B, M needs B and D. The laminate pass computes the points, which sets
     // the metric state used by _getMetric below.
     const bool isN = (out == MaterialOutput::VectorN);
-    gsMatrix<T> Cmat = this->eval3D_matrix(patch,u,z,isN ? MaterialOutput::MatrixA : MaterialOutput::MatrixD);
-    gsMatrix<T> Bmat = this->eval3D_matrix(patch,u,z,MaterialOutput::MatrixB);
+    gsMatrix<T> Cmat, Bmat;
+    this->_eval3D_laminate(patch,u,isN ? MaterialOutput::MatrixA : MaterialOutput::MatrixD,Cmat,&Bmat);
     gsMatrix<T,2,2> Eij, Kij;
     gsMatrix<T,3,1> eps, kap;
     gsMatrix<T,3,3> Ck, Bk;

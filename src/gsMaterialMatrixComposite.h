@@ -168,6 +168,13 @@ protected:
 
     gsMatrix<T> _transformationMatrix(const gsMatrix<T> & phi, const gsMatrix<T> & u) const;
 
+private:
+    /// Laminate matrices at the points \a u of \a patch, in one pass over points and plies.
+    /// \a primary (9 x u.cols()) receives the matrix selected by \a out (MatrixA, MatrixB, MatrixC or MatrixD).
+    /// If \a second is not null, it receives MatrixB (9 x u.cols()) from the same loops.
+    void _eval3D_laminate(const index_t patch, const gsMatrix<T> & u, enum MaterialOutput out,
+                          gsMatrix<T> & primary, gsMatrix<T> * second) const;
+
 protected:
 
     // template MAT
