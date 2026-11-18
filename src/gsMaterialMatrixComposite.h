@@ -118,6 +118,8 @@ public:
     void pstressDir_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const override
     {GISMO_NO_IMPLEMENTATION;}
 
+    /// Total laminate thickness, i.e. the sum of the ply thicknesses on patch \a patch.
+    /// \a result is resized to \f$1 \times\f$ \a u.cols().
     void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
@@ -136,6 +138,11 @@ public:
     void pstressTransform_into(const index_t /*patch*/, const gsMatrix<T> & /*u*/, gsMatrix<T>& /*result*/) const
     {GISMO_NO_IMPLEMENTATION;}
 
+    /// Through-thickness integrated laminate matrices. \a z is ignored.
+    /// Returns a \f$9 \times\f$ \a u.cols() matrix whose column \a k is the 3x3 Voigt matrix
+    /// (column-major) in contravariant components at point \a k:
+    /// A for MaterialOutput::MatrixA, B for MatrixB and MatrixC, D for MatrixD.
+    /// Throws for any other \a out, including the default MaterialOutput::Generic.
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
     using Base::eval3D_matrix;
     gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;

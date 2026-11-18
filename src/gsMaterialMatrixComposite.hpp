@@ -118,6 +118,8 @@ std::ostream & gsMaterialMatrixComposite<dim,T>::print(std::ostream &os) const
 template <short_t dim, class T >
 void gsMaterialMatrixComposite<dim,T>::_initialize(const index_t nLayers)
 {
+    GISMO_ENSURE(nLayers > 0, "gsMaterialMatrixComposite: a laminate needs at least one ply");
+
     // Set default options
     this->_defaultOptions();
 
@@ -149,6 +151,7 @@ void gsMaterialMatrixComposite<dim,T>::density_into(const index_t patch, const g
 
     result.resize(1, u.cols());
     result.setZero();
+    GISMO_ENSURE(m_Rs.front() != nullptr, "gsMaterialMatrixComposite::density_into: no density was given; construct with the rho argument to use density_into");
     std::vector<gsMatrix<T>> Tcontainer(m_nLayers);
     std::vector<gsMatrix<T>> Rcontainer(m_nLayers);
     for (size_t k=0; k!= m_Rs.size(); k++)
@@ -175,25 +178,32 @@ void gsMaterialMatrixComposite<dim,T>::thickness_into(const index_t patch, const
     map.flags = NEED_VALUE;
     static_cast<const gsFunction<T>&>(m_patches->piece(patch)   ).computeMap(map); // the piece(0) here implies that if you call class.eval_into, it will be evaluated on piece(0). Hence, call class.piece(k).eval_into()
 
-    std::vector<gsMatrix<T>> Tcontainer(m_nLayers);
-    for (size_t k=0; k!= m_Rs.size(); k++)
+    result.resize(1, u.cols());
+    result.setZero();
+    gsMatrix<T> Tply;
+    for (size_t k = 0; k != m_Ts.size(); ++k)
     {
-        Tcontainer[k] = m_Ts[k]->eval(map.values[0]);
-        GISMO_ASSERT(Tcontainer[k].rows()==1,"Thickness has the wrong size, must be scalar");
+        m_Ts[k]->piece(patch).eval_into(map.values[0], Tply);
+        GISMO_ASSERT(Tply.rows()==1,"Thickness has the wrong size, must be scalar");
+        result += Tply;
     }
-
-    for (index_t i = 0; i != m_nLayers; ++i) // layers
-        for (index_t k = 0; k != u.cols(); ++k) // points
-            result.row(i) = Tcontainer[i].row(0);
 }
 
 template <short_t dim, class T >
 gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & /*z*/, enum MaterialOutput out) const
 {
-    // Input: u in-plane points
-    //        z matrix with, per point, a column with z integration points
-    // Output: (n=u.cols(), m=z.cols())
-    //          [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
+    // z is ignored: the laminate is integrated through the thickness analytically, ply by ply.
+    // Output: 9 x u.cols(); column k is the 3x3 Voigt matrix (column-major, reshapeCol(k,3,3))
+    // in contravariant components at point k, with
+    //   MatrixA:              A = sum_i t_i C_i
+    //   MatrixB or MatrixC:   B = sum_i t_i z_i C_i
+    //   MatrixD:              D = sum_i (t_i z_i^2 + t_i^3/12) C_i
+    // Any other output throws.
+    GISMO_ENSURE(out==MaterialOutput::MatrixA || out==MaterialOutput::MatrixB ||
+                 out==MaterialOutput::MatrixC || out==MaterialOutput::MatrixD,
+                 "gsMaterialMatrixComposite::eval3D_matrix: MaterialOutput must be MatrixA, MatrixB, MatrixC or MatrixD");
+    const bool isA  = (out==MaterialOutput::MatrixA);
+    const bool isBC = (out==MaterialOutput::MatrixB || out==MaterialOutput::MatrixC);
 
     this->_computePoints(patch,u);
     // Initialize and result
@@ -252,14 +262,12 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
             // normal n; ply 0 is at the most negative z. B = +sum_i t_i z_i C_i = int z C dz.
             z = (t_temp + t/2.0) - t_tot/2.0;
 
-            if      (out==MaterialOutput::MatrixA)
+            if      (isA)
                     Cmat += Dmat * t; // A
-            else if (out==MaterialOutput::MatrixB || out==MaterialOutput::MatrixC)
+            else if (isBC)
                     Cmat += Dmat * t*z; // B
-            else if (out==MaterialOutput::MatrixD)
-                    Cmat += Dmat * ( t*math::pow(z,2) + math::pow(t,3)/12.0 ); // D
             else
-                GISMO_ERROR("MaterialOutput unknown");
+                    Cmat += Dmat * ( t*math::pow(z,2) + math::pow(t,3)/12.0 ); // D
             t_temp += t;
         }
 

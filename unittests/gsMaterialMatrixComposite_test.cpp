@@ -12,7 +12,9 @@
     unit square and on a sheared, stretched and (in 3D) lifted patch on which the covariant basis is
     neither orthogonal nor of unit length. The stacking direction (ply 0 at the most negative z
     along the unit normal) is checked against the shell kinematics of the base class, with
-    gsMaterialMatrixLinear stresses at physical heights as reference.
+    gsMaterialMatrixLinear stresses at physical heights as reference. Contract tests pin the
+    per-patch total thickness of thickness_into, the rejection of MaterialOutput::Generic in
+    eval3D_matrix and the rejection of a laminate without plies.
 
     This file is part of the G+Smo library.
 
@@ -71,6 +73,7 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
         :
         m_tTotal(tply*angles.size())
         {
+            GISMO_ENSURE(G3x3.size()==angles.size(), "One ply matrix per angle is required: " << G3x3.size() << " matrices for " << angles.size() << " angles");
             m_ref.addPatch( gsNurbsCreator<>::BSplineSquare(1) );
             m_ref.degreeElevate(1);
             if (d == 3)
@@ -134,6 +137,7 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
         return gsCompositeMatrix<real_t>(E,E,E/(2*(1+nu)),nu,nu);
     }
 
+    // Three interior parameter points (off the patch boundary) at which the tests evaluate the material and its oracle.
     gsMatrix<> pointsInterior()
     {
         gsMatrix<> u(2,3);
@@ -823,5 +827,83 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
             CHECK(gsVector<>(Nm.col(k) - Nref.col(k)).norm()/Nscale[k] >= real_t(1e-6));
             CHECK(gsVector<>(Mm.col(k) - Mref.col(k)).norm()/Mscale[k] >= real_t(1e-6));
         }
+    }
+
+    // thickness_into returns the total laminate thickness of the requested patch as one row, the
+    // base-class contract of gsMaterialMatrixBaseDim. Each ply has a different constant thickness on
+    // the two patches, so the expected value is the sum of the ply thicknesses of that patch: a
+    // result that ignores the patch, returns a single ply or one row per ply is distinguishable.
+    // The thicknesses are dyadic, so the sums 0.375 and 0.5625 are exact in floating point.
+    TEST(Composite_ThicknessInto_PerPatchPlySum)
+    {
+        // Set-up: two geometrically distinct patches embedded in R^3 and two plies whose
+        // thickness, ply matrix and angle are piecewise (one piece per patch).
+        gsMultiPatch<> mp;
+        mp.addPatch( gsNurbsCreator<>::BSplineSquare(1,0,0) );
+        mp.addPatch( gsNurbsCreator<>::BSplineSquare(1,1,0) );
+        mp.embed(3);
+
+        const real_t tply[2][2] = { {0.125, 0.5}, {0.25, 0.0625} };   // [ply][patch]
+        const real_t sums[2] = { 0.125 + 0.25, 0.5 + 0.0625 };
+        gsMatrix<> Gcol = orthotropicPly();
+        Gcol.resize(9,1);
+
+        gsPiecewiseFunction<real_t> T0(2), T1(2), G0(2), G1(2), A0(2), A1(2);
+        for (index_t p = 0; p != 2; ++p)
+        {
+            T0.addPiece(gsConstantFunction<>(tply[0][p],3));
+            T1.addPiece(gsConstantFunction<>(tply[1][p],3));
+            G0.addPiece(gsConstantFunction<>(Gcol,3));
+            G1.addPiece(gsConstantFunction<>(Gcol,3));
+            A0.addPiece(gsConstantFunction<>(0.0,3));
+            A1.addPiece(gsConstantFunction<>(0.0,3));
+        }
+        std::vector<gsFunctionSet<real_t>*> Ts, Gs, As;
+        Ts.push_back(&T0); Ts.push_back(&T1);
+        Gs.push_back(&G0); Gs.push_back(&G1);
+        As.push_back(&A0); As.push_back(&A1);
+        gsMaterialMatrixComposite<3,real_t> mm(mp,Ts,Gs,As);
+
+        const gsMatrix<> u = pointsInterior();
+        const real_t tol = identityTol();
+        for (index_t p = 0; p != 2; ++p)
+        {
+            // The output is pre-sized to nPlies+1 = 3 rows of sentinel -1: an implementation that
+            // never resizes keeps 3 rows and fails the row count, and one row per ply cannot write
+            // outside the buffer.
+            gsMatrix<> res;
+            res.setConstant(3,u.cols(),-1.0);
+            mm.thickness_into(p,u,res);
+
+            CHECK_EQUAL(1,res.rows());
+            CHECK_EQUAL(u.cols(),res.cols());
+            if (res.rows()==1 && res.cols()==u.cols())
+                for (index_t k = 0; k != u.cols(); ++k)
+                    CHECK_CLOSE(sums[p],res(0,k),tol*sums[p]);
+        }
+    }
+
+    // eval3D_matrix has no generic matrix: MaterialOutput::Generic (also the default argument) is
+    // not a valid request and must be rejected with an exception in every build type.
+    TEST(Composite_Eval3DMatrix_GenericOutputThrows)
+    {
+        Laminate<3> L(twoPlyAngles(),0.01,orthotropicPly(),false);
+        const gsMatrix<> u = pointsInterior();
+        CHECK_THROW(L.m_mm->eval3D_matrix(0,u,zeros(u),MaterialOutput::Generic), std::runtime_error);
+        CHECK_THROW(L.m_mm->eval3D_matrix(0,u,zeros(u)), std::runtime_error);
+    }
+
+    // A laminate needs at least one ply: both constructors must reject empty ply vectors with an
+    // exception in every build type. A temporary is constructed so nothing leaks when
+    // no exception is thrown.
+    TEST(Composite_ZeroPlies_ConstructionThrows)
+    {
+        typedef gsMaterialMatrixComposite<3,real_t> Composite3;
+        gsMultiPatch<> mp;
+        mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) );
+        mp.embed(3);
+        std::vector<gsFunctionSet<real_t>*> Ts, Gs, As, Rs;
+        CHECK_THROW(Composite3(mp,Ts,Gs,As), std::runtime_error);
+        CHECK_THROW(Composite3(mp,Ts,Gs,As,Rs), std::runtime_error);
     }
 }
