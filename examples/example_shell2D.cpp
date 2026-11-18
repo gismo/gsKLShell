@@ -368,7 +368,9 @@ int main(int argc, char *argv[])
         materialMatrix = getMaterialMatrix<2,real_t>(mp,t,parameters,rho,options);
     }
 
-    materialMatrix->options().setInt("TensionField",0);
+    // Composite materials have no tension-field option or output
+    if (!composite)
+        materialMatrix->options().setInt("TensionField",0);
     // materialMatrixTFT = memory::make_unique(new gsMaterialMatrixTFT<2,real_t,false>(materialMatrix));
     gsMaterialMatrixTFT<2,real_t,false> materialMatrixTFT2(materialMatrix.get());
     // materialMatrixTFT->options().setReal("SlackMultiplier",1e-1);
@@ -450,13 +452,16 @@ int main(int argc, char *argv[])
         gsSparseMatrix<real_t> jacMat;
         for (index_t it = 0; it != 100; ++it)
         {
-            gsMatrix<> z(1,1);
-            z.setZero();
-            gsMaterialMatrixEval<real_t,MaterialOutput::TensionField> tensionfield(materialMatrix,&mp_def,z);
+            if (!composite)
+            {
+                gsMatrix<> z(1,1);
+                z.setZero();
+                gsMaterialMatrixEval<real_t,MaterialOutput::TensionField> tensionfield(materialMatrix,&mp_def,z);
 
-            gsField<> tensionField(mp_def, tensionfield, true);
-            gsInfo<<"Plotting in Paraview...\n";
-            gsWriteParaview<>( tensionField, "TensionField_" + std::to_string(it), 1000, true);
+                gsField<> tensionField(mp_def, tensionfield, true);
+                gsInfo<<"Plotting in Paraview...\n";
+                gsWriteParaview<>( tensionField, "TensionField_" + std::to_string(it), 1000, true);
+            }
 
             jacMat = Jacobian(solVector);
             solver.compute(jacMat);
