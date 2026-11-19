@@ -1180,7 +1180,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T
 
     // Assign members
     m_data.mine().m_acov_def = acov_def;
-    m_data.mine().m_acon_def = acov_def;
+    m_data.mine().m_acon_def = acon_def;
     m_data.mine().m_gcov_def = gcov_def;
     m_data.mine().m_gcon_def = gcon_def;
 
@@ -1209,7 +1209,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricDeformed_impl(const index_t k, const T
 
     // Get metric information
     Acov_def = m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2);
-    Acon_def = m_data.mine().m_Acov_def_mat.reshapeCol(k,2,2);
+    Acon_def = m_data.mine().m_Acon_def_mat.reshapeCol(k,2,2);
 
     // Compute full metric
     Gcov_def.setZero();
@@ -1311,7 +1311,7 @@ gsMaterialMatrixBaseDim<dim,T>::_getMetricUndeformed_impl(const index_t k, const
 
     // Assign members
     m_data.mine().m_acov_ori = acov_ori;
-    m_data.mine().m_acon_ori = acov_ori;
+    m_data.mine().m_acon_ori = acon_ori;
     m_data.mine().m_gcov_ori = gcov_ori;
     m_data.mine().m_gcon_ori = gcon_ori;
 

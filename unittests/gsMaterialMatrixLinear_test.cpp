@@ -1293,4 +1293,161 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
         }
         gsInfo<<"Energy_Linear_GeometryPath: worst relative difference to eval3D_energy_C = "<<worst<<"\n";
     }
+
+namespace {
+
+// Planar affine patch together with the material parameter functions.
+// gsMaterialMatrixLinear keeps references to mp, t, E and nu, and
+// setDeformed keeps a pointer to mp_def, so all of them are members that
+// outlive the material built from them.
+struct PlanarPatch
+{
+    gsMultiPatch<real_t> mp;
+    gsMultiPatch<real_t> mp_def;
+    gsConstantFunction<real_t> t;
+    gsConstantFunction<real_t> E;
+    gsConstantFunction<real_t> nu;
+
+    // With skew==false the patch is the unit square (J = I). With skew==true
+    // the x-coordinates are sheared, x' = 1.5 x + 0.4 y, giving the constant
+    // Jacobian J = [[1.5, 0.4],[0, 1]] (rows x,y; columns d/du, d/dv).
+    explicit PlanarPatch(bool skew)
+    :
+    t(1e-3,2),
+    E(1.0,2),
+    nu(0.3,2)
+    {
+        mp.addPatch( gsNurbsCreator<real_t>::BSplineSquare(1) ); // unit square, degree 1
+        mp.patch(0).degreeElevate(1);                           // degree 2: a non-trivial basis
+        if (skew)
+        {
+            gsMatrix<real_t> & c = mp.patch(0).coefs();
+            c.col(0) = 1.5*c.col(0) + 0.4*c.col(1);
+        }
+        mp.addAutoBoundaries();
+
+        // Undeformed state equals deformed state; eval3D_matrix requires a
+        // deformed multipatch to be set even though the SvK tensor does not
+        // depend on it.
+        mp_def = mp;
+    }
+};
+
+// Reference plane-stress SvK matrix (Voigt order 11,22,12) for an affine
+// patch with constant Jacobian J = [[J00,J01],[J10,J11]]:
+//
+//     C^{abcd} = lbar a^{ab} a^{cd} + mu ( a^{ac} a^{bd} + a^{ad} a^{bc} ),
+//     lbar = 2 lambda mu / (lambda + 2 mu),
+//     lambda = E nu / ((1+nu)(1-2nu)),  mu = E / (2(1+nu)),
+//
+// with a_{ab} = (J^T J)_{ab} the covariant and a^{ab} its inverse, the
+// contravariant surface metric. No factor 2 on the shear row/column and no
+// thickness factor, as in eval3D_matrix. Nothing here comes from the
+// geometry map or from the metric accessors of the material.
+gsMatrix<real_t> referenceMatrix(const real_t J00, const real_t J01,
+                                 const real_t J10, const real_t J11,
+                                 const real_t Emod, const real_t nuval)
+{
+    // Covariant metric a_{ab} = J^T J, and its inverse a^{ab} via the 2x2 formula.
+    real_t acov[2][2];
+    acov[0][0] = J00*J00 + J10*J10;
+    acov[0][1] = acov[1][0] = J00*J01 + J10*J11;
+    acov[1][1] = J01*J01 + J11*J11;
+    const real_t det = acov[0][0]*acov[1][1] - acov[0][1]*acov[1][0];
+    real_t a[2][2];
+    a[0][0] =  acov[1][1] / det;
+    a[0][1] = a[1][0] = -acov[0][1] / det;
+    a[1][1] =  acov[0][0] / det;
+
+    // Lame constants and plane-stress modulus lbar.
+    const real_t lambda = Emod*nuval / ((1. + nuval)*(1. - 2.*nuval));
+    const real_t mu     = Emod / (2.*(1. + nuval));
+    const real_t lbar   = 2.*lambda*mu / (lambda + 2.*mu);
+
+    // Voigt map: 0 -> (0,0), 1 -> (1,1), 2 -> (0,1).
+    const index_t vi[3] = {0, 1, 0};
+    const index_t vj[3] = {0, 1, 1};
+
+    gsMatrix<real_t> Cref(3,3);
+    for (index_t I = 0; I!=3; ++I)
+        for (index_t K = 0; K!=3; ++K)
+        {
+            const index_t i = vi[I], j = vj[I], k = vi[K], l = vj[K];
+            Cref(I,K) = lbar*a[i][j]*a[k][l] + mu*(a[i][k]*a[j][l] + a[i][l]*a[j][k]);
+        }
+    return Cref;
+}
+
+// Largest relative Frobenius deviation of any evaluated 3x3 matrix in
+// `result` (one per column, column-major) from Cref. Returns infinity if
+// an entry is not finite, so a NaN cannot pass.
+real_t maxRelativeError(const gsMatrix<real_t> & result, const gsMatrix<real_t> & Cref)
+{
+    real_t worst = 0;
+    for (index_t col = 0; col!=result.cols(); ++col)
+    {
+        gsMatrix<real_t> C = result.col(col);
+        C.resize(3,3);
+        const real_t err = (C - Cref).norm() / Cref.norm();
+        if (!(err <= std::numeric_limits<real_t>::max()))
+            return std::numeric_limits<real_t>::infinity();
+        worst = (std::max)(worst, err);
+    }
+    return worst;
+}
+
+// Evaluates the material matrix of the patch at three interior points and
+// returns the largest relative deviation from the reference for Jacobian J.
+real_t materialMatrixError(PlanarPatch & fix,
+                           const real_t J00, const real_t J01,
+                           const real_t J10, const real_t J11)
+{
+    gsMaterialMatrixLinear<2,real_t> material(fix.mp, fix.t, fix.E, fix.nu);
+    material.setDeformed(&fix.mp_def);
+
+    // Three in-plane points; the map is affine so the tensor is the same at each.
+    gsMatrix<real_t> u(2,3);
+    u << 0.25, 0.7, 0.5,
+         0.25, 0.4, 0.9;
+    // One through-thickness station at the mid-surface (dim==2 has no z-dependence).
+    gsMatrix<real_t> z(1,3);
+    z.setZero();
+
+    gsMatrix<real_t> result = material.eval3D_matrix(0,u,z,MaterialOutput::Generic);
+    const gsMatrix<real_t> Cref = referenceMatrix(J00,J01,J10,J11,
+                                                  fix.E.eval(u)(0,0), fix.nu.eval(u)(0,0));
+    return maxRelativeError(result, Cref);
+}
+
+} // namespace
+
+    // Control: on the unit square J = I, so a_{ab} = a^{ab} = I and the reference
+    // reduces to C1111 = C2222 = lbar + 2 mu, C1122 = lbar, C1212 = mu,
+    // independent of which metric the material uses. It must therefore pass
+    // whether or not the material distinguishes covariant and contravariant
+    // metrics. Tolerance: relative Frobenius 1e-10 (round-off of a few flops
+    // on O(1) entries), relaxed to 1e3 epsilon for single precision.
+    TEST(Linear_UnitSquare_Control)
+    {
+        // Unit square, E = 1, nu = 0.3, J = identity.
+        PlanarPatch fix(false);
+
+        const real_t tol = (std::max)(real_t(1e-10), real_t(1e3)*math::limits::epsilon());
+        CHECK_CLOSE(0.0, materialMatrixError(fix, 1.,0.,0.,1.), tol);
+    }
+
+    // Oracle: on the sheared patch with J = [[1.5,0.4],[0,1]],
+    // a_{ab} = [[2.25,0.6],[0.6,1.16]] and a^{ab} = [[1.16,-0.6],[-0.6,2.25]]/2.25
+    // are different matrices. The material matrix must equal the one built
+    // from a^{ab} (formula above referenceMatrix, evaluated from J); a material
+    // that substitutes a_{ab} for a^{ab} deviates by O(1) in relative
+    // Frobenius norm. Same tolerance as the control.
+    TEST(Linear_SkewedPatch_Oracle)
+    {
+        // Sheared patch, E = 1, nu = 0.3, constant J = [[1.5,0.4],[0,1]].
+        PlanarPatch fix(true);
+
+        const real_t tol = (std::max)(real_t(1e-10), real_t(1e3)*math::limits::epsilon());
+        CHECK_CLOSE(0.0, materialMatrixError(fix, 1.5,0.4,0.,1.), tol);
+    }
 }
