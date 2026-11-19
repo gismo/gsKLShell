@@ -369,7 +369,8 @@ int main(int argc, char *argv[])
     }
 
     // Composite materials have no tension-field option or output
-    if (!composite)
+    const bool isComposite = composite && material==0;
+    if (!isComposite)
         materialMatrix->options().setInt("TensionField",0);
     // materialMatrixTFT = memory::make_unique(new gsMaterialMatrixTFT<2,real_t,false>(materialMatrix));
     gsMaterialMatrixTFT<2,real_t,false> materialMatrixTFT2(materialMatrix.get());
@@ -452,7 +453,7 @@ int main(int argc, char *argv[])
         gsSparseMatrix<real_t> jacMat;
         for (index_t it = 0; it != 100; ++it)
         {
-            if (!composite)
+            if (!isComposite)
             {
                 gsMatrix<> z(1,1);
                 z.setZero();

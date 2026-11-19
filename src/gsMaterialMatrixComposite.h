@@ -28,8 +28,10 @@ namespace gismo
  * @brief      This class defines a linear material laminate (classical laminate theory)
  *
  * The laminate consists of plies stacked along the unit normal n = a1 x a2 / |a1 x a2|
- * (for dim == 2, a planar mid-surface, n is the out-of-plane unit vector). Ply 0 is
- * the ply at the most negative z along n, the last ply is at the most positive z.
+ * for dim == 3. For dim == 2 (a planar mid-surface), n = e3 = (0,0,1) whatever the
+ * orientation of the parametrisation, and z is measured along e3. Ply 0 is the ply at the
+ * most negative z along n, the last ply is at the most positive z. A planar membrane
+ * analysis has kappa = 0, so B (and with it the ply order) does not enter N.
  *
  * Per ply, the following functions are given and evaluated at physical points:
  *  - thickness: scalar;

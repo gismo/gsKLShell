@@ -194,11 +194,8 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
 {
     // z is ignored: the laminate is integrated through the thickness analytically, ply by ply.
     // Output: 9 x u.cols(); column k is the 3x3 Voigt matrix (column-major, reshapeCol(k,3,3))
-    // in contravariant components at point k, with
-    //   MatrixA:              A = sum_i t_i C_i
-    //   MatrixB or MatrixC:   B = sum_i t_i z_i C_i
-    //   MatrixD:              D = sum_i (t_i z_i^2 + t_i^3/12) C_i
-    // Any other output throws.
+    // in contravariant components at point k. MatrixB and MatrixC both return B; A, B and D
+    // are defined in the class documentation. Any other output throws.
     GISMO_ENSURE(out==MaterialOutput::MatrixA || out==MaterialOutput::MatrixB ||
                  out==MaterialOutput::MatrixC || out==MaterialOutput::MatrixD,
                  "gsMaterialMatrixComposite::eval3D_matrix: MaterialOutput must be MatrixA, MatrixB, MatrixC or MatrixD");
@@ -210,6 +207,10 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_matrix(const index_t patch,
 template <short_t dim, class T >
 void gsMaterialMatrixComposite<dim,T>::_eval3D_laminate(const index_t patch, const gsMatrix<T> & u, enum MaterialOutput out, gsMatrix<T> & primary, gsMatrix<T> * second) const
 {
+    GISMO_ASSERT(out==MaterialOutput::MatrixA || out==MaterialOutput::MatrixB ||
+                 out==MaterialOutput::MatrixC || out==MaterialOutput::MatrixD,
+                 "gsMaterialMatrixComposite::_eval3D_laminate: MaterialOutput must be MatrixA, MatrixB, MatrixC or MatrixD");
+
     // One pass over points and plies for both matrices; the optional second one is always B.
     const bool isA  = (out==MaterialOutput::MatrixA);
     const bool isBC = (out==MaterialOutput::MatrixB || out==MaterialOutput::MatrixC);
