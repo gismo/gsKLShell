@@ -9,7 +9,9 @@
                This test allows to test the hyperelastic material models (incompressible and compressible)
 
     * Modal:   unit-test based on a modal analysis
-               This test allows to test the mass matrix and the compressible material model
+               This test allows to test the mass matrix and the compressible material model.
+               The isotropic variant is compared with the analytical frequencies of a simply supported plate,
+               the composite variant is a regression check of the laminate (orthotropic plies).
 
 
     == BASIC REFERENCE ==
@@ -51,6 +53,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
     void UAT_CHECK(const index_t material, const index_t impl, const bool Compressibility);
 
     gsVector<real_t> Modal_analytical();
+    gsVector<real_t> Modal_composite_reference();
     gsVector<real_t> Modal_numerical(const bool composite);
     void Modal_CHECK(const bool composite);
 
@@ -826,7 +829,9 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         Rs[0] = Rs[1] = Rs[2] = Rs[3] = Rs[4] = &rho;
 
 
-        gsMatrix<> Gmat = gsCompositeMatrix(E_modulus,E_modulus,0.5 * E_modulus / (1+PoissonRatio),PoissonRatio,PoissonRatio);
+        // Orthotropic ply of the composite variant (Exx, Eyy, Gxy, nuxy, nuyx); nuyx*Exx = nuxy*Eyy = 12500
+        // holds exactly, as gsCompositeMatrix requires of a symmetric compliance.
+        gsMatrix<> Gmat = gsCompositeMatrix<real_t>(E_modulus,5e4,2e4,0.25,0.125);
         Gmat.resize(Gmat.rows()*Gmat.cols(),1);
         gsConstantFunction<> Gfun(Gmat,3);
         Gs[0] = Gs[1] = Gs[2] = Gs[3] = Gs[4] = &Gfun;
@@ -912,14 +917,34 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         return analytical;
     }
 
+    // Regression reference of Modal_numerical(true), not an analytical solution: the values were produced
+    // by gsKLShell branch composite-fixes (after 9edafd2). Layup: 5 equal plies of thickness 0.002,
+    // orthotropic (Exx, Eyy, Gxy, nuxy, nuyx) = (1e5, 5e4, 2e4, 0.25, 0.125), at 0/18/36/54/72 degrees
+    // from the most negative z upwards. B != 0 and the plies are anisotropic, so the values depend on the
+    // ply angles and on ply permutations. On this flat, all-pinned square, mirroring the stack (reversing
+    // the ply order only flips B) and flipping all angle signs are symmetries of the eigenproblem, so
+    // the test cannot see them; the stacking direction is covered by
+    // Skewed_StackingDirection_MatchesKinematics in gsMaterialMatrixComposite_test.cpp.
+    gsVector<real_t> Modal_composite_reference()
+    {
+        gsVector<real_t> ref(10);
+        ref << 14.773826060806392, 36.125492185711899, 37.865109787985098, 58.227004464026614,
+               73.424039382079712, 75.881934373206562, 92.823798762893119, 97.485663585840086,
+               124.87442245449348, 129.41246970786199;
+        return ref;
+    }
+
     void Modal_CHECK(const bool composite)
     {
      gsVector<real_t> num = Modal_numerical(composite);
 
-     gsVector<real_t> ana = Modal_analytical();
+     // Composite: regression reference, relative tolerance 1e-8 (far above the round-off from
+     // OpenMP summation order, far below the effect of a layup error). Isotropic: analytical plate, 1e-3 is the discretization error.
+     gsVector<real_t> ref = composite ? Modal_composite_reference() : Modal_analytical();
+     const real_t tol = composite ? 1e-8 : 1e-3;
 
-     gsVector<real_t> relError = (num - ana).array()/ana.array();
+     gsVector<real_t> relError = (num - ref).array()/ref.array();
      gsVector<real_t> zeros = gsVector<real_t>::Zero(relError.rows());
-     CHECK_MATRIX_CLOSE(relError,zeros,1e-3);
+     CHECK_MATRIX_CLOSE(relError,zeros,tol);
     }
 }

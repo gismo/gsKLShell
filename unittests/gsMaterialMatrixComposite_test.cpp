@@ -13,8 +13,8 @@
     neither orthogonal nor of unit length. The stacking direction (ply 0 at the most negative z
     along the unit normal) is checked against the shell kinematics of the base class, with
     gsMaterialMatrixLinear stresses at physical heights as reference. Contract tests pin the
-    per-patch total thickness of thickness_into, the rejection of MaterialOutput::Generic in
-    eval3D_matrix and the rejection of a laminate without plies.
+    per-patch total thickness of thickness_into, the density of density_into, the rejection of
+    MaterialOutput::Generic in eval3D_matrix and the rejection of a laminate without plies.
 
     This file is part of the G+Smo library.
 
@@ -883,26 +883,82 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
         }
     }
 
+    // density_into without a density has nothing to integrate: a laminate built with the 4-argument
+    // constructor (no rho) must reject the call with an exception in every build type. The throw is the
+    // GISMO_ENSURE on the first density function in density_into, which throws std::runtime_error in
+    // every build type, so CHECK_THROW(..., std::runtime_error) is valid in Release.
+    TEST(Composite_DensityInto_WithoutRhoThrows)
+    {
+        // Set-up: a two-ply laminate from the 4-argument constructor, hence without density functions.
+        Laminate<3> L(twoPlyAngles(),0.125,orthotropicPly(),false);
+        const gsMatrix<> u = pointsInterior();
+        gsMatrix<> res;
+        // Act + Check: the call throws std::runtime_error instead of dereferencing the missing density.
+        CHECK_THROW(L.m_mm->density_into(0,u,res), std::runtime_error);
+    }
+
+    // density_into returns the areal density sum_i t_i rho_i of the laminate as one row. The two plies
+    // have different constant densities, so a result that uses a single ply (0.25 or 0.0625) or returns
+    // one row per ply differs from the oracle. All data are dyadic, hence the expected value
+    // 0.125*2 + 0.125*0.5 = 0.3125 is exact in floating point.
+    TEST(Composite_DensityInto_PlySum)
+    {
+        // Set-up: reuse the geometry and the thickness/ply matrix/angle functions of a two-ply laminate
+        // (ply thicknesses 0.125 each) and give the material constant plies densities 2 and 0.5.
+        Laminate<3> L(twoPlyAngles(),0.125,orthotropicPly(),false);
+        gsConstantFunction<> rho0(2.0,3), rho1(0.5,3);
+        std::vector<gsFunctionSet<real_t>*> Rs;
+        Rs.push_back(&rho0);
+        Rs.push_back(&rho1);
+        gsMaterialMatrixComposite<3,real_t> mm(L.m_ref,L.m_Ts,L.m_Gs,L.m_Phis,Rs);
+        mm.setDeformed(&L.m_def);
+
+        const gsMatrix<> u = pointsInterior();
+        const real_t expected = 0.125*2.0 + 0.125*0.5;
+
+        // Act: the output is pre-sized to nPlies+1 = 3 rows of sentinel -1, so that a missing resize
+        // fails the row count.
+        gsMatrix<> res;
+        res.setConstant(3,u.cols(),-1.0);
+        mm.density_into(0,u,res);
+
+        // Check: one row, one column per point, every entry equal to the oracle up to round-off.
+        CHECK_EQUAL(1,res.rows());
+        CHECK_EQUAL(u.cols(),res.cols());
+        if (res.rows()==1 && res.cols()==u.cols())
+            for (index_t k = 0; k != u.cols(); ++k)
+                CHECK_CLOSE(expected,res(0,k),identityTol()*expected);
+    }
+
     // eval3D_matrix has no generic matrix: MaterialOutput::Generic (also the default argument) is
-    // not a valid request and must be rejected with an exception in every build type.
+    // not a valid request and must be rejected with an exception in every build type. The throw is the
+    // GISMO_ENSURE in eval3D_matrix that accepts only MatrixA/B/C/D; GISMO_ENSURE throws
+    // std::runtime_error in every build type, so CHECK_THROW(..., std::runtime_error) is valid in Release.
     TEST(Composite_Eval3DMatrix_GenericOutputThrows)
     {
+        // Set-up: a two-ply laminate and interior points.
         Laminate<3> L(twoPlyAngles(),0.01,orthotropicPly(),false);
         const gsMatrix<> u = pointsInterior();
+        // Act + Check: an explicit Generic request, then the default argument (also Generic), both throw.
         CHECK_THROW(L.m_mm->eval3D_matrix(0,u,zeros(u),MaterialOutput::Generic), std::runtime_error);
         CHECK_THROW(L.m_mm->eval3D_matrix(0,u,zeros(u)), std::runtime_error);
     }
 
     // A laminate needs at least one ply: both constructors must reject empty ply vectors with an
     // exception in every build type. A temporary is constructed so nothing leaks when
-    // no exception is thrown.
+    // no exception is thrown. Both constructors reach the GISMO_ENSURE(nLayers > 0, ...) of _initialize,
+    // which throws std::runtime_error in every build type, so CHECK_THROW(..., std::runtime_error) is
+    // valid in Release. The size checks of the 5-argument constructor are GISMO_ASSERTs: they hold for
+    // empty vectors and are compiled out in Release, so they are not what throws.
     TEST(Composite_ZeroPlies_ConstructionThrows)
     {
         typedef gsMaterialMatrixComposite<3,real_t> Composite3;
+        // Set-up: a unit square in R^3 and empty ply vectors.
         gsMultiPatch<> mp;
         mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) );
         mp.embed(3);
         std::vector<gsFunctionSet<real_t>*> Ts, Gs, As, Rs;
+        // Act + Check: the 4-argument and the 5-argument (with rho) constructor both throw.
         CHECK_THROW(Composite3(mp,Ts,Gs,As), std::runtime_error);
         CHECK_THROW(Composite3(mp,Ts,Gs,As,Rs), std::runtime_error);
     }
