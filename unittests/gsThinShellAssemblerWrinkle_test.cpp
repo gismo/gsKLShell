@@ -70,6 +70,8 @@ SUITE(gsThinShellAssemblerWrinkle_test)                 // The suite should have
         return zmat;
     }
 
+    namespace {
+
     /// Saves the format flags and precision of gsInfo and restores them on scope exit
     struct WPStreamState
     {
@@ -78,6 +80,8 @@ SUITE(gsThinShellAssemblerWrinkle_test)                 // The suite should have
         std::ios_base::fmtflags flags;
         std::streamsize precision;
     };
+
+    } // namespace
 
     /// Wrinkling law options of the benchmark: exact solve on, tension-field criterion 2
     static void WPconfigure(gsMaterialMatrixTFTSplit<2,real_t,false> * split)
