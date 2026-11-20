@@ -46,8 +46,8 @@ struct WrinkleOptions
 template <class T>
 struct WrinkleResult
 {
-    index_t state;          ///< criterion state: 1 taut, 0 wrinkled, -1 slack (S2crit NOT applied)
-    T Smin, Smax;           ///< principal values of the UNMODIFIED S w.r.t. the reference metric
+    index_t state;          ///< criterion state: 1 taut, 0 wrinkled, -1 slack (S2crit not applied)
+    T Smin, Smax;           ///< principal values of the unmodified S w.r.t. the reference metric
     T Emin, Emax;           ///< principal values of E w.r.t. the reference metric
     T theta;                ///< n = (cos θ, sin θ) covector components, θ ∈ [0,π); NaN unless wrinkled
     T gamma;                ///< γ with |n|_Euclid = 1 (TFT normalisation); NaN unless wrinkled
@@ -55,7 +55,7 @@ struct WrinkleResult
     T residual;             ///< |f(θ)| at the θ used (linearised), max(|n1.S'|,|n2.S'|) at the kept iterate (exact); NaN unless wrinkled
     T W;                    ///< W_eff, the potential of S_eff (see eval3D_energy); NaN where none exists or energy was not requested
     bool guardFallback;     ///< closed-form θ rejected by the isotropy guard
-    bool tftFailure;        ///< guard failed AND TFT's eval_theta also failed its residual (closed form kept if usable, else TFT's root), or n1ᵀCn1 <= 0
+    bool tftFailure;        ///< guard failed and TFT's eval_theta also failed its residual (closed form kept if usable, else TFT's root), or n1ᵀCn1 <= 0
     bool exactFallback;     ///< exact solve attempted and ended in non-convergence, a saddle or a wrong branch: linearised result returned
     bool exactReclassified; ///< exact solve found the point taut (taut at gamma = 0, or gamma <= 0 within the taut band) or slack (non-positive wrinkle tension within the slack band)
     index_t exactIterations;///< number of S/C evaluations at E' made by the exact solve, over all passes that ran (scalar, 2x2, minimisation), incl. the gamma = 0 check, the start trials and the polish step (0 if not attempted)
@@ -79,7 +79,7 @@ struct WrinkleResult
 /**
  * @brief      Tension-field-theory material decorator following the split of Zhang and Kiendl
  *
- * Wraps any \ref gsMaterialMatrixBase and replaces its stress and tangent by those of a wrinkled
+ * Wraps any @ref gsMaterialMatrixBase and replaces its stress and tangent by those of a wrinkled
  * membrane (linearised or exact mode).
  *
  * <b>References</b>
@@ -90,18 +90,18 @@ struct WrinkleResult
  * - Zhang & Kiendl, J. Mech. Phys. Solids 205 (2025) 106331: strain and stress split, mixed criterion, SvK.
  * - Verhelst, Moller & Den Besten, "A wrinkling model for general hyperelastic materials based on
  *   tension field theory", CMAME 441 (2025) 117955: tension-field formulation of
- *   \ref gsMaterialMatrixTFT (Eq. 34 criteria, Eq. 72-73 linearised wrinkled stress).
+ *   @ref gsMaterialMatrixTFT (Eq. 34 criteria, Eq. 72-73 linearised wrinkled stress).
  *
  * <b>Conventions</b>
  * - Stress Voigt S = (S^11, S^22, S^12) (contravariant), engineering strain E = (E_11, E_22, 2E_12)
  *   (covariant), dS = C dE, and the tangent is A_ij = dS_i/dE_j (stored column-major, 9 entries).
  * - Point state: 1 taut, 0 wrinkled, -1 slack. The slack boundary is strict (E_max < 0), as in
- *   \ref gsMaterialMatrixBaseDim; the literature uses E_max <= 0.
+ *   @ref gsMaterialMatrixBaseDim; the literature uses E_max <= 0.
  * - Principal values are ordered ascending (min = minor). They are the eigenvalues of the pencil
  *   S^{ab} n_b = lambda G^{ab} n_b, G being the reference metric (see below). Index 0 (minor) is
  *   S_p,1 of Verhelst et al. (Eq. 34) and S_2 of Zhang & Kiendl, who order S_1 >= S_2 (Eq. 27).
  * - The wrinkle direction n = (cos theta, sin theta) holds covector components, theta in [0,pi).
- *   gamma is the wrinkle strain amplitude for |n|_Euclid = 1 (the \ref gsMaterialMatrixTFT
+ *   gamma is the wrinkle strain amplitude for |n|_Euclid = 1 (the @ref gsMaterialMatrixTFT
  *   normalisation); gammaHat = gamma G^{ab} n_a n_b is independent of the parametrisation and equals
  *   the wrinkling magnitude mu_w of Zhang & Kiendl (2026, Eq. 28-30): their M_2 = N_2 (x) N_2 has N_2
  *   a unit vector in G, so n = |n|_G N_2 and gamma n (x) n = gamma |n|_G^2 M_2.
@@ -114,7 +114,7 @@ struct WrinkleResult
  *   S'^{ab} = sigma t^a t^b with sigma = n_4.S', which is positive iff the stress along the wrinkles
  *   is tensile.
  * - Reference metric: the fibre metric G(z) of the undeformed shell for linear=false, the
- *   mid-surface metric A for linear=true (the wrapped \ref gsMaterialMatrixLinear is built on A).
+ *   mid-surface metric A for linear=true (the wrapped @ref gsMaterialMatrixLinear is built on A).
  *
  * <b>Wrinkled state</b>
  * With n_1 and n_2 as in the conventions above, the wrinkled stress is the linearised
@@ -124,7 +124,7 @@ struct WrinkleResult
  * with theta the root of n_2 . S' = 0, found in closed form as the minor solution of the metric
  * pencil (Eq. 27 of Zhang & Kiendl, generalised to the pencil), validated by an isotropy guard
  * (|f| tolerance) and replaced by the root of
- * \ref gsMaterialMatrixTFT::eval_theta if the guard rejects it (counted, see numThetaFallbacks()).
+ * @ref gsMaterialMatrixTFT::eval_theta if the guard rejects it (counted, see numThetaFallbacks()).
  * The tangent J = C + C D + gamma H is derived in gsMaterialMatrixTFTSplit.hpp.
  * The regularised result is S_eff = (1-eta) S' + eta S, C_eff = (1-eta) J + eta C, i.e.
  * S_eff = S^+ + eta S^- with S^+ = S' (the TFT-modified stress) and S^- = S - S^+
@@ -203,7 +203,7 @@ struct WrinkleResult
  * <i>Algorithm.</i> This paragraph and the bullets below describe ExactLocalSolve = 0 (and every call without
  * a W provider). The iteration is scalar in gamma when the closed-form theta passes the isotropy guard
  * (coaxiality), followed by a 2x2 pass in (gamma, theta) if n_2.S' is not within tolerance; it is the
- * 2x2 pass alone, started from the root of \ref gsMaterialMatrixTFT::eval_theta, when the guard rejected
+ * 2x2 pass alone, started from the root of @ref gsMaterialMatrixTFT::eval_theta, when the guard rejected
  * the closed form. Under ExactLocalSolve = 1 the scalar pass runs where the closed form passes the guard and
  * the direction is admissible, and hands off to the minimisation where the 2x2 pass would start; points whose
  * guard rejected the closed form, or that have no admissible direction, go to the minimisation directly, and a
@@ -390,7 +390,7 @@ struct WrinkleResult
  *
  * <b>Counters</b>
  * - numThetaFallbacks(): wrinkled evaluations whose closed-form theta was rejected by the guard.
- * - numTFTFailures(): those where eval_theta of \ref gsMaterialMatrixTFT also failed, plus the cases with
+ * - numTFTFailures(): those where eval_theta of @ref gsMaterialMatrixTFT also failed, plus the cases with
  *   n_1.C n_1 <= 0.
  * - numExactNonconverged(), numExactSaddle(), numExactWrongBranch(), numExactReclassifiedTaut(),
  *   numExactReclassifiedSlack() and numExactSkipped(): per wrinkle() evaluation either exactly one of the
@@ -405,7 +405,13 @@ struct WrinkleResult
  * All counters are cumulative from construction until resetCounters() and are incremented atomically. Every output
  * call (eval3D_matrix, eval3D_vector, eval3D_pstress, eval3D_theta, ...) re-runs the pointwise core,
  * as does every public wrinkle() call, so a point evaluated by both eval3D_matrix and eval3D_vector
- * is counted twice. Each matching gsWarn message is printed at most once per program run and
+ * is counted twice. One geometry-path output call costs one _computePoints of this object and two
+ * batched wrapped-law calls (eval3D_vector, eval3D_matrix) over all points and fibres. For linear=false
+ * it costs in addition one single-point eval3D_dmatrix per wrinkled (point, fibre) when the tangent is
+ * needed, one single-point eval3D_energy_C per (point, fibre), in every state, when the energy is
+ * requested (eval3D_energy), and, in exact mode, the S/C (and W) provider calls of the exact solve per
+ * wrinkled (point, fibre). The Cauchy outputs add one batched eval3D_detF of the wrapped law.
+ * Each matching gsWarn message is printed at most once per program run and
  * template instantiation (dim, T, linear) (a function-local static flag).
  *
  * <b>Post-processing outputs</b> (columns j*u.cols()+k as for every multi-point output). All principal
@@ -436,13 +442,13 @@ public:
     /// Unique pointer for gsMaterialMatrixTFTSplit
     typedef memory::unique_ptr< gsMaterialMatrixTFTSplit > uPtr;
 
-    /// Shared pointer to a \ref gsMaterialMatrixBase
+    /// Shared pointer to a @ref gsMaterialMatrixBase
     typedef typename gsMaterialMatrixBase<T>::Ptr material_ptr;
 
     /// Base class
     using Base = gsMaterialMatrixBaseDim<dim,T>;
 
-    /// Shared pointer to a \ref gsFunctionSet
+    /// Shared pointer to a @ref gsFunctionSet
     typedef typename gsFunctionSet<T>::Ptr function_ptr;
 
     /// Provider of dC/dE_d (d=0,1,2), each 3x3 in engineering Voigt; called only for wrinkled points
@@ -496,13 +502,14 @@ public:
     void setOptions(gsOptionList opt) override;
 
     /// Reads TensionField, Eta, SlackMultiplier, Exact, ExactTol, ExactStagTol, ExactMaxIt and ExactLocalSolve from the option list;
-    /// throws (GISMO_ENSURE) unless TensionField and ExactLocalSolve are in {0,1,2}, Eta in [0,1] and SlackMultiplier >= 0
+    /// throws (GISMO_ENSURE) unless TensionField and ExactLocalSolve are in {0,1,2}, Eta in [0,1] and SlackMultiplier >= 0,
+    /// and, when Exact is on (linear=false), unless ExactStagTol >= ExactTol > 0 and ExactMaxIt >= 1
     detail_tftsplit::WrinkleOptions<T> wrinkleOptions() const;
 
     /// Number of wrinkled evaluations whose closed-form theta was rejected by the isotropy guard
     index_t numThetaFallbacks() const { return m_nThetaFallbacks; }
 
-    /// Number of those where the eval_theta of \ref gsMaterialMatrixTFT also failed (the closed form is
+    /// Number of those where the eval_theta of @ref gsMaterialMatrixTFT also failed (the closed form is
     /// kept when usable, otherwise TFT's root), plus the cases with n1^T C n1 <= 0
     index_t numTFTFailures() const { return m_nTFTFailures; }
 
@@ -556,7 +563,7 @@ public:
      *
      * No geometry is involved. wrinkle() itself never calls the wrapped material: it is reached only
      * through the providers \a dCdE and \a SCatE. The root-finder fallback of
-     * \ref gsMaterialMatrixTFT::eval_theta on guard failure uses only the S, C and E passed in.
+     * @ref gsMaterialMatrixTFT::eval_theta on guard failure uses only the S, C and E passed in.
      *
      * @param[in]  S           3x1 unmodified stress
      * @param[in]  C           3x3 unmodified tangent, or its 9x1 column-major form
@@ -568,8 +575,8 @@ public:
      *                         point with n_1.C n_1 > 0 whose linearised result is returned (also after
      *                         an exact-mode fallback) when the tangent is needed. An empty function
      *                         means dC/dE = 0. The class drivers bind eval3D_dmatrix of the wrapped
-     *                         material on the geometry path, and central differences (step 1e-5 on
-     *                         (g_11, g_22, 2 g_12)) of eval3D_matrix_C on the prescribed-metric path;
+     *                         material on the geometry path, and central differences (step 1e-5 times
+     *                         the largest absolute entry of the metric, on (g_11, g_22, 2 g_12)) of eval3D_matrix_C on the prescribed-metric path;
      *                         for linear=true the provider is empty.
      * @param[in]  SCatE       S and C of the wrapped material at E' (exact mode only), called once per
      *                         provider call of the exact solve (at most ExactMaxIt per pass). Required where the exact solve is attempted
@@ -578,7 +585,7 @@ public:
      *                         GISMO_ERROR if empty there. Both class drivers bind eval3D_vector_C and
      *                         eval3D_matrix_C at Cmat' = (G11 + 2E'_0, G22 + 2E'_1, G12 + E'_2).
      * @param[in]  WatE        Strain energy of the wrapped material at a prescribed elastic strain (see
-     *                         \ref W_provider). Called if \a needEnergy and by the minimisation of the exact
+     *                         @ref W_provider). Called if \a needEnergy and by the minimisation of the exact
      *                         solve (ExactLocalSolve 1, 2); an empty provider runs ExactLocalSolve = 0. Ignored
      *                         for linear=true, where W(E) = 1/2 E.S. GISMO_ERROR if \a needEnergy, linear=false
      *                         and empty.
@@ -596,75 +603,75 @@ public:
                                               const W_provider & WatE = W_provider(),
                                               bool needEnergy = false) const;
 
-    /// See \ref gsMaterialMatrixBase for details. Constant if Midsurface, else Linear
+    /// See @ref gsMaterialMatrixBase for details. Constant if Midsurface, else Linear
     inline enum MatIntegration isMatIntegrated() const override
     { return m_options.getSwitch("Midsurface") ? MatIntegration::Constant : MatIntegration::Linear; }
 
-    /// See \ref gsMaterialMatrixBase for details. Constant if Midsurface, else Linear
+    /// See @ref gsMaterialMatrixBase for details. Constant if Midsurface, else Linear
     inline enum MatIntegration isVecIntegrated() const override
     { return m_options.getSwitch("Midsurface") ? MatIntegration::Constant : MatIntegration::Linear; }
 
-    /// See \ref gsMaterialMatrixBase for details
+    /// See @ref gsMaterialMatrixBase for details
     void density_into(const index_t patch, const gsMatrix<T>& u, gsMatrix<T>& result) const override
     { m_materialMat->density_into( patch,u,result ); }
 
-    /// See \ref gsMaterialMatrixBase for details
+    /// See @ref gsMaterialMatrixBase for details
     void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override
     { m_materialMat->thickness_into( patch,u,result ); }
 
-    /// See \ref gsMaterialMatrixBase for details
+    /// See @ref gsMaterialMatrixBase for details
     void setParameters(const std::vector<gsFunctionSet<T>*> &pars) override
     { m_materialMat->setParameters(pars); }
     using Base::setParameters;
 
-    /// See \ref gsMaterialMatrixBase for details
+    /// See @ref gsMaterialMatrixBase for details
     void info() const override
     { m_materialMat->info(); }
 
-    /// See \ref gsMaterialMatrixBase for details
+    /// See @ref gsMaterialMatrixBase for details
     std::ostream &print(std::ostream &os) const override;
 
-    /// See \ref gsMaterialMatrixBase for details
+    /// See @ref gsMaterialMatrixBase for details
     void setUndeformed(function_ptr undeformed) override
     {
         Base::setUndeformed(undeformed);
         m_materialMat->setUndeformed(m_patches);
     }
 
-    /// See \ref gsMaterialMatrixBase for details
+    /// See @ref gsMaterialMatrixBase for details
     void setDeformed(function_ptr deformed) override
     {
         Base::setDeformed(deformed);
         m_materialMat->setDeformed(m_defpatches);
     }
 
-    /// See \ref gsMaterialMatrixBase for details
+    /// See @ref gsMaterialMatrixBase for details
     void setUndeformed(const gsFunctionSet<T> * undeformed) override
     {
         Base::setUndeformed(undeformed);
         m_materialMat->setUndeformed(m_patches);
     }
 
-    /// See \ref gsMaterialMatrixBase for details
+    /// See @ref gsMaterialMatrixBase for details
     void setDeformed(const gsFunctionSet<T> * deformed) override
     {
         Base::setDeformed(deformed);
         m_materialMat->setDeformed(m_defpatches);
     }
 
-    /// See \ref gsMaterialMatrixBase for details
+    /// See @ref gsMaterialMatrixBase for details
     const gsMaterialMatrixBase<T> * material() const override { return m_materialMat.get(); }
 
-    /// See \ref gsMaterialMatrixBase for details
+    /// See @ref gsMaterialMatrixBase for details
     gsMaterialMatrixBase<T> * material() override { return m_materialMat.get(); }
 
-    /// See \ref gsMaterialMatrixBase for details (forwarded to the wrapped material)
+    /// See @ref gsMaterialMatrixBase for details (forwarded to the wrapped material)
     gsMatrix<T> eval3D_pstretch(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const override;
 
-    /// See \ref gsMaterialMatrixBase for details (forwarded to the wrapped material)
+    /// See @ref gsMaterialMatrixBase for details (forwarded to the wrapped material)
     gsMatrix<T> eval3D_pstretchDir(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z) const override;
 
-    /// See \ref gsMaterialMatrixBase for details (forwarded to the wrapped material)
+    /// See @ref gsMaterialMatrixBase for details (forwarded to the wrapped material)
     gsMatrix<T> eval3D_detF(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
 
     /// Effective tangent C_eff, 9 x (u.cols()*z.rows()), column-major with C_ij = dS_i/dE_j; identical for every \a out
@@ -699,7 +706,7 @@ public:
     gsMatrix<T> eval3D_CauchyStress(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
     using Base::eval3D_CauchyStress;
 
-    /// Same as \ref eval3D_CauchyStress
+    /// Same as @ref eval3D_CauchyStress
     gsMatrix<T> eval3D_CauchyVector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput out) const override;
 
     /// Ascending eigenvalues (2 rows) of (1/J) g_cov S_eff^con, g_cov the deformed metric
@@ -748,6 +755,15 @@ protected:
     /// Geometry-path driver: one result per column colIdx = j*u.cols()+k (point k, fibre j)
     std::vector<detail_tftsplit::WrinkleResult<T>> _evalCore(const index_t patch, const gsMatrix<T> & u,
                                                              const gsMatrix<T> & z, bool needTangent, bool needEnergy = false) const;
+
+    /// Core shared by wrinkle() (\a Checked = true) and the evaluation drivers (\a Checked = false).
+    /// With \a Checked = false the option and provider preconditions of wrinkle() are the caller's responsibility
+    /// and are asserted only in debug builds. Parameters as for wrinkle()
+    template <bool Checked>
+    detail_tftsplit::WrinkleResult<T> _wrinkleCore(const gsMatrix<T> & S, const gsMatrix<T> & C, const gsMatrix<T> & E,
+                                                   const gsMatrix<T> & Gcov, const detail_tftsplit::WrinkleOptions<T> & opt,
+                                                   bool needTangent, const dC_provider & dCdE, const SC_provider & SCatE,
+                                                   const W_provider & WatE, bool needEnergy) const;
 
     /// Prescribed-metric driver
     detail_tftsplit::WrinkleResult<T> _evalCore_C(const gsMatrix<T> & Cmat, const index_t patch,

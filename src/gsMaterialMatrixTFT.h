@@ -209,20 +209,20 @@ inline void principalStressFrame(const gsMatrix<T> & S, const gsMatrix<T> & Gbas
  *
  * The wrinkled stress is the linearised S' = S(E) + gamma C(E) n_1 (Verhelst et al., CMAME 441 (2025)
  * 117955, Eq. 72-73). This is exact for a wrapped law that is linear in E and a first-order Taylor
- * truncation for hyperelastic laws. See \ref gsMaterialMatrixTFTSplit (option Exact) for the
+ * truncation for hyperelastic laws. See @ref gsMaterialMatrixTFTSplit (option Exact) for the
  * non-truncated state and the error order.
  * For linear=false the truncated stress S + gamma C n_1 is not the gradient of an energy for a non-quadratic
  * law: the model is non-variational at O(gamma). The tangent C_wr is the consistent linearisation of that stress
  * (Newton keeps its rate), but it is not symmetric for a non-quadratic law. The asymmetry is O(gamma) and vanishes
  * when the third derivative of W vanishes, i.e. for SvK (and for linear=true). A symmetric (variational) tangent
- * requires the exact model, \ref gsMaterialMatrixTFTSplit with option Exact.
+ * requires the exact model, @ref gsMaterialMatrixTFTSplit with option Exact.
  *
  * Residual stiffness (option Eta, 0 <= Eta <= 1, default 0). With S, C the stress and tangent of the wrapped law and
  * S_wr, C_wr the tension-field stress and (consistent) tangent, the points of the three states carry
  * - taut:     S, C;
  * - wrinkled: S_eff = (1-Eta) S_wr + Eta S and C_eff = (1-Eta) C_wr + Eta C;
  * - slack:    sigma S and sigma C, with sigma = SlackMultiplier if SlackMultiplier > 0, else Eta
- * (Zhang & Kiendl 2026, Eqs. 35 and 40; the same definition as option Eta of \ref gsMaterialMatrixTFTSplit). The
+ * (Zhang & Kiendl 2026, Eqs. 35 and 40; the same definition as option Eta of @ref gsMaterialMatrixTFTSplit). The
  * strain at slack points is scaled by sigma as well; at wrinkled points it is the elastic strain E + gamma n_1 and
  * is not blended (as in gsMaterialMatrixTFTSplit). C_eff is the derivative of S_eff, so the Newton iteration keeps
  * its rate. The state classification and theta, gamma do not depend on Eta.
@@ -238,7 +238,7 @@ inline void principalStressFrame(const gsMatrix<T> & S, const gsMatrix<T> & Gbas
  *
  * @tparam     dim   The dimension of the problem (2 = planar, 3 = surface)
  * @tparam     T     Real type
- * @tparam     linear  The wrapped material is linear in E (\ref gsMaterialMatrixLinear). The tangent then
+ * @tparam     linear  The wrapped material is linear in E (@ref gsMaterialMatrixLinear). The tangent then
  *                     has no dC/dE term, and the reference metric is the mid-surface metric at every z.
  *
  * @ingroup    MaterialMatrix
@@ -363,7 +363,7 @@ public:
     /// @param[in]  patch  The patch
     /// @param[in]  u      Evaluation points
     /// @param[in]  z      Evaluation thickness
-    /// @param[in]  out    (passed to \ref eval3D_stress)
+    /// @param[in]  out    (passed to @ref eval3D_stress)
     ///
     /// @return     2 x (u.cols()*z.rows()) matrix
     ///

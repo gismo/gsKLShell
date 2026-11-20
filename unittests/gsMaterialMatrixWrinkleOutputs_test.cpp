@@ -626,6 +626,10 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
         }
     }
 
+    /// Property: at a taut point S_eff is the wrapped stress, so the decorator's principal frame equals the wrapped
+    /// material's own frame up to the sign of the eigenvectors, and the normal exactly (helper WOTautWrappedCase: NH comp and
+    /// SvK, 2D and 3D, TFT and Split). 1e-10 on the eigenvectors: two eigen-solves of nominally the same stress. 1e-12 on the
+    /// normal: no solve is involved.
     TEST(Frame_taut_matches_wrapped)
     {
         WOTautWrappedCase<2>(WOMatNHComp);
@@ -674,6 +678,12 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
         }
     }
 
+    /// Property: the wrinkle direction of an affine wrinkled state equals the analytic Q R e1 (mapped to the deformed plane in
+    /// 3D), is a unit vector tangent to the surface, and differs from the reference-basis direction (helper
+    /// WOWrinkleDirCase: NH comp, NH incomp, NH incomp exact (Split only) and SvK, in 2D and 3D, TFT and Split). 1e-14 on
+    /// |d|-1 is normalisation round-off; 1e-12 on tangency is round-off of the dot product with the normal. 1e-8 against the
+    /// analytic direction: theta comes from Split's closed form, accepted at |f| <= 1e-10 |S| + 1e-8 (Smax-Smin), or from
+    /// TFT's root finder (bisection to 1e-6, then Newton to 1e-8). refDiff > 1e-2 is a non-vacuity threshold.
     TEST(WrinkleDir_analytic_affine)
     {
         WOWrinkleDirCase<2,false>(WOMatNHComp,false,"NH comp");
@@ -879,6 +889,10 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
         }
     }
 
+    /// Property: the wrinkle intensity at an affine wrinkled point equals max(0,-E_min) = (1-lam2^2)/2, for the skewed and
+    /// the identity reference Jacobian (helper WOIntensityCase: NH comp, NH incomp, SvK, NH incomp exact and NH comp with
+    /// Eta 1e-3, in 2D and 3D). Oracle: closed-form principal strain of the metric pencil, no iterative solve, hence 1e-12.
+    /// expected > 0.2 is a non-vacuity threshold (the state is genuinely wrinkled).
     TEST(WrinkleIntensity_analytic)
     {
         const gsMatrix<real_t> Jrefs[2] = { WOSkewedJref(), WOIdentity2() };
@@ -946,6 +960,10 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
         }
     }
 
+    /// Property: gamma-hat equals gamma n^T G^{-1} n, checked against two oracles (helper WOGammaHatCase, NH comp, NH incomp
+    /// and NH incomp exact, 2D and 3D): the non-zero eigenvalue of the pencil (E'-E, G), which uses neither theta nor gamma,
+    /// and the definition with the decorator's own theta and gamma. 1e-10 on the pencil oracle: the returned E' carries the
+    /// theta and exact-solve error. 1e-12 on the definition: same theta and gamma, so only arithmetic differs.
     TEST(GammaHat_definition)
     {
         WOGammaHatCase<2>(WOMatNHComp,false);
@@ -993,6 +1011,11 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
         }
     }
 
+    /// Property: the same Cartesian state under the identity and the skewed reference parametrisation gives the same
+    /// gamma-hat, intensity and wrinkle direction, while gamma itself changes (helper WOParametrisationCase, 2D and 3D, both
+    /// decorators). Oracle: the invariance of surface quantities under reparametrisation. 1e-8 for gamma-hat and the
+    /// direction: two independent theta solves; 1e-12 for the intensity: closed form. gDiff > 1e-2 is a non-vacuity
+    /// threshold showing that the parametrisation changes gamma.
     TEST(GammaHat_parametrisation_invariant)
     {
         WOParametrisationCase<2>();
@@ -1022,6 +1045,8 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
             return;
         gsInfo << "  dim " << dim << ", " << label << ": state " << state << ", |wrinkleDir| " << d.cwiseAbs().maxCoeff() << ", intensity " << I(0,0)
                << ", gammaHat " << gh(0,0) << ", theta " << th(0,0) << ", gamma " << ga(0,0) << "\n";
+        // Exact by construction: the direction and intensity are set to zero, not computed, where the criterion state is
+        // not wrinkled (TFT: result.setZero() filled only at state 0; Split: T(0) / setZero() where the state is not 0)
         CHECK(d.cwiseAbs().maxCoeff() == 0);
         CHECK(I(0,0) == 0);
         CHECK(std::isnan(gh(0,0)));
@@ -1071,8 +1096,16 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
         return def;
     }
 
+    /// Property: at non-wrinkled points the wrinkle direction and intensity are exactly zero, gamma-hat, theta and gamma are
+    /// NaN, and the principal frame stays orthonormal (helper WOCheckNonWrinkled; frame tolerance 1e-12 there). Oracle: the
+    /// documented output conventions, not a computed value. Covers a taut point (2D and 3D, with a negative minor strain so a
+    /// missing state gate on the intensity would show), a slack point under four (Eta, SlackMultiplier) pairs, the S2crit
+    /// display threshold (the outputs follow the criterion state, not the displayed one) and a mixed multi-point pair with
+    /// wrinkled and other columns. The unit norm of the direction at wrinkled columns is checked to 1e-14 (round-off of a
+    /// normalised vector); the exact zeros at the other columns are compared exactly (see below).
     TEST(Outputs_nonwrinkled_conventions)
     {
+        // Slack points: (Eta, SlackMultiplier) pairs covering both regularisation switches
         const real_t eta[4] = { 0, 1e-3, 0, 1e-3 }, slack[4] = { 0, 0, 0.25, 0.25 };
         const real_t pi = static_cast<real_t>(EIGEN_PI);
         const gsVector<real_t> pt = WOPoint();
@@ -1082,6 +1115,7 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
         gsInfo << "  taut stretches (" << taut.lam1 << "," << taut.lam2 << "): E_min = " << WOEmin(taut) << "\n";
         CHECK(WOEmin(taut) < 0);
 
+        // Taut fixtures in 2D and 3D, both decorators: state 1
         {
             WOFixture<2,false> fx(WOMatNHIncomp,WOSkewedJref(),taut.lam1,taut.lam2,pi/6,0.4);
             for (index_t c = 0; c!=2; ++c)
@@ -1092,6 +1126,7 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
             for (index_t c = 0; c!=2; ++c)
                 WOCheckNonWrinkled<3>((std::string("taut ") + WOName(c)).c_str(),*fx.decorator(c),fx.mp,pt,1);
         }
+        // Slack fixtures in 2D and 3D under each (Eta, SlackMultiplier) pair, both decorators: state -1
         for (index_t v = 0; v!=4; ++v)
         {
             WOFixture<2,false> f2(WOMatNHComp,WOSkewedJref(),sl.lam1,sl.lam2,pi/6,0.4);
@@ -1110,6 +1145,7 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
             }
         }
 
+        // S2crit lowered: the point is displayed taut but the outputs stay those of a wrinkled point
         WOS2critCase<2>();
         WOS2critCase<3>();
 
@@ -1154,6 +1190,8 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
                 }
                 else
                 {
+                    // Exact by construction: the direction and intensity are set to zero, not computed, at columns whose
+                    // criterion state is not wrinkled
                     ++other;
                     CHECK(d.col(col).cwiseAbs().maxCoeff() == 0);
                     CHECK(I(0,col) == 0);
@@ -1265,6 +1303,13 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
                << "; deformed-metric pencil " << tmu.transpose() << "\n";
     }
 
+    /// Property: at a wrinkled point the TFT principal stress, Cauchy stress and principal Cauchy stress follow the modified
+    /// stress S' = S + gamma C n1, and at a taut point they equal the wrapped material's outputs (helper WOModifiedStressCase,
+    /// NH comp and NH incomp). Oracles: generalized eigenvalues of the metric pencils built in the test from S' and the
+    /// metrics, and the wrapped material's own single-point stress. 1e-12: the same S' goes through a direct eigen-solve, so
+    /// only round-off differs. 1e-8 on the minor principal values: they vanish only to the accuracy of theta. The thresholds
+    /// pContrast < -1e-3 and |Jw^2 - J0^2| > 1e-6 are non-vacuity checks (the unmodified wrapped stress has a negative
+    /// minor value, and for NH comp the Jacobian J_w differs from the kinematic one).
     TEST(TFT_modified_stress_outputs)
     {
         WOModifiedStressCase(WOMatNHComp);
@@ -1374,17 +1419,27 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
         return r;
     }
 
+    /// Property: gsShellStressFunction with the wrinkle stress types 100-104 (wrinkle_theta, _gamma, _dir, _intensity,
+    /// _gamma_hat) has the right target dimension (1,1,3,1,1) and reproduces the decorator's own multi-point output, NaN
+    /// pattern included (helpers WOShellStress and WONaNAwareErr). The function copies the decorator's per-point values, so
+    /// 1e-12 is a round-off budget. At the wrinkled point the direction is also checked against the analytic Q R e1 (1e-8, the
+    /// theta accuracy as in WrinkleDir_analytic_affine) and the intensity against the analytic (1-lam2^2)/2 (1e-12, closed
+    /// form). At the taut point direction and intensity are exact zeros and the other types NaN. The gsMaterialMatrixEvalSingle
+    /// evaluators of the three wrinkle outputs report the right target dimensions and a unit direction (1e-14, round-off).
     TEST(ShellStressFunction_wrinkle_types)
     {
         const real_t pi = static_cast<real_t>(EIGEN_PI);
+        // Fixtures: an affine wrinkled state (NH comp) and an affine taut state (NH incomp), both on the 3D embedded pair
         const WOStateSpec w = WOWrinkledSpec(), ta = WOTautSpec();
         WOFixture<3,false> wrk(WOMatNHComp,WOSkewedJref(),w.lam1,w.lam2,pi/6,0.4);
         WOFixture<3,false> tau(WOMatNHIncomp,WOSkewedJref(),ta.lam1,ta.lam2,pi/6,0.4);
+        // Two evaluation points on the mid-surface (z = 0)
         gsMatrix<real_t> u(2,2), z0(1,2);
         u << 0.5, 0.3,
              0.5, 0.7;
         z0.setZero();
 
+        // For both decorators, both fixtures and every stress type: the function equals the decorator's multi-point output
         for (index_t c = 0; c!=2; ++c)
         {
             WOFixture<3,false> * fixtures[2] = { &wrk, &tau };
@@ -1403,6 +1458,7 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
                     gsInfo << "  " << WOName(c) << ", " << (fi==0 ? "wrinkled" : "taut") << ", stress type " << type << ": difference to the decorator output " << err << "\n";
                     CHECK(err <= 1e-12);
 
+                    // Wrinkled point, type 102: direction against the analytic one, up to sign
                     if (fi==0 && type==102)
                     {
                         for (index_t k = 0; k!=u.cols(); ++k)
@@ -1413,6 +1469,7 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
                             CHECK(dErr <= 1e-8);
                         }
                     }
+                    // Wrinkled point, type 103: intensity against max(0,-E_min) of the affine state
                     if (fi==0 && type==103)
                     {
                         const real_t expected = -WOEmin(w);
@@ -1420,6 +1477,9 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
                         gsInfo << "    intensity vs analytic " << iErr << "\n";
                         CHECK(iErr <= 1e-12);
                     }
+                    // Taut point: no wrinkle, so direction and intensity are zero and the NaN-valued types are NaN everywhere.
+                    // The zeros are exact by construction: the function copies the decorator's per-point output, in which the
+                    // direction and intensity are set to zero (not computed) wherever the criterion state is not wrinkled.
                     if (fi==1)
                     {
                         if (type==102)
@@ -1432,6 +1492,7 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
                 }
             }
 
+            // Single-point evaluators of the three wrinkle outputs on the wrinkled fixture: target dimensions and a unit direction
             gsMaterialMatrixBase<real_t> * dec = wrk.decorator(c);
             gsMatrix<real_t> pt = u.col(0);
             gsMaterialMatrixEvalSingle<real_t,MaterialOutput::WrinkleDir> eDir(0,dec,&wrk.mp_def,WOZ(0));
@@ -1512,6 +1573,15 @@ SUITE(gsMaterialMatrixWrinkleOutputs_test)                 // The suite should h
         CHECK_EQUAL(0,fx.split->numExactReclassified());
     }
 
+    /// Property: with Exact on and Eta = 1e-3, the returned stress is the blend (1-eta) S_w(E') + eta S_w(E) of the wrapped
+    /// material evaluated on its own at the relaxed strain E' and at the unrelaxed strain E (helper WOExactEtaCase). E' is
+    /// pinned independently by the residuals n1.S_w(E') = n2.S_w(E') = 0. The Exact=false twin is the linearised law.
+    /// Tolerances: the exact local solve stops at ExactTol 1e-12 (relative residual) or, when stalled, at ExactStagTol 1e-9
+    /// (defaults of gsMaterialMatrixTFTSplit). The solve error enters through the residual checks (1e-8 of |S_w(E)|). The blend
+    /// check uses the decorator's own E' and S_w, so it tests only the assembly of the blend and the achieved error is
+    /// round-off; the call-site tolS (1e-8 for NH comp, 1e-10 for NH incomp) are budgets above that round-off and not derived
+    /// from the solver tolerances. twinDiffers selects whether the helper asserts that the twin deviates from the blend by more
+    /// than 1e-4; the twin differs for both laws (the 'linearised twin vs blend' print), but the assertion is made for NH incomp only.
     TEST(Exact_eta_independent_value)
     {
         WOExactEtaCase(WOMatNHComp,1e-8,false);

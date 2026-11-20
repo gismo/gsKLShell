@@ -127,11 +127,11 @@ public:
     /// For B = 0 and symmetric A and D, dW/d\f$\varepsilon\f$ and dW/d\f$\kappa\f$ equal the
     /// VectorN and VectorM resultants of eval3D_vector.
     ///
-    /// \param patch the patch index
-    /// \param u     in-plane parametric points (one per column)
-    /// \param z     only z.rows() is used, it sets the output width; the values are ignored
-    /// \param out   ignored
-    /// \returns a 1 x (z.rows()*u.cols()) matrix; column j*u.cols()+k holds W of point k,
+    /// @param patch the patch index
+    /// @param u     in-plane parametric points (one per column)
+    /// @param z     only z.rows() is used, it sets the output width; the values are ignored
+    /// @param out   ignored
+    /// @returns a 1 x (z.rows()*u.cols()) matrix; column j*u.cols()+k holds W of point k,
     ///          identical for every fibre row j
     gsMatrix<T> eval3D_energy(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
     using Base::eval3D_energy;

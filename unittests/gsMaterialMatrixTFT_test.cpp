@@ -16,6 +16,10 @@
 
 using namespace gismo;
 
+SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the same name as the file
+{
+
+namespace {
 
 template<class T>
 class STFTfun : public gsFunction<T>
@@ -269,8 +273,8 @@ private:
     const gsMatrix<T> m_z;
 };
 
-SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the same name as the file
-{
+} // namespace
+
     void MM_CHECK(const index_t material, const index_t impl, const bool Compressibility);
     void TFT_tangent_CHECK(const bool svk);
 
@@ -558,7 +562,7 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         gsMatrix<> strain_MM = materialMatrix->eval3D_strain(0,pt,z);
         CHECK_MATRIX_CLOSE(e,strain_MM,TFT_relTol(e,relTol));
 
-        /// WRINKLED STATE
+        /// Wrinkled state
         CHECK_EQUAL(0,(index_t)materialMatrixTFT->eval3D_tensionfield(0,pt,z,MaterialOutput::Generic)(0,0));
 
         /// MATRIX
@@ -734,11 +738,22 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         }
     }
 
+    /// Tangent of the decorator at a wrinkled point of an affine patch pair, incompressible Neo-Hookean wrapped
+    /// law with the frame rotated by pi/6: eval3D_matrix(MatrixA) must equal the finite-difference Jacobian of the
+    /// truncated stress S + gamma C n1. That stress is computed on the prescribed-metric path by TFTStressStencilFun,
+    /// and every stencil point is asserted wrinkled (oracle: TFT_tangent_CHECK(false)). Further checks: theta is
+    /// the analytic root 2 pi/3 mod pi (tolerance 1e-6, the bisection tolerance of the theta root search), the
+    /// strain equals the analytic one to 1e-10 (round-off), the tangent is not symmetric, and the gamma H term
+    /// contributes. Tolerance 1e-6*max|J_MM|: the 4th-order stencil with fixed h = 1e-5 has truncation O(h^4) and
+    /// cancellation of about eps/h relative (~1e-11), plus the theta root of each stencil point. The 100*tol
+    /// thresholds are non-vacuity guards, not tolerances.
     TEST(TFT_tangent_NH_incomp_orientation)
     {
         TFT_tangent_CHECK(false);
     }
 
+    /// As TFT_tangent_NH_incomp_orientation, for SvK with a skewed reference metric (linear = true), where it is
+    /// additionally checked that the n2^T C n1 term is visible (threshold 0.05, non-vacuity).
     TEST(TFT_tangent_SvK_linear_skewed)
     {
         TFT_tangent_CHECK(true);
@@ -804,8 +819,15 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         CHECK_MATRIX_CLOSE(Sref,Sdec,1e-12*Sref.cwiseAbs().maxCoeff());
     }
 
+    /// A TFT and a TFTSplit decorator (both linear = false) built around a material that has only its undeformed
+    /// geometry receive that geometry (pointer equality in HandOverUndeformed_CHECK), and then evaluate MatrixA and
+    /// VectorN like a decorator whose geometries were set explicitly. The oracle is that second decorator: two
+    /// instances of the same decorator on identical geometry run the same arithmetic, so 1e-12 relative is only
+    /// round-off headroom.
     TEST(TFT_wrapped_material_hands_over_undeformed)
     {
+        // Undeformed square with one control point moved (non-affine map), deformed patch with the y-direction
+        // compressed to 90 percent
         gsMultiPatch<> mp_def;
         mp_def.addPatch( gsNurbsCreator<>::BSplineSquare(1) );
         mp_def.addAutoBoundaries();
@@ -813,12 +835,15 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         mp.patch(0).coefs()(2,0) += 0.1;
         mp_def.patch(0).coefs().col(1) *= 0.9;
 
+        // Control: a bare linear material without undeformed geometry does not acquire one from setDeformed, so
+        // the hand-over below is a property of the decorator, not of setDeformed
         gsMaterialMatrixLinear<2,real_t> bare;
         CHECK(!bare.hasUndeformed());
         bare.setDeformed(&mp_def);
         CHECK(bare.hasDeformed());
         CHECK(!bare.hasUndeformed());
 
+        // Both decorators are checked against an explicitly configured instance of themselves
         HandOverUndeformed_CHECK< gsMaterialMatrixTFT<2,real_t,false> >(mp,mp_def);
         HandOverUndeformed_CHECK< gsMaterialMatrixTFTSplit<2,real_t,false> >(mp,mp_def);
     }
@@ -917,7 +942,12 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         CHECK_EQUAL(Es.cols(),Et.cols());
         CHECK_EQUAL(Ss.cols(),St.cols());
 
-        // z-independence, exact up to rounding of the replicated mid-surface values
+        // z-independence
+        // Exact by construction (linear = true): strain and principal strain replicate the mid-surface values
+        // over all heights, the wrinkle state is computed once per in-plane point and copied, and the taut and
+        // slack stress is the wrapped SvK stress, which reads only mid-surface metrics (strain from the
+        // mid-surface geometry, constitutive tensor from the reference contravariant metric) and is a per-point
+        // copy independent of z. Wrinkled columns use the z = 0 state.
         CHECK_EQUAL(T(0),TFT_zVariation(Et,n,nz));
         CHECK_EQUAL(T(0),TFT_zVariation(St,n,nz));
         CHECK_EQUAL(T(0),TFT_zVariation(Pt,n,nz));
@@ -957,16 +987,27 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         CHECK_MATRIX_CLOSE(split.eval3D_strain(0,u,z1),tft.eval3D_strain(0,u,z1),rel*Es.cwiseAbs().maxCoeff() + tiny);
     }
 
+    /// Linear (SvK) wrapped law on a curved d = 3 surface, wrinkled state (stretches 1.2, 0.8/sqrt(1.2)). With
+    /// linear = true the strain, stress and principal strain of the decorator do not depend on z (exact, no
+    /// tolerance: the reasons are at the site of the checks), the strain and stress equal those of the Split
+    /// decorator at Eta = 0 (the oracle, same mathematics through a different code path), and the block call
+    /// equals the single-point calls (TFT_linear_curved_CHECK). The state is asserted at all 12 columns.
+    /// Tolerance rel = max(1e-12, 100 eps) with a floor at the smallest normal number: the compared quantities
+    /// are the same mathematics through different call sequences (Split vs TFT, block vs single point), so the
+    /// difference is round-off. The 1e-4 threshold on the wrapped strain is a control that the wrapped strain does
+    /// vary with z on this surface, so the z-independence is not vacuous.
     TEST(TFT_linear_curved_reference_wrinkled)
     {
         TFT_linear_curved_CHECK(1.2,0.8/math::sqrt(1.2),0);
     }
 
+    /// Taut state (stretches 1.2, 0.97) of the group above.
     TEST(TFT_linear_curved_reference_taut)
     {
         TFT_linear_curved_CHECK(1.2,0.97,1);
     }
 
+    /// Slack state (stretches 0.95, 0.90) of the group above.
     TEST(TFT_linear_curved_reference_slack)
     {
         TFT_linear_curved_CHECK(0.95,0.90,-1);
@@ -1097,21 +1138,34 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         }
         else
         {
+            // Exact by construction: all columns are taut (asserted above), and taut columns are the wrapped
+            // output, untouched by the decorator for every Eta
             CHECK_EQUAL(T(0),(Ct-C0).cwiseAbs().maxCoeff());
             CHECK_EQUAL(T(0),(S1-S0).cwiseAbs().maxCoeff());
         }
     }
 
+    /// Residual stiffness Eta of the TFT decorator against the Split decorator, wrinkled state (stretches 1.2,
+    /// 0.8/sqrt(1.2)). The oracle is the Split decorator's definition of Eta (Zhang & Kiendl 2026, Eqs. 35 and 40),
+    /// with SlackMultiplier = 0: the tangent is compared at Eta = 0, and tangent, stress and strain at Eta = 1e-3.
+    /// A control (TFT_eta_split_CHECK) shows that Eta changes the tangent and the non-taut stress, and that it
+    /// changes nothing at taut points. Tolerance rel = 1e-12, applied by TFT_eta_CLOSE as max|b-a| <= rel max|a|:
+    /// the two decorators compute the same mathematics through different call sequences, so the gap is round-off
+    /// (plus the theta root of TFT, which enters the tangent to first order). The test prints the measured
+    /// relative gaps; they are at the level of eps in the wrinkled state and zero in the taut and slack states.
+    /// The 1e-6 thresholds of the control are non-vacuity guards, not tolerances.
     TEST(TFT_eta_vs_split_wrinkled)
     {
         TFT_eta_split_CHECK(1.2,0.8/math::sqrt(1.2),0);
     }
 
+    /// Taut state (stretches 1.2, 0.97) of the group above; Eta changes nothing here.
     TEST(TFT_eta_vs_split_taut)
     {
         TFT_eta_split_CHECK(1.2,0.97,1);
     }
 
+    /// Slack state (stretches 0.95, 0.90) of the group above.
     TEST(TFT_eta_vs_split_slack)
     {
         TFT_eta_split_CHECK(0.95,0.90,-1);
@@ -1137,6 +1191,9 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         const T eta = 1e-3;
         s.tft->options().setReal("Eta",eta);
         s.tft->options().setSwitch("EtaTangentOnly",true);
+        // Exact by construction: EtaTangentOnly takes Eta as 0 on the stress and strain path, so the slack factor
+        // is that of the Eta = 0 run and the wrinkle blend is skipped; the strain has no blend at all. Both runs
+        // follow the identical path on identical inputs.
         CHECK_EQUAL(T(0),(s.tft->eval3D_stress(0,s.u,s.z,VN)-S0).cwiseAbs().maxCoeff());
         CHECK_EQUAL(T(0),(s.tft->eval3D_strain(0,s.u,s.z)-E0).cwiseAbs().maxCoeff());
 
@@ -1155,16 +1212,25 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
             CHECK((M-M0).cwiseAbs().maxCoeff() > 1e-6*M.cwiseAbs().maxCoeff());
     }
 
+    /// EtaTangentOnly with Eta = 1e-3, wrinkled state (stretches 1.2, 0.8/sqrt(1.2)): stress and strain stay
+    /// bitwise at their Eta = 0 values and only the tangent is blended. The oracle for the tangent is the
+    /// decorator's definition of the blend (TFT_eta_tangent_only_CHECK): (1-eta) M0 + eta Cb when wrinkled, eta Cb
+    /// when slack and Cb when taut, with M0 the Eta = 0 tangent and Cb the wrapped tangent. Tolerance 1e-14
+    /// relative: expected and actual tangent come from the same one-step blend, and the SvK tangent does not
+    /// depend on z, so only a few ulp remain. The 1e-6 threshold is a non-vacuity guard (the blend changes the
+    /// tangent), not a tolerance. The exact comparisons are explained at their sites.
     TEST(TFT_eta_tangent_only_wrinkled)
     {
         TFT_eta_tangent_only_CHECK(1.2,0.8/math::sqrt(1.2),0);
     }
 
+    /// Taut state (stretches 1.2, 0.97) of the group above: the tangent is the wrapped tangent Cb.
     TEST(TFT_eta_tangent_only_taut)
     {
         TFT_eta_tangent_only_CHECK(1.2,0.97,1);
     }
 
+    /// Slack state (stretches 0.95, 0.90) of the group above: the tangent is eta Cb.
     TEST(TFT_eta_tangent_only_slack)
     {
         TFT_eta_tangent_only_CHECK(0.95,0.90,-1);
@@ -1205,10 +1271,13 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         const gsMatrix<T> Pt = s.tft->eval3D_pstrain(0,s.u,s.z);
 
         // Tangent-only does not touch the strain output
+        // Exact by construction: EtaTangentOnly takes Eta as 0 on the principal-strain path, so the slack factor
+        // is that of the Eta = 0 run (SlackMultiplier is 0 in both) and the code path and inputs are identical
         CHECK_EQUAL(T(0),(Pt-P0).cwiseAbs().maxCoeff());
 
         if (expectedState == 1)
         {
+            // Exact by construction: eval3D_pstrain modifies neither taut nor wrinkled columns for any Eta
             CHECK_EQUAL(T(0),(Pd-P0).cwiseAbs().maxCoeff());
             const gsMatrix<T> Ps = s.split->eval3D_pstrain(0,s.u,s.z);
             TFT_eta_CLOSE(Ps.topRows(2),Pd.topRows(2),rel);
@@ -1216,6 +1285,8 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         else if (expectedState == -1)
         {
             // slack factor Eta with SlackMultiplier = 0; zero at Eta = 0
+            // Exact by construction: at Eta 0 with SlackMultiplier 0 the slack factor is 0, so each column is
+            // 0 times a finite value
             CHECK_EQUAL(T(0),P0.cwiseAbs().maxCoeff());
             CHECK(Pd.cwiseAbs().maxCoeff() > 1e-6*TFT_eta_maxAbs(Pw));
             const gsMatrix<T> Ps = s.split->eval3D_pstrain(0,s.u,s.z);
@@ -1224,22 +1295,35 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         }
         else
         {
+            // Exact by construction: eval3D_pstrain modifies neither taut nor wrinkled columns, and Pw is the
+            // same wrapped eval3D_pstrain call the decorator makes, replicated over z
             CHECK_EQUAL(T(0),(Pd-P0).cwiseAbs().maxCoeff());
             CHECK_EQUAL(T(0),(Pd-Pw).cwiseAbs().maxCoeff());
             CHECK(P0.cwiseAbs().maxCoeff() > 0);
         }
     }
 
+    /// Principal strains of the decorator at Eta = 1e-3 (default and tangent-only variants, SlackMultiplier = 0) in
+    /// the wrinkled state (stretches 1.2, 0.8/sqrt(1.2)): the wrapped law's own principal strain, unmodified by
+    /// either variant. Oracle (TFT_eta_pstrain_CHECK): the Eta = 0 output of the decorator, and the wrapped law's
+    /// eval3D_pstrain at the mid-surface. The slack and taut states are covered by the two TESTs below. The
+    /// comparisons with the Split decorator use rel = 1e-12: same mathematics through different call sequences,
+    /// so the difference is round-off. The 1e-14 comparison of eta*Pw with the slack output is one multiplication
+    /// by the same factor, and 1e-6 only guards against a vacuous zero output. The exact comparisons are
+    /// explained at their sites.
     TEST(TFT_eta_pstrain_wrinkled)
     {
         TFT_eta_pstrain_CHECK(1.2,0.8/math::sqrt(1.2),0);
     }
 
+    /// Taut state (stretches 1.2, 0.97) of the group above: principal strains untouched by Eta, equal to Split.
     TEST(TFT_eta_pstrain_taut)
     {
         TFT_eta_pstrain_CHECK(1.2,0.97,1);
     }
 
+    /// Slack state (stretches 0.95, 0.90) of the group above: principal strains scaled by eta, equal to Split and
+    /// to eta times the wrapped mid-surface principal strain.
     TEST(TFT_eta_pstrain_slack)
     {
         TFT_eta_pstrain_CHECK(0.95,0.90,-1);
@@ -1395,6 +1479,9 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
             tft0.options().setSwitch("EtaTangentOnly",true);
             const gsMatrix<> S = tft.eval3D_stress(0,pt,z,VN);
             CHECK(S.cwiseAbs().maxCoeff() > 0);
+            // Exact by construction: both decorators have Eta 0 on every path (EtaTangentOnly takes Eta as 0 on
+            // the stress and strain path), so the slack factor is the same and no wrinkle blend is applied. They
+            // are history-free instances on the same wrapped material and geometry, hence run identical arithmetic.
             CHECK_EQUAL(T(0),(tft0.eval3D_stress(0,pt,z,VN)-S).cwiseAbs().maxCoeff());
             CHECK_EQUAL(T(0),(tft0.eval3D_matrix(0,pt,z,MA)-tft.eval3D_matrix(0,pt,z,MA)).cwiseAbs().maxCoeff());
             CHECK_EQUAL(T(0),(tft0.eval3D_strain(0,pt,z)-tft.eval3D_strain(0,pt,z)).cwiseAbs().maxCoeff());
@@ -1464,23 +1551,39 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         CHECK_MATRIX_CLOSE(J_FD,J_MM,tol);
     }
 
+    /// Consistent tangent of the decorator with residual stiffness, linear (SvK) wrapped law, on an affine d = 2
+    /// patch pair in the wrinkled state, at Eta = 0.1 (default variant): eval3D_matrix must equal the Jacobian of
+    /// the decorator's own VectorN stress with respect to the deformed metric (helper TFT_eta_affine_CHECK<true>).
+    /// The oracle is the test's own 4th-order central-difference stencil, h = 1e-5, with the perturbed metrics
+    /// realised by Cholesky-factor geometries; every stencil point is asserted to be wrinkled. Tolerance
+    /// 1e-6*max|J_MM|: the stencil has truncation O(h^4) and cancellation of about eps/h relative (~1e-11), plus
+    /// the theta root of each stencil point (root-search tolerance 1e-6 at worst). The Cholesky geometry
+    /// reproduces the metric to square-root round-off, hence 1e-10 for the stress comparison. The 100*tol and
+    /// 1e-3 thresholds only show that the blend and the stress change are visible, they are not tolerances.
     TEST(TFT_eta_tangent_FD_SvK_linear)
     {
         TFT_eta_affine_CHECK<true>(false);
     }
 
+    /// As TFT_eta_tangent_FD_SvK_linear, for the Neo-Hookean incompressible wrapped law (TFT_eta_affine_CHECK<false>).
     TEST(TFT_eta_tangent_FD_NH_incomp)
     {
         TFT_eta_affine_CHECK<false>(false);
     }
 
+    /// Eta = 0 with EtaTangentOnly set must reproduce a default decorator bit for bit: stress, tangent, strain and
+    /// principal strain on the three curved d = 3 SvK states (wrinkled, taut, slack), and stress, tangent and
+    /// strain on the two affine d = 2 states (TFT_eta_affine_CHECK with zeroOnly). The oracle is the default
+    /// decorator itself, so no tolerance is involved: both run the same arithmetic.
     TEST(TFT_eta_zero_is_default)
     {
         const MaterialOutput MA = MaterialOutput::MatrixA;
         const MaterialOutput VN = MaterialOutput::VectorN;
+        // Per state: the two stretches of TFT_curved_setup and the expected wrinkle state (0 wrinkled, 1 taut, -1 slack)
         const real_t st[3][3] = { {1.2, 0.8/math::sqrt(1.2), 0}, {1.2, 0.97, 1}, {0.95, 0.90, -1} };
         for (index_t i=0; i!=3; ++i)
         {
+            // Second decorator on the same wrapped material and geometry as s.tft, with Eta = 0 and EtaTangentOnly
             TFT_curved_setup s(st[i][0],st[i][1]);
             gsMaterialMatrixTFT<3,real_t,true> tft0(s.wrapped.get());
             tft0.setUndeformed(&s.ref);
@@ -1488,11 +1591,16 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
             tft0.options().setReal("Eta",0);
             tft0.options().setSwitch("EtaTangentOnly",true);
             CHECK_EQUAL((index_t)st[i][2],(index_t)s.tft->eval3D_tensionfield(0,s.u,s.z)(0,0));
+            // Exact by construction: both decorators have Eta 0 on the stress, strain and principal-strain path
+            // (EtaTangentOnly takes Eta as 0 there) and Eta 0 on the tangent, so the slack factor is the same
+            // and no wrinkle blend is applied. They are history-free instances on the same wrapped material
+            // and geometry, hence run identical arithmetic.
             CHECK_EQUAL(0.0,(tft0.eval3D_stress(0,s.u,s.z,VN)-s.tft->eval3D_stress(0,s.u,s.z,VN)).cwiseAbs().maxCoeff());
             CHECK_EQUAL(0.0,(tft0.eval3D_matrix(0,s.u,s.z,MA)-s.tft->eval3D_matrix(0,s.u,s.z,MA)).cwiseAbs().maxCoeff());
             CHECK_EQUAL(0.0,(tft0.eval3D_strain(0,s.u,s.z)-s.tft->eval3D_strain(0,s.u,s.z)).cwiseAbs().maxCoeff());
             CHECK_EQUAL(0.0,(tft0.eval3D_pstrain(0,s.u,s.z)-s.tft->eval3D_pstrain(0,s.u,s.z)).cwiseAbs().maxCoeff());
         }
+        // Same property on the affine d = 2 states, for the nonlinear (NH incompressible) and linear (SvK) wrapped law
         TFT_eta_affine_CHECK<false>(true);
         TFT_eta_affine_CHECK<true>(true);
     }
@@ -1663,11 +1771,16 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         const gsMatrix<T> W0 = s.tft->eval3D_energy(0,s.u,s.z);
         CHECK_EQUAL(1,W0.rows());
         CHECK_EQUAL(Ww.cols(),W0.cols());
+        // Exact by construction: the decorator evaluates the same wrapped
+        // eval3D_energy(VectorN) call as above, taut columns are not modified for any option, and the decorator
+        // ignores its output-type argument, so the Generic call is the same call
         CHECK_EQUAL(T(0),(W0-Ww).cwiseAbs().maxCoeff());
 
         TFT_energy_options(s,0.1,1e-3,false);
+        // Exact by construction: as above, with residual stiffness set
         CHECK_EQUAL(T(0),(s.tft->eval3D_energy(0,s.u,s.z)-Ww).cwiseAbs().maxCoeff());
         TFT_energy_options(s,0.1,0,true);
+        // Exact by construction: as above, with EtaTangentOnly and the Generic output type
         CHECK_EQUAL(T(0),(s.tft->eval3D_energy(0,s.u,s.z,MaterialOutput::Generic)-Ww).cwiseAbs().maxCoeff());
     }
 
@@ -1704,6 +1817,9 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
             CHECK_EQUAL(Ww.cols(),W.cols());
             if (cases[i].sigma == 0)
             {
+                // Exact by construction: the slack factor is 0 in these cases (Eta 0 and SlackMultiplier 0, or
+                // EtaTangentOnly which takes Eta as 0 on the stress and energy path), so each slack column is
+                // 0 times a finite value
                 CHECK_EQUAL(T(0),W.cwiseAbs().maxCoeff());
                 CHECK_EQUAL(T(0),St.cwiseAbs().maxCoeff());
             }
@@ -1762,36 +1878,51 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         }
     }
 
+    /// Energy of the decorator in the taut state (stretches 1.2, 0.97) on a curved d = 3 surface with a linear
+    /// (SvK) wrapped law. The oracle is the wrapped law's own VectorN energy (TFT_energy_taut_CHECK): taut columns
+    /// are never modified by the decorator, so the energy equals it column for column for every option set. The
+    /// comparison is exact (no tolerance), see the comments in the helper.
     TEST(TFT_energy_taut_linear)
     {
         TFT_curved_setup s(1.2,0.97);
         TFT_energy_taut_CHECK(s);
     }
 
+    /// Energy of the decorator in the slack state (stretches 0.95, 0.90), linear wrapped law. The oracle is the
+    /// slack factor sigma (table of six option cases in TFT_energy_slack_CHECK) times the wrapped energy, and the
+    /// same factor on the stress, so W = sigma W_wrapped and S = sigma S_wrapped. The sigma = 0 cases are exact;
+    /// otherwise the tolerance is 1e-14 relative, since one multiplication by the same sigma leaves only a few ulp.
     TEST(TFT_energy_slack_linear)
     {
         TFT_curved_setup s(0.95,0.90);
         TFT_energy_slack_CHECK(s);
     }
 
+    /// Energy of the decorator in the wrinkled state (stretches 1.2, 0.8/sqrt(1.2)), linear wrapped law. The
+    /// energy of a wrinkled column is undefined and the decorator returns NaN in every column, with and without
+    /// residual stiffness, while the wrapped energy is finite (TFT_energy_wrinkled_CHECK). No numerical tolerance.
     TEST(TFT_energy_wrinkled_linear)
     {
         TFT_curved_setup s(1.2,0.8/math::sqrt(1.2));
         TFT_energy_wrinkled_CHECK(s);
     }
 
+    /// Taut state (stretches 1.2, 0.97) of TFT_energy_taut_linear, with the Neo-Hookean incompressible wrapped law.
     TEST(TFT_energy_taut_nonlinear)
     {
         TFT_energy_curved_NH_setup s(1.2,0.97);
         TFT_energy_taut_CHECK(s);
     }
 
+    /// Slack state (stretches 0.95, 0.90) of TFT_energy_slack_linear, with the Neo-Hookean incompressible wrapped law.
     TEST(TFT_energy_slack_nonlinear)
     {
         TFT_energy_curved_NH_setup s(0.95,0.90);
         TFT_energy_slack_CHECK(s);
     }
 
+    /// Wrinkled state (stretches 1.2, 0.8/sqrt(1.2)) of TFT_energy_wrinkled_linear, with the Neo-Hookean
+    /// incompressible wrapped law.
     TEST(TFT_energy_wrinkled_nonlinear)
     {
         TFT_energy_curved_NH_setup s(1.2,0.8/math::sqrt(1.2));
@@ -1822,6 +1953,7 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
                 CHECK_EQUAL(state[k],(index_t)TF(0,c));
                 CHECK(Ww(0,c) > 0);
                 if (state[k] == 1)
+                    // Exact by construction: a taut column is the wrapped VectorN energy, untouched by the decorator
                     CHECK_EQUAL(T(0),math::abs(W(0,c)-Ww(0,c)));
                 else if (state[k] == -1)
                     CHECK_CLOSE(sigma*Ww(0,c),W(0,c),1e-14*Ww(0,c));
@@ -1839,6 +1971,9 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         TFT_energy_state_CHECK(s,1);
         TFT_energy_shape_CHECK(s);
         const gsMatrix<real_t> W = s.tft->eval3D_energy(0,s.u,s.z);
+        // Exact by construction: all columns are taut, and the wrapped SvK energy reads only mid-surface metrics
+        // (strain from the mid-surface geometry, constitutive tensor from the reference contravariant metric), so
+        // it is a copy of the same value at every z
         CHECK_EQUAL(real_t(0),TFT_zVariation(W,s.u.cols(),s.z.rows()));
     }
 
@@ -1853,6 +1988,8 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         TFT_energy_shape_CHECK(s);
         const gsMatrix<T> W  = s.tft->eval3D_energy(0,s.u,s.z);
         const gsMatrix<T> Ww = s.wrapped->eval3D_energy(0,s.u,s.z,MaterialOutput::VectorN);
+        // Exact by construction: all columns are taut, where the decorator returns the output of the very same
+        // wrapped eval3D_energy call made above, without modifying it
         CHECK_EQUAL(T(0),(W-Ww).cwiseAbs().maxCoeff());
         CHECK(TFT_zVariation(W,s.u.cols(),s.z.rows()) > 0);
     }
@@ -1966,12 +2103,21 @@ SUITE(gsMaterialMatrixTFT_test)                 // The suite should have the sam
         tft.setDeformed(&mp_def);
     }
 
+    /// Energy-stress consistency of the decorator with a linear (SvK) wrapped law: along a metric path
+    /// G(t) = G0 + t dG, dW/dt must equal S : dE/dt. The oracle is the test's own 4th-order central-difference
+    /// stencil of W(G(t)) against the analytic directional derivative built from the decorator's stress
+    /// (helper TFT_energy_FD_CHECK<true>). It is checked in the taut state and in the slack state with two
+    /// nonzero slack factors (Eta 0.1, or SlackMultiplier 1e-3), the state being asserted at every stencil point.
+    /// Tolerance 1e-6*scale with scale = max|S|*max|dE|: the stencil has truncation O(h^4) and cancellation of
+    /// about eps/h relative at h = 1e-5, so ~1e-11 of the scale, five orders below the tolerance. The 1e-3*scale
+    /// threshold in the helper only guards against a vacuous (zero) derivative.
     TEST(TFT_energy_FD_linear)
     {
         TFT_energy_FD_CHECK<true>(false);
         TFT_energy_FD_CHECK<true>(true);
     }
 
+    /// As TFT_energy_FD_linear, for the Neo-Hookean incompressible wrapped law (TFT_energy_FD_CHECK<false>).
     TEST(TFT_energy_FD_nonlinear)
     {
         TFT_energy_FD_CHECK<false>(false);

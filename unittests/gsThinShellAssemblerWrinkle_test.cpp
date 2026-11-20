@@ -70,6 +70,15 @@ SUITE(gsThinShellAssemblerWrinkle_test)                 // The suite should have
         return zmat;
     }
 
+    /// Saves the format flags and precision of gsInfo and restores them on scope exit
+    struct WPStreamState
+    {
+        WPStreamState() : flags(gsInfo.flags()), precision(gsInfo.precision()) { }
+        ~WPStreamState() { gsInfo.flags(flags); gsInfo.precision(precision); }
+        std::ios_base::fmtflags flags;
+        std::streamsize precision;
+    };
+
     /// Wrinkling law options of the benchmark: exact solve on, tension-field criterion 2
     static void WPconfigure(gsMaterialMatrixTFTSplit<2,real_t,false> * split)
     {
@@ -210,11 +219,14 @@ SUITE(gsThinShellAssemblerWrinkle_test)                 // The suite should have
             return r;
         }
 
-        /// Newton iteration x += K^{-1} r with the given linear solve; \a solve(K,r,k) returns the update of step k
+        /// Newton iteration x += K^{-1} r with the given linear solve; \a solve(K,r,k) returns the update of step k.
+        /// Stops at |r_k| <= 1e-10 |r_0|: ten orders of residual reduction, far below the 1e-3 perturbation of the start and
+        /// above the round-off floor of the assembly; maxIt = 20 is a safety cap (a converging run needs about 3 steps).
         WPNewton newton(const gsVector<real_t> & x0,
                         const std::function<gsVector<real_t>(const gsSparseMatrix<real_t> &, const gsVector<real_t> &, index_t)> & solve,
                         const std::string & label)
         {
+            const WPStreamState streamState;
             const index_t maxIt = 20;
             WPNewton res;
             res.x = x0;
@@ -247,9 +259,17 @@ SUITE(gsThinShellAssemblerWrinkle_test)                 // The suite should have
         }
     };
 
+    /// Property: (a) the membrane has 32 free DoFs; (b) at the perturbed state every Gauss node is wrinkled (displayed state
+    /// 0) with a finite gamma > 0. Oracle for (b): the file header's argument that the affine state is wrinkled everywhere
+    /// (l1^(-1/2) = 0.816 > l2); the 1e-3 bump in dispPerturbed is small against that margin and keeps it so.
     TEST(Wrinkled_state_and_dof_count)
     {
         WrinklePatch wp;
+        // 32 free DoFs: BSplineSquare(1) is the bilinear unit square (degree 1, 2x2 coefficients); degreeElevate(1) makes it
+        // degree 2 (3x3) and two uniformRefine() calls give 4 elements and 6 functions per direction, so 36 per displacement
+        // component. All four sides are Dirichlet for both components, which removes the 20 boundary functions and leaves
+        // (6-2)^2 = 16 interior functions per component. The membrane gsThinShellAssembler<2,real_t,false> has 2 components:
+        // 2 x 16 = 32.
         CHECK_EQUAL(32,wp.assembler->numDofs());
 
         // Perturbed state: the minor stress is strongly negative, so every Gauss point is wrinkled
@@ -263,6 +283,8 @@ SUITE(gsThinShellAssemblerWrinkle_test)                 // The suite should have
             const gsMatrix<real_t> u = wp.nodes.col(k);
             const real_t state = wp.split2->eval3D_tensionfield(0,u,WPZ(0),MaterialOutput::Generic)(0,0);
             const real_t gamma = wp.split2->eval3D_gamma(0,u,WPZ(0),MaterialOutput::Generic)(0,0);
+            // Exact by construction: eval3D_tensionfield returns the state code (-1 slack, 0 wrinkled, 1 taut), an integer
+            // held in a real_t
             if (state != 0)
                 ++nBadState;
             if (!(math::isfinite(gamma) && gamma > 0))
@@ -274,9 +296,14 @@ SUITE(gsThinShellAssemblerWrinkle_test)                 // The suite should have
         CHECK_EQUAL(0,nBadGamma);
     }
 
-    // (i) material point on the affine, exactly wrinkled state
+    /// Property: (i) at the exact affine state, the wrinkle intensity gamma and the returned stress at every Gauss node equal
+    /// the closed forms WPgammaRef() and WPstressRef() of the file header (items 1-4), in exact mode with Eta 1e-6.
+    /// The affine geometry is reproduced exactly by the degree-2 spline, so the state at the nodes is exactly affine. The 1e-9
+    /// relative tolerance is set at the exact local solve's stall acceptance ExactStagTol (1e-9; ExactTol is 1e-12), the
+    /// loosest residual the solve may return; the achieved errors are about 4e-15 (gamma) and 3e-15 (stress), far below it.
     TEST(Material_point_affine_state)
     {
+        const WPStreamState streamState;
         WrinklePatch wp;
         const gsMultiPatch<real_t> aff = wp.affineDeformed();
         wp.split2->setDeformed(&aff);
@@ -301,9 +328,16 @@ SUITE(gsThinShellAssemblerWrinkle_test)                 // The suite should have
         CHECK(maxStressErr <= 1e-9);
     }
 
-    // (ii) symmetry and finite-difference consistency of the tangent at the perturbed state
+    /// Property: (ii) the assembled tangent K at the perturbed state is symmetric, and K v matches central differences of the
+    /// residual in 3 seeded random directions (K is the derivative of the residual, so the FD quotient is an independent
+    /// oracle for it). In exact mode the stress derives from the energy W_eff, so K is a Hessian and symmetric up to
+    /// round-off of the assembly (the opposite case, linear=false with Exact off, is not a gradient, see
+    /// gsMaterialMatrixTFTSplit.h); symmetry 1e-12 is a round-off budget (achieved 5e-17). FD tolerance 5e-6 (step h = 1e-6,
+    /// central): the truncation error is O(h^2) and the quotient also carries round-off of the residual divided by h; the
+    /// achieved error is about 6e-11, so 5e-6 is a budget well above both.
     TEST(Tangent_perturbed_state)
     {
+        const WPStreamState streamState;
         WrinklePatch wp;
         const index_t n = wp.assembler->numDofs();
         const gsVector<real_t> x0 = wp.assembler->constructSolutionVector(wp.dispPerturbed);
@@ -333,9 +367,23 @@ SUITE(gsThinShellAssemblerWrinkle_test)                 // The suite should have
         }
     }
 
-    // (iii) Newton with LU, (iv) Newton with CGDiagonal, (v) reaction force, and the material counters
+    /// Property: (iii) Newton with a direct LU solve converges from the perturbed state to the affine equilibrium of the file
+    /// header, quadratically; (iv) Newton with CGDiagonal converges in at most 2 more steps than LU; (v) the east-side
+    /// reaction equals the closed form -t l1 S_eff^11 (header); the material takes no exact-solve fallback, no reclassification
+    /// and no theta fallback along the way.
+    /// Tolerances: Newton stops at 1e-10 relative (newton()). iterations <= 8 is a budget for a quadratically converging
+    /// Newton from a 1e-3 perturbation (3 are needed). The contraction ratio |r_{k+1}|/|r_k| <= 0.1 is asserted only inside
+    /// the window 1e-9 < |r_k|/|r_0| <= 1e-2: linear contraction keeps a roughly constant ratio, which the cap rejects
+    /// when it is above 0.1, while quadratic contraction gives a ratio that shrinks with |r_k| (observed 1.6e-6 and 1.4e-4);
+    /// below 1e-9 the steps near the 1e-10 stop are round-off dominated and above 1e-2 they are
+    /// pre-asymptotic. dispErrLU 1e-8 is the 1e-10 residual stop times a budget for the conditioning of K (achieved 5e-16,
+    /// since the last Newton step lands far below the stop). The CG tolerance 1e-10 matches the Newton stop, 20*n caps the
+    /// iterations, and the +2 allows for the inexact CG solve. The reaction 1e-6 is a budget for the boundary-force
+    /// quadrature (achieved relative error below 1e-15; the transverse component is of the order 1e-13 against 1.6e3).
     TEST(Newton_LU_CG_reaction_counters)
     {
+        // Setup: perturbed start, affine target, and counters cleared so that only the runs below are counted
+        const WPStreamState streamState;
         WrinklePatch wp;
         const index_t n = wp.assembler->numDofs();
         const gsVector<real_t> x0   = wp.assembler->constructSolutionVector(wp.dispPerturbed);

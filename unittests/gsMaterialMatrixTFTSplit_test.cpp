@@ -372,6 +372,8 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
                     CHECK(Seff.allFinite());
                     CHECK(Ceff.allFinite());
                     CHECK(Sw.cwiseAbs().maxCoeff() > 0);
+                    // exact by construction: at a slack point the core returns sigma*(S,E,C,W) with sigma =
+                    // SlackMultiplier>0 ? SlackMultiplier : Eta = 0 here, i.e. 0 times a finite number = +-0.
                     CHECK(Seff.cwiseAbs().maxCoeff() == 0);
                     CHECK(Ceff.cwiseAbs().maxCoeff() == 0);
                 }
@@ -391,21 +393,33 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
             }
     }
 
+    /// Prescribed-metric tangent eval3D_matrix_C of SvK against the transposed finite-difference Jacobian of
+    /// eval3D_vector_C (helper SplitFDCheck; wrinkled, taut and slack states, eta in {0,1e-3}). The FD is the
+    /// fourth-order 5-point stencil of gsFunction::deriv_into with fixed step 1e-5. The tolerance 1e-6 is for that
+    /// stencil alone: for the linear law the decorator adds no dC/dE term. Observed error up to about 1e-11.
     TEST(FD_C_SvK)
     {
         SplitFDCheck<true>(SplitMatSvK,1e-6);
     }
 
+    /// Same check for compressible neo-Hooke (oracle in SplitFDCheck). tolerance 1e-4: for a nonlinear law the
+    /// tangent contains a dC/dE term computed by central differences inside the decorator, which limits the
+    /// agreement with the FD of the stress; observed error up to about 3.4e-9.
     TEST(FD_C_NH_Comp)
     {
         SplitFDCheck<false>(SplitMatNHComp,1e-4);
     }
 
+    /// Same check for incompressible neo-Hooke (oracle in SplitFDCheck); tolerance 1e-4 has the same origin as for
+    /// the compressible case (internal central-difference dC/dE); observed error up to about 4.7e-9.
     TEST(FD_C_NH_Incomp)
     {
         SplitFDCheck<false>(SplitMatNHIncomp,1e-4);
     }
 
+    /// Same check for incompressible Mooney-Rivlin (oracle in SplitFDCheck; tolerance 1e-4 as for neo-Hooke,
+    /// observed error up to about 4.8e-9), plus a check that the MR and NH stresses at the same metric differ by
+    /// more than 1e-3 relative, which shows the material id took effect.
     TEST(FD_C_MR_Incomp)
     {
         SplitFDCheck<false>(SplitMatMRIncomp,1e-4);
@@ -492,21 +506,37 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         CHECK_EQUAL(0,fx.split->numTFTFailures());
     }
 
+    /// Geometry path against prescribed-metric path for SvK (oracle in SplitPathsCheck). tolMatC = 1e-10: both
+    /// tangents are the same closed form, so only rounding remains (observed: S and A both agree exactly,
+    /// rel.err 0). tolFD = 1e-5 is for the fourth-order 5-point stencil of gsFunction::deriv_into with
+    /// fixed step 1e-5; observed error about 1e-11.
     TEST(Paths_SvK)
     {
         SplitPathsCheck<true>(SplitMatSvK,1e-10,1e-5);
     }
 
+    /// Geometry path against prescribed-metric path for incompressible neo-Hooke (oracle in SplitPathsCheck).
+    /// tolMatC = 1e-4: the prescribed-metric tangent carries a dC/dE term from the central-difference provider,
+    /// whereas the geometry path uses the wrapped law's analytic eval3D_dmatrix (observed about 4.7e-9).
+    /// tolFD = 1e-6 is for the deriv_into stencil (observed about 3e-11).
     TEST(Paths_NH_Incomp)
     {
         SplitPathsCheck<false>(SplitMatNHIncomp,1e-4,1e-6);
     }
 
+    /// Same comparison for compressible neo-Hooke (oracle in SplitPathsCheck); tolMatC = 1e-4 because both tangents
+    /// carry a finite-difference dC/dE: the decorator's central-difference provider on the prescribed-metric path, and
+    /// the wrapped law's eval3D_dmatrix, a deriv_into stencil for this law, on the geometry path (observed about
+    /// 4.1e-9). tolFD = 1e-5 for the deriv_into stencil (observed about 6.9e-10).
     TEST(Paths_NH_Comp)
     {
         SplitPathsCheck<false>(SplitMatNHComp,1e-4,1e-5);
     }
 
+    /// Same comparison for incompressible Mooney-Rivlin (oracle in SplitPathsCheck); tolMatC = 1e-4 because both
+    /// tangents carry a finite-difference dC/dE: the decorator's central-difference provider on the prescribed-metric
+    /// path, and the wrapped law's eval3D_dmatrix, a deriv_into stencil for this law, on the geometry path (observed
+    /// about 4.8e-9). tolFD = 1e-6 for the deriv_into stencil (observed about 3.5e-11).
     TEST(Paths_MR_Incomp)
     {
         SplitPathsCheck<false>(SplitMatMRIncomp,1e-4,1e-6);
@@ -577,21 +607,32 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         }
     }
 
+    /// Equivalence with gsMaterialMatrixTFT for SvK on the skewed patch (helper SplitEquivCheck holds the oracle:
+    /// TFT's own root-found theta, then its S and C). tolC = 1e-10 is for the wrinkled tangent; SvK is linear, so
+    /// both tangents are the same closed-form expression up to rounding (observed about 3e-16).
     TEST(EquivTFT_SvK_skewed)
     {
         SplitEquivCheck<true>(SplitMatSvK,1e-10);
     }
 
+    /// Equivalence with gsMaterialMatrixTFT for incompressible neo-Hooke (oracle in SplitEquivCheck). tolC = 1e-7
+    /// for the wrinkled tangent is looser than for SvK because TFT's nonlinear tangent uses the wrapped law's
+    /// eval3D_dmatrix and its theta root search, Brent to 1e-18, falls back to bisection (1e-6) and then Newton
+    /// (1e-8) when Brent fails; the observed error is about 3e-15, so the margin is large.
     TEST(EquivTFT_NH_Incomp)
     {
         SplitEquivCheck<false>(SplitMatNHIncomp,1e-7);
     }
 
+    /// Same equivalence for compressible neo-Hooke (oracle in SplitEquivCheck); tolC = 1e-7 has the origin given
+    /// for the incompressible case, and the observed tangent error is about 6e-10, the largest of the four laws.
     TEST(EquivTFT_NH_Comp)
     {
         SplitEquivCheck<false>(SplitMatNHComp,1e-7);
     }
 
+    /// Same equivalence for incompressible Mooney-Rivlin (oracle in SplitEquivCheck); tolC = 1e-7 as for
+    /// neo-Hooke, observed tangent error about 1.9e-10.
     TEST(EquivTFT_MR_Incomp)
     {
         SplitEquivCheck<false>(SplitMatMRIncomp,1e-7);
@@ -634,6 +675,10 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         CHECK_EQUAL(0,fx.split->numTFTFailures());
     }
 
+    /// A wrinkled state carries tension only along one direction: the smaller principal value of S_eff vanishes
+    /// and n1.S = n2.S = 0 for the reported wrinkle angle theta (the defining property of the tension-field
+    /// state). Checked for SvK (linear) and incompressible neo-Hooke (helper SplitWrinkledStressCheck); the
+    /// tolerance 1e-8 relative inside the helper is the accuracy of the wrinkle-direction condition.
     TEST(Wrinkled_Smin_zero)
     {
         SplitWrinkledStressCheck<true>(SplitMatSvK);
@@ -712,6 +757,11 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         }
     }
 
+    /// Eta and SlackMultiplier limits on the geometry path (helper SplitEtaCheck) for compressible neo-Hooke and
+    /// SvK. The oracle is the wrapped law evaluated on its own: taut equals the wrapped S and C, slack equals
+    /// eta (or SlackMultiplier when positive) times them, and wrinkled equals (1-eta) X(eta = 0) + eta X_wrapped.
+    /// The tolerance 1e-13 inside the helper is a few hundred eps in double for these relations, which differ from
+    /// the decorator's output only by the order of floating-point operations.
     TEST(EtaLimits)
     {
         SplitEtaCheck<false>(SplitMatNHComp);
@@ -801,6 +851,8 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         detail_tftsplit::WrinkleResult<real_t> r = fx.split->wrinkle(S,C,E,I2,opt,false);
         gsInfo << "  Emax = " << r.Emax << ", Smin = " << r.Smin << "\n";
         CHECK(r.Smin < 0);
+        // exact by construction: the strains are powers of two on the unit metric, so the pencil principal values
+        // cancel exactly and E_max (the larger principal value, here 0 from E_xx = 0) is computed without rounding.
         CHECK(r.Emax == 0);
         CHECK_EQUAL(0,r.state);
 
@@ -826,7 +878,9 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         const real_t z = 0;
         const gsMatrix<real_t> zmat = SplitZ(z);
 
-        // The core's S_min, reproduced from the same single-point wrapped calls
+        // The core's S_min, reproduced from the wrapped law's S and A at the same point and z. The decorator obtains
+        // them from one batched wrapped call, which for a single point and one fibre receives the same (u, z)
+        // column, so S_min agrees bitwise (required by the nextafter checks below).
         const gsMatrix<real_t> Sw = fx.wrapped->eval3D_vector(0,pt,z,MaterialOutput::VectorN);
         const gsMatrix<real_t> Cw = fx.wrapped->eval3D_matrix(0,pt,z,MaterialOutput::MatrixA);
         const real_t Smin = fx.split->wrinkle(Sw,Cw,fx.EengDef(),SplitIdentity2(),fx.split->wrinkleOptions(),false).Smin;
@@ -854,6 +908,8 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         CHECK(S0.allFinite());
         CHECK(A1.allFinite());
         CHECK(A0.allFinite());
+        // exact by construction: S2crit is read only by the displayed-state output (eval3D_tensionfield), so S and A
+        // come from the identical single-point evaluation with and without the threshold.
         CHECK((S1-S0).cwiseAbs().maxCoeff() == 0);
         CHECK((A1-A0).cwiseAbs().maxCoeff() == 0);
     }
@@ -925,6 +981,8 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         CHECK_EQUAL(1,fx.split->numTFTFailures());
         CHECK(r.S.allFinite());
         CHECK(S.allFinite());
+        // exact by construction: with n1^T C n1 <= 0 the stress is not corrected (the corrected S' is only formed
+        // when the tangent is admissible), and with eta = 0 the blend is (1-0)*S + 0*S = S in IEEE arithmetic.
         CHECK((r.S - S).cwiseAbs().maxCoeff() == 0);
     }
 
@@ -989,6 +1047,9 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
                 CHECK(A1.allFinite());
                 CHECK((Scol-S1).cwiseAbs().maxCoeff() <= 1e-14 * S1.cwiseAbs().maxCoeff());
                 CHECK((Acol-A1).cwiseAbs().maxCoeff() <= 1e-14 * A1.cwiseAbs().maxCoeff());
+                // exact by construction: tf is a state code in {-1,0,1} stored in a real_t (an integer held in a
+                // floating-point value). The batched and the single-point evaluation classify the point alike because
+                // the test points are not at a criterion boundary (S and A agree to 1e-14 above).
                 CHECK(tf(0,col) == tf1);
                 if (std::isnan(th1))
                 {
@@ -1001,7 +1062,9 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
                     CHECK(th(0,col) >= 0 && th(0,col) < pi);
                     ++numWrinkled;
                 }
-                // The wrinkle angle is defined exactly at the displayed-wrinkled points
+                // The wrinkle angle is defined exactly at the displayed-wrinkled points.
+                // exact by construction: the tension-field output is a state code in {-1,0,1} stored in a real_t,
+                // i.e. an integer held in a floating-point value, so == and the comparisons with 1 and -1 are exact.
                 CHECK((tf(0,col) == 0) == !std::isnan(th(0,col)));
                 if (tf(0,col) == 1)
                     ++numTaut;
@@ -1109,6 +1172,8 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         const gsMatrix<real_t> S1 = fx.split->eval3D_vector(0,pt,zmat,MaterialOutput::VectorN);
         CHECK(S1.allFinite());
         CHECK(S0.allFinite());
+        // exact by construction: Midsurface only changes the integration flags and the VectorM guard, which the
+        // core evaluation never reads, so VectorN at the same (point, z = 0) follows the identical path.
         CHECK((S1-S0).cwiseAbs().maxCoeff() == 0);
         CHECK(S0.cwiseAbs().maxCoeff() > 0);
     }
@@ -1127,10 +1192,12 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
 
         const index_t np = 64;
         gsMatrix<real_t> u(2,np), z(1,np);
+        // 8x8 grid of sample points: column k % 8, row k / 8
         for (index_t k = 0; k!=np; ++k)
         {
-            u(0,k) = 0.05 + 0.1 * (k % 8);
-            u(1,k) = 0.05 + 0.1 * (k / 8);
+            const index_t col = k % 8, row = k / 8;
+            u(0,k) = 0.05 + 0.1 * col;
+            u(1,k) = 0.05 + 0.1 * row;
         }
         z.setZero();
         gsInfo << "  omp_get_max_threads() = " << omp_get_max_threads() << "\n";
@@ -1160,6 +1227,9 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         CHECK(Aser.allFinite());
         CHECK(Apar.allFinite());
         CHECK(Sser.cwiseAbs().maxCoeff() > 0);
+        // exact by construction: each point is one single-point evaluation, serial or under omp parallel for. The
+        // evaluation reads only thread-local scratch and does no cross-point reductions, so it is deterministic per
+        // point and any difference would be a data race.
         CHECK((Sser-Spar).cwiseAbs().maxCoeff() == 0);
         CHECK((Aser-Apar).cwiseAbs().maxCoeff() == 0);
 
@@ -1420,6 +1490,8 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
                     CHECK(Seff.allFinite());
                     CHECK(Ceff.allFinite());
                     CHECK(Sw.cwiseAbs().maxCoeff() > 0);
+                    // exact by construction: at a slack point the core returns sigma*(S,E,C,W) with sigma =
+                    // SlackMultiplier>0 ? SlackMultiplier : Eta = 0 here, i.e. 0 times a finite number = +-0.
                     CHECK(Seff.cwiseAbs().maxCoeff() == 0);
                     CHECK(Ceff.cwiseAbs().maxCoeff() == 0);
                 }
@@ -1913,6 +1985,8 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
             CHECK_EQUAL(0,r0.state);
             SPLIT_CHECK_REL("S exact vs linearised, no tangent",r0.S,sy.linNoC.S,1e-12);
             SPLIT_CHECK_SAME(r0.E,r.E);
+            // exact by construction: the tangent is assembled after the solve, so with and without the request the
+            // same solve runs on the same inputs (E above is already bitwise equal).
             CHECK(r0.theta == r.theta);
             CHECK(r0.gamma == r.gamma);
             CHECK(r0.exactIterations >= 1);
@@ -2036,6 +2110,8 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
                 else
                     CHECK_EQUAL(0,r.C.size());
                 CHECK(std::isfinite(r.theta) && std::isfinite(r.gamma) && std::isfinite(r.gammaHat) && std::isfinite(r.residual));
+                // exact by construction: the failed exact solve falls through to the linearised arithmetic on the
+                // same inputs as the reference, whose S, E (and C) are already compared bitwise above.
                 CHECK(r.theta == ref.theta);
                 CHECK(r.gamma == ref.gamma);
                 CHECK(r.gammaHat == ref.gammaHat);
@@ -2069,6 +2145,8 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
                 SPLIT_CHECK_SAME(r.C,ref.C);
             else
                 CHECK_EQUAL(0,r.C.size());
+            // exact by construction: a saddle makes the exact solve fall through to the linearised arithmetic on the
+            // same inputs as the reference, whose S, E (and C) are already compared bitwise above.
             CHECK(r.theta == ref.theta);
             CHECK(r.gamma == ref.gamma);
             CHECK(r.gammaHat == ref.gammaHat);
@@ -2119,6 +2197,8 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
                 CHECK(SplitThetaDiff(r0.theta,sy.thetaLin) <= 1e-14);
             SPLIT_CHECK_SAME(r0.S,r.S);
             SPLIT_CHECK_SAME(r0.E,r.E);
+            // exact by construction: the tangent is assembled after the solve, so with and without the request the
+            // same solve runs on the same inputs (E and S above are already bitwise equal).
             CHECK(r0.theta == r.theta);
             CHECK(r0.gamma == r.gamma);
 
@@ -2210,6 +2290,7 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
             CHECK_EQUAL(1,P.cols());
             if (P.rows()==3 && P.cols()==1)
             {
+                // exact by construction: eval3D_pstrain sets the result to zero and fills only rows 0 and 1.
                 CHECK(P(2,0) == 0);
                 const gsMatrix<real_t> lamE = SplitPencilEigenvalues(SplitSym2(Ep(0,0),0.5*Ep(2,0),Ep(1,0)),fx.Gref);
                 SplitCheckPrincipal("pstrain",P,lamE,1e-12);
@@ -2311,6 +2392,8 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
             SPLIT_CHECK_SAME(r.C,ref.C);
         else
             CHECK_EQUAL(0,r.C.size());
+        // exact by construction: the result is documented to execute the same arithmetic as the reference on the
+        // same inputs, and S, E (and C) are already compared bitwise above, so the scalars match bit for bit too.
         CHECK(r.theta == ref.theta);
         CHECK(r.gamma == ref.gamma);
         CHECK(r.gammaHat == ref.gammaHat);
@@ -3458,7 +3541,9 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         CHECK(runs(one,sy.S,sy.E,true));
         CHECK(runs(one,sy.S,sy.E,false));
 
-        // Option list defaults and the options read by the pointwise core
+        // Option list defaults and the options read by the pointwise core.
+        // exact by construction (the == on real_t below): a stored option value is read back unchanged, and the
+        // same decimal literal is converted to real_t on both sides, so the two values are bitwise equal.
         gsOptionList & ol = sy.fx.split->options();
         CHECK(ol.getReal("ExactTol") == real_t(1e-12));
         CHECK(ol.getReal("ExactStagTol") == real_t(1e-9));
@@ -3950,6 +4035,8 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         tolC = SplitExactTolAt(Sp,Cp,r.E,real_t(1e-12));
     }
 
+    /// Bitwise equality of two scalars, NaN equal to NaN. Used only to compare two runs that are documented (at each
+    /// caller of SplitAnisoDiff) to execute the same arithmetic on the same inputs, so no rounding tolerance applies.
     static bool SplitAnisoSameScalar(const real_t a, const real_t b)
     {
         return a == b || (std::isnan(a) && std::isnan(b));
@@ -4245,11 +4332,16 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         gsInfo << "  KKT certificates: " << nAll << " states, " << nWr << " wrinkled\n";
     }
 
+    /// Exact mode (mode 1, eta 0) for law (a), an orthotropic quadratic law: the result is the global minimum of
+    /// W(E + P) over the PSD cone, certified by the KKT conditions checked in SplitAnisoKKT (S' PSD, P* PSD,
+    /// S' : P* = 0); the oracle is the optimality theory of a convex problem, not the solver's own output.
     TEST(ExactMin_KKT_certificate_lawA)
     {
         SplitAnisoKKTRun(false);
     }
 
+    /// Same KKT certificate for law (b), neo-Hooke plus an exponential fibre term; this law additionally runs the
+    /// failed-direction start (indefinite tangent argument), where the minimisation starts away from the solution.
     TEST(ExactMin_KKT_certificate_lawB)
     {
         SplitAnisoKKTRun(true);
@@ -4281,11 +4373,16 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         gsInfo << "  smallest (search minimum - W_eff) = " << minMargin << " (negative only within the tolerance)\n";
     }
 
+    /// Exact-mode result for law (a), an orthotropic quadratic law: the accepted W_eff is not beaten by a grid search
+    /// over PSD P with local polish (oracle: SplitAnisoBruteMin, independent of the solver). The tolerance inside the
+    /// helper is 1e-8 |W| (search/polish accuracy) + 1e3 eps ||C|| (rounding of W at the scale of the tangent).
     TEST(ExactMin_bruteForce_lawA)
     {
         SplitAnisoBruteRun(false);
     }
 
+    /// Same brute-force check for law (b), neo-Hooke plus an exponential fibre term, whose energy is far from
+    /// quadratic; tolerances as in law (a), defined in SplitAnisoBruteRun.
     TEST(ExactMin_bruteForce_lawB)
     {
         SplitAnisoBruteRun(true);
@@ -4477,6 +4574,9 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
                 const SplitXRes sm = SplitAnisoRun(fx,law,Eneg,G,1);
                 const SplitXRes sp = SplitAnisoRun(fx,law,Epos,G,1);
                 CHECK_EQUAL(-1,sm.state);
+                // exact by construction: at a slack point the core returns sigma*(S,W) with
+                // sigma = SlackMultiplier>0 ? SlackMultiplier : Eta = 0 here (SplitAnisoOpt sets slackMultiplier 0
+                // and eta 0), i.e. 0 times a finite number = +-0.
                 CHECK(sm.S.cwiseAbs().maxCoeff() == 0);
                 CHECK(sm.W == 0);
                 CHECK(sp.state==0 || sp.state==-1);
@@ -4546,6 +4646,8 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
                 CHECK(r0.exactSkipped);
                 CHECK(!r0.exactMinimised);
                 CHECK(!r0.exactFallback);
+                // exact by construction: mode 0 with the failed direction returns the unmodified law.S(E) that
+                // SplitAnisoCall passed in (eta 0, no blending), so both sides are the same stored values.
                 CHECK((r0.S - law.S(E)).cwiseAbs().maxCoeff() == 0);
 
                 const SplitXRes r1 = SplitAnisoCall(fx,law,E,G,SplitAnisoOpt(1),true,true,negC,true);
@@ -4914,6 +5016,8 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
 
                 if (specs[s].state==-1 && etas[e]==0)
                 {
+                    // exact by construction: at a slack point the core returns sigma*(S,E,C,W) with sigma =
+                    // SlackMultiplier>0 ? SlackMultiplier : Eta = 0 here, i.e. 0 times a finite number = +-0.
                     CHECK(W0 == 0);
                     CHECK(S.cwiseAbs().maxCoeff() == 0);
                 }
@@ -4949,6 +5053,10 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
             }
     }
 
+    /// W_eff against the central finite difference of S_eff (helper SplitEnergyFDCheck): nonlinear NH incompressible
+    /// in exact mode, and linear SvK. The helper's tolerance 1e-6 (relative to max|S|) covers the O(h^2) central
+    /// difference error with h = 1e-6 (truncation ~h^2 times a third derivative, plus rounding ~eps/h in W); the
+    /// largest relative error observed over all states and components is about 1.1e-9.
     TEST(Energy_FD_class_C)
     {
         gsInfo << "NH incompressible, exact\n";
@@ -4957,19 +5065,30 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         SplitEnergyFDCheck<true>(SplitMatSvK);
     }
 
+    /// For a nonlinear law with Exact off, the wrinkled stress is the linearised S', which is not the gradient of
+    /// any energy; the documented contract (gsMaterialMatrixTFTSplit.h, eval3D_energy_C) is that W_eff is then NaN
+    /// at a wrinkled point instead of a misleading number. The oracle is that contract.
     TEST(Energy_NaN_linearised_class)
     {
+        // Fixture at the wrinkled spec; switch the exact minimisation off so the linearised branch is used.
         const SplitStateSpec spec = SplitWrinkledSpec();
         const gsVector<real_t> pt = SplitPoint();
         SplitFixture<2,false> fx(SplitMatNHIncomp,SplitSkewedJref(),spec.lam1,spec.lam2,static_cast<real_t>(EIGEN_PI)/6);
         fx.split->options().setSwitch("Exact",false);
         const gsMatrix<real_t> Cmat = fx.CmatDef();
+        // Classification check: the point really is wrinkled (state 0), otherwise NaN would not be expected.
         CHECK_EQUAL(0, fx.stateAt(Cmat,pt,0));
+        // Energy evaluation, then the NaN check.
         const real_t W = fx.split->eval3D_energy_C(Cmat,0,pt,0)(0,0);
         gsInfo << "  W_eff (linearised wrinkled) = " << W << "\n";
         CHECK(math::isnan(W));
     }
 
+    /// ExactLocalSolve = 1 runs the minimisation only where the 2x2 pass ran or the principal-direction solve
+    /// failed. At points where neither happened (no 2x2 pass, no TFT failure) mode 1 therefore does exactly the
+    /// same arithmetic as mode 0, so S and C must be bitwise identical (SPLIT_CHECK_SAME), and the minimiser must
+    /// not have run (numExactMinimised() == 0). At least 5 of the 6 material/state cases must be compared this way,
+    /// so a future change that makes the guard skip every case cannot pass vacuously.
     TEST(ExactLocalSolve_mode1_equals_mode0_class)
     {
         const SplitMaterial mats[2] = { SplitMatNHIncomp, SplitMatNHComp };
@@ -4985,6 +5104,7 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
                 fx.split->options().setReal("Eta",1e-3);
                 const gsMatrix<real_t> Cc = fx.CmatDef();
 
+                // Mode 0 run; its 2x2-pass and TFT-failure counters decide whether the comparison applies.
                 fx.split->options().setInt("ExactLocalSolve",0);
                 fx.split->resetCounters();
                 const gsMatrix<real_t> S0 = fx.split->eval3D_vector_C(Cc,0,pt,0);
@@ -4992,6 +5112,7 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
                 const index_t u2 = fx.split->numExactUsed2x2();
                 const index_t tf = fx.split->numTFTFailures();
 
+                // Mode 1 run on the same metric; the minimiser must stay idle at these points.
                 fx.split->options().setInt("ExactLocalSolve",1);
                 fx.split->resetCounters();
                 const gsMatrix<real_t> S1 = fx.split->eval3D_vector_C(Cc,0,pt,0);
@@ -5000,8 +5121,10 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
 
                 gsInfo << "  material " << m << ", state " << specs[s].state << ": 2x2 pass " << u2
                        << ", TFT failures " << tf << "\n";
+                // For incompressible NH at the wrinkled state the 2x2 pass is not expected to run.
                 if (m==0 && s==0)
                     CHECK_EQUAL(0,u2);
+                // Bitwise comparison where mode 1 has nothing extra to do.
                 if (u2==0 && tf==0)
                 {
                     SPLIT_CHECK_SAME(S1,S0);
@@ -5013,6 +5136,14 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         CHECK(nCmp >= 5);
     }
 
+    /// ExactLocalSolve = 2 (minimisation only) and = 1 (scalar pass first; the minimisation takes over where mode 0
+    /// would run the 2x2 pass, where the closed-form direction is guard-rejected and at failed directions) must reach the
+    /// same stress at a wrinkled point, for NH incompressible and NH compressible, on both the prescribed-metric
+    /// and the geometry path. The oracle is the mode-1 result itself, so the test would pass vacuously if the
+    /// minimisation never ran; numExactMinimised() > 0 rules that out. Both modes stop at the solver's residual
+    /// tolerances (ExactTol 1e-12, ExactStagTol 1e-9 defaults), so the stresses agree to far better than the 1e-6
+    /// relative tolerance, which is deliberately loose; the observed relative error is 0 (incompressible) and
+    /// about 2.4e-15 (compressible).
     TEST(ExactLocalSolve_mode2_vs_mode1_class)
     {
         const SplitMaterial mats[2] = { SplitMatNHIncomp, SplitMatNHComp };
@@ -5025,11 +5156,13 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
             for (index_t path = 0; path!=2; ++path)
             {
                 gsInfo << "material " << m << (path==0 ? ", prescribed metric\n" : ", geometry\n");
+                // Wrinkled fixture with exact solve on and a small Eta.
                 SplitFixture<2,false> fx(mats[m],SplitSkewedJref(),spec.lam1,spec.lam2,static_cast<real_t>(EIGEN_PI)/6);
                 fx.split->options().setSwitch("Exact",true);
                 fx.split->options().setReal("Eta",1e-3);
                 const gsMatrix<real_t> Cc = fx.CmatDef();
 
+                // Evaluate the stress in mode 1 and mode 2 on the chosen path; the counters keep the last (mode 2) run.
                 gsMatrix<real_t> S[3];
                 for (index_t mode = 1; mode!=3; ++mode)
                 {
@@ -5038,32 +5171,41 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
                     S[mode] = (path==0) ? fx.split->eval3D_vector_C(Cc,0,pt,0.0)
                                         : fx.split->eval3D_vector(0,ptm,zmat,MaterialOutput::VectorN);
                 }
+                // The minimisation ran, never fell back to the linearised result and was never skipped.
                 CHECK(fx.split->numExactMinimised() > 0);
                 CHECK_EQUAL(0,fx.split->numExactFallbacks());
                 CHECK_EQUAL(0,fx.split->numExactSkipped());
+                // Mode 2 against mode 1: tolerance 1e-6 relative, observed <= 2.4e-15 (see the test comment).
                 SPLIT_CHECK_REL("mode 2 vs mode 1",S[2],S[1],1e-6);
             }
     }
 
+    /// ExactLocalSolve accepts only 0, 1 or 2. The value 3 must throw std::runtime_error from the GISMO_ENSURE in
+    /// wrinkleOptions(), which runs once per evaluation whatever the value of Exact; hence the throw is expected
+    /// with Exact on, with Exact off, and on the geometry path as well as the prescribed-metric path.
     TEST(ExactLocalSolve_invalid_class)
     {
+        // Wrinkled fixture at the shared test point; the throw does not depend on the state, only on the option.
         const SplitStateSpec spec = SplitWrinkledSpec();
         const gsVector<real_t> pt = SplitPoint();
         const gsMatrix<real_t> ptm = pt;
         const gsMatrix<real_t> zmat = SplitZ(0);
 
+        // Exact on, prescribed-metric path.
         {
             SplitFixture<2,false> fx(SplitMatNHIncomp,SplitSkewedJref(),spec.lam1,spec.lam2,static_cast<real_t>(EIGEN_PI)/6);
             fx.split->options().setSwitch("Exact",true);
             fx.split->options().setInt("ExactLocalSolve",3);
             CHECK_THROW(fx.split->eval3D_vector_C(fx.CmatDef(),0,pt,0.0), std::runtime_error);
         }
+        // Exact off: the option is still validated, although the exact solver would never read it.
         {
             SplitFixture<2,false> fx(SplitMatNHIncomp,SplitSkewedJref(),spec.lam1,spec.lam2,static_cast<real_t>(EIGEN_PI)/6);
             fx.split->options().setSwitch("Exact",false);
             fx.split->options().setInt("ExactLocalSolve",3);
             CHECK_THROW(fx.split->eval3D_vector_C(fx.CmatDef(),0,pt,0.0), std::runtime_error);
         }
+        // Exact off, geometry path (eval3D_vector) instead of the prescribed-metric path.
         {
             SplitFixture<2,false> fx(SplitMatNHIncomp,SplitSkewedJref(),spec.lam1,spec.lam2,static_cast<real_t>(EIGEN_PI)/6);
             fx.split->options().setSwitch("Exact",false);
@@ -5087,6 +5229,9 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         CHECK_THROW(fx.split->wrinkleOptions(), std::runtime_error);
     }
 
+    /// Eta = -0.1 lies outside [0,1]; it is stored by options().setReal without complaint and rejected only when the
+    /// options are read, i.e. at the first evaluation and from wrinkleOptions() (GISMO_ENSURE on the Eta range, so it
+    /// throws in every build type).
     TEST(WrinkleOptions_eta_negative_throws)
     {
         const SplitStateSpec spec = SplitWrinkledSpec();
@@ -5100,6 +5245,8 @@ SUITE(gsMaterialMatrixTFTSplit_test)                 // The suite should have th
         CHECK_THROW(fx.split->wrinkleOptions(), std::runtime_error);
     }
 
+    /// Eta = 1.1 lies above 1: same contract as the negative case (stored silently, rejected by the GISMO_ENSURE in
+    /// wrinkleOptions() at the first evaluation), checked at the other end of the admissible interval [0,1].
     TEST(WrinkleOptions_eta_above_one_throws)
     {
         const SplitStateSpec spec = SplitWrinkledSpec();

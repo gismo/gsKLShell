@@ -34,7 +34,7 @@
         packing (colIdx = j*u.cols()+k) against a one-station-at-a-time
         reference, and is observed to FAIL when that packed read is
         mis-indexed.
-      - A3 is a contract/behaviour-preservation test, NOT a regression gate:
+      - A3 is a contract/behaviour-preservation test, not a regression gate:
         it pins the observable outcome (NaN, no throw) of a degenerate
         deformed metric (m_J0_sq==0); the pre-hardening code already reaches
         the same NaN by a slower path, so this test passes identically with
@@ -55,7 +55,7 @@
     tests pin that the derivative is taken at the true metric. The reference is
     a central finite difference of the public eval3D_matrix_C (layout 3*c+j,
     j=0,1 the diagonal metric entries, j=2 the derivative w.r.t. 2*g12).
-      - dCdC_Anchor_IncompNH_Analytic is an anchor, NOT a regression gate: the
+      - dCdC_Anchor_IncompNH_Analytic is an anchor, not a regression gate: the
         analytic incompressible Neo-Hookean overload does not use the functor,
         so it validates the reference's convention (including the shear-row
         scaling) against analytic code and passes with or without the defect.
@@ -99,7 +99,7 @@
         in-plane stretches (sqrt(1.5), sqrt(0.5)) must not be mistaken for the
         undeformed state; a trace test on the Cartesian 2x2 block of B would
         mistake it for the undeformed state.
-      - PStretch_TiltedUndeformed_Frame is a contract test, NOT a regression
+      - PStretch_TiltedUndeformed_Frame is a contract test, not a regression
         gate: it pins the stretches (1,1,1) and an orthonormal tangent frame
         for an undeformed tilted patch.
 
@@ -120,6 +120,9 @@
 #include <gsKLShell/gsKLShell.h>
 
 using namespace gismo;
+
+SUITE(gsMaterialMatrixNonlinear_test)
+{
 
 namespace {
 
@@ -923,9 +926,6 @@ real_t energyRel(real_t a, real_t b)
 
 } // namespace
 
-SUITE(gsMaterialMatrixNonlinear_test)
-{
-
 // Undeformed state: m_J0_sq=1, the Newton initial guess c(2,2)=1 already
 // satisfies S33=0, so the loop breaks at it==0 and detF = sqrt(1*1) = 1
 // exactly (up to solver round-off). Exercises the geometry overload
@@ -1249,7 +1249,7 @@ TEST(PStretch_FlatAnisotropic_NoFalseShortcut)
     }
 }
 
-// Contract test, NOT a regression gate: an undeformed patch tilted about the
+// Contract test, not a regression gate: an undeformed patch tilted about the
 // x-axis by theta = pi/5 has stretches (1,1,1), an orthonormal in-plane frame
 // tangent to the patch, and a third direction parallel to the normal
 // n = (0,-sin(theta),cos(theta)). Here the trace of the Cartesian 2x2 block
@@ -1312,7 +1312,7 @@ TEST(PStretch_TiltedUndeformed_Frame)
     }
 }
 
-// Contract test, NOT a regression gate: pins the observable behaviour of a
+// Contract test, not a regression gate: pins the observable behaviour of a
 // degenerate deformed metric (m_J0_sq==0) -- returns without throwing and
 // yields a non-finite value. Collapsing the deformed square's y-coordinates
 // onto a line makes Acov_def rank-deficient, so det(Gcov_def)==0 while
@@ -1772,7 +1772,10 @@ TEST(Energy_SmallStrain_Quadratic)
     gsInfo<<"Energy_SmallStrain_Quadratic: worst |W - 1/2 E.C(0).E|/(1/2 E.C(0).E) = "<<worst<<"\n";
 }
 
-// The compressible Cauchy stress is S/detF.
+// The compressible Cauchy stress is S/detF. The oracle is the law's own eval3D_stress divided column-wise by
+// eval3D_detF (checkCauchyIsStressOverDetF), for Neo-Hookean and Mooney-Rivlin compressible on the twisted
+// shell. Tolerance: relative error < 1e-10 per column, the round-off of one division. Non-vacuity: |detF - 1|
+// >= 0.05, and detF varies over the points and through the thickness, so the division is not by a constant 1.
 TEST(CauchyStress_Compressible_IsStressOverDetF)
 {
     checkCauchyIsStressOverDetF(1); // Neo-Hookean
@@ -1799,12 +1802,24 @@ TEST(CauchyStress_Incompressible_EqualsStress)
     CHECK((sig-S).cwiseAbs().maxCoeff() <= 1e-10*S.cwiseAbs().maxCoeff());
 }
 
+// Principal stress directions of the analytical Neo-Hookean law, compressible, on a planar (d = 2) and a tilted
+// (d = 3) patch. eval3D_pstressDir must return an orthonormal right-handed frame [d_min | d_max | N], N being the
+// geometric unit normal. The oracle is the Cartesian stress T = S^{kl} G_k G_l^T built from eval3D_stress
+// (PSDirNL_T): d_min and d_max are eigenvectors of T with the eigenvalues of eval3D_pstress, and the multi-point
+// output equals the single-point output. The affine deformation gives a uniform Cartesian stress, so the frame
+// is uniform over the patch. Three states: generic, uniaxial (lateral stretch bisected to |S_b| <= 1e-13 |S_a|),
+// where the directions must align with b and a, and undeformed.
+// Tolerances (PSDirNL_check): 1e-12 for orthonormality, determinant and normal (unit vectors from a few flops on
+// O(1) entries); 1e-10 for multi-vs-single, relative eigen-residual, uniformity and uniaxial alignment (round-off
+// of the eigen-solve on a skewed metric). The helper prints the achieved values. Non-vacuity: eigenvalue gap
+// >= 1e-2 of the larger one in the generic state, and minor stress <= 1e-8 of major in the uniaxial state.
 TEST(PStressDir_NH_Compressible)
 {
     PSDirNL_run<2>(true);
     PSDirNL_run<3>(true);
 }
 
+// As PStressDir_NH_Compressible, for the incompressible Neo-Hookean law (nu = 0.5).
 TEST(PStressDir_NH_Incompressible)
 {
     PSDirNL_run<2>(false);

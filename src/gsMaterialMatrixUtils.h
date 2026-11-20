@@ -122,8 +122,8 @@ enum class MaterialOutput : short_t
     Stretch = 18,       // ONLY ON MID-PLANE
     StretchDir = 19,    // ONLY ON MID-PLANE
     TensionField = 20,  // Tension field indicator (1: taut, 0: wrinkled, -1: slack)
-    Theta = 21,  // Tension field indicator (1: taut, 0: wrinkled, -1: slack)
-    Gamma = 22,  // Tension field indicator (1: taut, 0: wrinkled, -1: slack)
+    Theta = 21,  // Wrinkle normal angle theta; NaN where not wrinkled
+    Gamma = 22,  // Wrinkle strain gamma (|n|_Euclid = 1); NaN where not wrinkled
     Strain  = 23,
     StrainN = 24,
     StrainM = 25,

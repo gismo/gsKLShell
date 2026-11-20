@@ -22,6 +22,8 @@
 
 using namespace gismo;
 
+SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the same name as the file
+{
 namespace {
 
 // Saint Venant-Kirchhoff shell on the unit square (E = 1, nu = 0.3), with an
@@ -168,8 +170,6 @@ EnergyLinFDResult energyLinFD(const gsMaterialMatrixBase<real_t> & mm,
 
 } // namespace
 
-SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the same name as the file
-{
     /// Reference and deformed flat patches with a clearly non-orthonormal reference metric.
     static void LinSvK_geometries(gsMultiPatch<> & ref, gsMultiPatch<> & def)
     {
@@ -217,6 +217,9 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
         N = mm->eval3D_vector(0,pt,zmat,MaterialOutput::VectorN);
     }
 
+    // Property: on a flat surface in z = 0 the 2D law (getMaterialMatrix<2>) and the 3D
+    // law on the embedded geometry give the same MatrixA and VectorN.
+    // Oracle: the 3D code path (file header), not an analytic value.
     TEST(SvK_2D_equals_3D_embedding)
     {
         gsMultiPatch<> ref2, def2;
@@ -229,7 +232,8 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
         gsVector<> pt(2);
         pt << 0.3, 0.6;
 
-        // Non-vacuity: A_{ab} and A^{ab} differ by O(1) at the test point
+        // Non-vacuity (threshold, not a tolerance): A_{ab} and A^{ab} differ by at least
+        // 0.1 at the test point, so loading the wrong metric would change the result visibly.
         gsMapData<> map;
         map.flags = NEED_JACOBIAN | NEED_VALUE;
         map.points = pt;
@@ -249,6 +253,8 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
         const real_t dN = LinSvK_relDiff(N3,N2);
         gsInfo<<"SvK 2D vs 3D: rel diff MatrixA = "<<dA<<", VectorN = "<<dN<<"\n";
         CHECK(N3.cwiseAbs().maxCoeff() > 0); // deformed state is non-trivial
+        // Same mathematics through different flop sequences (2x2 against 3x2 Jacobian),
+        // so the difference is round-off; a wrong metric would give O(0.1).
         CHECK(dA <= 1e-10);
         CHECK(dN <= 1e-10);
     }
@@ -421,6 +427,10 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
         gsInfo<<"PStressDir "<<label<<": |FtF-I|="<<wOrth<<", 1-det="<<wDet<<", |N-n|="<<wN
               <<", multi-vs-single="<<wSingle<<", eig residual="<<wEig<<", uniform="<<wUnif
               <<", uniaxial="<<wUni<<"\n";
+        // 1e-12 for orthonormality, determinant and normal: unit vectors built from a few
+        // flops on O(1) entries. 1e-10 for the relative eigen-residual, the multi-point
+        // against single-point comparison, the patch uniformity and the uniaxial alignment
+        // of the directions with b and a: eigen-solve round-off on a skewed metric.
         CHECK(wOrth   <= 1e-12);
         CHECK(wDet    <= 1e-12);
         CHECK(wN      <= 1e-12);
@@ -449,14 +459,16 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
         gsMatrix<> pt0(2,1);
         pt0 << 0.5, 0.5;
 
-        // generic state
+        // generic state; non-vacuity threshold, not a tolerance: the in-plane eigen-gap is
+        // at least 1e-2 of the larger eigenvalue, so the eigenvectors are well separated
         sc.setState(1.10, 0.95, 0.12);
         mm->setDeformed(&sc.def);
         gsVector<> ev = PSDirLin_inplane<d>(PSDirLin_T<d>(*mm,sc,pt0,0.0),sc);
         CHECK(ev(1) - ev(0) >= 1e-2*std::max(std::abs(ev(0)),std::abs(ev(1))));
         PSDirLin_check<d>(*mm,sc,false,"SvK generic");
 
-        // uniaxial state: S_b = 0 for E_bb = -nu E_aa
+        // uniaxial state: S_b = 0 for E_bb = -nu E_aa. Non-vacuity check: the minor
+        // principal stress is zero analytically, so 1e-8 of the major one is ample headroom.
         sc.setState(1.2, std::sqrt(1.0 - 0.3*(1.2*1.2 - 1.0)), 0.0);
         mm->setDeformed(&sc.def);
         ev = PSDirLin_inplane<d>(PSDirLin_T<d>(*mm,sc,pt0,0.0),sc);
@@ -511,22 +523,38 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
         const gsVector<real_t,3> dmin = res.second.col(0), N = res.second.col(2);
         gsInfo<<"PStressDir _evalPStress d="<<d<<": |dmin.e2|="<<std::abs(dmin.dot(e2))
               <<", |N-e3|="<<(N-e3).cwiseAbs().maxCoeff()<<", values "<<res.first.transpose()<<"\n";
+        // Analytic oracle: on the unit square G_a are the columns of R3, so d_min is
+        // parallel to e2, N = e3 and the values are (1e-15, 1). 1e-12 is round-off on unit
+        // vectors and on the value 1; 1e-14 bounds the true value 1e-15 plus the 2x2
+        // eigen-solve round-off on O(1) entries.
         CHECK(std::abs(dmin.dot(e2)) >= 1.0 - 1e-12);
         CHECK((N - e3).cwiseAbs().maxCoeff() <= 1e-12);
         CHECK(std::abs(res.first(0)) <= 1e-14);
         CHECK(std::abs(res.first(1) - 1.0) <= 1e-12);
     }
 
+    // Property: eval3D_pstressDir returns an orthonormal right-handed frame
+    // [d_min | d_max | N] with N the geometric unit normal; d_min, d_max are eigenvectors
+    // of the Cartesian stress T = S^{kl} G_k G_l^T with the eval3D_pstress eigenvalues.
+    // Multi-point output equals single-point output, the frame is uniform over the patch
+    // (affine deformation gives uniform Cartesian stress) and in the uniaxial state the
+    // directions align with b, a. States: generic, uniaxial, undeformed.
+    // Oracle: the Cartesian stress T assembled in the test (PSDirLin_T), not the code's
+    // own frame. Tolerance origins: see PSDirLin_check.
     TEST(PStressDir_SvK_2D)
     {
         PSDirLin_run<2>();
     }
 
+    // Property and oracle as PStressDir_SvK_2D, on a tilted plane in R^3.
     TEST(PStressDir_SvK_3D)
     {
         PSDirLin_run<3>();
     }
 
+    // Property: _evalPStress on S = diag(1, 1e-15) separates the in-plane near-zero
+    // principal stress from the out-of-plane zero (d = 2 and d = 3).
+    // Oracle: analytic values (1e-15, 1) and directions, see PSDirLin_zeroPrincipal.
     TEST(PStressDir_EvalPStress_ZeroPrincipal)
     {
         PSDirLin_zeroPrincipal<2>();
@@ -640,6 +668,9 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
               <<", threshold "<<tol<<"\n";
         if (exact)
         {
+            // Exact by construction: PGuard_collapsed copies control point row 2 into row 3
+            // and the rotation for d = 3 maps equal rows to equal rows; at v = 1 the v = 0
+            // basis factor is exactly 0, so G1 = c3 - c2 = 0 exactly.
             CHECK(G1.norm() == 0);
         }
         else
@@ -727,11 +758,21 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
               <<"), |FtF-I|="<<wOrth<<", value err="<<wVal<<", eig residual="<<wEig<<"\n";
         CHECK(finite);
         CHECK(res.first(0) <= res.first(1));
+        // 1e-12: orthonormality of unit vectors from a few flops on O(1) entries. tol is
+        // supplied by the caller: 1e-12 for the O(1) 2D frames (no inversion in the
+        // fallback), 1e-10 for the anisotropic 3D control whose 1e-6 stretch spreads the
+        // entries of T over 12 decades.
         CHECK(wOrth <= 1e-12);
         CHECK(wVal  <= tol);
         CHECK(wEig  <= tol);
         if (N != nullptr)
+        {
+            // Exact by construction: N is passed only for the 2D collapsed frames, which lie
+            // below the degeneracy threshold (asserted by PGuard_checkCollapse). _evalPStress
+            // then takes its dim-2 fallback, which assigns the literal N << 0, 0, 1 and stores
+            // it unchanged as the third column of the frame.
             CHECK((F.col(2) - *N).cwiseAbs().maxCoeff() == 0);
+        }
     }
 
     static void PGuard_checkAllNaN(const char * label, const PGuard_Pair & res)
@@ -769,10 +810,15 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
         gsInfo<<"PStrain_ZeroPrincipal d="<<d<<": values "<<res.first.transpose()
               <<", |col0.e2|="<<std::abs(v0.dot(e2))<<", |col1.e1|="<<std::abs(v1.dot(e1))
               <<", |col2-e3|="<<(nn-e3).cwiseAbs().maxCoeff()<<"\n";
+        // Analytic oracle: values (1e-15, 1, 0.123), col0 parallel to e2, col1 to e1,
+        // col2 = e3. 1e-12 is round-off on unit vectors and on the value 1; 1e-14 bounds
+        // the true value 1e-15 plus the 2x2 eigen-solve round-off on O(1) entries.
         CHECK(std::abs(v0.dot(e2)) >= 1.0 - 1e-12);
         CHECK(std::abs(v1.dot(e1)) >= 1.0 - 1e-12);
         CHECK(std::abs(res.first(0) - 1e-15) <= 1e-14);
         CHECK(std::abs(res.first(1) - 1.0) <= 1e-12);
+        // Exact by construction: _evalPStrain copies the out-of-plane entry,
+        // result.first(2) = S(2,2), before any branch, and E(2,2) = 0.123 was set above.
         CHECK(res.first(2) == 0.123);
         CHECK((nn - e3).cwiseAbs().maxCoeff() <= 1e-12);
     }
@@ -806,6 +852,9 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
             const gsVector<real_t,3> nn = res.second.col(2), e3 = sc.R3.col(2);
             gsInfo<<"PStrain_NonFinite d="<<d<<" E(0,0)="<<name[c]<<": values "<<res.first.transpose()
                   <<", |col2-e3|="<<(nn-e3).cwiseAbs().maxCoeff()<<"\n";
+            // Exact by construction: the out-of-plane entry is copied, result.first(2) =
+            // S(2,2), before any branch, also on the NaN/inf path. 1e-12 on the unit
+            // normal is round-off.
             CHECK(res.first(2) == 0.123);
             CHECK((nn - e3).cwiseAbs().maxCoeff() <= 1e-12);
             CHECK(std::isnan(res.first(0)));
@@ -857,6 +906,11 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
                   <<", first(2)-0.123="<<res.first(2)-0.123<<", |col2-n|="<<(nn-n).cwiseAbs().maxCoeff()
                   <<", |col0.n|="<<std::abs(v0.dot(n))<<", |col1.n|="<<std::abs(v1.dot(n))
                   <<" (tolDir "<<tolDir<<", tolVal "<<tolVal<<")\n";
+            // Exact by construction: the out-of-plane entry is copied, result.first(2) =
+            // S(2,2), before any branch. tolVal = 1e3 eps kappa^2, with kappa = 1/sin(theta),
+            // follows the growth eps*kappa^2 of the value error documented for _evalPStrain
+            // (gsMaterialMatrixBaseDim.hpp); tolDir on the unit-vector directions scales with
+            // kappa only; 1e3 is the safety factor.
             CHECK(res.first(2) == 0.123);
             CHECK((nn - n).cwiseAbs().maxCoeff() <= tolDir);
             CHECK(std::abs(v0.dot(n)) <= tolDir);
@@ -914,36 +968,64 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
             }
             gsInfo<<"PStrain_Values d="<<d<<" "<<names[s]<<": reference "<<ev.transpose()
                   <<", max rel value err="<<wVal<<", max |P(2)|="<<wOut<<", uniaxial |P(0)|/P(1)="<<wUni<<"\n";
+            // 1e-10 relative to the largest principal strain: round-off of the metric map.
             CHECK(wVal <= 1e-10);
+            // Exact by construction: eval3D_pstrain sets E(2,2) = 0 and _evalPStrain passes
+            // it through unchanged; gsMaterialMatrixLinear does not override it.
             CHECK(wOut == 0);
+            // Uniaxial state (mu = 1, shear = 0): the minor principal strain is 0 in exact
+            // arithmetic, so 1e-12 relative to the major one is round-off headroom.
             if (s==1)
                 CHECK(wUni <= 1e-12);
         }
     }
 
+    // Property: _evalPStrain on E = diag(1, 1e-15, 0.123) separates the in-plane near-zero
+    // principal strain from the out-of-plane entry (d = 2 and d = 3).
+    // Oracle: analytic values (1e-15, 1, 0.123) and directions, see PGuard_zeroPrincipal.
     TEST(PStrain_ZeroPrincipal)
     {
         PGuard_zeroPrincipal<2>();
         PGuard_zeroPrincipal<3>();
     }
 
+    // Property: a NaN or inf in-plane entry of E gives NaN principal values and NaN first
+    // two columns, while E(2,2) and the stored normal pass through.
+    // Oracle: the documented contract of _evalPStrain (gsMaterialMatrixBaseDim.hpp),
+    // see PGuard_nonFinite.
     TEST(PStrain_NonFinite)
     {
         PGuard_nonFinite<2>();
         PGuard_nonFinite<3>();
     }
 
+    // Property: on a parallelogram frame of angle theta = 1e-2..1e-5 with physical strain
+    // b b^T, the principal values are (0, 1), the directions lie in the plane and E(2,2)
+    // passes through. Oracle: analytic, since b b^T has eigenvalues 0 and 1; tolerances
+    // scale with the frame conditioning, see PGuard_finiteNoZero.
     TEST(PStrain_FiniteNoZero)
     {
         PGuard_finiteNoZero();
     }
 
+    // Property: on the regular path eval3D_pstrain equals the principal strains of
+    // eps = (F^T F - I)/2 for an affine F (d = 2 and d = 3).
+    // Oracle: eigenvalues of the analytic C in the (a, b) basis, see PGuard_values.
     TEST(PStrain_Values)
     {
         PGuard_values<2>();
         PGuard_values<3>();
     }
 
+    // Property: _evalPStress on collapsed and near-collapsed frames. In 2D it returns the
+    // finite fallback with N = e3; in 3D, and for non-finite S, it returns all NaN; the
+    // regular anisotropic control (G1 scaled by 1e-6) is unaffected.
+    // Oracle: the contract of _evalPStress (gsMaterialMatrixBaseDim.hpp), and for the
+    // finite cases the eigen-decomposition of Q^T T Q (PGuard_checkFrame). The tolerances
+    // passed to it are 1e-12 for 2D (O(1) frame, no inversion in the fallback) and 1e-10
+    // for (v) (the 1e-6 stretch spreads the entries of T over 12 decades). delta2 = 2^-60
+    // and delta3 = 2^-50 put the near-collapsed frames below the library's 10*eps
+    // degeneracy threshold, which PGuard_checkCollapse verifies.
     TEST(PStress_DegenerateFrame)
     {
         gsMatrix<> S = gsMatrix<>::Zero(3,3);
@@ -1008,6 +1090,11 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
         }
     }
 
+    // Property: _evalPStrain on the collapsed and near-collapsed frames gives NaN in-plane
+    // values and NaN first two columns in 2D and 3D, while E(2,2) and the stored normal
+    // (e3 in 2D) pass through; the regular anisotropic control is finite with in-plane
+    // directions. Oracle: the documented contract of _evalPStrain
+    // (gsMaterialMatrixBaseDim.hpp); the exact comparisons are commented where they occur.
     TEST(PStrain_DegenerateFrame)
     {
         gsMatrix<> E = gsMatrix<>::Zero(3,3);
@@ -1034,10 +1121,15 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
             if (!PGuard_shape(res,3))
                 continue;
             gsInfo<<"  "<<label<<": values "<<res.first.transpose()<<"\n";
+            // Exact by construction: the out-of-plane entry is copied, result.first(2) =
+            // S(2,2), also when the in-plane values are NaN.
             CHECK(res.first(2) == 0.123);
             CHECK(std::isnan(res.first(0)));
             CHECK(std::isnan(res.first(1)));
             CHECK(PGuard_allNaN(res.second.leftCols(2)));
+            // Exact by construction: _evalPStrain copies the stored normal,
+            // result.second.col(2) = gcov.col(2), which the dim-2 metric sets to the
+            // literal (0, 0, 1).
             if (is2D)
                 CHECK(res.second(0,2)==0 && res.second(1,2)==0 && res.second(2,2)==1);
         }
@@ -1052,9 +1144,12 @@ SUITE(gsMaterialMatrixLinear_test)                 // The suite should have the 
             const gsVector<real_t,3> v0 = res.second.col(0), v1 = res.second.col(1);
             gsInfo<<"  (v) 3D regular anisotropic: values "<<res.first.transpose()<<", |col0.n|="
                   <<std::abs(v0.dot(n))<<", |col1.n|="<<std::abs(v1.dot(n))<<"\n";
+            // Exact by construction: the out-of-plane entry is copied, result.first(2) =
+            // S(2,2), before any branch.
             CHECK(res.first(2) == 0.123);
             CHECK(res.first.allFinite());
             CHECK(res.second.allFinite());
+            // 1e-12: dot products of unit vectors, round-off only.
             CHECK(std::abs(v0.dot(n)) <= 1e-12);
             CHECK(std::abs(v1.dot(n)) <= 1e-12);
         }

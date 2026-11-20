@@ -400,11 +400,11 @@ public:
      * @return     Matrix with the result (matrix) ordered per z coordinate per point
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      *             every column has 27 entries. Entry d + 3*(i + 3*l) is dC_il/dx_d: the derivative of entry (i,l)
-     *             of the 3x3 matrix returned by \ref eval3D_matrix with respect to x = (g_11, g_22, 2 g_12), the
+     *             of the 3x3 matrix returned by @ref eval3D_matrix with respect to x = (g_11, g_22, 2 g_12), the
      *             deformed metric in Voigt form with doubled shear entry. Hence eval.reshapeCol(k,3,9) has the
      *             derivative variable d as its row and the column-major matrix entry i+3l as its column.
      *             With respect to the engineering strain E = (E_11, E_22, 2E_12), dC/dE_d = 2 dC/dx_d.
-     *             \ref gsMaterialMatrixLinear returns zeros.
+     *             @ref gsMaterialMatrixLinear returns zeros.
      *
      */
     virtual gsMatrix<T>  eval3D_dmatrix(const index_t /*patch*/, const gsMatrix<T>& /*u*/, const gsMatrix<T>& /*z*/, enum MaterialOutput /*out*/) const
@@ -485,7 +485,7 @@ public:
      *                  [(u1,z1) (u2,z1) ..  (un,z1), (u1,z2) ..  (un,z2), ..,  (u1,zm) .. (un,zm)]
      *
      * @note       Layout: 9 rows, the column-major 3x3 matrix [d_min | d_max | N] of Cartesian unit vectors
-     *             (entry (i,l) in row i+3*l), minor principal direction first (ascending, as \ref eval3D_pstress;
+     *             (entry (i,l) in row i+3*l), minor principal direction first (ascending, as @ref eval3D_pstress;
      *             Verhelst's S_p,1 is Zhang's sigma_2), N = normalise(G_1 x G_2) the unit normal of the reference
      *             (undeformed) configuration at the evaluation point, d_min and d_max Cartesian unit vectors in its
      *             tangent plane, and d_max = N x d_min. Every implementation builds the frame from the reference
@@ -716,7 +716,7 @@ public:
      *
      * W is the strain energy per unit reference volume at the fibre point z; it is not integrated through the thickness.
      * It is normalised such that S = dW/dE holds exactly, with S the second Piola-Kirchhoff stress in Voigt form
-     * (S^11, S^22, S^12) as returned by \ref eval3D_vector and \ref eval3D_vector_C, and E the engineering Voigt strain
+     * (S^11, S^22, S^12) as returned by @ref eval3D_vector and @ref eval3D_vector_C, and E the engineering Voigt strain
      * (E_11, E_22, 2E_12), E_ab = 1/2 (g_ab - G_ab). W(E=0) = 0.
      * For plane stress, W is evaluated at the same condensed state as the stress: C33 = 1/J0^2 for
      * incompressible laws and the C33 of the through-thickness Newton iteration for compressible laws.
@@ -748,7 +748,7 @@ public:
     /**
      * @brief      Evaluates the strain energy W for a given deformed metric, at a single point
      *
-     * Same definition and normalisation as \ref eval3D_energy (per unit reference volume at fibre z,
+     * Same definition and normalisation as @ref eval3D_energy (per unit reference volume at fibre z,
      * S = dW/dE, W(E=0) = 0, plane stress condensed state).
      *
      * @param[in]  Cmat   The deformed covariant metric, a 3x1 unhalved vector [g11, g22, g12]

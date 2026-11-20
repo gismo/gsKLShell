@@ -87,6 +87,12 @@ detail_tftsplit::WrinkleOptions<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrink
                  "gsMaterialMatrixTFTSplit: Option Eta must lie in [0,1], got "<<opt.eta);
     GISMO_ENSURE(opt.slackMultiplier>=0,
                  "gsMaterialMatrixTFTSplit: Option SlackMultiplier must be >= 0, got "<<opt.slackMultiplier);
+    // GISMO_ENSURE throws unless the predicate holds, so NaN options (all comparisons false) are rejected.
+    if (opt.exact)
+        GISMO_ENSURE(opt.exactStagTol >= opt.exactTol && opt.exactTol > 0 && opt.exactMaxIt >= 1,
+                     "gsMaterialMatrixTFTSplit: the options ExactTol, ExactStagTol and ExactMaxIt must satisfy "
+                     "ExactStagTol >= ExactTol > 0 and ExactMaxIt >= 1, got ExactTol = "<<opt.exactTol
+                     <<", ExactStagTol = "<<opt.exactStagTol<<", ExactMaxIt = "<<opt.exactMaxIt);
     return opt;
 }
 
@@ -253,7 +259,8 @@ gsMatrix<T> gsMaterialMatrixTFTSplit<dim,T,linear>::eval3D_detF(const index_t pa
     eval3D_energy_C evaluation per W call and has its own budget of ExactMaxIt S/C calls (see _exactMinimise).
 */
 template <short_t dim, class T, bool linear >
-detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkle(
+template <bool Checked>
+detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::_wrinkleCore(
                                                 const gsMatrix<T> & S,
                                                 const gsMatrix<T> & C,
                                                 const gsMatrix<T> & E,
@@ -270,7 +277,8 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
     GISMO_ASSERT(E.rows()*E.cols()==3,"E must have 3 entries");
     GISMO_ASSERT(Gcov.rows()==2 && Gcov.cols()==2,"Gcov must be 2x2");
     GISMO_ASSERT((C.rows()==3 && C.cols()==3) || (C.rows()*C.cols()==9),"C must be 3x3 or 9x1");
-    if (needEnergy && !linear && !WatE)
+    GISMO_ASSERT(Checked || !(needEnergy && !linear) || WatE,"the energy was requested without a W provider");
+    if (Checked && needEnergy && !linear && !WatE)
         GISMO_ERROR("gsMaterialMatrixTFTSplit::wrinkle: the energy was requested without a W provider");
 
     const T nan = std::numeric_limits<T>::quiet_NaN();
@@ -519,13 +527,18 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
 
     if (!linear && opt.exact && (directionOK || localSolve != 0))
     {
-        if (!SCatE)
+        GISMO_ASSERT(Checked || SCatE,"exact mode requires an S/C provider");
+        GISMO_ASSERT(Checked || (opt.exactStagTol >= opt.exactTol && opt.exactTol > 0 && opt.exactMaxIt >= 1),
+                     "ExactStagTol >= ExactTol > 0 and ExactMaxIt >= 1 required");
+        GISMO_ASSERT(Checked || (opt.exactLocalSolve >= 0 && opt.exactLocalSolve <= 2),
+                     "ExactLocalSolve must be 0, 1 or 2");
+        if (Checked && !SCatE)
             GISMO_ERROR("gsMaterialMatrixTFTSplit::wrinkle: exact mode requires an S/C provider");
-        if (!(opt.exactStagTol >= opt.exactTol && opt.exactTol > 0 && opt.exactMaxIt >= 1))
+        if (Checked && !(opt.exactStagTol >= opt.exactTol && opt.exactTol > 0 && opt.exactMaxIt >= 1))
             GISMO_ERROR("gsMaterialMatrixTFTSplit::wrinkle: the options ExactTol, ExactStagTol and ExactMaxIt must satisfy "
                         "ExactStagTol >= ExactTol > 0 and ExactMaxIt >= 1, got ExactTol = "<<opt.exactTol
                         <<", ExactStagTol = "<<opt.exactStagTol<<", ExactMaxIt = "<<opt.exactMaxIt);
-        if (!(opt.exactLocalSolve >= 0 && opt.exactLocalSolve <= 2))
+        if (Checked && !(opt.exactLocalSolve >= 0 && opt.exactLocalSolve <= 2))
             GISMO_ERROR("gsMaterialMatrixTFTSplit::wrinkle: ExactLocalSolve must be 0, 1 or 2, got "<<opt.exactLocalSolve);
 
         T gE = gam, thE = theta, resNorm = nan;
@@ -782,7 +795,9 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
             {
                 std::vector<gsMatrix<T>> dC;
                 dCdE(dC);
-                GISMO_ENSURE(dC.size()==3,"gsMaterialMatrixTFTSplit: the dC provider must return 3 matrices");
+                GISMO_ASSERT(Checked || dC.size()==3,"the dC provider must return 3 matrices");
+                if (Checked)
+                    GISMO_ENSURE(dC.size()==3,"gsMaterialMatrixTFTSplit: the dC provider must return 3 matrices");
                 for (index_t d = 0; d!=3; ++d)
                     H.col(d) = dC[d] * n1;
             }
@@ -812,6 +827,23 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkl
     if (needTangent)
         res.C = (1 - opt.eta) * J + opt.eta * C3;
     return res;
+}
+
+// Checked entry point to _wrinkleCore: the provider checks and, where the exact branch is reached, the Exact* option checks throw.
+template <short_t dim, class T, bool linear >
+detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::wrinkle(
+                                                const gsMatrix<T> & S,
+                                                const gsMatrix<T> & C,
+                                                const gsMatrix<T> & E,
+                                                const gsMatrix<T> & Gcov,
+                                                const detail_tftsplit::WrinkleOptions<T> & opt,
+                                                bool needTangent,
+                                                const dC_provider & dCdE,
+                                                const SC_provider & SCatE,
+                                                const W_provider & WatE,
+                                                bool needEnergy) const
+{
+    return this->template _wrinkleCore<true>(S,C,E,Gcov,opt,needTangent,dCdE,SCatE,WatE,needEnergy);
 }
 
 /*
@@ -1603,13 +1635,63 @@ std::vector<detail_tftsplit::WrinkleResult<T>> gsMaterialMatrixTFTSplit<dim,T,li
     gsMatrix<T> Gori(2,2), Gdef(2,2);
     gsMatrix<T> Gb(3,2), gb(3,2);
     gsMatrix<T> Ev(3,1);
+
+    // Stress and tangent of the wrapped law at the reference-metric strain, one column per (point, fibre)
+    const gsMatrix<T> Sall = m_materialMat->eval3D_vector(patch,u,z,MaterialOutput::VectorN);
+    const gsMatrix<T> Call = m_materialMat->eval3D_matrix(patch,u,z,MaterialOutput::MatrixA);
+    gsMatrix<T> S(3,1), C(9,1);
+
+    // Providers read the current point and fibre through uk and zz; they are built once.
+    gsVector<T> uk(u.rows());
+    T zz = 0;
+
+    // dC/dE_d from the wrapped material: eval3D_dmatrix has entry d + 3*(i + 3*l) = dC_il/dC_d
+    // and dC/dE_d = 2 dC/dC_d.
+    dC_provider provider;
+    if (!linear)
+        provider = [&](std::vector<gsMatrix<T>> & dC)
+        {
+            const gsMatrix<T> v = m_materialMat->eval3D_dmatrix(patch,uk,zz,MaterialOutput::MatrixA);
+            dC.resize(3);
+            for (index_t d = 0; d!=3; ++d)
+            {
+                dC[d].resize(3,3);
+                for (index_t l = 0; l!=3; ++l)
+                    for (index_t i = 0; i!=3; ++i)
+                        dC[d](i,l) = 2 * v((i+3*l)*3 + d);
+            }
+        };
+
+    SC_provider scProvider;
+    if (!linear && opt.exact)
+        scProvider = [&](const gsMatrix<T> & Eel, gsMatrix<T> & Se, gsMatrix<T> & Ce)
+        {
+            gsMatrix<T> Cm(3,1);
+            Cm(0,0) = Gori(0,0) + 2 * Eel(0,0);
+            Cm(1,0) = Gori(1,1) + 2 * Eel(1,0);
+            Cm(2,0) = Gori(0,1) +     Eel(2,0);
+            Se = m_materialMat->eval3D_vector_C(Cm,patch,uk,zz,MaterialOutput::VectorN);
+            Ce = m_materialMat->eval3D_matrix_C(Cm,patch,uk,zz,MaterialOutput::MatrixA);
+        };
+
+    W_provider wProvider;
+    if (!linear && (needEnergy || opt.exact))
+        wProvider = [&](const gsMatrix<T> & Eel) -> T
+        {
+            gsMatrix<T> Cm(3,1);
+            Cm(0,0) = Gori(0,0) + 2 * Eel(0,0);
+            Cm(1,0) = Gori(1,1) + 2 * Eel(1,0);
+            Cm(2,0) = Gori(0,1) +     Eel(2,0);
+            return m_materialMat->eval3D_energy_C(Cm,patch,uk,zz,MaterialOutput::Generic)(0,0);
+        };
+
     for (index_t k = 0; k!=u.cols(); ++k)
     {
-        const gsVector<T> uk = u.col(k);
+        uk = u.col(k);
         for (index_t j = 0; j!=z.rows(); ++j)
         {
             const index_t colIdx = j*u.cols()+k;
-            const T zz = z(j,k);
+            zz = z(j,k);
 
             this->_getMetric(k, zz * m_data.mine().m_Tmat(0,k));
             if (linear)
@@ -1638,47 +1720,10 @@ std::vector<detail_tftsplit::WrinkleResult<T>> gsMaterialMatrixTFTSplit<dim,T,li
                 gb = m_data.mine().m_gcov_def.leftCols(2);
             }
 
-            const gsMatrix<T> S = m_materialMat->eval3D_vector(patch,uk,zz,MaterialOutput::VectorN);
-            const gsMatrix<T> C = m_materialMat->eval3D_matrix(patch,uk,zz,MaterialOutput::MatrixA);
+            S = Sall.col(colIdx);
+            C = Call.col(colIdx);
 
-            // dC/dE_d from the wrapped material: eval3D_dmatrix has entry d + 3*(i + 3*l) = dC_il/dC_d
-            // and dC/dE_d = 2 dC/dC_d.
-            dC_provider provider;
-            if (!linear)
-                provider = [&](std::vector<gsMatrix<T>> & dC)
-                {
-                    const gsMatrix<T> v = m_materialMat->eval3D_dmatrix(patch,uk,zz,MaterialOutput::MatrixA);
-                    dC.assign(3,gsMatrix<T>(3,3));
-                    for (index_t d = 0; d!=3; ++d)
-                        for (index_t l = 0; l!=3; ++l)
-                            for (index_t i = 0; i!=3; ++i)
-                                dC[d](i,l) = 2 * v((i+3*l)*3 + d);
-                };
-
-            SC_provider scProvider;
-            if (!linear && opt.exact)
-                scProvider = [&](const gsMatrix<T> & Eel, gsMatrix<T> & Se, gsMatrix<T> & Ce)
-                {
-                    gsMatrix<T> Cm(3,1);
-                    Cm(0,0) = Gori(0,0) + 2 * Eel(0,0);
-                    Cm(1,0) = Gori(1,1) + 2 * Eel(1,0);
-                    Cm(2,0) = Gori(0,1) +     Eel(2,0);
-                    Se = m_materialMat->eval3D_vector_C(Cm,patch,uk,zz,MaterialOutput::VectorN);
-                    Ce = m_materialMat->eval3D_matrix_C(Cm,patch,uk,zz,MaterialOutput::MatrixA);
-                };
-
-            W_provider wProvider;
-            if (!linear && (needEnergy || opt.exact))
-                wProvider = [&](const gsMatrix<T> & Eel) -> T
-                {
-                    gsMatrix<T> Cm(3,1);
-                    Cm(0,0) = Gori(0,0) + 2 * Eel(0,0);
-                    Cm(1,0) = Gori(1,1) + 2 * Eel(1,0);
-                    Cm(2,0) = Gori(0,1) +     Eel(2,0);
-                    return m_materialMat->eval3D_energy_C(Cm,patch,uk,zz,MaterialOutput::Generic)(0,0);
-                };
-
-            res[colIdx] = this->wrinkle(S,C,Ev,Gori,opt,needTangent,provider,scProvider,wProvider,needEnergy);
+            res[colIdx] = this->template _wrinkleCore<false>(S,C,Ev,Gori,opt,needTangent,provider,scProvider,wProvider,needEnergy);
             res[colIdx].gdef = Gdef;
             res[colIdx].Gbasis = Gb;
             res[colIdx].gbasis = gb;
@@ -1693,7 +1738,10 @@ std::vector<detail_tftsplit::WrinkleResult<T>> gsMaterialMatrixTFTSplit<dim,T,li
     differences of eval3D_matrix_C in x = (g11, g22, 2 g12), with step h on x. A step h on x_2 is a step
     h/2 on Cmat(2). Since E_1 = (g11 - G11)/2 and E_3 = 2E_12 = g12 - G12 (so dE = dx/2 for each
     component), dC/dE_r = 2 dC/dx_r = (C(x + h e_r) - C(x - h e_r)) / h.
-    Error: O(h^2 |d^4 W|) + (Newton tolerance 1e-10 of the wrapped C33 solve)/h, about 1e-5 relative.
+    The step is relative to the metric scale, h = 1e-5 max_i |Cmat_i|, so that the stencil and the error
+    estimate O(h^2 |d^4 W|) + (Newton tolerance 1e-10 of the wrapped C33 solve)/h scale with the metric.
+    The stencil stays inside the SPD cone as long as the smallest eigenvalue of the metric is not below
+    about 1e-5 of its largest entry.
 */
 template <short_t dim, class T, bool linear >
 detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::_evalCore_C(
@@ -1724,11 +1772,13 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::_evalC
     const gsMatrix<T> S = m_materialMat->eval3D_vector_C(Cmat,patch,u,z,MaterialOutput::VectorN);
     const gsMatrix<T> C = m_materialMat->eval3D_matrix_C(Cmat,patch,u,z,MaterialOutput::MatrixA);
 
+    const T h = T(1e-5) * Cmat.cwiseAbs().maxCoeff();
+    GISMO_ASSERT(h > 0,"the metric Cmat must have a nonzero entry");
+
     dC_provider provider;
     if (!linear)
         provider = [&](std::vector<gsMatrix<T>> & dC)
         {
-            const T h = 1e-5;
             dC.assign(3,gsMatrix<T>(3,3));
             for (index_t r = 0; r!=3; ++r)
             {
@@ -1767,7 +1817,7 @@ detail_tftsplit::WrinkleResult<T> gsMaterialMatrixTFTSplit<dim,T,linear>::_evalC
             return m_materialMat->eval3D_energy_C(Cm,patch,u,z,MaterialOutput::Generic)(0,0);
         };
 
-    return this->wrinkle(S,C,Ev,Gori,opt,needTangent,provider,scProvider,wProvider,needEnergy);
+    return this->template _wrinkleCore<false>(S,C,Ev,Gori,opt,needTangent,provider,scProvider,wProvider,needEnergy);
 }
 
 template <short_t dim, class T, bool linear >
