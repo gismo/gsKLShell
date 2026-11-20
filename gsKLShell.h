@@ -8,6 +8,7 @@
 #include <gsKLShell/src/gsMaterialMatrixLinear.h>
 #include <gsKLShell/src/gsMaterialMatrixNonlinear.h>
 #include <gsKLShell/src/gsMaterialMatrixTFT.h>
+#include <gsKLShell/src/gsMaterialMatrixTFTSplit.h>
 #include <gsKLShell/src/gsMaterialMatrixContainer.h>
 #include <gsKLShell/src/gsMaterialMatrixUtils.h>
 #include <gsKLShell/src/gsMaterialMatrixXml.h>

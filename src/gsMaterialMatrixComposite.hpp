@@ -326,6 +326,44 @@ gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_vector(const index_t patch,
     return result;
 }
 
+template <short_t dim, class T>
+gsMatrix<T> gsMaterialMatrixComposite<dim,T>::eval3D_energy(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T> & z, enum MaterialOutput /*out*/) const
+{
+    // Laminate energy per unit reference area W = 1/2 e:A:e + e:B:k + 1/2 k:D:k, with the
+    // engineering Voigt strain e = [E11,E22,E12+E21] and curvature change k = [K11,K22,K12+K21].
+    // Output: 1 x (u.cols()*z.rows()), column j*u.cols()+k for point k, fibre j
+
+    this->_computePoints(patch,u);
+
+    // The matrix evaluations leave m_data at their last point, so they precede the per-point metric reload.
+    gsMatrix<T> Amat = this->eval3D_matrix(patch,u,z,MaterialOutput::MatrixA);
+    gsMatrix<T> Bmat = this->eval3D_matrix(patch,u,z,MaterialOutput::MatrixB);
+    gsMatrix<T> Dmat = this->eval3D_matrix(patch,u,z,MaterialOutput::MatrixD);
+
+    gsMatrix<T> result(1, u.cols() * z.rows());
+    gsMatrix<T,2,2> E;
+    gsMatrix<T,3,3> A, B, D;
+    gsVector<T,3> eps, kap;
+    for (index_t k = 0; k != u.cols(); ++k)
+    {
+        this->_getMetric(k,0.0);
+
+        E = 0.5*(m_data.mine().m_Acov_def - m_data.mine().m_Acov_ori);
+        eps << E(0,0), E(1,1), E(0,1)+E(1,0);
+        E = m_data.mine().m_Bcov_ori - m_data.mine().m_Bcov_def;
+        kap << E(0,0), E(1,1), E(0,1)+E(1,0);
+
+        A = Amat.reshapeCol(k,3,3);
+        B = Bmat.reshapeCol(k,3,3);
+        D = Dmat.reshapeCol(k,3,3);
+
+        const T w = 0.5*eps.dot(A*eps) + eps.dot(B*kap) + 0.5*kap.dot(D*kap);
+        for (index_t j = 0; j < z.rows(); ++j)
+            result(0, j * u.cols() + k) = w;
+    }
+    return result;
+}
+
 //-----------------------------------------------------------------------------------------------------------------------
 template <short_t dim, class T>
 gsMatrix<T> gsMaterialMatrixComposite<dim,T>::_transformationMatrix(const gsMatrix<T> & phi, const gsMatrix<T> & u) const
