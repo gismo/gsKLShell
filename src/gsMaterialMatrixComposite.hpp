@@ -63,6 +63,8 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
         m_As[k] = memory::make_shared_not_owned(alpha[k]);
         m_Rs[k] = memory::make_shared_not_owned(rho[k]);
     }
+
+    this->_checkPlySymmetry();
 }
 
 template <short_t dim, class T >
@@ -92,6 +94,8 @@ gsMaterialMatrixComposite<dim,T>::gsMaterialMatrixComposite(
         m_Gs[k] = memory::make_shared_not_owned(G[k]);
         m_As[k] = memory::make_shared_not_owned(alpha[k]);
     }
+
+    this->_checkPlySymmetry();
 }
 
 template <short_t dim, class T >
@@ -128,6 +132,32 @@ void gsMaterialMatrixComposite<dim,T>::_initialize(const index_t nLayers)
     m_Gs.resize(m_nLayers);
     m_As.resize(m_nLayers);
     m_Rs.resize(m_nLayers);
+}
+
+template <short_t dim, class T >
+void gsMaterialMatrixComposite<dim,T>::_checkPlySymmetry() const
+{
+    const T relTol = 1e-2;   // relative off-diagonal mismatch accepted (datasheet-rounded Poisson ratios give ~1e-3)
+    const T absTol = 1e-12;  // relative to max|G_ab|: keeps round-off on zero entries (G_02, G_12) from tripping relTol
+    for (index_t p = 0; p != m_patches->nPieces(); ++p)
+    {
+        const gsFunction<T> & geo = static_cast<const gsFunction<T>&>(m_patches->piece(p));
+        const gsMatrix<T> x = geo.eval(geo.parameterCenter());
+        for (index_t k = 0; k != m_nLayers; ++k)
+        {
+            const gsMatrix<T> Gval = m_Gs[k]->piece(p).eval(x);
+            GISMO_ENSURE(Gval.rows()==9 && Gval.cols()==1,
+                         "gsMaterialMatrixComposite: ply "<<k<<", piece "<<p<<": G must be a 9x1 column, got "<<Gval.rows()<<"x"<<Gval.cols());
+            const gsMatrix<T> G = Gval.reshapeCol(0,3,3); // column-major, as in _eval3D_laminate
+            const T floor = absTol * G.cwiseAbs().maxCoeff();
+            for (index_t i = 0; i != 3; ++i)
+                for (index_t j = i+1; j != 3; ++j)
+                    GISMO_ENSURE(math::abs(G(i,j)-G(j,i)) <= relTol*math::max(math::abs(G(i,j)),math::abs(G(j,i))) + floor,
+                                 "gsMaterialMatrixComposite: ply "<<k<<", piece "<<p<<": G("<<i<<","<<j<<") = "<<G(i,j)
+                                 <<" and G("<<j<<","<<i<<") = "<<G(j,i)<<" differ by more than 1%. "
+                                 <<"G must be the symmetric plane-stress ply stiffness, i.e. satisfy nu_yx*E_xx = nu_xy*E_yy.");
+        }
+    }
 }
 
 template <short_t dim, class T >
@@ -268,8 +298,8 @@ void gsMaterialMatrixComposite<dim,T>::_eval3D_laminate(const index_t patch, con
             // Lookup all quantities
             t = Tcontainer[i](0,k);
 
-            // Transform the matrix: T^T D T
-            Dmat = Acontainer[i].reshapeCol(k,3,3).transpose() * Gcontainer[i].reshapeCol(k,3,3) * Acontainer[i].reshapeCol(k,3,3);
+            // Transform the symmetric part of the ply stiffness: T^T sym(G) T, sym(G) = (G + G^T)/2
+            Dmat = Acontainer[i].reshapeCol(k,3,3).transpose() * ( (T)0.5 * (Gcontainer[i].reshapeCol(k,3,3) + Gcontainer[i].reshapeCol(k,3,3).transpose()) ) * Acontainer[i].reshapeCol(k,3,3);
 
             // Signed height of the ply mid-surface above the laminate mid-plane, along the
             // normal n; ply 0 is at the most negative z. B = +sum_i t_i z_i C_i = int z C dz.

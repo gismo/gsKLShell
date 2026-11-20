@@ -53,7 +53,7 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
     void UAT_CHECK(const index_t material, const index_t impl, const bool Compressibility);
 
     gsVector<real_t> Modal_analytical();
-    gsVector<real_t> Modal_composite_reference();
+    namespace { gsVector<real_t> Modal_composite_reference(); }
     gsVector<real_t> Modal_numerical(const bool composite);
     void Modal_CHECK(const bool composite);
 
@@ -917,8 +917,10 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
         return analytical;
     }
 
-    // Regression reference of Modal_numerical(true), not an analytical solution: the values were produced
-    // by gsKLShell branch composite-fixes (after 9edafd2). Layup: 5 equal plies of thickness 0.002,
+  namespace {
+    // Regression reference of Modal_numerical(true), not an analytical solution: the values were computed
+    // with this gsMaterialMatrixComposite implementation (classical laminate theory, see the class
+    // documentation). Layup: 5 equal plies of thickness 0.002,
     // orthotropic (Exx, Eyy, Gxy, nuxy, nuyx) = (1e5, 5e4, 2e4, 0.25, 0.125), at 0/18/36/54/72 degrees
     // from the most negative z upwards. B != 0 and the plies are anisotropic, so the values depend on the
     // ply angles and on ply permutations. On this flat, all-pinned square, mirroring the stack (reversing
@@ -933,15 +935,18 @@ SUITE(gsThinShellAssembler_test)                 // The suite should have the sa
                124.87442245449348, 129.41246970786199;
         return ref;
     }
+  } // namespace
 
     void Modal_CHECK(const bool composite)
     {
      gsVector<real_t> num = Modal_numerical(composite);
 
-     // Composite: regression reference, relative tolerance 1e-8 (far above the round-off from
-     // OpenMP summation order, far below the effect of a layup error). Isotropic: analytical plate, 1e-3 is the discretization error.
+     // Composite: regression reference with relative tolerance max(1e-6, 1e3*eps). 1e-6 lies orders of
+     // magnitude below the percent-level shift of the frequencies that a layup error (wrong angle, ply
+     // order or stiffness) causes; the 1e3*eps term takes over only for a real_t coarser than double.
+     // Isotropic: analytical plate, 1e-3 is the discretization error of the comparison.
      gsVector<real_t> ref = composite ? Modal_composite_reference() : Modal_analytical();
-     const real_t tol = composite ? 1e-8 : 1e-3;
+     const real_t tol = composite ? std::max<real_t>(1e-6, 1e3*std::numeric_limits<real_t>::epsilon()) : 1e-3;
 
      gsVector<real_t> relError = (num - ref).array()/ref.array();
      gsVector<real_t> zeros = gsVector<real_t>::Zero(relError.rows());

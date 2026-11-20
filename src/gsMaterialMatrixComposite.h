@@ -37,7 +37,11 @@ namespace gismo
  *  - thickness: scalar;
  *  - G: the 3x3 Voigt [11,22,12] stiffness in the fibre axes with engineering shear, passed as a
  *    9x1 column. For example, the output of gsCompositeMatrix(Exx,Eyy,Gxy,nuxy,nuyx) reshaped
- *    with G.resize(9,1);
+ *    with G.resize(9,1). G must be the symmetric plane-stress ply stiffness, i.e. satisfy the
+ *    reciprocity nu_yx*E_xx = nu_xy*E_yy. At construction, G is sampled once per patch, at the
+ *    physical image of the patch's parameter centre; an off-diagonal mismatch above 1% relative
+ *    (plus an absolute floor of 1e-12*max|G_ab|) throws. A smaller mismatch is accepted, and the
+ *    symmetric part (G + G^T)/2 is used at every point;
  *  - alpha: the fibre angle in radians, measured in the tangent plane from e1 = a1/|a1| towards
  *    e2 = a^2/|a^2|;
  *  - rho: the density (optional).
@@ -176,6 +180,14 @@ private:
     /// If \a second is not null, it receives MatrixB (9 x u.cols()) from the same loops.
     void _eval3D_laminate(const index_t patch, const gsMatrix<T> & u, enum MaterialOutput out,
                           gsMatrix<T> & primary, gsMatrix<T> * second) const;
+
+    /// Checks the symmetry of the ply stiffness G of every ply, at one sample point per geometry
+    /// patch: the physical image of the patch's parameter centre. For each off-diagonal pair
+    /// (i,j), i<j, it requires |G_ij - G_ji| <= 1e-2 * max(|G_ij|,|G_ji|) + 1e-12 * max_ab |G_ab|
+    /// and throws through GISMO_ENSURE otherwise (also if G is not a 9x1 column or has a NaN off-diagonal entry).
+    /// Because only one point per patch is sampled, a G that is non-symmetric only elsewhere is
+    /// not caught; it is symmetrised in _eval3D_laminate instead.
+    void _checkPlySymmetry() const;
 
 protected:
 

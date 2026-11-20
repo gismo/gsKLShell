@@ -14,7 +14,9 @@
     along the unit normal) is checked against the shell kinematics of the base class, with
     gsMaterialMatrixLinear stresses at physical heights as reference. Contract tests pin the
     per-patch total thickness of thickness_into, the density of density_into, the rejection of
-    MaterialOutput::Generic in eval3D_matrix and the rejection of a laminate without plies.
+    MaterialOutput::Generic in eval3D_matrix and the rejection of a laminate without plies. The
+    ply-symmetry contract is pinned by the rejection of a ply stiffness whose reciprocal
+    off-diagonal entries differ by more than 1% and by the symmetrisation of a smaller mismatch.
 
     This file is part of the G+Smo library.
 
@@ -135,6 +137,21 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
     gsMatrix<> isotropicPly(real_t E, real_t nu)
     {
         return gsCompositeMatrix<real_t>(E,E,E/(2*(1+nu)),nu,nu);
+    }
+
+    // Plane-stress ply matrix of (Exx, Eyy, Gxy, nuxy, nuyx) by the formula of gsCompositeMatrix, but
+    // without its reciprocity assertion. Tests that need a non-symmetric ply stiffness (nuyx*Exx !=
+    // nuxy*Eyy) cannot use gsCompositeMatrix, whose assertion fires first in a Debug build.
+    gsMatrix<> plyMatrixUnchecked(real_t Exx, real_t Eyy, real_t Gxy, real_t nuxy, real_t nuyx)
+    {
+        const real_t den = 1 - nuxy*nuyx;
+        gsMatrix<> G = gsMatrix<>::Zero(3,3);
+        G(0,0) = Exx/den;
+        G(1,1) = Eyy/den;
+        G(2,2) = Gxy;
+        G(0,1) = nuyx*Exx/den;
+        G(1,0) = nuxy*Eyy/den;
+        return G;
     }
 
     // Three interior parameter points (off the patch boundary) at which the tests evaluate the material and its oracle.
@@ -584,10 +601,16 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
         const gsMatrix<> u = pointsInterior();
 
         // Act: A and B of the material and the oracle B, whose plies are stacked from the most
-        // negative z upwards by construction.
+        // negative z upwards by construction; and the MatrixC request of the same material.
         gsMatrix<> A, B, D, Aor, Bor, Dor;
         compositeABD(L,u,A,B,D);
         tensorOracleAtPoints(L.m_ref,u,orthotropicPly(),tply,angles,Aor,Bor,Dor);
+        const gsMatrix<> C = L.m_mm->eval3D_matrix(0,u,zeros(u),MaterialOutput::MatrixC);
+
+        // Check: the material returns B for a MatrixC request, on the same code path as MatrixB
+        // (the isBC branch of eval3D_matrix in gsMaterialMatrixComposite.hpp), so the two agree to round-off. The entries of B
+        // are O(1e-2) here, so the absolute tolerance identityTol() is still tight.
+        CHECK_MATRIX_CLOSE(B,C,tol);
 
         // Check: B is non-vacuous and equal to the oracle, so a sign or stacking error cannot hide.
         for (index_t k = 0; k != u.cols(); ++k)
@@ -961,5 +984,109 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
         // Act + Check: the 4-argument and the 5-argument (with rho) constructor both throw.
         CHECK_THROW(Composite3(mp,Ts,Gs,As), std::runtime_error);
         CHECK_THROW(Composite3(mp,Ts,Gs,As,Rs), std::runtime_error);
+    }
+
+    // A ply stiffness whose reciprocal off-diagonal entries differ by far more than 1% (here a factor
+    // of two) is a modelling error, not rounding, and must be rejected by both constructors in every
+    // build type. The rejection is a GISMO_ENSURE, which throws std::runtime_error in Release as well,
+    // so CHECK_THROW(..., std::runtime_error) is valid. The construction with a consistent ply stiffness
+    // shows that the fixture is valid and that the ply stiffness is what causes the throw.
+    TEST(Composite_InconsistentPly_ConstructionThrows)
+    {
+        typedef gsMaterialMatrixComposite<3,real_t> Composite3;
+        // Set-up: a unit square in R^3 and one constant ply of each of thickness, angle and density.
+        // The inconsistent ply has nu_xy = nu_yx = 0.25 with Exx = 200 != Eyy = 100, so
+        // G01 = nu_yx Exx/(1-nu_xy nu_yx) = 53.3 and G10 = nu_xy Eyy/(1-nu_xy nu_yx) = 26.7 differ by a
+        // factor of two. The consistent ply (nu_yx = 0.125) has G01 = G10 = 25/0.96875 = 25.8.
+        gsMultiPatch<> mp;
+        mp.addPatch( gsNurbsCreator<>::BSplineSquare(1) );
+        mp.embed(3);
+        gsConstantFunction<> thick(0.01,3), angle(0.0,3), rho(1.0,3);
+        gsMatrix<> Gbad = plyMatrixUnchecked(200.0,100.0,40.0,0.25,0.25);
+        gsMatrix<> Gok  = orthotropicPly();
+        Gbad.resize(9,1);
+        Gok.resize(9,1);
+        gsConstantFunction<> GbadFun(Gbad,3), GokFun(Gok,3);
+
+        std::vector<gsFunctionSet<real_t>*> Ts(1,&thick), As(1,&angle), Rs(1,&rho);
+        std::vector<gsFunctionSet<real_t>*> GsBad(1,&GbadFun), GsOk(1,&GokFun);
+
+        // Act + Check: the 4-argument and the 5-argument (with rho) constructor both reject the
+        // inconsistent ply.
+        CHECK_THROW(Composite3(mp,Ts,GsBad,As), std::runtime_error);
+        CHECK_THROW(Composite3(mp,Ts,GsBad,As,Rs), std::runtime_error);
+
+        // Control: the consistent ply constructs with both constructors. Outside CHECK_THROW, so an
+        // exception here fails the test instead of being swallowed.
+        Composite3 ok4(mp,Ts,GsOk,As);
+        Composite3 ok5(mp,Ts,GsOk,As,Rs);
+    }
+
+    // A ply stiffness with a reciprocity mismatch of about 1e-3 (the size that datasheet-rounded
+    // Poisson ratios produce) lies a factor ten below the 1% rejection threshold, so construction must
+    // succeed, and the material must then behave exactly like the laminate built from the symmetric
+    // part (G + G^T)/2. This is checked on the skewed, lifted patch against a second laminate whose ply
+    // matrices are the explicitly symmetrised ones, to identityTol().
+    TEST(Skewed_SlightlyAsymmetricPly_EqualsSymmetricPart)
+    {
+        const real_t tply = 0.02, tol = identityTol();
+        const gsMatrix<> u = pointsInterior();
+        const std::vector<real_t> angles = mixedAngles();
+
+        // Set-up: the orthotropic ply with G(1,0) raised by 1e-3 relative, and its symmetric part. The
+        // two off-diagonal entries of G differ by about 1e-3 G01 while those of Gsym coincide.
+        gsMatrix<> G = orthotropicPly();
+        G(1,0) *= 1 + 1e-3;
+        const gsMatrix<> Gsym = 0.5*(G + gsMatrix<>(G.transpose()));
+        Laminate<3> L(angles,tply,G,true);
+        Laminate<3> Lsym(angles,tply,Gsym,true);
+        checkSkewGuards(geometryGuards(L.m_ref,u,true),true);
+
+        // Act: the laminate matrices of both materials.
+        gsMatrix<> A, B, D, Asym, Bsym, Dsym;
+        compositeABD(L,u,A,B,D);
+        compositeABD(Lsym,u,Asym,Bsym,Dsym);
+
+        // Check: A, B and D agree with those of the symmetric-part laminate to identityTol(), A and D
+        // relative to their own norm and B relative to |A| t_tot (B has no sign-definite scale).
+        // Non-vacuity: G and Gsym differ by 5e-4 relative in each off-diagonal entry. A reference built
+        // from the upper triangle of G instead of Gsym moves A and D by about 4e-5 relative, five orders
+        // above this tolerance.
+        for (index_t k = 0; k != u.cols(); ++k)
+        {
+            CHECK_CLOSE(0.0, diffAt(A,Asym,k)/normAt(Asym,k), tol);
+            CHECK_CLOSE(0.0, diffAt(D,Dsym,k)/normAt(Dsym,k), tol);
+            CHECK_CLOSE(0.0, diffAt(B,Bsym,k)/(normAt(Asym,k)*L.m_tTotal), tol);
+        }
+    }
+
+    // A, B and D of a laminate with a 1e-3 reciprocity mismatch in the ply stiffness are symmetric. A
+    // symmetric A, B, D is what makes the stress resultants N = A eps + B kappa, M = B^T eps + D kappa
+    // derive from one energy, so that the residual and the tangent of the shell agree.
+    TEST(Skewed_SlightlyAsymmetricPly_ABD_Symmetric)
+    {
+        const real_t tol = identityTol();
+        const gsMatrix<> u = pointsInterior();
+
+        // Set-up: the same unsymmetric ply as in the previous test, on the skewed, lifted patch with
+        // the three distinct angles (B != 0).
+        gsMatrix<> G = orthotropicPly();
+        G(1,0) *= 1 + 1e-3;
+        Laminate<3> L(mixedAngles(),0.02,G,true);
+        checkSkewGuards(geometryGuards(L.m_ref,u,true),true);
+
+        // Act: the laminate matrices of the material.
+        gsMatrix<> A, B, D;
+        compositeABD(L,u,A,B,D);
+
+        // Check: |M - M^T| vanishes relative to |A|, |D| and, for B, to |A| t_tot, to identityTol(),
+        // with the scaling of Skewed_ABD_Symmetric. The 1e-3 mismatch of G itself would give an
+        // asymmetry of about 1.5e-4 relative (that of G), so the tolerance is six orders below it.
+        for (index_t k = 0; k != u.cols(); ++k)
+        {
+            CHECK_CLOSE(0.0, asymmetryAt(A,k)/normAt(A,k), tol);
+            CHECK_CLOSE(0.0, asymmetryAt(D,k)/normAt(D,k), tol);
+            CHECK_CLOSE(0.0, asymmetryAt(B,k)/(normAt(A,k)*L.m_tTotal), tol);
+        }
     }
 }
