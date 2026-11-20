@@ -140,8 +140,8 @@ SUITE(gsMaterialMatrixComposite_test)                 // The suite should have t
     }
 
     // Plane-stress ply matrix of (Exx, Eyy, Gxy, nuxy, nuyx) by the formula of gsCompositeMatrix, but
-    // without its reciprocity assertion. Tests that need a non-symmetric ply stiffness (nuyx*Exx !=
-    // nuxy*Eyy) cannot use gsCompositeMatrix, whose assertion fires first in a Debug build.
+    // without its reciprocity check. Tests that need a non-symmetric ply stiffness (nuyx*Exx !=
+    // nuxy*Eyy) cannot use gsCompositeMatrix: it symmetrises a mismatch below 1% and throws above it.
     gsMatrix<> plyMatrixUnchecked(real_t Exx, real_t Eyy, real_t Gxy, real_t nuxy, real_t nuyx)
     {
         const real_t den = 1 - nuxy*nuyx;
