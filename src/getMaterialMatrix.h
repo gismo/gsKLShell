@@ -26,6 +26,31 @@ namespace gismo
 {
 
 
+/**
+ * @brief Plane-stress stiffness matrix of an orthotropic ply in its material axes (x,y)
+ *
+ * Returns the 3x3 matrix G relating (sigma_xx, sigma_yy, sigma_xy) to
+ * (eps_xx, eps_yy, gamma_xy):
+ * \f[
+ *   G = \frac{1}{1-\nu_{xy}\nu_{yx}}
+ *       \begin{bmatrix} E_{xx} & \nu_{yx}E_{xx} & 0 \\
+ *                       \nu_{xy}E_{yy} & E_{yy} & 0 \\
+ *                       0 & 0 & (1-\nu_{xy}\nu_{yx})G_{xy} \end{bmatrix}.
+ * \f]
+ * G is symmetric only if the Poisson ratios satisfy the reciprocity relation
+ * \f$\nu_{yx}E_{xx} = \nu_{xy}E_{yy}\f$ (Maxwell–Betti). Datasheet values are
+ * usually rounded, so the relation is enforced up to a relative mismatch of 1%:
+ * within it, both off-diagonal entries are set to their mean and G is exactly
+ * symmetric; beyond it, the input is inconsistent (typically \f$\nu_{xy}=\nu_{yx}\f$
+ * with \f$E_{xx}\neq E_{yy}\f$) and the function throws.
+ *
+ * @param Exx   Young's modulus in the x (fibre) direction
+ * @param Eyy   Young's modulus in the y (transverse) direction
+ * @param Gxy   In-plane shear modulus
+ * @param nuxy  Poisson ratio: contraction in y under stress in x
+ * @param nuyx  Poisson ratio: contraction in x under stress in y
+ * @throws std::runtime_error if \f$|\nu_{yx}E_{xx}-\nu_{xy}E_{yy}| > 10^{-2}\max(|\nu_{yx}E_{xx}|,|\nu_{xy}E_{yy}|)\f$
+ */
 template<class T>
 gsMatrix<T> gsCompositeMatrix(  const T Exx,
                               const T Eyy,
@@ -34,9 +59,12 @@ gsMatrix<T> gsCompositeMatrix(  const T Exx,
                               const T nuyx
                             )
 {
-    GISMO_ASSERT(nuyx*Exx == nuxy*Eyy, "No symmetry in material properties for ply! (nu12*E2!=nu21*E1):\n"<<
-            "\tnu12 = "<<nuxy<<"\t E22 = "<<Eyy<<"\t nu12*E22 = "<<nuxy*Eyy<<"\n"
-          <<"\tnu21 = "<<nuyx<<"\t E11 = "<<Exx<<"\t nu21*E11 = "<<nuyx*Exx);
+    const T a = nuyx*Exx;
+    const T b = nuxy*Eyy;
+    GISMO_ENSURE(math::abs(a-b) <= (T)1e-2 * math::max(math::abs(a),math::abs(b)),
+            "No symmetry in material properties for ply! (nu12*E2!=nu21*E1 within 1%):\n"<<
+            "\tnu12 = "<<nuxy<<"\t E22 = "<<Eyy<<"\t nu12*E22 = "<<b<<"\n"
+          <<"\tnu21 = "<<nuyx<<"\t E11 = "<<Exx<<"\t nu21*E11 = "<<a);
 
     gsMatrix<T> G(3,3);
     G.setZero();
@@ -44,8 +72,7 @@ gsMatrix<T> gsCompositeMatrix(  const T Exx,
     G(0,0) = Exx / (1-nuxy*nuyx);
     G(1,1) = Eyy / (1-nuxy*nuyx);
     G(2,2) = Gxy;
-    G(0,1) = nuyx*Exx / (1-nuxy*nuyx);
-    G(1,0) = nuxy*Eyy / (1-nuxy*nuyx);
+    G(0,1) = G(1,0) = (T)0.5 * (a+b) / (1-nuxy*nuyx);
     G(2,0) = G(0,2) = G(2,1) = G(1,2) = 0.0;
     return G;
 }

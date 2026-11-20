@@ -25,7 +25,33 @@ namespace gismo
 {
 
 /**
- * @brief      This class defines a linear material laminate
+ * @brief      This class defines a linear material laminate (classical laminate theory)
+ *
+ * The laminate consists of plies stacked along the unit normal n = a1 x a2 / |a1 x a2|
+ * for dim == 3. For dim == 2 (a planar mid-surface), n = e3 = (0,0,1) whatever the
+ * orientation of the parametrisation, and z is measured along e3. Ply 0 is the ply at the
+ * most negative z along n, the last ply is at the most positive z. A planar membrane
+ * analysis has kappa = 0, so B (and with it the ply order) does not enter N.
+ *
+ * Per ply, the following functions are given and evaluated at physical points:
+ *  - thickness: scalar;
+ *  - G: the 3x3 Voigt [11,22,12] stiffness in the fibre axes with engineering shear, passed as a
+ *    9x1 column. For example, the output of gsCompositeMatrix(Exx,Eyy,Gxy,nuxy,nuyx) reshaped
+ *    with G.resize(9,1). G must be the symmetric plane-stress ply stiffness, i.e. satisfy the
+ *    reciprocity nu_yx*E_xx = nu_xy*E_yy. At construction, G is sampled once per patch, at the
+ *    physical image of the patch's parameter centre; an off-diagonal mismatch above 1% relative
+ *    (plus an absolute floor of 1e-12*max|G_ab|) throws. A smaller mismatch is accepted, and the
+ *    symmetric part (G + G^T)/2 is used at every point;
+ *  - alpha: the fibre angle in radians, measured in the tangent plane from e1 = a1/|a1| towards
+ *    e2 = a^2/|a^2|;
+ *  - rho: the density (optional).
+ *
+ * The matrices A, B and D are returned through-thickness integrated (MatIntegration::Integrated)
+ * in contravariant components, with A = sum_i t_i C_i, B = sum_i t_i z_i C_i and
+ * D = sum_i (t_i z_i^2 + t_i^3/12) C_i, where t_i is the thickness of ply i, C_i its rotated
+ * stiffness in contravariant components and z_i the signed height of its mid-surface above the
+ * laminate mid-plane. The vectors are N = A eps + B kappa and M = B^T eps + D kappa,
+ * with eps the membrane strain and kappa = b_ori - b_def the curvature change.
  *
  * @tparam     dim   The dimension of the problem (2 = planar, 3 = surface)
  * @tparam     T     Real type
@@ -46,15 +72,18 @@ public:
 
     typedef typename Base::function_ptr function_ptr;
 
-    /** @brief Constructor of the assembler object.
-
-        \param[in] ...
-        \param[in] ...
-
-    */
     /// Default empty constructor
     gsMaterialMatrixComposite() { }
 
+    /** @brief Constructor of the laminate with density.
+
+        @param[in] mp         The undeformed geometry
+        @param[in] thickness  Per-ply scalar thickness, ply 0 at the most negative z
+        @param[in] G          Per-ply 3x3 Voigt [11,22,12] stiffness in fibre axes (engineering
+                              shear), as a 9x1 column
+        @param[in] alpha      Per-ply fibre angle in radians, from e1 = a1/|a1| towards e2 = a^2/|a^2|
+        @param[in] rho        Per-ply density
+    */
     gsMaterialMatrixComposite(
                             const gsFunctionSet<T>                              & mp,
                             const std::vector< gsFunctionSet<T> *>              & thickness,
@@ -62,6 +91,14 @@ public:
                             const std::vector< gsFunctionSet<T> *>              & alpha,
                             const std::vector< gsFunctionSet<T> *>              & rho           );
 
+    /** @brief Constructor of the laminate without density.
+
+        @param[in] mp         The undeformed geometry
+        @param[in] thickness  Per-ply scalar thickness, ply 0 at the most negative z
+        @param[in] G          Per-ply 3x3 Voigt [11,22,12] stiffness in fibre axes (engineering
+                              shear), as a 9x1 column
+        @param[in] alpha      Per-ply fibre angle in radians, from e1 = a1/|a1| towards e2 = a^2/|a^2|
+    */
     gsMaterialMatrixComposite(
                             const gsFunctionSet<T>                              & mp,
                             const std::vector< gsFunctionSet<T> *>              & thickness,
@@ -87,6 +124,8 @@ public:
     void pstressDir_into(const index_t /*patch*/, const gsMatrix<T>& /*u*/, gsMatrix<T>& /*result*/) const override
     {GISMO_NO_IMPLEMENTATION;}
 
+    /// Total laminate thickness, i.e. the sum of the ply thicknesses on patch \a patch.
+    /// \a result is resized to \f$1 \times\f$ \a u.cols().
     void thickness_into(const index_t patch, const gsMatrix<T> & u, gsMatrix<T>& result) const override;
 
     /// See \ref gsMaterialMatrixBase for details
@@ -105,6 +144,11 @@ public:
     void pstressTransform_into(const index_t /*patch*/, const gsMatrix<T> & /*u*/, gsMatrix<T>& /*result*/) const
     {GISMO_NO_IMPLEMENTATION;}
 
+    /// Through-thickness integrated laminate matrices. \a z is ignored.
+    /// Returns a \f$9 \times\f$ \a u.cols() matrix whose column \a k is the 3x3 Voigt matrix
+    /// (column-major) in contravariant components at point \a k:
+    /// A for MaterialOutput::MatrixA, B for MatrixB and MatrixC, D for MatrixD.
+    /// Throws for any other \a out, including the default MaterialOutput::Generic.
     gsMatrix<T> eval3D_matrix(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
     using Base::eval3D_matrix;
     gsMatrix<T> eval3D_vector(const index_t patch, const gsMatrix<T> & u, const gsMatrix<T>& z, enum MaterialOutput out = MaterialOutput::Generic) const override;
@@ -129,9 +173,21 @@ protected:
     void _defaultOptions();
 
     gsMatrix<T> _transformationMatrix(const gsMatrix<T> & phi, const gsMatrix<T> & u) const;
-    // NOTE: it could be that these matrices should be transposed!!
-    gsMatrix<T> _cart2cov(const gsVector<T> & a1, const gsVector<T> & a2, const gsVector<T> & e1, const gsVector<T> & e2) const;
-    gsMatrix<T> _con2cart(const gsVector<T> & ac1, const gsVector<T> & ac2, const gsVector<T> & e1, const gsVector<T> & e2) const;
+
+private:
+    /// Laminate matrices at the points \a u of \a patch, in one pass over points and plies.
+    /// \a primary (9 x u.cols()) receives the matrix selected by \a out (MatrixA, MatrixB, MatrixC or MatrixD).
+    /// If \a second is not null, it receives MatrixB (9 x u.cols()) from the same loops.
+    void _eval3D_laminate(const index_t patch, const gsMatrix<T> & u, enum MaterialOutput out,
+                          gsMatrix<T> & primary, gsMatrix<T> * second) const;
+
+    /// Checks the symmetry of the ply stiffness G of every ply, at one sample point per geometry
+    /// patch: the physical image of the patch's parameter centre. For each off-diagonal pair
+    /// (i,j), i<j, it requires |G_ij - G_ji| <= 1e-2 * max(|G_ij|,|G_ji|) + 1e-12 * max_ab |G_ab|
+    /// and throws through GISMO_ENSURE otherwise (also if G is not a 9x1 column or has a NaN off-diagonal entry).
+    /// Because only one point per patch is sampled, a G that is non-symmetric only elsewhere is
+    /// not caught; it is symmetrised in _eval3D_laminate instead.
+    void _checkPlySymmetry() const;
 
 protected:
 
